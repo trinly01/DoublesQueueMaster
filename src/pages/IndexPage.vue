@@ -182,7 +182,7 @@
 
       // Save to localStorage
       savePlayersToStorage(players.value);
-      saveQueueToStorage(queue.value); // Save queue
+      saveQueueToStorage(queue.value);
 
       // Reset form inputs
       newPlayerName.value = null;
@@ -209,15 +209,13 @@
 
       if (player1 && teammate1 && player2 && teammate2) {
         matches.push([player1, teammate1, player2, teammate2]);
-
-        // Remove players from queue after matching
         queue.value = queue.value.filter(p => ![player1.name, teammate1.name, player2.name, teammate2.name].includes(p.name));
       } else {
         break;
       }
     }
 
-    // Match Level 2 + Level 3 pairs against Level 2 + Level 3
+    // Match Level 2 + Level 3 pairs only against Level 2 + Level 3 pairs
     while (level2Players.length > 0 && level3Players.length > 0) {
       const player1 = level2Players.shift();
       const teammate1 = level3Players.shift();
@@ -226,15 +224,13 @@
 
       if (player1 && teammate1 && player2 && teammate2) {
         matches.push([player1, teammate1, player2, teammate2]);
-
-        // Remove players from queue after matching
         queue.value = queue.value.filter(p => ![player1.name, teammate1.name, player2.name, teammate2.name].includes(p.name));
       } else {
         break;
       }
     }
 
-    // Match remaining Level 2 players against each other
+    // Match remaining Level 2 players against each other if possible
     while (level2Players.length >= 4) {
       const player1 = level2Players.shift()!;
       const teammate1 = level2Players.shift()!;
@@ -242,11 +238,10 @@
       const teammate2 = level2Players.shift()!;
 
       matches.push([player1, teammate1, player2, teammate2]);
-
       queue.value = queue.value.filter(p => ![player1.name, teammate1.name, player2.name, teammate2.name].includes(p.name));
     }
 
-    // Match remaining Level 3 players against each other
+    // Match remaining Level 3 players against each other if possible
     while (level3Players.length >= 4) {
       const player1 = level3Players.shift()!;
       const teammate1 = level3Players.shift()!;
@@ -254,7 +249,6 @@
       const teammate2 = level3Players.shift()!;
 
       matches.push([player1, teammate1, player2, teammate2]);
-
       queue.value = queue.value.filter(p => ![player1.name, teammate1.name, player2.name, teammate2.name].includes(p.name));
     }
 
@@ -286,7 +280,7 @@
 
     // Save updated state to localStorage
     saveMatchesToStorage(matches.value);
-    savePlayersToStorage(players.value); // Save updated players to localStorage
+    savePlayersToStorage(players.value);
   };
 
   // Remove player from the players list and the queue
