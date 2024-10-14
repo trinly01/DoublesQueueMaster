@@ -197,36 +197,64 @@
 
     // Separate players by levels
     const level1Players = queueCopy.filter(p => p.level === 1);
-    const higherLevelPlayers = queueCopy.filter(p => p.level > 1);
+    const level2Players = queueCopy.filter(p => p.level === 2);
+    const level3Players = queueCopy.filter(p => p.level === 3);
 
     // Match level 1 players with level 2 or 3 players (doubles format)
-    while (level1Players.length > 0) {
-      const player1 = level1Players.shift(); // Get the first player from level 1
-      const teammate1 = higherLevelPlayers.shift(); // Get the first higher level player
-      const player2 = level1Players.shift(); // Get the next player from level 1
-      const teammate2 = higherLevelPlayers.shift(); // Get the next higher level player
+    while (level1Players.length > 0 && (level2Players.length > 0 || level3Players.length > 0)) {
+      const player1 = level1Players.shift();
+      const teammate1 = level2Players.length > 0 ? level2Players.shift() : level3Players.shift();
+      const player2 = level1Players.shift();
+      const teammate2 = level2Players.length > 0 ? level2Players.shift() : level3Players.shift();
 
-      // Ensure that all players are unique
       if (player1 && teammate1 && player2 && teammate2) {
         matches.push([player1, teammate1, player2, teammate2]);
 
         // Remove players from queue after matching
         queue.value = queue.value.filter(p => ![player1.name, teammate1.name, player2.name, teammate2.name].includes(p.name));
       } else {
-        break; // Break if there are not enough players to match
+        break;
       }
     }
 
-    // Handle remaining level 2 and 3 players in doubles
-    while (higherLevelPlayers.length >= 4) {
-      const player1 = higherLevelPlayers.shift()!;
-      const teammate1 = higherLevelPlayers.shift()!;
-      const player2 = higherLevelPlayers.shift()!;
-      const teammate2 = higherLevelPlayers.shift()!;
+    // Match Level 2 + Level 3 pairs against Level 2 + Level 3
+    while (level2Players.length > 0 && level3Players.length > 0) {
+      const player1 = level2Players.shift();
+      const teammate1 = level3Players.shift();
+      const player2 = level2Players.shift();
+      const teammate2 = level3Players.shift();
+
+      if (player1 && teammate1 && player2 && teammate2) {
+        matches.push([player1, teammate1, player2, teammate2]);
+
+        // Remove players from queue after matching
+        queue.value = queue.value.filter(p => ![player1.name, teammate1.name, player2.name, teammate2.name].includes(p.name));
+      } else {
+        break;
+      }
+    }
+
+    // Match remaining Level 2 players against each other
+    while (level2Players.length >= 4) {
+      const player1 = level2Players.shift()!;
+      const teammate1 = level2Players.shift()!;
+      const player2 = level2Players.shift()!;
+      const teammate2 = level2Players.shift()!;
 
       matches.push([player1, teammate1, player2, teammate2]);
 
-      // Remove players from queue after matching
+      queue.value = queue.value.filter(p => ![player1.name, teammate1.name, player2.name, teammate2.name].includes(p.name));
+    }
+
+    // Match remaining Level 3 players against each other
+    while (level3Players.length >= 4) {
+      const player1 = level3Players.shift()!;
+      const teammate1 = level3Players.shift()!;
+      const player2 = level3Players.shift()!;
+      const teammate2 = level3Players.shift()!;
+
+      matches.push([player1, teammate1, player2, teammate2]);
+
       queue.value = queue.value.filter(p => ![player1.name, teammate1.name, player2.name, teammate2.name].includes(p.name));
     }
 
@@ -263,18 +291,16 @@
 
   // Remove player from the players list and the queue
   const removePlayer = (name: string) => {
-    // Remove player from players array
     players.value = players.value.filter(player => player.name !== name);
-    // Remove player from the queue
     queue.value = queue.value.filter(player => player.name !== name);
-    savePlayersToStorage(players.value); // Save updated players to localStorage
-    saveQueueToStorage(queue.value); // Save updated queue to localStorage
+    savePlayersToStorage(players.value);
+    saveQueueToStorage(queue.value);
   };
 
   // Remove player from the queue
   const removeFromQueue = (name: string) => {
     queue.value = queue.value.filter(player => player.name !== name);
-    saveQueueToStorage(queue.value); // Save updated queue to localStorage
+    saveQueueToStorage(queue.value);
   };
 
   // Reset games played for all players
@@ -282,15 +308,15 @@
     players.value.forEach(player => {
       player.gamesPlayed = 0;
     });
-    savePlayersToStorage(players.value); // Save updated players to localStorage
+    savePlayersToStorage(players.value);
   };
 
   // Requeue player
   const requeuePlayer = (name: string) => {
     const player = players.value.find(p => p.name === name);
     if (player) {
-      queue.value.push(player); // Requeue the player to the back of the queue
-      saveQueueToStorage(queue.value); // Save updated queue to localStorage
+      queue.value.push(player);
+      saveQueueToStorage(queue.value);
     }
   };
 </script>
