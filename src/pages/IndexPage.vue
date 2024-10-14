@@ -20,8 +20,10 @@
 
       <!-- Players Section -->
       <q-card flat bordered class="q-mb-md">
-        <q-card-section>
-          <div class="text-h6">Players Added</div>
+        <q-card-section class="row">
+          <div class="text-h6">Players Added </div>
+          <q-space />
+          <q-btn color="secondary" @click="resetGamesPlayed" icon="refresh" />
         </q-card-section>
         <q-card-section>
           <q-list bordered>
@@ -32,8 +34,12 @@
                   {{ player.name }}
                 </q-chip>
               </q-item-section>
-              <q-item-section side>
-                <q-btn flat color="secondary" @click="requeuePlayer(player.name)" icon="refresh" label="Requeue" />
+              <q-item-section side class="row">
+                <div>
+                  <q-btn flat round color="negative" @click="removePlayer(player.name)" icon="delete" />
+                  <q-btn flat color="secondary" @click="requeuePlayer(player.name)" icon="add_to_queue"
+                    label="Requeue" />
+                </div>
               </q-item-section>
             </q-item>
           </q-list>
@@ -50,9 +56,7 @@
           <q-list bordered>
             <q-item v-for="player in queue" :key="player.name" class="q-pa-xs">
               <q-item-section>
-                <!-- <div>{{ player.name }} - Level {{ player.level }} - Games: {{ player.gamesPlayed }}</div> -->
-
-                <q-chip class="q-mr-sm">
+                <q-chip class="q-mr-sm" removable @remove="removeFromQueue(player.name)">
                   <q-avatar :color="getLevelColor(player.level)" text-color="white">{{ player.gamesPlayed }}</q-avatar>
                   {{ player.name }}
                 </q-chip>
@@ -111,7 +115,7 @@
 
   // State: Players, Queue, and Matches
   const players = ref<Player[]>(getPlayersFromStorage());
-  const queue = ref<Player[]>([...players.value]); // Initialize queue with all players
+  const queue = ref<Player[]>(getQueueFromStorage()); // Initialize queue from localStorage
   const matches = ref<Player[][]>(getMatchesFromStorage());
   const newPlayerName = ref<string | null>(null);
   const newPlayerLevel = ref<1 | 2 | 3 | null>(null);
@@ -133,41 +137,34 @@
   // Load players from localStorage
   function getPlayersFromStorage(): Player[] {
     const players = localStorage.getItem('playerList');
-    try {
-      return players ? JSON.parse(players) : [];
-    } catch (error) {
-      console.error('Error loading players from storage:', error);
-      return [];
-    }
+    return players ? JSON.parse(players) : [];
+  }
+
+  // Load queue from localStorage
+  function getQueueFromStorage(): Player[] {
+    const queue = localStorage.getItem('playerQueue');
+    return queue ? JSON.parse(queue) : [];
   }
 
   // Load matches from localStorage
   function getMatchesFromStorage(): Player[][] {
     const matches = localStorage.getItem('matches');
-    try {
-      return matches ? JSON.parse(matches) : [];
-    } catch (error) {
-      console.error('Error loading matches from storage:', error);
-      return [];
-    }
+    return matches ? JSON.parse(matches) : [];
   }
 
   // Save players to localStorage
   function savePlayersToStorage(players: Player[]): void {
-    try {
-      localStorage.setItem('playerList', JSON.stringify(players));
-    } catch (error) {
-      console.error('Error saving players to storage:', error);
-    }
+    localStorage.setItem('playerList', JSON.stringify(players));
+  }
+
+  // Save queue to localStorage
+  function saveQueueToStorage(queue: Player[]): void {
+    localStorage.setItem('playerQueue', JSON.stringify(queue));
   }
 
   // Save matches to localStorage
   function saveMatchesToStorage(matches: Player[][]): void {
-    try {
-      localStorage.setItem('matches', JSON.stringify(matches));
-    } catch (error) {
-      console.error('Error saving matches to storage:', error);
-    }
+    localStorage.setItem('matches', JSON.stringify(matches));
   }
 
   // Add new player
@@ -181,10 +178,11 @@
 
       // Add player to players list and queue
       players.value.push(newPlayer);
-      queue.value.push(newPlayer); // Ensure new players are added to the back of the queue
+      queue.value.push(newPlayer);
 
       // Save to localStorage
       savePlayersToStorage(players.value);
+      saveQueueToStorage(queue.value); // Save queue
 
       // Reset form inputs
       newPlayerName.value = null;
@@ -195,8 +193,6 @@
   // Generate matches from the queue
   const generateMatches = (): Player[][] => {
     const matches: Player[][] = [];
-
-    // Make a copy of the queue while maintaining FIFO
     const queueCopy = [...queue.value];
 
     // Separate players by levels
@@ -210,10 +206,14 @@
       const player2 = level1Players.shift(); // Get the next player from level 1
       const teammate2 = higherLevelPlayers.shift(); // Get the next higher level player
 
+      // Ensure that all players are unique
       if (player1 && teammate1 && player2 && teammate2) {
         matches.push([player1, teammate1, player2, teammate2]);
+
         // Remove players from queue after matching
         queue.value = queue.value.filter(p => ![player1.name, teammate1.name, player2.name, teammate2.name].includes(p.name));
+      } else {
+        break; // Break if there are not enough players to match
       }
     }
 
@@ -223,6 +223,7 @@
       const teammate1 = higherLevelPlayers.shift()!;
       const player2 = higherLevelPlayers.shift()!;
       const teammate2 = higherLevelPlayers.shift()!;
+
       matches.push([player1, teammate1, player2, teammate2]);
 
       // Remove players from queue after matching
@@ -236,16 +237,20 @@
   const generateNewMatches = () => {
     const newMatches = generateMatches();
     matches.value = [...matches.value, ...newMatches];
+    saveQueueToStorage(queue.value);
     saveMatchesToStorage(matches.value); // Save matches to localStorage
   };
 
-  // Mark match as done and update players' gamesPlayed
+  // Mark match as done
   const markMatchAsDone = (index: number) => {
     const match = matches.value[index];
 
-    // Update gamesPlayed for each player in the match
+    // Increment gamesPlayed for each player in the match
     match.forEach(player => {
-      player.gamesPlayed++;
+      const foundPlayer = players.value.find(p => p.name === player.name);
+      if (foundPlayer) {
+        foundPlayer.gamesPlayed++;
+      }
     });
 
     // Remove match from list
@@ -253,7 +258,31 @@
 
     // Save updated state to localStorage
     saveMatchesToStorage(matches.value);
-    savePlayersToStorage(players.value);
+    savePlayersToStorage(players.value); // Save updated players to localStorage
+  };
+
+  // Remove player from the players list and the queue
+  const removePlayer = (name: string) => {
+    // Remove player from players array
+    players.value = players.value.filter(player => player.name !== name);
+    // Remove player from the queue
+    queue.value = queue.value.filter(player => player.name !== name);
+    savePlayersToStorage(players.value); // Save updated players to localStorage
+    saveQueueToStorage(queue.value); // Save updated queue to localStorage
+  };
+
+  // Remove player from the queue
+  const removeFromQueue = (name: string) => {
+    queue.value = queue.value.filter(player => player.name !== name);
+    saveQueueToStorage(queue.value); // Save updated queue to localStorage
+  };
+
+  // Reset games played for all players
+  const resetGamesPlayed = () => {
+    players.value.forEach(player => {
+      player.gamesPlayed = 0;
+    });
+    savePlayersToStorage(players.value); // Save updated players to localStorage
   };
 
   // Requeue player
@@ -261,7 +290,7 @@
     const player = players.value.find(p => p.name === name);
     if (player) {
       queue.value.push(player); // Requeue the player to the back of the queue
-      savePlayersToStorage(players.value); // Save updated players to localStorage
+      saveQueueToStorage(queue.value); // Save updated queue to localStorage
     }
   };
 </script>
