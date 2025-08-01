@@ -724,7 +724,14 @@
     $q.dialog({
       title: 'Confirm Reset',
       message: 'Are you sure you want to reset all games played counters to zero?',
-      cancel: true,
+      ok: {
+        label: 'Reset',
+        color: 'negative'
+      },
+      cancel: {
+        label: 'Cancel',
+        color: 'grey'
+      },
       persistent: true
     }).onOk(() => {
       players.value.forEach(player => {
@@ -739,6 +746,8 @@
       });
     });
   };
+
+
 
   const requeuePlayer = (name: string) => {
     const player = players.value.find(p => p.name === name);
@@ -767,7 +776,14 @@
     $q.dialog({
       title: 'Confirm Reset All',
       message: 'This will clear all players, queue, and matches. Are you sure?',
-      cancel: true,
+      ok: {
+        label: 'Reset All',
+        color: 'negative'
+      },
+      cancel: {
+        label: 'Cancel',
+        color: 'grey'
+      },
       persistent: true
     }).onOk(() => {
       players.value = [];
@@ -784,6 +800,8 @@
       });
     });
   };
+
+
 </script>
 
 <style lang="scss">
