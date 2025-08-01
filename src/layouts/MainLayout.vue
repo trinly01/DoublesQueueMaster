@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue';
+  import { onMounted, ref } from 'vue';
   // import EssentialLink, { EssentialLinkProps } from 'components/EssentialLink.vue';
 
   defineOptions({
@@ -82,6 +82,10 @@
   // ];
 
   const leftDrawerOpen = ref(false);
+
+  onMounted(() => {
+    leftDrawerOpen.value = false;
+  });
 
   function toggleLeftDrawer() {
     leftDrawerOpen.value = !leftDrawerOpen.value;

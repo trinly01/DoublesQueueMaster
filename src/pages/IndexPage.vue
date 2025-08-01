@@ -36,59 +36,86 @@
                   <q-icon name="people" class="q-mr-sm" />
                   Players ({{ players.length }})
                 </div>
-                <q-btn 
-                  color="white" 
-                  @click="showAddPlayerDialog = true" 
-                  icon="person_add" 
-                  flat
-                  round
-                  dense
-                />
+                <div class="row items-center q-gutter-xs">
+                                     <q-select
+                     v-model="sortBy"
+                     :options="sortOptions"
+                     dense
+                     outlined
+                     dark
+                     color="white"
+                     class="sort-select"
+                     style="min-width: 120px;"
+                     emit-value
+                     map-options
+                   >
+                     <template v-slot:prepend>
+                       <q-icon name="sort" />
+                     </template>
+                   </q-select>
+                  <q-btn 
+                    color="white" 
+                    @click="showAddPlayerDialog = true" 
+                    icon="person_add" 
+                    flat
+                    round
+                    dense
+                  />
+                </div>
               </div>
             </q-card-section>
             <q-card-section class="q-pa-none">
-              <q-list separator>
-                <q-item v-for="player in sortedPlayers" :key="player.name" class="player-item">
-                  <q-item-section avatar>
-                    <q-avatar :color="getLevelColor(player.level)" text-color="white" size="md">
-                      {{ player.gamesPlayed }}
-                    </q-avatar>
-                  </q-item-section>
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{ player.name }}</q-item-label>
-                    <q-item-label caption>
-                      <q-chip 
-                        :label="`Level ${player.level}`" 
-                        :color="getLevelColor(player.level)" 
-                        text-color="white"
-                        size="sm"
-                        dense
-                      />
-                      <span class="q-ml-sm">{{ player.gamesPlayed }} games</span>
-                    </q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <div class="row items-center q-gutter-xs">
-                      <q-btn 
-                        flat 
-                        round 
-                        color="negative" 
-                        @click="removePlayer(player.name)" 
-                        icon="delete" 
-                        size="sm"
-                      />
-                      <q-btn 
-                        flat 
-                        color="secondary" 
-                        @click="requeuePlayer(player.name)" 
-                        icon="add_to_queue"
-                        size="sm"
-                        :disable="queue.some(p => p.name === player.name)"
-                      />
-                    </div>
-                  </q-item-section>
-                </q-item>
-              </q-list>
+              <div class="card-content">
+                <q-list separator v-if="players.length > 0">
+                  <q-item v-for="player in sortedPlayers" :key="player.name" class="player-item">
+                    <q-item-section avatar>
+                      <q-avatar :color="getLevelColor(player.level)" text-color="white" size="md">
+                        {{ player.gamesPlayed }}
+                      </q-avatar>
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-weight-medium">{{ player.name }}</q-item-label>
+                      <q-item-label caption>
+                        <q-chip 
+                          :label="`Level ${player.level}`" 
+                          :color="getLevelColor(player.level)" 
+                          text-color="white"
+                          size="sm"
+                          dense
+                        />
+                        <!-- <span class="q-ml-sm">{{ player.gamesPlayed }} game{{ player.gamesPlayed > 1 ? 's' : '' }}</span> -->
+                        <span class="q-ml-sm text-positive">W: {{ player.wins }}</span>
+                        <span class="q-ml-sm text-negative">L: {{ player.losses }}</span>
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <div class="row items-center q-gutter-xs">
+                        <q-btn 
+                          flat 
+                          round 
+                          color="negative" 
+                          @click="removePlayer(player.name)" 
+                          icon="delete" 
+                          size="sm"
+                        />
+                        <q-btn 
+                          flat 
+                          color="secondary" 
+                          @click="requeuePlayer(player.name)" 
+                          icon="add_to_queue"
+                          size="sm"
+                          :disable="queue.some(p => p.name === player.name)"
+                        />
+                      </div>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+                <div v-else class="empty-state">
+                  <q-icon name="people" size="48px" color="grey-4" />
+                  <p class="text-grey-6 q-mt-sm">No players added yet</p>
+                  <p class="text-caption text-grey-5">Click the + button to add your first player</p>
+                </div>
+              </div>
             </q-card-section>
           </q-card>
         </div>
@@ -125,38 +152,45 @@
               </div>
             </q-card-section>
             <q-card-section class="q-pa-none">
-              <q-list separator>
-                <q-item v-for="(player, index) in queue" :key="player.name" class="queue-item">
-                  <q-item-section avatar>
-                    <q-avatar :color="getLevelColor(player.level)" text-color="white" size="sm">
-                      {{ index + 1 }}
-                    </q-avatar>
-                  </q-item-section>
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{ player.name }}</q-item-label>
-                    <q-item-label caption>
-                      <q-chip 
-                        :label="`Level ${player.level}`" 
-                        :color="getLevelColor(player.level)" 
-                        text-color="white"
-                        size="xs"
-                        dense
+              <div class="card-content">
+                <q-list separator v-if="queue.length > 0">
+                  <q-item v-for="(player, index) in queue" :key="player.name" class="queue-item">
+                    <q-item-section avatar>
+                      <q-avatar :color="getLevelColor(player.level)" text-color="white" size="sm">
+                        {{ index + 1 }}
+                      </q-avatar>
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-weight-medium">{{ player.name }}</q-item-label>
+                      <q-item-label caption>
+                        <q-chip 
+                          :label="`Level ${player.level}`" 
+                          :color="getLevelColor(player.level)" 
+                          text-color="white"
+                          size="xs"
+                          dense
+                        />
+                        <span class="q-ml-sm">{{ player.gamesPlayed }} games</span>
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-btn 
+                        flat 
+                        round 
+                        color="negative" 
+                        @click="removeFromQueue(player.name)" 
+                        icon="remove_circle" 
+                        size="sm"
                       />
-                      <span class="q-ml-sm">{{ player.gamesPlayed }} games</span>
-                    </q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-btn 
-                      flat 
-                      round 
-                      color="negative" 
-                      @click="removeFromQueue(player.name)" 
-                      icon="remove_circle" 
-                      size="sm"
-                    />
-                  </q-item-section>
-                </q-item>
-              </q-list>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+                <div v-else class="empty-state">
+                  <q-icon name="queue" size="48px" color="grey-4" />
+                  <p class="text-grey-6 q-mt-sm">Queue is empty</p>
+                  <p class="text-caption text-grey-5">Add players to start generating matches</p>
+                </div>
+              </div>
             </q-card-section>
             <q-card-section>
               <q-btn 
@@ -184,74 +218,81 @@
           </q-card>
         </div>
 
-        <!-- Right Column: Current Matches -->
+        <!-- Right Column: Matches -->
         <div class="col-12 col-md-4">
           <q-card class="matches-card" flat bordered>
             <q-card-section class="bg-positive text-white">
               <div class="text-h6">
                 <q-icon name="sports_tennis" class="q-mr-sm" />
-                Current Matches ({{ matches.length }})
+                Matches ({{ matches.length }})
               </div>
             </q-card-section>
             <q-card-section class="q-pa-none">
-              <q-list separator>
-                <q-item v-for="(match, index) in matches" :key="index" class="match-item">
-                  <q-item-section>
-                    <div class="match-teams">
-                      <!-- Team 1 -->
-                      <div class="team team-1">
-                        <q-chip 
-                          :label="match[0].name" 
-                          :color="getLevelColor(match[0].level)" 
-                          text-color="white"
-                          size="sm"
-                          dense
-                        />
-                        <q-chip 
-                          :label="match[1].name" 
-                          :color="getLevelColor(match[1].level)" 
-                          text-color="white"
-                          size="sm"
-                          dense
-                        />
+              <div class="card-content">
+                <q-list separator v-if="matches.length > 0">
+                  <q-item v-for="(match, index) in matches" :key="index" class="match-item">
+                    <q-item-section>
+                      <div class="match-teams">
+                        <!-- Team 1 -->
+                        <div class="team team-1">
+                          <q-chip 
+                            :label="match[0].name" 
+                            :color="getLevelColor(match[0].level)" 
+                            text-color="white"
+                            size="sm"
+                            dense
+                          />
+                          <q-chip 
+                            :label="match[1].name" 
+                            :color="getLevelColor(match[1].level)" 
+                            text-color="white"
+                            size="sm"
+                            dense
+                          />
+                        </div>
+                        
+                        <!-- VS -->
+                        <div class="vs-divider">
+                          <q-icon name="sports_tennis" color="grey-6" size="sm" />
+                        </div>
+                        
+                        <!-- Team 2 -->
+                        <div class="team team-2">
+                          <q-chip 
+                            :label="match[2].name" 
+                            :color="getLevelColor(match[2].level)" 
+                            text-color="white"
+                            size="sm"
+                            dense
+                          />
+                          <q-chip 
+                            :label="match[3].name" 
+                            :color="getLevelColor(match[3].level)" 
+                            text-color="white"
+                            size="sm"
+                            dense
+                          />
+                        </div>
                       </div>
-                      
-                      <!-- VS -->
-                      <div class="vs-divider">
-                        <q-icon name="sports_tennis" color="grey-6" size="sm" />
-                      </div>
-                      
-                      <!-- Team 2 -->
-                      <div class="team team-2">
-                        <q-chip 
-                          :label="match[2].name" 
-                          :color="getLevelColor(match[2].level)" 
-                          text-color="white"
+                    </q-item-section>
+                    <q-item-section side>
+                                             <q-btn 
+                          flat 
+                          color="positive" 
+                          @click="openMatchResultDialog(index)" 
+                          icon="emoji_events" 
                           size="sm"
-                          dense
+                          round
                         />
-                        <q-chip 
-                          :label="match[3].name" 
-                          :color="getLevelColor(match[3].level)" 
-                          text-color="white"
-                          size="sm"
-                          dense
-                        />
-                      </div>
-                    </div>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-btn 
-                      flat 
-                      color="positive" 
-                      @click="markMatchAsDone(index)" 
-                      icon="check_circle" 
-                      size="sm"
-                      round
-                    />
-                  </q-item-section>
-                </q-item>
-              </q-list>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+                <div v-else class="empty-state">
+                  <q-icon name="sports_tennis" size="48px" color="grey-4" />
+                  <p class="text-grey-6 q-mt-sm">No active matches</p>
+                  <p class="text-caption text-grey-5">Generate matches from the queue to get started</p>
+                </div>
+              </div>
             </q-card-section>
           </q-card>
         </div>
@@ -328,6 +369,97 @@
       </q-card>
     </q-dialog>
 
+    <!-- Match Result Dialog -->
+    <q-dialog v-model="showMatchResultDialog">
+      <q-card style="min-width: 500px">
+        <q-card-section class="bg-positive text-white">
+          <div class="text-h6">
+            <q-icon name="emoji_events" class="q-mr-sm" />
+            Match Result
+          </div>
+        </q-card-section>
+        <q-card-section>
+          <div class="q-gutter-y-md">
+            <div class="text-subtitle1 text-center q-mb-md">Who won this match?</div>
+            
+            <div class="row q-col-gutter-md">
+              <!-- Team 1 -->
+              <div class="col-6">
+                <q-card 
+                  :class="selectedWinner === 'team1' ? 'winner-selected' : ''"
+                  @click="selectedWinner = 'team1'"
+                  class="team-card cursor-pointer"
+                  flat
+                  bordered
+                >
+                  <q-card-section class="text-center">
+                    <div class="text-weight-medium q-mb-sm">Team 1</div>
+                    <q-chip 
+                      :label="currentMatch[0].name" 
+                      :color="getLevelColor(currentMatch[0].level)" 
+                      text-color="white"
+                      size="sm"
+                      dense
+                    />
+                    <q-chip 
+                      :label="currentMatch[1].name" 
+                      :color="getLevelColor(currentMatch[1].level)" 
+                      text-color="white"
+                      size="sm"
+                      dense
+                    />
+                  </q-card-section>
+                </q-card>
+              </div>
+              
+              <!-- Team 2 -->
+              <div class="col-6">
+                <q-card 
+                  :class="selectedWinner === 'team2' ? 'winner-selected' : ''"
+                  @click="selectedWinner = 'team2'"
+                  class="team-card cursor-pointer"
+                  flat
+                  bordered
+                >
+                  <q-card-section class="text-center">
+                    <div class="text-weight-medium q-mb-sm">Team 2</div>
+                    <q-chip 
+                      :label="currentMatch[2].name" 
+                      :color="getLevelColor(currentMatch[2].level)" 
+                      text-color="white"
+                      size="sm"
+                      dense
+                    />
+                    <q-chip 
+                      :label="currentMatch[3].name" 
+                      :color="getLevelColor(currentMatch[3].level)" 
+                      text-color="white"
+                      size="sm"
+                      dense
+                    />
+                  </q-card-section>
+                </q-card>
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn 
+            flat 
+            label="Cancel" 
+            @click="showMatchResultDialog = false"
+          />
+          <q-btn 
+            color="positive" 
+            @click="completeMatch" 
+            label="Complete Match"
+            :disable="selectedWinner === null"
+            icon="check"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <!-- Settings Dialog -->
     <q-dialog v-model="showSettingsDialog">
       <q-card style="min-width: 400px">
@@ -380,6 +512,8 @@
     name: string;
     level: 1 | 2 | 3;
     gamesPlayed: number;
+    wins: number;
+    losses: number;
   }
 
   // Quasar instance for notifications
@@ -395,12 +529,26 @@
   // Dialog states
   const showAddPlayerDialog = ref(false);
   const showSettingsDialog = ref(false);
+  const showMatchResultDialog = ref(false);
+  const selectedWinner = ref<'team1' | 'team2' | null>(null);
+  const currentMatchIndex = ref<number>(-1);
+
+  // Sort state
+  const sortBy = ref<'gamesPlayed' | 'wins' | 'losses' | 'name'>('gamesPlayed');
 
   // Level options for select
   const levelOptions = [
     { label: 'Beginner', value: 1, description: 'New to the game' },
     { label: 'Intermediate', value: 2, description: 'Some experience' },
     { label: 'Advanced', value: 3, description: 'Experienced player' }
+  ];
+
+  // Sort options
+  const sortOptions = [
+    { label: 'Games Played', value: 'gamesPlayed' },
+    { label: 'Wins', value: 'wins' },
+    { label: 'Losses', value: 'losses' },
+    { label: 'Name', value: 'name' }
   ];
 
   // Computed properties
@@ -415,12 +563,33 @@
 
   const sortedPlayers = computed(() => {
     return [...players.value].sort((a, b) => {
-      // Sort by games played (ascending) then by name
-      if (a.gamesPlayed !== b.gamesPlayed) {
-        return a.gamesPlayed - b.gamesPlayed;
+      // Sort by selected criteria
+      if (sortBy.value === 'gamesPlayed') {
+        if (a.gamesPlayed !== b.gamesPlayed) {
+          return b.gamesPlayed - a.gamesPlayed; // Descending (most games first)
+        }
+      } else if (sortBy.value === 'wins') {
+        if (a.wins !== b.wins) {
+          return b.wins - a.wins; // Descending (most wins first)
+        }
+      } else if (sortBy.value === 'losses') {
+        if (a.losses !== b.losses) {
+          return b.losses - a.losses; // Descending (most losses first)
+        }
+      } else if (sortBy.value === 'name') {
+        return a.name.localeCompare(b.name);
       }
+      
+      // Secondary sort by name for consistency
       return a.name.localeCompare(b.name);
     });
+  });
+
+  const currentMatch = computed(() => {
+    if (currentMatchIndex.value >= 0 && currentMatchIndex.value < matches.value.length) {
+      return matches.value[currentMatchIndex.value];
+    }
+    return [];
   });
 
   // Helper functions
@@ -487,17 +656,37 @@
   // Storage functions
   function getPlayersFromStorage(): Player[] {
     const players = localStorage.getItem('playerList');
-    return players ? JSON.parse(players) : [];
+    const parsed = players ? JSON.parse(players) : [];
+    // Migrate old data to include wins/losses
+    return parsed.map((player: Partial<Player>) => ({
+      ...player,
+      wins: player.wins || 0,
+      losses: player.losses || 0
+    }));
   }
 
   function getQueueFromStorage(): Player[] {
     const queue = localStorage.getItem('playerQueue');
-    return queue ? JSON.parse(queue) : [];
+    const parsed = queue ? JSON.parse(queue) : [];
+    // Migrate old data to include wins/losses
+    return parsed.map((player: Partial<Player>) => ({
+      ...player,
+      wins: player.wins || 0,
+      losses: player.losses || 0
+    }));
   }
 
   function getMatchesFromStorage(): Player[][] {
     const matches = localStorage.getItem('matches');
-    return matches ? JSON.parse(matches) : [];
+    const parsed = matches ? JSON.parse(matches) : [];
+    // Migrate old data to include wins/losses
+    return parsed.map((match: Partial<Player>[]) => 
+      match.map((player: Partial<Player>) => ({
+        ...player,
+        wins: player.wins || 0,
+        losses: player.losses || 0
+      }))
+    );
   }
 
   function savePlayersToStorage(players: Player[]): void {
@@ -533,47 +722,69 @@
     return matches;
   };
 
-  // Helper function to create balanced teams from 4 players
+  // Helper function to create balanced teams from 4 players with randomness
   const createBalancedMatch = (players: Player[]): Player[] => {
     // Sort players by level for better team balancing
     const sortedPlayers = [...players].sort((a, b) => a.level - b.level);
     
-    // Create teams with intelligent balancing
-    const team1: Player[] = [];
-    const team2: Player[] = [];
+    // Generate all possible team combinations
+    const combinations = generateTeamCombinations(sortedPlayers);
     
-    // Strategy: Distribute players to balance team skill levels
-    // Take players from both ends to create balanced teams
-    while (sortedPlayers.length > 0) {
-      if (team1.length < 2) {
-        team1.push(sortedPlayers.shift()!); // Take lowest level player
-      } else if (team2.length < 2) {
-        team2.push(sortedPlayers.shift()!); // Take next player
-      }
+    // Calculate skill differences for all combinations
+    const combinationsWithScores = combinations.map(combination => {
+      const team1 = combination.team1;
+      const team2 = combination.team2;
+      
+      const team1Skill = team1.reduce((sum, p) => sum + p.level, 0);
+      const team2Skill = team2.reduce((sum, p) => sum + p.level, 0);
+      const difference = Math.abs(team1Skill - team2Skill);
+      
+      return {
+        ...combination,
+        difference,
+        team1Skill,
+        team2Skill
+      };
+    });
+    
+    // Sort by skill difference (most balanced first)
+    combinationsWithScores.sort((a, b) => a.difference - b.difference);
+    
+    // Get the best combinations (within 1 skill point difference)
+    const bestDifference = combinationsWithScores[0].difference;
+    const acceptableCombinations = combinationsWithScores.filter(
+      combo => combo.difference <= bestDifference + 1
+    );
+    
+    // Randomly select from acceptable combinations
+    const randomIndex = Math.floor(Math.random() * acceptableCombinations.length);
+    const selectedCombination = acceptableCombinations[randomIndex];
+    
+    return [...selectedCombination.team1, ...selectedCombination.team2];
+  };
+  
+  // Helper function to generate all possible team combinations
+  const generateTeamCombinations = (players: Player[]): Array<{team1: Player[], team2: Player[]}> => {
+    const combinations: Array<{team1: Player[], team2: Player[]}> = [];
+    
+    // Generate all possible ways to split 4 players into 2 teams of 2
+    const indices = [0, 1, 2, 3];
+    
+    // Team 1 will have players at indices 0 and 1, Team 2 will have 2 and 3
+    // But we need to try different combinations
+    const team1Combinations = [
+      [0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]
+    ];
+    
+    for (const team1Indices of team1Combinations) {
+      const team2Indices = indices.filter(i => !team1Indices.includes(i));
+      const team1 = team1Indices.map(i => players[i]);
+      const team2 = team2Indices.map(i => players[i]);
+      
+      combinations.push({ team1, team2 });
     }
     
-    // Calculate team skill levels for final balancing
-    const team1Skill = team1.reduce((sum, p) => sum + p.level, 0);
-    const team2Skill = team2.reduce((sum, p) => sum + p.level, 0);
-    
-    // If teams are too unbalanced, try to swap players
-    if (Math.abs(team1Skill - team2Skill) > 2) {
-      // Try swapping players to balance teams
-      for (let i = 0; i < team1.length; i++) {
-        for (let j = 0; j < team2.length; j++) {
-          const newTeam1Skill = team1Skill - team1[i].level + team2[j].level;
-          const newTeam2Skill = team2Skill - team2[j].level + team1[i].level;
-          
-          if (Math.abs(newTeam1Skill - newTeam2Skill) < Math.abs(team1Skill - team2Skill)) {
-            // Swap players
-            [team1[i], team2[j]] = [team2[j], team1[i]];
-            return [...team1, ...team2];
-          }
-        }
-      }
-    }
-    
-    return [...team1, ...team2];
+    return combinations;
   };
 
   // Action functions
@@ -611,6 +822,8 @@
       name: trimmedName,
       level: newPlayerLevel.value,
       gamesPlayed: 0,
+      wins: 0,
+      losses: 0,
     };
 
     players.value.push(newPlayer);
@@ -669,22 +882,52 @@
     }
   };
 
-  const markMatchAsDone = (index: number) => {
-    const match = matches.value[index];
+  const openMatchResultDialog = (index: number) => {
+    currentMatchIndex.value = index;
+    selectedWinner.value = null;
+    showMatchResultDialog.value = true;
+  };
+
+  const completeMatch = () => {
+    if (selectedWinner.value === null || currentMatchIndex.value === -1) return;
+
+    const match = matches.value[currentMatchIndex.value];
+    
+    // Update games played for all players
     match.forEach(player => {
       const foundPlayer = players.value.find(p => p.name === player.name);
       if (foundPlayer) {
         foundPlayer.gamesPlayed++;
+        
+        // Update wins/losses based on team
+        const playerIndex = match.findIndex(p => p.name === player.name);
+        const isTeam1 = playerIndex < 2;
+        const isWinner = (selectedWinner.value === 'team1' && isTeam1) || 
+                        (selectedWinner.value === 'team2' && !isTeam1);
+        
+        if (isWinner) {
+          foundPlayer.wins++;
+        } else {
+          foundPlayer.losses++;
+        }
       }
     });
 
-    matches.value.splice(index, 1);
+    // Remove match from list
+    matches.value.splice(currentMatchIndex.value, 1);
+    
+    // Save data
     saveMatchesToStorage(matches.value);
     savePlayersToStorage(players.value);
 
+    // Close dialog and reset
+    showMatchResultDialog.value = false;
+    selectedWinner.value = null;
+    currentMatchIndex.value = -1;
+
     $q.notify({
       type: 'positive',
-      message: 'Match completed! Games played updated.',
+      message: 'Match completed! Stats updated.',
       position: 'top'
     });
   };
@@ -736,6 +979,8 @@
     }).onOk(() => {
       players.value.forEach(player => {
         player.gamesPlayed = 0;
+        player.wins = 0;
+        player.losses = 0;
       });
       savePlayersToStorage(players.value);
       
@@ -746,8 +991,6 @@
       });
     });
   };
-
-
 
   const requeuePlayer = (name: string) => {
     const player = players.value.find(p => p.name === name);
@@ -800,8 +1043,6 @@
       });
     });
   };
-
-
 </script>
 
 <style lang="scss">
@@ -834,6 +1075,23 @@
       transform: translateY(-2px);
       box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
     }
+  }
+
+  .card-content {
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
   }
 
   .player-item,
@@ -880,6 +1138,36 @@
     justify-content: flex-start;
   }
 
+  .team-card {
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  .winner-selected {
+    border-color: #21ba45;
+    background-color: rgba(33, 186, 69, 0.1);
+  }
+
+  .sort-select {
+    .q-field__control {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .q-field__native {
+      color: white;
+    }
+    
+    .q-field__label {
+      color: rgba(255, 255, 255, 0.8);
+    }
+  }
+
   // Responsive design
   @media (max-width: 768px) {
     .container {
@@ -902,11 +1190,23 @@
     .vs-divider {
       transform: rotate(90deg);
     }
+
+    .card-content {
+      height: 300px;
+    }
+
+    .sort-select {
+      min-width: 100px !important;
+    }
+
+    .sort-select {
+      min-width: 100px !important;
+    }
   }
 
   // Custom scrollbar
   .q-list {
-    max-height: 400px;
+    flex: 1;
     overflow-y: auto;
 
     &::-webkit-scrollbar {
