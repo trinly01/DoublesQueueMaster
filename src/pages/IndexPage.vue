@@ -5,15 +5,15 @@
       <div class="container">
         <div class="row items-center justify-between">
           <div class="col">
-            <h1 class="text-h4 text-weight-bold text-white q-mb-xs">
-              🏓 Doubles Queue Master
+            <h1 class="text-h5 text-weight-bold text-white q-mb-xs">
+              🏓 Queue Master
             </h1>
-            <p class="text-subtitle1 text-grey-1 q-ma-none">
-              Smart matchmaking system
+            <p class="text-caption text-grey-1 q-ma-none">
+              Smart matchmaking for singles & doubles
             </p>
           </div>
           <div class="col-auto">
-            <q-btn color="white" icon="settings" label="Settings" @click="showSettingsDialog = true" flat />
+            <q-btn color="white" icon="settings" label="Settings" @click="showSettingsDialog = true" flat size="sm" />
           </div>
         </div>
       </div>
@@ -45,17 +45,12 @@
               <div class="card-content">
                 <q-list separator v-if="players.length > 0">
                   <q-item v-for="player in sortedPlayers" :key="player.name" class="player-item">
-                    <q-item-section avatar>
-                      <q-avatar :color="getLevelColor(player.level)" text-color="white" size="md">
-                        {{ player.gamesPlayed }}
-                      </q-avatar>
-                    </q-item-section>
                     <q-item-section>
                       <q-item-label class="text-weight-medium">{{ player.name }}</q-item-label>
-                      <q-item-label caption>
+                      <q-item-label caption class="q-pl-xs">
                         <q-chip :label="`Level ${player.level}`" :color="getLevelColor(player.level)" text-color="white"
                           size="sm" dense />
-                        <!-- <span class="q-ml-sm">{{ player.gamesPlayed }} game{{ player.gamesPlayed > 1 ? 's' : '' }}</span> -->
+                        <span class="q-ml-sm text-grey-7">Games: {{ player.gamesPlayed }}</span>
                         <span class="q-ml-sm text-positive">W: {{ player.wins }}</span>
                         <span class="q-ml-sm text-negative">L: {{ player.losses }}</span>
                       </q-item-label>
@@ -98,15 +93,10 @@
             <q-card-section class="q-pa-none">
               <div class="card-content">
                 <q-list separator v-if="queue.length > 0">
-                  <q-item v-for="(player, index) in queue" :key="player.name" class="queue-item">
-                    <q-item-section avatar>
-                      <q-avatar :color="getLevelColor(player.level)" text-color="white" size="sm">
-                        {{ index + 1 }}
-                      </q-avatar>
-                    </q-item-section>
+                  <q-item v-for="player in queue" :key="player.name" class="queue-item">
                     <q-item-section>
                       <q-item-label class="text-weight-medium">{{ player.name }}</q-item-label>
-                      <q-item-label caption>
+                      <q-item-label caption class="q-pl-xs">
                         <q-chip :label="`Level ${player.level}`" :color="getLevelColor(player.level)" text-color="white"
                           size="xs" dense />
                         <span class="q-ml-sm">{{ player.gamesPlayed }} games</span>
@@ -126,18 +116,39 @@
               </div>
             </q-card-section>
             <q-card-section>
+              <!-- Match Type Selector -->
+              <div class="q-mb-md">
+                <div class="text-caption text-grey-7 q-mb-xs">Match Type</div>
+                <q-select v-model="matchType" :options="matchTypeOptions" dense outlined emit-value map-options
+                  color="secondary">
+                  <template v-slot:prepend>
+                    <q-icon :name="matchType === 'singles' ? 'person' : 'people'" />
+                  </template>
+                </q-select>
+              </div>
+
               <div class="q-gutter-y-sm">
                 <q-btn class="full-width" color="primary" @click="generateNewMatches" label="Auto Generate Matches"
-                  size="lg" icon="auto_awesome" :disable="!canGenerateMatches()" />
-                <q-btn class="full-width" color="secondary" @click="startManualSelection" label="Manual Match Selection"
-                  size="lg" icon="touch_app" :disable="queue.length < 4" outline />
+                  size="lg" icon="auto_awesome" :disable="!canGenerateMatches()">
+                  <q-tooltip v-if="!canGenerateMatches()">
+                    {{ matchType === 'singles' ? 'Need at least 2 players' : 'Need at least 4 players' }}
+                  </q-tooltip>
+                </q-btn>
+                <q-btn v-if="matchType === 'doubles'" class="full-width" color="secondary" @click="startManualSelection"
+                  label="Manual Match Selection" size="lg" icon="touch_app" :disable="queue.length < 4" outline>
+                  <q-tooltip v-if="queue.length < 4">Need at least 4 players for manual doubles selection</q-tooltip>
+                </q-btn>
+                <div v-else class="text-caption text-grey-6 text-center q-py-sm">
+                  <q-icon name="info" size="xs" />
+                  Singles matches are auto-paired by fairness
+                </div>
               </div>
               <div class="text-caption text-grey-6 q-mt-sm text-center">
                 {{ getMatchGenerationHint() }}
               </div>
 
               <!-- Waiting Players Info -->
-              <div v-if="queue.length > 0 && queue.length % 4 !== 0" class="q-mt-md">
+              <div v-if="queue.length > 0 && queue.length % (matchType === 'singles' ? 2 : 4) !== 0" class="q-mt-md">
                 <q-separator />
                 <div class="text-caption text-orange q-mt-sm">
                   <q-icon name="schedule" size="xs" class="q-mr-xs" />
@@ -162,13 +173,44 @@
                 <q-list separator v-if="matches.length > 0">
                   <q-item v-for="(match, index) in matches" :key="index" class="match-item">
                     <q-item-section>
-                      <div class="match-teams">
+                      <!-- Singles Match (2 players) -->
+                      <div v-if="match.length === 2" class="match-teams">
+                        <div class="team team-1">
+                          <q-chip :color="getLevelColor(match[0].level)" text-color="white" size="sm" dense
+                            class="match-player-chip">
+                            {{ match[0].name }}
+                            <q-tooltip>Level {{ match[0].level }}</q-tooltip>
+                          </q-chip>
+                        </div>
+
+                        <!-- VS -->
+                        <div class="vs-divider">
+                          <q-icon name="sports_tennis" color="grey-6" size="sm" />
+                        </div>
+
+                        <div class="team team-2">
+                          <q-chip :color="getLevelColor(match[1].level)" text-color="white" size="sm" dense
+                            class="match-player-chip">
+                            {{ match[1].name }}
+                            <q-tooltip>Level {{ match[1].level }}</q-tooltip>
+                          </q-chip>
+                        </div>
+                      </div>
+
+                      <!-- Doubles Match (4 players) -->
+                      <div v-else class="match-teams">
                         <!-- Team 1 -->
                         <div class="team team-1">
-                          <q-chip :label="match[0].name" :color="getLevelColor(match[0].level)" text-color="white"
-                            size="sm" dense />
-                          <q-chip :label="match[1].name" :color="getLevelColor(match[1].level)" text-color="white"
-                            size="sm" dense />
+                          <q-chip :color="getLevelColor(match[0].level)" text-color="white" size="sm" dense
+                            class="match-player-chip">
+                            {{ match[0].name }}
+                            <q-tooltip>Level {{ match[0].level }}</q-tooltip>
+                          </q-chip>
+                          <q-chip :color="getLevelColor(match[1].level)" text-color="white" size="sm" dense
+                            class="match-player-chip">
+                            {{ match[1].name }}
+                            <q-tooltip>Level {{ match[1].level }}</q-tooltip>
+                          </q-chip>
                         </div>
 
                         <!-- VS -->
@@ -178,10 +220,16 @@
 
                         <!-- Team 2 -->
                         <div class="team team-2">
-                          <q-chip :label="match[2].name" :color="getLevelColor(match[2].level)" text-color="white"
-                            size="sm" dense />
-                          <q-chip :label="match[3].name" :color="getLevelColor(match[3].level)" text-color="white"
-                            size="sm" dense />
+                          <q-chip :color="getLevelColor(match[2].level)" text-color="white" size="sm" dense
+                            class="match-player-chip">
+                            {{ match[2].name }}
+                            <q-tooltip>Level {{ match[2].level }}</q-tooltip>
+                          </q-chip>
+                          <q-chip :color="getLevelColor(match[3].level)" text-color="white" size="sm" dense
+                            class="match-player-chip">
+                            {{ match[3].name }}
+                            <q-tooltip>Level {{ match[3].level }}</q-tooltip>
+                          </q-chip>
                         </div>
                       </div>
                     </q-item-section>
@@ -261,7 +309,33 @@
           <div class="q-gutter-y-md">
             <div class="text-subtitle1 text-center q-mb-md">Who won this match?</div>
 
-            <div class="row q-col-gutter-md">
+            <!-- Singles Match Result -->
+            <div v-if="currentMatch.length === 2" class="row q-col-gutter-md">
+              <div class="col-6">
+                <q-card :class="selectedWinner === 'team1' ? 'winner-selected' : ''" @click="selectedWinner = 'team1'"
+                  class="team-card cursor-pointer" flat bordered>
+                  <q-card-section class="text-center">
+                    <q-chip :label="currentMatch[0].name" :color="getLevelColor(currentMatch[0].level)"
+                      text-color="white" size="md" />
+                    <div class="text-caption q-mt-sm">Level {{ currentMatch[0].level }}</div>
+                  </q-card-section>
+                </q-card>
+              </div>
+
+              <div class="col-6">
+                <q-card :class="selectedWinner === 'team2' ? 'winner-selected' : ''" @click="selectedWinner = 'team2'"
+                  class="team-card cursor-pointer" flat bordered>
+                  <q-card-section class="text-center">
+                    <q-chip :label="currentMatch[1].name" :color="getLevelColor(currentMatch[1].level)"
+                      text-color="white" size="md" />
+                    <div class="text-caption q-mt-sm">Level {{ currentMatch[1].level }}</div>
+                  </q-card-section>
+                </q-card>
+              </div>
+            </div>
+
+            <!-- Doubles Match Result -->
+            <div v-else class="row q-col-gutter-md">
               <!-- Team 1 -->
               <div class="col-6">
                 <q-card :class="selectedWinner === 'team1' ? 'winner-selected' : ''" @click="selectedWinner = 'team1'"
@@ -356,17 +430,12 @@
                     <q-checkbox :model-value="isPlayerSelected(player)" color="secondary"
                       @click.stop="togglePlayerSelection(player)" />
                   </q-item-section>
-                  <q-item-section avatar>
-                    <q-avatar :color="getLevelColor(player.level)" text-color="white" size="md">
-                      {{ player.gamesPlayed }}
-                    </q-avatar>
-                  </q-item-section>
                   <q-item-section>
                     <q-item-label class="text-weight-medium">{{ player.name }}</q-item-label>
-                    <q-item-label caption>
+                    <q-item-label caption class="q-pl-xs">
                       <q-chip :label="`Level ${player.level}`" :color="getLevelColor(player.level)" text-color="white"
                         size="sm" dense />
-                      <span class="q-ml-sm">{{ player.gamesPlayed }} games</span>
+                      <span class="q-ml-sm text-grey-7">Games: {{ player.gamesPlayed }}</span>
                       <span class="q-ml-sm text-positive">W: {{ player.wins }}</span>
                       <span class="q-ml-sm text-negative">L: {{ player.losses }}</span>
                     </q-item-label>
@@ -418,7 +487,7 @@
               <div class="row q-col-gutter-lg">
                 <!-- Team 1 -->
                 <div class="col-12 col-md-6">
-                  <q-card flat bordered class="team-drop-zone" :class="{ 'drag-over': dragOverTeam === 'team1' }">
+                  <q-card flat bordered>
                     <q-card-section class="bg-blue-6 text-white">
                       <div class="text-h6">
                         Team 1
@@ -426,53 +495,40 @@
                           size="sm" class="q-ml-sm" />
                       </div>
                     </q-card-section>
-                    <q-card-section class="team-drop-area" @drop="onDrop($event, 'team1')"
-                      @dragover="onDragOver($event, 'team1')" @dragleave="onDragLeave" @dragenter.prevent>
-                      <div class="text-caption text-grey-6 q-mb-sm mobile-hint">
-                        <q-icon name="touch_app" size="xs" /> Tap to select, tap another to swap
+                    <q-card-section class="team-drop-area">
+                      <div class="text-caption text-grey-6 q-mb-sm text-center">
+                        <q-icon name="touch_app" size="xs" /> Click to select, click another to swap
                       </div>
                       <q-list v-if="manualTeam1.length > 0">
                         <q-item v-for="(player, index) in manualTeam1" :key="player.name"
-                          class="team-player-item draggable-player drop-target-player" :class="{
+                          class="team-player-item swappable-player" :class="{
                             'selected-for-swap': selectedForSwap?.name === player.name,
-                            'drag-source': draggedPlayer?.name === player.name,
-                            'drag-target': dragOverPlayer?.name === player.name,
                             'can-swap-with': selectedForSwap && selectedForSwap.name !== player.name
-                          }" :draggable="true" @dragstart="onDragStart($event, player, 'team1')" @dragend="onDragEnd"
-                          @dragover="onDragOverPlayer($event, player)" @dragleave="onDragLeavePlayer"
-                          @drop="onDropOnPlayer($event, player, 'team1')" @click="selectPlayerForSwap(player, 'team1')">
+                          }" @click.stop="selectPlayerForSwap(player, 'team1')">
                           <q-item-section avatar>
                             <q-avatar :color="getLevelColor(player.level)" text-color="white"
-                              :class="{ 'swap-pulse': selectedForSwap?.name === player.name || draggedPlayer?.name === player.name || dragOverPlayer?.name === player.name }">
+                              :class="{ 'swap-pulse': selectedForSwap?.name === player.name }">
                               {{ index + 1 }}
+                              <q-tooltip>{{ player.name }} - Level {{ player.level }} - Position {{ index + 1
+                              }}</q-tooltip>
                             </q-avatar>
                           </q-item-section>
                           <q-item-section>
                             <q-item-label class="text-weight-medium">
                               {{ player.name }}
-                              <q-icon v-if="selectedForSwap?.name === player.name" name="swap_horiz" color="green"
-                                size="sm" class="q-ml-xs swap-icon-pulse" />
-                              <q-icon v-if="draggedPlayer?.name === player.name" name="open_with" color="blue" size="sm"
-                                class="q-ml-xs swap-icon-pulse" />
-                              <q-icon v-if="dragOverPlayer?.name === player.name" name="swap_horiz" color="orange"
+                              <q-icon v-if="selectedForSwap?.name === player.name" name="check_circle" color="green"
                                 size="sm" class="q-ml-xs swap-icon-pulse" />
                             </q-item-label>
-                            <q-item-label caption>
-                              Level {{ player.level }}
-                              <span v-if="dragOverPlayer?.name === player.name"
-                                class="text-orange text-weight-bold q-ml-sm">
-                                ⇄ Swap target
-                              </span>
-                            </q-item-label>
+                            <q-item-label caption>Level {{ player.level }}</q-item-label>
                           </q-item-section>
                           <q-item-section side>
-                            <q-icon name="drag_indicator" color="grey-5" size="sm" class="drag-handle" />
+                            <q-icon name="swap_horiz" color="grey-5" size="sm" />
                           </q-item-section>
                         </q-item>
                       </q-list>
                       <div v-else class="text-center text-grey-6 q-pa-md empty-team-drop">
                         <q-icon name="group_add" size="lg" color="grey-4" />
-                        <p class="q-mt-sm">Drag or tap to assign</p>
+                        <p class="q-mt-sm">Click to assign</p>
                       </div>
                     </q-card-section>
                   </q-card>
@@ -480,7 +536,7 @@
 
                 <!-- Team 2 -->
                 <div class="col-12 col-md-6">
-                  <q-card flat bordered class="team-drop-zone" :class="{ 'drag-over': dragOverTeam === 'team2' }">
+                  <q-card flat bordered>
                     <q-card-section class="bg-orange-6 text-white">
                       <div class="text-h6">
                         Team 2
@@ -488,53 +544,40 @@
                           size="sm" class="q-ml-sm" />
                       </div>
                     </q-card-section>
-                    <q-card-section class="team-drop-area" @drop="onDrop($event, 'team2')"
-                      @dragover="onDragOver($event, 'team2')" @dragleave="onDragLeave" @dragenter.prevent>
-                      <div class="text-caption text-grey-6 q-mb-sm mobile-hint">
-                        <q-icon name="touch_app" size="xs" /> Tap to select, tap another to swap
+                    <q-card-section class="team-drop-area">
+                      <div class="text-caption text-grey-6 q-mb-sm text-center">
+                        <q-icon name="touch_app" size="xs" /> Click to select, click another to swap
                       </div>
                       <q-list v-if="manualTeam2.length > 0">
                         <q-item v-for="(player, index) in manualTeam2" :key="player.name"
-                          class="team-player-item draggable-player drop-target-player" :class="{
+                          class="team-player-item swappable-player" :class="{
                             'selected-for-swap': selectedForSwap?.name === player.name,
-                            'drag-source': draggedPlayer?.name === player.name,
-                            'drag-target': dragOverPlayer?.name === player.name,
                             'can-swap-with': selectedForSwap && selectedForSwap.name !== player.name
-                          }" :draggable="true" @dragstart="onDragStart($event, player, 'team2')" @dragend="onDragEnd"
-                          @dragover="onDragOverPlayer($event, player)" @dragleave="onDragLeavePlayer"
-                          @drop="onDropOnPlayer($event, player, 'team2')" @click="selectPlayerForSwap(player, 'team2')">
+                          }" @click.stop="selectPlayerForSwap(player, 'team2')">
                           <q-item-section avatar>
                             <q-avatar :color="getLevelColor(player.level)" text-color="white"
-                              :class="{ 'swap-pulse': selectedForSwap?.name === player.name || draggedPlayer?.name === player.name || dragOverPlayer?.name === player.name }">
+                              :class="{ 'swap-pulse': selectedForSwap?.name === player.name }">
                               {{ index + 1 }}
+                              <q-tooltip>{{ player.name }} - Level {{ player.level }} - Position {{ index + 1
+                              }}</q-tooltip>
                             </q-avatar>
                           </q-item-section>
                           <q-item-section>
                             <q-item-label class="text-weight-medium">
                               {{ player.name }}
-                              <q-icon v-if="selectedForSwap?.name === player.name" name="swap_horiz" color="green"
-                                size="sm" class="q-ml-xs swap-icon-pulse" />
-                              <q-icon v-if="draggedPlayer?.name === player.name" name="open_with" color="blue" size="sm"
-                                class="q-ml-xs swap-icon-pulse" />
-                              <q-icon v-if="dragOverPlayer?.name === player.name" name="swap_horiz" color="orange"
+                              <q-icon v-if="selectedForSwap?.name === player.name" name="check_circle" color="green"
                                 size="sm" class="q-ml-xs swap-icon-pulse" />
                             </q-item-label>
-                            <q-item-label caption>
-                              Level {{ player.level }}
-                              <span v-if="dragOverPlayer?.name === player.name"
-                                class="text-orange text-weight-bold q-ml-sm">
-                                ⇄ Swap target
-                              </span>
-                            </q-item-label>
+                            <q-item-label caption>Level {{ player.level }}</q-item-label>
                           </q-item-section>
                           <q-item-section side>
-                            <q-icon name="drag_indicator" color="grey-5" size="sm" class="drag-handle" />
+                            <q-icon name="swap_horiz" color="grey-5" size="sm" />
                           </q-item-section>
                         </q-item>
                       </q-list>
                       <div v-else class="text-center text-grey-6 q-pa-md empty-team-drop">
                         <q-icon name="group_add" size="lg" color="grey-4" />
-                        <p class="q-mt-sm">Drag or tap to assign</p>
+                        <p class="q-mt-sm">Click to assign</p>
                       </div>
                     </q-card-section>
                   </q-card>
@@ -595,22 +638,27 @@ const selectedPlayers = ref<Player[]>([]);
 const manualTeam1 = ref<Player[]>([]);
 const manualTeam2 = ref<Player[]>([]);
 
-// Drag and drop / tap-to-swap states
-const draggedPlayer = ref<Player | null>(null);
-const dragSourceTeam = ref<'team1' | 'team2' | null>(null);
-const dragOverTeam = ref<'team1' | 'team2' | null>(null);
-const dragOverPlayer = ref<Player | null>(null);
+// Tap-to-swap states
 const selectedForSwap = ref<Player | null>(null);
 const selectedForSwapTeam = ref<'team1' | 'team2' | null>(null);
 
 // Sort state
 const sortBy = ref<'gamesPlayed' | 'wins' | 'losses' | 'name'>('gamesPlayed');
 
+// Match type state
+const matchType = ref<'singles' | 'doubles'>('doubles');
+
 // Level options for select
 const levelOptions = [
   { label: 'Beginner', value: 1, description: 'New to the game' },
   { label: 'Intermediate', value: 2, description: 'Some experience' },
   { label: 'Advanced', value: 3, description: 'Experienced player' }
+];
+
+// Match type options
+const matchTypeOptions = [
+  { label: 'Singles (1v1)', value: 'singles' },
+  { label: 'Doubles (2v2)', value: 'doubles' }
 ];
 
 // Sort options
@@ -683,37 +731,51 @@ const getLevelIcon = (level: 1 | 2 | 3): string => {
 
 const canGenerateMatches = (): boolean => {
   const total = queue.value.length;
+  const requiredPlayers = matchType.value === 'singles' ? 2 : 4;
 
-  // We can always generate matches if we have 4+ players
-  // The algorithm will handle any combination intelligently
-  return total >= 4;
+  // We can generate matches if we have enough players
+  return total >= requiredPlayers;
 };
 
 const getMatchGenerationHint = (): string => {
   const total = queue.value.length;
+  const requiredPlayers = matchType.value === 'singles' ? 2 : 4;
 
-  if (total < 4) return `Need ${4 - total} more players to generate matches`;
+  if (total < requiredPlayers) {
+    return `Need ${requiredPlayers - total} more player${requiredPlayers - total > 1 ? 's' : ''} to generate ${matchType.value} matches`;
+  }
 
-  const maxMatches = Math.floor(total / 4);
-  const remainingPlayers = total % 4;
+  const maxMatches = Math.floor(total / requiredPlayers);
+  const remainingPlayers = total % requiredPlayers;
 
   if (remainingPlayers === 0) {
-    return `Can generate ${maxMatches} match${maxMatches > 1 ? 'es' : ''}`;
-  } else if (remainingPlayers === 1) {
-    return `Can generate ${maxMatches} match${maxMatches > 1 ? 'es' : ''} (1 player will wait)`;
-  } else if (remainingPlayers === 2) {
-    return `Can generate ${maxMatches} match${maxMatches > 1 ? 'es' : ''} (2 players will wait)`;
+    return `Can generate ${maxMatches} ${matchType.value} match${maxMatches > 1 ? 'es' : ''}`;
+  } else if (matchType.value === 'singles') {
+    return `Can generate ${maxMatches} singles match${maxMatches > 1 ? 'es' : ''} (1 player will wait)`;
   } else {
-    return `Can generate ${maxMatches} match${maxMatches > 1 ? 'es' : ''} (3 players will wait)`;
+    // Doubles
+    if (remainingPlayers === 1) {
+      return `Can generate ${maxMatches} match${maxMatches > 1 ? 'es' : ''} (1 player will wait)`;
+    } else if (remainingPlayers === 2) {
+      return `Can generate ${maxMatches} match${maxMatches > 1 ? 'es' : ''} (2 players will wait)`;
+    } else {
+      return `Can generate ${maxMatches} match${maxMatches > 1 ? 'es' : ''} (3 players will wait)`;
+    }
   }
 };
 
 const getWaitingPlayersInfo = (): string => {
   const total = queue.value.length;
-  const remainingPlayers = total % 4;
+  const requiredPlayers = matchType.value === 'singles' ? 2 : 4;
+  const remainingPlayers = total % requiredPlayers;
 
   if (remainingPlayers === 0) return '';
 
+  if (matchType.value === 'singles') {
+    return '1 player waiting - Practice serves or warm up';
+  }
+
+  // Doubles
   const suggestions = {
     1: 'Practice serves or warm up',
     2: 'Practice doubles positioning',
@@ -775,14 +837,22 @@ function saveMatchesToStorage(matches: Player[][]): void {
 const generateMatches = (): Player[][] => {
   const matches: Player[][] = [];
   const queueCopy = [...queue.value].sort((a, b) => a.gamesPlayed - b.gamesPlayed); // Prioritize fair play
+  const playersPerMatch = matchType.value === 'singles' ? 2 : 4;
 
   // Calculate how many complete matches we can make
-  const maxMatches = Math.floor(queueCopy.length / 4);
+  const maxMatches = Math.floor(queueCopy.length / playersPerMatch);
 
   for (let i = 0; i < maxMatches; i++) {
-    const matchPlayers = queueCopy.splice(0, 4); // Take 4 players
-    const match = createBalancedMatch(matchPlayers);
-    matches.push(match);
+    const matchPlayers = queueCopy.splice(0, playersPerMatch);
+
+    if (matchType.value === 'singles') {
+      // For singles, just pair the two players (already sorted by fairness)
+      matches.push(matchPlayers);
+    } else {
+      // For doubles, create balanced teams
+      const match = createBalancedMatch(matchPlayers);
+      matches.push(match);
+    }
   }
 
   // Update queue by removing matched players
@@ -915,6 +985,28 @@ const addNewPlayer = () => {
 };
 
 const generateNewMatches = () => {
+  const matchCount = Math.floor(queue.value.length / (matchType.value === 'singles' ? 2 : 4));
+
+  $q.dialog({
+    title: 'Confirm Match Generation',
+    message: `Generate ${matchCount} ${matchType.value} match${matchCount > 1 ? 'es' : ''} from the queue?`,
+    cancel: {
+      label: 'Cancel',
+      color: 'grey',
+      flat: true
+    },
+    persistent: false,
+    ok: {
+      label: 'Generate',
+      color: 'primary',
+      icon: 'auto_awesome'
+    }
+  }).onOk(() => {
+    executeMatchGeneration();
+  });
+};
+
+const executeMatchGeneration = () => {
   const newMatches = generateMatches();
   matches.value = [...matches.value, ...newMatches];
   saveQueueToStorage(queue.value);
@@ -961,44 +1053,63 @@ const openMatchResultDialog = (index: number) => {
 const completeMatch = () => {
   if (selectedWinner.value === null || currentMatchIndex.value === -1) return;
 
-  const match = matches.value[currentMatchIndex.value];
+  const winnerTeam = selectedWinner.value === 'team1' ? 'Team 1' : 'Team 2';
 
-  // Update games played for all players
-  match.forEach(player => {
-    const foundPlayer = players.value.find(p => p.name === player.name);
-    if (foundPlayer) {
-      foundPlayer.gamesPlayed++;
-
-      // Update wins/losses based on team
-      const playerIndex = match.findIndex(p => p.name === player.name);
-      const isTeam1 = playerIndex < 2;
-      const isWinner = (selectedWinner.value === 'team1' && isTeam1) ||
-        (selectedWinner.value === 'team2' && !isTeam1);
-
-      if (isWinner) {
-        foundPlayer.wins++;
-      } else {
-        foundPlayer.losses++;
-      }
+  $q.dialog({
+    title: 'Complete Match',
+    message: `Confirm ${winnerTeam} as the winner? This will update player stats and remove the match.`,
+    cancel: {
+      label: 'Cancel',
+      color: 'grey',
+      flat: true
+    },
+    persistent: false,
+    ok: {
+      label: 'Complete',
+      color: 'positive',
+      icon: 'check'
     }
-  });
+  }).onOk(() => {
+    const match = matches.value[currentMatchIndex.value];
 
-  // Remove match from list
-  matches.value.splice(currentMatchIndex.value, 1);
+    // Update games played for all players
+    match.forEach(player => {
+      const foundPlayer = players.value.find(p => p.name === player.name);
+      if (foundPlayer) {
+        foundPlayer.gamesPlayed++;
 
-  // Save data
-  saveMatchesToStorage(matches.value);
-  savePlayersToStorage(players.value);
+        // Update wins/losses based on team
+        const playerIndex = match.findIndex(p => p.name === player.name);
+        const isSingles = match.length === 2;
+        const isTeam1 = isSingles ? playerIndex === 0 : playerIndex < 2;
+        const isWinner = (selectedWinner.value === 'team1' && isTeam1) ||
+          (selectedWinner.value === 'team2' && !isTeam1);
 
-  // Close dialog and reset
-  showMatchResultDialog.value = false;
-  selectedWinner.value = null;
-  currentMatchIndex.value = -1;
+        if (isWinner) {
+          foundPlayer.wins++;
+        } else {
+          foundPlayer.losses++;
+        }
+      }
+    });
 
-  $q.notify({
-    type: 'positive',
-    message: 'Match completed! Stats updated.',
-    position: 'top'
+    // Remove match from list
+    matches.value.splice(currentMatchIndex.value, 1);
+
+    // Save data
+    saveMatchesToStorage(matches.value);
+    savePlayersToStorage(players.value);
+
+    // Close dialog and reset
+    showMatchResultDialog.value = false;
+    selectedWinner.value = null;
+    currentMatchIndex.value = -1;
+
+    $q.notify({
+      type: 'positive',
+      message: 'Match completed! Stats updated.',
+      position: 'top'
+    });
   });
 };
 
@@ -1023,13 +1134,29 @@ const removePlayer = (name: string) => {
 };
 
 const removeFromQueue = (name: string) => {
-  queue.value = queue.value.filter(player => player.name !== name);
-  saveQueueToStorage(queue.value);
+  $q.dialog({
+    title: 'Remove from Queue',
+    message: `Remove "${name}" from the queue?`,
+    cancel: {
+      label: 'Cancel',
+      color: 'grey',
+      flat: true
+    },
+    persistent: false,
+    ok: {
+      label: 'Remove',
+      color: 'negative',
+      icon: 'remove_circle'
+    }
+  }).onOk(() => {
+    queue.value = queue.value.filter(player => player.name !== name);
+    saveQueueToStorage(queue.value);
 
-  $q.notify({
-    type: 'info',
-    message: `Player "${name}" removed from queue`,
-    position: 'top'
+    $q.notify({
+      type: 'info',
+      message: `Player "${name}" removed from queue`,
+      position: 'top'
+    });
   });
 };
 
@@ -1243,152 +1370,7 @@ const shuffleTeams = () => {
   });
 };
 
-// Drag and Drop Functions - Drop on specific player
-const onDragStart = (event: DragEvent, player: Player, team: 'team1' | 'team2') => {
-  draggedPlayer.value = player;
-  dragSourceTeam.value = team;
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', player.name);
-  }
-};
-
-const onDragEnd = () => {
-  draggedPlayer.value = null;
-  dragSourceTeam.value = null;
-  dragOverTeam.value = null;
-  dragOverPlayer.value = null;
-};
-
-const onDragOver = (event: DragEvent, team: 'team1' | 'team2') => {
-  event.preventDefault();
-  if (event.dataTransfer) {
-    event.dataTransfer.dropEffect = 'move';
-  }
-  dragOverTeam.value = team;
-};
-
-const onDragLeave = () => {
-  dragOverTeam.value = null;
-};
-
-const onDragOverPlayer = (event: DragEvent, player: Player) => {
-  event.preventDefault();
-  event.stopPropagation();
-
-  // Don't allow dropping on yourself
-  if (draggedPlayer.value?.name === player.name) {
-    return;
-  }
-
-  if (event.dataTransfer) {
-    event.dataTransfer.dropEffect = 'move';
-  }
-  dragOverPlayer.value = player;
-};
-
-const onDragLeavePlayer = () => {
-  dragOverPlayer.value = null;
-};
-
-const onDropOnPlayer = (event: DragEvent, targetPlayer: Player, targetTeam: 'team1' | 'team2') => {
-  event.preventDefault();
-  event.stopPropagation();
-
-  if (!draggedPlayer.value || !dragSourceTeam.value) return;
-
-  // Don't allow dropping on yourself
-  if (draggedPlayer.value.name === targetPlayer.name) {
-    dragOverPlayer.value = null;
-    return;
-  }
-
-  // Swap the two specific players
-  const team1Array = manualTeam1.value;
-  const team2Array = manualTeam2.value;
-
-  // Remove both players from their current teams
-  manualTeam1.value = team1Array.filter(p => p.name !== draggedPlayer.value!.name && p.name !== targetPlayer.name);
-  manualTeam2.value = team2Array.filter(p => p.name !== draggedPlayer.value!.name && p.name !== targetPlayer.name);
-
-  // Add them to their new teams (swapped positions)
-  if (dragSourceTeam.value === 'team1') {
-    manualTeam2.value.push(draggedPlayer.value);
-  } else {
-    manualTeam1.value.push(draggedPlayer.value);
-  }
-
-  if (targetTeam === 'team1') {
-    manualTeam2.value.push(targetPlayer);
-  } else {
-    manualTeam1.value.push(targetPlayer);
-  }
-
-  $q.notify({
-    type: 'positive',
-    message: `Swapped ${draggedPlayer.value.name} with ${targetPlayer.name}`,
-    position: 'top'
-  });
-
-  dragOverPlayer.value = null;
-  dragOverTeam.value = null;
-};
-
-const onDrop = (event: DragEvent, targetTeam: 'team1' | 'team2') => {
-  event.preventDefault();
-
-  if (!draggedPlayer.value || !dragSourceTeam.value) return;
-
-  // Don't do anything if dropping on the same team
-  if (dragSourceTeam.value === targetTeam) {
-    dragOverTeam.value = null;
-    return;
-  }
-
-  // Get the target team array
-  const targetTeamArray = targetTeam === 'team1' ? manualTeam1.value : manualTeam2.value;
-
-  // If target team is full, swap with first player
-  if (targetTeamArray.length >= 2) {
-    const swapTarget = targetTeamArray[0];
-
-    // Remove both players
-    if (targetTeam === 'team1') {
-      manualTeam1.value = manualTeam1.value.filter(p => p.name !== swapTarget.name);
-      manualTeam2.value = manualTeam2.value.filter(p => p.name !== draggedPlayer.value!.name);
-
-      // Add to opposite teams
-      manualTeam1.value.push(draggedPlayer.value);
-      manualTeam2.value.push(swapTarget);
-    } else {
-      manualTeam2.value = manualTeam2.value.filter(p => p.name !== swapTarget.name);
-      manualTeam1.value = manualTeam1.value.filter(p => p.name !== draggedPlayer.value!.name);
-
-      // Add to opposite teams
-      manualTeam2.value.push(draggedPlayer.value);
-      manualTeam1.value.push(swapTarget);
-    }
-
-    $q.notify({
-      type: 'positive',
-      message: `Swapped ${draggedPlayer.value.name} with ${swapTarget.name}`,
-      position: 'top'
-    });
-  } else {
-    // Target team has space, just move
-    if (dragSourceTeam.value === 'team1') {
-      manualTeam1.value = manualTeam1.value.filter(p => p.name !== draggedPlayer.value!.name);
-      manualTeam2.value.push(draggedPlayer.value);
-    } else {
-      manualTeam2.value = manualTeam2.value.filter(p => p.name !== draggedPlayer.value!.name);
-      manualTeam1.value.push(draggedPlayer.value);
-    }
-  }
-
-  dragOverTeam.value = null;
-};
-
-// Tap-to-Swap Functions (Mobile Friendly)
+// Tap-to-Swap Functions (Works on both Desktop and Mobile)
 const selectPlayerForSwap = (player: Player, team: 'team1' | 'team2') => {
   // If no player selected yet, select this one
   if (!selectedForSwap.value) {
@@ -1500,13 +1482,14 @@ const finalizeManualMatch = () => {
 .doubles-queue-page {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: 100vh;
+  padding-bottom: 2rem;
 }
 
 .header-section {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 2rem 0;
-  margin-bottom: 2rem;
+  padding: 1rem 0;
+  margin-bottom: 1.5rem;
 }
 
 .container {
@@ -1528,11 +1511,23 @@ const finalizeManualMatch = () => {
   }
 }
 
+// Queue card removed flexible height - buttons sit naturally below
+
 .card-content {
   height: 400px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding-bottom: 0.5rem; // Add spacing at bottom
+}
+
+// For queue card, shorter to accommodate buttons section
+.queue-card .card-content {
+  height: 304px; // 96px shorter than other lists
+
+  @media (max-width: 768px) {
+    height: 204px;
+  }
 }
 
 .empty-state {
@@ -1564,14 +1559,20 @@ const finalizeManualMatch = () => {
 .match-teams {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
 }
 
 .team {
   display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  align-items: center;
+}
+
+.match-player-chip {
+  font-weight: 500;
 }
 
 .vs-divider {
@@ -1626,28 +1627,19 @@ const finalizeManualMatch = () => {
   }
 
   .header-section {
-    padding: 1rem 0;
+    padding: 0.75rem 0;
   }
 
-  .match-teams {
-    flex-direction: column;
-    gap: 0.5rem;
+  .match-player-chip {
+    font-size: 12px !important;
   }
 
-  .team {
-    justify-content: center !important;
-  }
-
-  .vs-divider {
-    transform: rotate(90deg);
+  .match-item {
+    padding: 0.75rem 0.5rem !important;
   }
 
   .card-content {
     height: 300px;
-  }
-
-  .sort-select {
-    min-width: 100px !important;
   }
 
   .sort-select {
@@ -1714,29 +1706,16 @@ const finalizeManualMatch = () => {
 }
 
 // Drag and Drop / Tap-to-Swap Styles
-.draggable-player {
-  cursor: grab;
+// Swappable player styles (Simplified - Click/Tap to swap)
+.swappable-player {
+  cursor: pointer;
   transition: all 0.3s ease;
   user-select: none;
   position: relative;
+  touch-action: manipulation;
 
   &:active {
-    cursor: grabbing;
-  }
-
-  &.drag-source {
-    opacity: 0.6;
-    transform: scale(0.98);
-    background: linear-gradient(90deg, rgba(33, 150, 243, 0.2), transparent);
-    border-left: 4px solid #2196f3;
-    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
-  }
-
-  &.drag-target {
-    background: linear-gradient(90deg, rgba(255, 152, 0, 0.2), transparent);
-    border-left: 4px solid #ff9800;
-    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
-    animation: pulse-orange 1s ease-in-out infinite;
+    background-color: rgba(0, 0, 0, 0.08);
   }
 
   &.selected-for-swap {
@@ -1746,68 +1725,15 @@ const finalizeManualMatch = () => {
     animation: pulse-green 1.5s ease-in-out infinite;
   }
 
-  &.can-swap-with {
-    border: 2px dashed transparent;
-
-    &:hover {
-      background-color: rgba(33, 186, 69, 0.1);
-      border: 2px dashed #21ba45;
-      transform: translateX(4px);
-      cursor: copy;
-    }
-  }
-
-  &:hover:not(.drag-source):not(.can-swap-with) {
-    background-color: rgba(0, 0, 0, 0.04);
+  &.can-swap-with:hover {
+    background-color: rgba(33, 186, 69, 0.1);
+    border: 2px dashed #21ba45;
     transform: translateX(4px);
   }
-}
 
-.drop-target-player {
-
-  // Visual indicator when dragging over this specific player
-  &:hover {
-    position: relative;
-
-    &::after {
-      content: '⇄ Swap';
-      position: absolute;
-      right: 50px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: #21ba45;
-      color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: bold;
-      opacity: 0;
-      pointer-events: none;
-    }
-  }
-
-  &.can-swap-with:hover::after {
-    opacity: 1;
-  }
-}
-
-.drag-handle {
-  cursor: grab;
-  opacity: 0.6;
-
-  &:active {
-    cursor: grabbing;
-  }
-}
-
-.team-drop-zone {
-  transition: all 0.3s ease;
-
-  &.drag-over {
-    border: 2px dashed #21ba45;
-    background-color: rgba(33, 186, 69, 0.05);
-    transform: scale(1.02);
-    box-shadow: 0 8px 20px rgba(33, 186, 69, 0.2);
+  &:hover:not(.selected-for-swap) {
+    background-color: rgba(0, 0, 0, 0.04);
+    transform: translateX(4px);
   }
 }
 
@@ -1818,36 +1744,6 @@ const finalizeManualMatch = () => {
 
 .empty-team-drop {
   opacity: 0.6;
-  transition: all 0.3s ease;
-
-  .drag-over & {
-    opacity: 1;
-    background-color: rgba(33, 186, 69, 0.1);
-  }
-}
-
-.mobile-hint {
-  display: none;
-  text-align: center;
-  font-style: italic;
-}
-
-// Show mobile hint on touch devices
-@media (hover: none) and (pointer: coarse) {
-  .mobile-hint {
-    display: block;
-  }
-
-  .drag-handle {
-    display: none;
-  }
-}
-
-// Hide mobile hint on desktop
-@media (hover: hover) and (pointer: fine) {
-  .mobile-hint {
-    display: none;
-  }
 }
 
 // Animations
@@ -1877,20 +1773,6 @@ const finalizeManualMatch = () => {
   }
 }
 
-@keyframes pulse-orange {
-
-  0%,
-  100% {
-    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
-    border-left-width: 4px;
-  }
-
-  50% {
-    box-shadow: 0 6px 24px rgba(255, 152, 0, 0.7);
-    border-left-width: 6px;
-  }
-}
-
 // Swap icon animations
 .swap-icon-pulse {
   animation: icon-bounce 0.8s ease-in-out infinite;
@@ -1900,15 +1782,11 @@ const finalizeManualMatch = () => {
 
   0%,
   100% {
-    transform: scale(1) rotate(0deg);
+    transform: scale(1);
   }
 
-  25% {
-    transform: scale(1.2) rotate(-5deg);
-  }
-
-  75% {
-    transform: scale(1.2) rotate(5deg);
+  50% {
+    transform: scale(1.2);
   }
 }
 

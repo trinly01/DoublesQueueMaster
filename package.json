@@ -1,8 +1,8 @@
 {
-  "name": "doubles-queue-master",
+  "name": "queue-master",
   "version": "0.0.1",
   "description": "A Quasar Project",
-  "productName": "Doubles Queue Master",
+  "productName": "Queue Master",
   "author": "Trinmar Boado <timi.boado@gmail.com>",
   "type": "module",
   "private": true,

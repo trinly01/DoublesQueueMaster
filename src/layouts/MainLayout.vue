@@ -5,7 +5,7 @@
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
 
         <q-toolbar-title>
-          Doubles Queueing Master
+          Queue Master
         </q-toolbar-title>
 
         <div>v{{ $q.version }}</div>

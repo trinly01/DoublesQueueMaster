@@ -1,6 +1,16 @@
-# Doubles Queue Master (doubles-queue-master)
+# 🏓 Queue Master
 
-A Quasar Project
+Smart matchmaking system for table tennis singles and doubles matches.
+
+## Features
+
+- ✅ **Singles (1v1) & Doubles (2v2)** match support
+- 🎯 **Smart balanced team generation** using skill levels
+- 📊 **Player statistics tracking** (wins/losses/games played)
+- 🎨 **Manual match creation** with drag & drop (desktop) and tap-to-swap (mobile)
+- 💾 **LocalStorage persistence** - your data is saved automatically
+- 📱 **Fully responsive** PWA design
+- 🌐 **Works offline** with service worker
 
 ## Install the dependencies
 ```bash
