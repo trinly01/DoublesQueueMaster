@@ -267,7 +267,7 @@
     <q-dialog v-model="showAddPlayerDialog">
       <q-card style="min-width: 350px; max-width: 500px; width: 90vw">
         <q-card-section class="players-header text-white">
-          <div class="text-h6">
+          <div class="text-h6 ellipsis">
             <q-icon name="person_add" class="q-mr-sm" />
             Add New Player
           </div>
@@ -312,7 +312,7 @@
     <q-dialog v-model="showMatchResultDialog">
       <q-card style="min-width: 350px; max-width: 600px; width: 95vw">
         <q-card-section class="matches-header text-white">
-          <div class="text-h6">
+          <div class="text-h6 ellipsis">
             <q-icon name="emoji_events" class="q-mr-sm" />
             Match Result
           </div>
@@ -390,7 +390,7 @@
     <q-dialog v-model="showSettingsDialog">
       <q-card style="min-width: 350px; max-width: 500px; width: 90vw">
         <q-card-section class="queue-header text-white">
-          <div class="text-h6">
+          <div class="text-h6 ellipsis">
             <q-icon name="settings" class="q-mr-sm" />
             Settings
           </div>
@@ -414,13 +414,14 @@
     </q-dialog>
 
     <!-- Manual Match Selection Dialog -->
-    <q-dialog v-model="showManualSelectionDialog" maximized transition-show="slide-up" transition-hide="slide-down">
-      <q-card>
+    <q-dialog v-model="showManualSelectionDialog" :maximized="$q.screen.lt.md" transition-show="slide-up"
+      transition-hide="slide-down">
+      <q-card style="max-width: 700px; width: 95vw">
         <q-card-section class="players-header text-white">
-          <div class="row items-center justify-between">
-            <div class="text-h6">
+          <div class="row items-center justify-between no-wrap">
+            <div class="text-h6 ellipsis">
               <q-icon name="touch_app" class="q-mr-sm" />
-              Manual {{ matchType === 'singles' ? 'Singles' : 'Doubles' }} Match Selection
+              {{ matchType === 'singles' ? 'Singles' : 'Doubles' }} Match Selection
             </div>
             <q-btn icon="close" flat round dense v-close-popup />
           </div>
@@ -527,7 +528,7 @@
                               :class="{ 'swap-pulse': selectedForSwap?.name === player.name }">
                               {{ index + 1 }}
                               <q-tooltip>{{ player.name }} - Level {{ player.level }} - Position {{ index + 1
-                              }}</q-tooltip>
+                                }}</q-tooltip>
                             </q-avatar>
                           </q-item-section>
                           <q-item-section>
@@ -576,7 +577,7 @@
                               :class="{ 'swap-pulse': selectedForSwap?.name === player.name }">
                               {{ index + 1 }}
                               <q-tooltip>{{ player.name }} - Level {{ player.level }} - Position {{ index + 1
-                              }}</q-tooltip>
+                                }}</q-tooltip>
                             </q-avatar>
                           </q-item-section>
                           <q-item-section>
@@ -1905,6 +1906,17 @@ const createSinglesManualMatch = () => {
 
   .q-card-section {
     padding: 16px !important;
+
+    // Tighter padding for headers on mobile
+    &.players-header,
+    &.queue-header,
+    &.matches-header {
+      padding: 12px 16px !important;
+
+      .text-h6 {
+        font-size: 1rem;
+      }
+    }
   }
 
   .q-card-actions {
