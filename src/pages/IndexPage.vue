@@ -58,7 +58,7 @@
                     <q-item-section side>
                       <div class="row items-center q-gutter-xs">
                         <q-btn flat round color="negative" @click="removePlayer(player.name)" icon="delete" size="sm" />
-                        <q-btn flat color="secondary" @click="requeuePlayer(player.name)" icon="add_to_queue" size="sm"
+                        <q-btn flat color="secondary" @click="requeuePlayer(player.name)" icon="input" size="sm"
                           :disable="queue.some(p => p.name === player.name)" />
                       </div>
                     </q-item-section>
@@ -93,7 +93,13 @@
             <q-card-section class="q-pa-none">
               <div class="card-content">
                 <q-list separator v-if="queue.length > 0">
-                  <q-item v-for="player in queue" :key="player.name" class="queue-item">
+                  <q-item v-for="(player, index) in queue" :key="player.name" class="queue-item">
+                    <q-item-section avatar>
+                      <q-avatar color="secondary" text-color="white" size="md">
+                        {{ index + 1 }}
+                        <q-tooltip>Position in queue: {{ index + 1 }}</q-tooltip>
+                      </q-avatar>
+                    </q-item-section>
                     <q-item-section>
                       <q-item-label class="text-weight-medium">{{ player.name }}</q-item-label>
                       <q-item-label caption class="q-pl-xs">
@@ -134,14 +140,16 @@
                     {{ matchType === 'singles' ? 'Need at least 2 players' : 'Need at least 4 players' }}
                   </q-tooltip>
                 </q-btn>
-                <q-btn v-if="matchType === 'doubles'" class="full-width" color="secondary" @click="startManualSelection"
-                  label="Manual Match Selection" size="lg" icon="touch_app" :disable="queue.length < 4" outline>
-                  <q-tooltip v-if="queue.length < 4">Need at least 4 players for manual doubles selection</q-tooltip>
+                <q-btn class="full-width" color="secondary" @click="startManualSelection" label="Manual Match Selection"
+                  size="lg" icon="touch_app" :disable="queue.length < (matchType === 'singles' ? 2 : 4)" outline>
+                  <q-tooltip v-if="queue.length < (matchType === 'singles' ? 2 : 4)">
+                    {{
+                      matchType === 'singles' ?
+                        'Need at least 2 players for manual singles selection' :
+                        'Need at least 4 players for manual doubles selection'
+                    }}
+                  </q-tooltip>
                 </q-btn>
-                <div v-else class="text-caption text-grey-6 text-center q-py-sm">
-                  <q-icon name="info" size="xs" />
-                  Singles matches are auto-paired by fairness
-                </div>
               </div>
               <div class="text-caption text-grey-6 q-mt-sm text-center">
                 {{ getMatchGenerationHint() }}
@@ -408,7 +416,7 @@
           <div class="row items-center justify-between">
             <div class="text-h6">
               <q-icon name="touch_app" class="q-mr-sm" />
-              Manual Match Selection
+              Manual {{ matchType === 'singles' ? 'Singles' : 'Doubles' }} Match Selection
             </div>
             <q-btn icon="close" flat round dense v-close-popup />
           </div>
@@ -418,9 +426,11 @@
           <div class="manual-selection-container">
             <!-- Step 1: Select Players -->
             <div v-if="manualSelectionStep === 1" class="selection-step">
-              <div class="text-h6 q-mb-md">Step 1: Select 4 Players</div>
+              <div class="text-h6 q-mb-md">Step 1: Select {{ matchType === 'singles' ? '2' : '4' }} Players</div>
               <div class="text-caption text-grey-7 q-mb-md">
-                Click on players to select them for the match ({{ selectedPlayers.length }}/4 selected)
+                Click on players to select them for the match ({{ selectedPlayers.length }}/{{ matchType === 'singles' ?
+                  2 :
+                  4 }} selected)
               </div>
 
               <q-list separator bordered class="rounded-borders">
@@ -445,8 +455,11 @@
 
               <div class="q-mt-lg row justify-end q-gutter-sm">
                 <q-btn flat label="Cancel" @click="cancelManualSelection" />
-                <q-btn color="secondary" label="Next: Arrange Teams" icon-right="arrow_forward"
-                  @click="proceedToTeamArrangement" :disable="selectedPlayers.length !== 4" />
+                <q-btn v-if="matchType === 'doubles'" color="secondary" label="Next: Arrange Teams"
+                  icon-right="arrow_forward" @click="proceedToTeamArrangement"
+                  :disable="selectedPlayers.length !== 4" />
+                <q-btn v-else color="secondary" label="Create Match" icon="check" @click="createSinglesManualMatch"
+                  :disable="selectedPlayers.length !== 2" />
               </div>
             </div>
 
@@ -510,7 +523,7 @@
                               :class="{ 'swap-pulse': selectedForSwap?.name === player.name }">
                               {{ index + 1 }}
                               <q-tooltip>{{ player.name }} - Level {{ player.level }} - Position {{ index + 1
-                              }}</q-tooltip>
+                                }}</q-tooltip>
                             </q-avatar>
                           </q-item-section>
                           <q-item-section>
@@ -559,7 +572,7 @@
                               :class="{ 'swap-pulse': selectedForSwap?.name === player.name }">
                               {{ index + 1 }}
                               <q-tooltip>{{ player.name }} - Level {{ player.level }} - Position {{ index + 1
-                              }}</q-tooltip>
+                                }}</q-tooltip>
                             </q-avatar>
                           </q-item-section>
                           <q-item-section>
@@ -1260,18 +1273,19 @@ const cancelManualSelection = () => {
 
 const togglePlayerSelection = (player: Player) => {
   const index = selectedPlayers.value.findIndex(p => p.name === player.name);
+  const maxPlayers = matchType.value === 'singles' ? 2 : 4;
 
   if (index >= 0) {
     // Remove player
     selectedPlayers.value.splice(index, 1);
   } else {
-    // Add player if less than 4 selected
-    if (selectedPlayers.value.length < 4) {
+    // Add player if less than max selected
+    if (selectedPlayers.value.length < maxPlayers) {
       selectedPlayers.value.push(player);
     } else {
       $q.notify({
         type: 'warning',
-        message: 'You can only select 4 players',
+        message: `You can only select ${maxPlayers} players`,
         position: 'top'
       });
     }
@@ -1473,6 +1487,39 @@ const finalizeManualMatch = () => {
   $q.notify({
     type: 'positive',
     message: 'Manual match created successfully!',
+    position: 'top'
+  });
+};
+
+const createSinglesManualMatch = () => {
+  if (selectedPlayers.value.length !== 2) {
+    $q.notify({
+      type: 'warning',
+      message: 'Please select exactly 2 players',
+      position: 'top'
+    });
+    return;
+  }
+
+  // Create the singles match (just 2 players)
+  const newMatch = [...selectedPlayers.value];
+  matches.value.push(newMatch);
+
+  // Remove players from queue
+  const matchedPlayerNames = newMatch.map(p => p.name);
+  queue.value = queue.value.filter(p => !matchedPlayerNames.includes(p.name));
+
+  // Save data
+  saveMatchesToStorage(matches.value);
+  saveQueueToStorage(queue.value);
+
+  // Close dialog and reset
+  showManualSelectionDialog.value = false;
+  selectedPlayers.value = [];
+
+  $q.notify({
+    type: 'positive',
+    message: 'Singles match created successfully!',
     position: 'top'
   });
 };
