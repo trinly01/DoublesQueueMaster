@@ -24,7 +24,7 @@
         <!-- Left Column: Players List -->
         <div class="col-12 col-md-4">
           <q-card class="players-card" flat bordered>
-            <q-card-section class="bg-secondary text-white">
+            <q-card-section class="players-header text-white">
               <div class="row items-center justify-between">
                 <div class="text-h6">
                   <q-icon name="people" class="q-mr-sm" />
@@ -58,7 +58,7 @@
                     <q-item-section side>
                       <div class="row items-center q-gutter-xs">
                         <q-btn flat round color="negative" @click="removePlayer(player.name)" icon="delete" size="sm" />
-                        <q-btn flat color="secondary" @click="requeuePlayer(player.name)" icon="input" size="sm"
+                        <q-btn flat color="accent" @click="requeuePlayer(player.name)" icon="input" size="sm"
                           :disable="queue.some(p => p.name === player.name)" />
                       </div>
                     </q-item-section>
@@ -77,16 +77,16 @@
         <!-- Center Column: Queue -->
         <div class="col-12 col-md-4">
           <q-card class="queue-card" flat bordered>
-            <q-card-section class="bg-accent text-white">
+            <q-card-section class="queue-header text-white">
               <div class="row items-center justify-between">
                 <div class="text-h6">
                   <q-icon name="queue" class="q-mr-sm" />
                   Players Queue ({{ queue.length }})
                 </div>
                 <div class="queue-stats">
-                  <q-chip :label="`L1: ${queueStats.level1}`" color="green" text-color="white" size="sm" />
-                  <q-chip :label="`L2: ${queueStats.level2}`" color="orange" text-color="white" size="sm" />
-                  <q-chip :label="`L3: ${queueStats.level3}`" color="red" text-color="white" size="sm" />
+                  <q-chip :label="`L1: ${queueStats.level1}`" color="green-6" text-color="white" size="sm" />
+                  <q-chip :label="`L2: ${queueStats.level2}`" color="orange-7" text-color="white" size="sm" />
+                  <q-chip :label="`L3: ${queueStats.level3}`" color="red-8" text-color="white" size="sm" />
                 </div>
               </div>
             </q-card-section>
@@ -95,7 +95,7 @@
                 <q-list separator v-if="queue.length > 0">
                   <q-item v-for="(player, index) in queue" :key="player.name" class="queue-item">
                     <q-item-section avatar>
-                      <q-avatar color="secondary" text-color="white" size="md">
+                      <q-avatar color="accent" text-color="white" size="md">
                         {{ index + 1 }}
                         <q-tooltip>Position in queue: {{ index + 1 }}</q-tooltip>
                       </q-avatar>
@@ -126,22 +126,26 @@
               <div class="q-mb-md">
                 <div class="text-caption text-grey-7 q-mb-xs">Match Type</div>
                 <q-select v-model="matchType" :options="matchTypeOptions" dense outlined emit-value map-options
-                  color="secondary">
+                  color="accent">
                   <template v-slot:prepend>
                     <q-icon :name="matchType === 'singles' ? 'person' : 'people'" />
                   </template>
                 </q-select>
               </div>
 
-              <div class="q-gutter-y-sm">
-                <q-btn class="full-width" color="primary" @click="generateNewMatches" label="Auto Generate Matches"
-                  size="lg" icon="auto_awesome" :disable="!canGenerateMatches()">
+              <div class="row q-gutter-sm">
+                <q-btn class="col" color="accent" @click="generateNewMatches" size="md" icon="auto_awesome"
+                  :disable="!canGenerateMatches()">
+                  <span class="gt-xs">Auto Generate</span>
+                  <span class="lt-sm">Auto</span>
                   <q-tooltip v-if="!canGenerateMatches()">
                     {{ matchType === 'singles' ? 'Need at least 2 players' : 'Need at least 4 players' }}
                   </q-tooltip>
                 </q-btn>
-                <q-btn class="full-width" color="secondary" @click="startManualSelection" label="Manual Match Selection"
-                  size="lg" icon="touch_app" :disable="queue.length < (matchType === 'singles' ? 2 : 4)" outline>
+                <q-btn class="col" color="accent" @click="startManualSelection" size="md" icon="touch_app"
+                  :disable="queue.length < (matchType === 'singles' ? 2 : 4)" outline>
+                  <span class="gt-xs">Manual Selection</span>
+                  <span class="lt-sm">Manual</span>
                   <q-tooltip v-if="queue.length < (matchType === 'singles' ? 2 : 4)">
                     {{
                       matchType === 'singles' ?
@@ -170,7 +174,7 @@
         <!-- Right Column: Matches -->
         <div class="col-12 col-md-4">
           <q-card class="matches-card" flat bordered>
-            <q-card-section class="bg-positive text-white">
+            <q-card-section class="matches-header text-white">
               <div class="text-h6">
                 <q-icon name="sports_tennis" class="q-mr-sm" />
                 Matches ({{ matches.length }})
@@ -242,7 +246,7 @@
                       </div>
                     </q-item-section>
                     <q-item-section side>
-                      <q-btn flat color="positive" @click="openMatchResultDialog(index)" icon="emoji_events" size="sm"
+                      <q-btn flat color="accent" @click="openMatchResultDialog(index)" icon="emoji_events" size="sm"
                         round />
                     </q-item-section>
                   </q-item>
@@ -261,8 +265,8 @@
 
     <!-- Add Player Dialog -->
     <q-dialog v-model="showAddPlayerDialog">
-      <q-card style="min-width: 400px">
-        <q-card-section class="bg-primary text-white">
+      <q-card style="min-width: 350px; max-width: 500px; width: 90vw">
+        <q-card-section class="players-header text-white">
           <div class="text-h6">
             <q-icon name="person_add" class="q-mr-sm" />
             Add New Player
@@ -297,8 +301,8 @@
           </div>
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat label="Cancel" @click="showAddPlayerDialog = false" />
-          <q-btn color="primary" @click="addNewPlayer" label="Add Player"
+          <q-btn flat label="Cancel" color="grey" @click="showAddPlayerDialog = false" />
+          <q-btn color="accent" @click="addNewPlayer" label="Add Player"
             :disable="!newPlayerName?.trim() || newPlayerLevel === null" icon="add" />
         </q-card-actions>
       </q-card>
@@ -306,8 +310,8 @@
 
     <!-- Match Result Dialog -->
     <q-dialog v-model="showMatchResultDialog">
-      <q-card style="min-width: 500px">
-        <q-card-section class="bg-positive text-white">
+      <q-card style="min-width: 350px; max-width: 600px; width: 95vw">
+        <q-card-section class="matches-header text-white">
           <div class="text-h6">
             <q-icon name="emoji_events" class="q-mr-sm" />
             Match Result
@@ -375,8 +379,8 @@
           </div>
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat label="Cancel" @click="showMatchResultDialog = false" />
-          <q-btn color="positive" @click="completeMatch" label="Complete Match" :disable="selectedWinner === null"
+          <q-btn flat label="Cancel" color="grey" @click="showMatchResultDialog = false" />
+          <q-btn color="accent" @click="completeMatch" label="Complete Match" :disable="selectedWinner === null"
             icon="check" />
         </q-card-actions>
       </q-card>
@@ -384,8 +388,8 @@
 
     <!-- Settings Dialog -->
     <q-dialog v-model="showSettingsDialog">
-      <q-card style="min-width: 400px">
-        <q-card-section class="bg-primary text-white">
+      <q-card style="min-width: 350px; max-width: 500px; width: 90vw">
+        <q-card-section class="queue-header text-white">
           <div class="text-h6">
             <q-icon name="settings" class="q-mr-sm" />
             Settings
@@ -394,7 +398,7 @@
         <q-card-section>
           <div class="q-gutter-y-md">
             <div>
-              <q-btn color="secondary" @click="resetGamesPlayed" icon="refresh" label="Reset Games Played"
+              <q-btn color="accent" @click="resetGamesPlayed" icon="refresh" label="Reset Games Played"
                 class="full-width" />
             </div>
             <div>
@@ -404,7 +408,7 @@
           </div>
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat label="Close" @click="showSettingsDialog = false" />
+          <q-btn flat label="Close" color="grey" @click="showSettingsDialog = false" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -412,7 +416,7 @@
     <!-- Manual Match Selection Dialog -->
     <q-dialog v-model="showManualSelectionDialog" maximized transition-show="slide-up" transition-hide="slide-down">
       <q-card>
-        <q-card-section class="bg-secondary text-white">
+        <q-card-section class="players-header text-white">
           <div class="row items-center justify-between">
             <div class="text-h6">
               <q-icon name="touch_app" class="q-mr-sm" />
@@ -437,7 +441,7 @@
                 <q-item v-for="player in queue" :key="player.name" clickable @click="togglePlayerSelection(player)"
                   :class="{ 'selected-player': isPlayerSelected(player) }" class="player-selection-item">
                   <q-item-section avatar>
-                    <q-checkbox :model-value="isPlayerSelected(player)" color="secondary"
+                    <q-checkbox :model-value="isPlayerSelected(player)" color="accent"
                       @click.stop="togglePlayerSelection(player)" />
                   </q-item-section>
                   <q-item-section>
@@ -454,11 +458,11 @@
               </q-list>
 
               <div class="q-mt-lg row justify-end q-gutter-sm">
-                <q-btn flat label="Cancel" @click="cancelManualSelection" />
-                <q-btn v-if="matchType === 'doubles'" color="secondary" label="Next: Arrange Teams"
+                <q-btn flat label="Cancel" color="grey" @click="cancelManualSelection" />
+                <q-btn v-if="matchType === 'doubles'" color="accent" label="Next: Arrange Teams"
                   icon-right="arrow_forward" @click="proceedToTeamArrangement"
                   :disable="selectedPlayers.length !== 4" />
-                <q-btn v-else color="secondary" label="Create Match" icon="check" @click="createSinglesManualMatch"
+                <q-btn v-else color="accent" label="Create Match" icon="check" @click="createSinglesManualMatch"
                   :disable="selectedPlayers.length !== 2" />
               </div>
             </div>
@@ -488,7 +492,7 @@
 
               <!-- Team Arrangement Actions -->
               <div class="row q-mb-lg q-gutter-sm">
-                <q-btn color="primary" label="Balance Teams" icon="balance" @click="balanceTeams" outline>
+                <q-btn color="accent" label="Balance Teams" icon="balance" @click="balanceTeams" outline>
                   <q-tooltip>Use smart algorithm to create balanced teams</q-tooltip>
                 </q-btn>
                 <q-btn color="accent" label="Shuffle" icon="shuffle" @click="shuffleTeams" outline>
@@ -513,17 +517,17 @@
                         <q-icon name="touch_app" size="xs" /> Click to select, click another to swap
                       </div>
                       <q-list v-if="manualTeam1.length > 0">
-                        <q-item v-for="(player, index) in manualTeam1" :key="player.name"
+                        <q-item v-for="(player, index) in manualTeam1" :key="player.name" clickable
                           class="team-player-item swappable-player" :class="{
                             'selected-for-swap': selectedForSwap?.name === player.name,
                             'can-swap-with': selectedForSwap && selectedForSwap.name !== player.name
-                          }" @click.stop="selectPlayerForSwap(player, 'team1')">
+                          }" @click="selectPlayerForSwap(player, 'team1')">
                           <q-item-section avatar>
                             <q-avatar :color="getLevelColor(player.level)" text-color="white"
                               :class="{ 'swap-pulse': selectedForSwap?.name === player.name }">
                               {{ index + 1 }}
                               <q-tooltip>{{ player.name }} - Level {{ player.level }} - Position {{ index + 1
-                                }}</q-tooltip>
+                              }}</q-tooltip>
                             </q-avatar>
                           </q-item-section>
                           <q-item-section>
@@ -562,17 +566,17 @@
                         <q-icon name="touch_app" size="xs" /> Click to select, click another to swap
                       </div>
                       <q-list v-if="manualTeam2.length > 0">
-                        <q-item v-for="(player, index) in manualTeam2" :key="player.name"
+                        <q-item v-for="(player, index) in manualTeam2" :key="player.name" clickable
                           class="team-player-item swappable-player" :class="{
                             'selected-for-swap': selectedForSwap?.name === player.name,
                             'can-swap-with': selectedForSwap && selectedForSwap.name !== player.name
-                          }" @click.stop="selectPlayerForSwap(player, 'team2')">
+                          }" @click="selectPlayerForSwap(player, 'team2')">
                           <q-item-section avatar>
                             <q-avatar :color="getLevelColor(player.level)" text-color="white"
                               :class="{ 'swap-pulse': selectedForSwap?.name === player.name }">
                               {{ index + 1 }}
                               <q-tooltip>{{ player.name }} - Level {{ player.level }} - Position {{ index + 1
-                                }}</q-tooltip>
+                              }}</q-tooltip>
                             </q-avatar>
                           </q-item-section>
                           <q-item-section>
@@ -599,10 +603,11 @@
 
               <!-- Action Buttons -->
               <div class="q-mt-lg row justify-between">
-                <q-btn flat label="Back" icon="arrow_back" @click="manualSelectionStep = 1" />
+                <q-btn flat label="Back" icon="arrow_back" color="grey"
+                  @click="() => { manualSelectionStep = 1; selectedForSwap = null; selectedForSwapTeam = null; }" />
                 <div class="row q-gutter-sm">
-                  <q-btn flat label="Cancel" @click="cancelManualSelection" />
-                  <q-btn color="positive" label="Create Match" icon="check" @click="createManualMatch"
+                  <q-btn flat label="Cancel" color="grey" @click="cancelManualSelection" />
+                  <q-btn color="accent" label="Create Match" icon="check" @click="createManualMatch"
                     :disable="manualTeam1.length !== 2 || manualTeam2.length !== 2" />
                 </div>
               </div>
@@ -726,10 +731,10 @@ const currentMatch = computed(() => {
 // Helper functions
 const getLevelColor = (level: 1 | 2 | 3): string => {
   switch (level) {
-    case 1: return 'green';
-    case 2: return 'orange';
-    case 3: return 'red';
-    default: return 'grey';
+    case 1: return 'green-6';      // Beginner - Green shade 6
+    case 2: return 'orange-7';     // Intermediate - Orange shade 7
+    case 3: return 'red-8';        // Advanced - Red shade 8
+    default: return 'grey-5';
   }
 };
 
@@ -1011,7 +1016,7 @@ const generateNewMatches = () => {
     persistent: false,
     ok: {
       label: 'Generate',
-      color: 'primary',
+      color: 'accent',
       icon: 'auto_awesome'
     }
   }).onOk(() => {
@@ -1079,7 +1084,7 @@ const completeMatch = () => {
     persistent: false,
     ok: {
       label: 'Complete',
-      color: 'positive',
+      color: 'accent',
       icon: 'check'
     }
   }).onOk(() => {
@@ -1130,7 +1135,16 @@ const removePlayer = (name: string) => {
   $q.dialog({
     title: 'Confirm Removal',
     message: `Are you sure you want to remove "${name}" from all lists?`,
-    cancel: true,
+    cancel: {
+      label: 'Cancel',
+      color: 'grey',
+      flat: true
+    },
+    ok: {
+      label: 'Remove',
+      color: 'negative',
+      icon: 'delete'
+    },
     persistent: true
   }).onOk(() => {
     players.value = players.value.filter(player => player.name !== name);
@@ -1177,13 +1191,15 @@ const resetGamesPlayed = () => {
   $q.dialog({
     title: 'Confirm Reset',
     message: 'Are you sure you want to reset all games played counters to zero?',
-    ok: {
-      label: 'Reset',
-      color: 'negative'
-    },
     cancel: {
       label: 'Cancel',
-      color: 'grey'
+      color: 'grey',
+      flat: true
+    },
+    ok: {
+      label: 'Reset',
+      color: 'negative',
+      icon: 'refresh'
     },
     persistent: true
   }).onOk(() => {
@@ -1229,13 +1245,15 @@ const resetAllData = () => {
   $q.dialog({
     title: 'Confirm Reset All',
     message: 'This will clear all players, queue, and matches. Are you sure?',
-    ok: {
-      label: 'Reset All',
-      color: 'negative'
-    },
     cancel: {
       label: 'Cancel',
-      color: 'grey'
+      color: 'grey',
+      flat: true
+    },
+    ok: {
+      label: 'Reset All',
+      color: 'negative',
+      icon: 'delete_forever'
     },
     persistent: true
   }).onOk(() => {
@@ -1268,6 +1286,8 @@ const cancelManualSelection = () => {
   manualTeam1.value = [];
   manualTeam2.value = [];
   manualSelectionStep.value = 1;
+  selectedForSwap.value = null;
+  selectedForSwapTeam.value = null;
   showManualSelectionDialog.value = false;
 };
 
@@ -1447,13 +1467,15 @@ const createManualMatch = () => {
     $q.dialog({
       title: 'Unbalanced Teams',
       message: `These teams are very unbalanced (skill difference: ${getSkillDifference()}). Are you sure you want to create this match?`,
-      ok: {
-        label: 'Create Anyway',
-        color: 'negative'
-      },
       cancel: {
         label: 'Go Back',
-        color: 'grey'
+        color: 'grey',
+        flat: true
+      },
+      ok: {
+        label: 'Create Anyway',
+        color: 'accent',
+        icon: 'check'
       },
       persistent: true
     }).onOk(() => {
@@ -1483,6 +1505,8 @@ const finalizeManualMatch = () => {
   manualTeam1.value = [];
   manualTeam2.value = [];
   manualSelectionStep.value = 1;
+  selectedForSwap.value = null;
+  selectedForSwapTeam.value = null;
 
   $q.notify({
     type: 'positive',
@@ -1537,6 +1561,19 @@ const createSinglesManualMatch = () => {
   color: white;
   padding: 1rem 0;
   margin-bottom: 1.5rem;
+}
+
+// Column header gradients matching the header theme
+.players-header {
+  background: linear-gradient(135deg, #667eea 0%, #5a67d8 100%) !important;
+}
+
+.queue-header {
+  background: linear-gradient(135deg, #764ba2 0%, #9f7aea 100%) !important;
+}
+
+.matches-header {
+  background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%) !important;
 }
 
 .container {
@@ -1853,6 +1890,57 @@ const createSinglesManualMatch = () => {
   50% {
     transform: scale(1.1);
     box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+  }
+}
+
+// Mobile dialog improvements
+@media (max-width: 599px) {
+  .q-dialog__inner {
+    padding: 8px;
+  }
+
+  .q-card {
+    margin: 0 !important;
+  }
+
+  .q-card-section {
+    padding: 16px !important;
+  }
+
+  .q-card-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px !important;
+
+    .q-btn {
+      flex: 1 1 auto;
+      min-width: 100px;
+    }
+  }
+
+  .team-card {
+    margin-bottom: 12px;
+  }
+
+  // Improve text readability
+  .text-h6 {
+    font-size: 1.15rem;
+  }
+
+  .text-subtitle1 {
+    font-size: 1rem;
+  }
+
+  // Make dialog buttons stack on very small screens
+  @media (max-width: 360px) {
+    .q-card-actions {
+      flex-direction: column;
+
+      .q-btn {
+        width: 100%;
+        min-width: unset;
+      }
+    }
   }
 }
 </style>
