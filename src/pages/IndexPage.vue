@@ -316,6 +316,14 @@
                               <q-item-section>Change Court</q-item-section>
                             </q-item>
 
+                            <q-item v-if="match.status === 'waiting' && match.court && isCourtAvailable(match.court)"
+                              clickable @click="startMatch(index)">
+                              <q-item-section avatar>
+                                <q-icon name="play_arrow" />
+                              </q-item-section>
+                              <q-item-section>Start Match</q-item-section>
+                            </q-item>
+
                             <q-separator />
 
                             <q-item clickable @click="cancelMatch(index)" class="text-negative">
@@ -2074,6 +2082,7 @@ const completeMatch = () => {
     }
   }).onOk(() => {
     const match = matches.value[currentMatchIndex.value];
+    const courtNumber = match.court; // Store court number before removing match
 
     // Update games played for all players
     match.players.forEach(player => {
@@ -2100,7 +2109,7 @@ const completeMatch = () => {
     matches.value.splice(currentMatchIndex.value, 1);
 
     // Auto-advance next match for this specific court
-    autoAdvanceNextMatchForCourt(match.court);
+    autoAdvanceNextMatchForCourt(courtNumber);
 
     // Save data
     saveMatchesToStorage(matches.value);
@@ -2765,6 +2774,48 @@ const assignCourtAutomatically = () => {
   }
 
   showCourtSelectionDialog.value = false;
+};
+
+// Check if a court is available (no in-progress match)
+const isCourtAvailable = (courtNumber: number): boolean => {
+  return !matches.value.some(m => m.court === courtNumber && m.status === 'in-progress');
+};
+
+// Start a waiting match
+const startMatch = (matchIndex: number) => {
+  const match = matches.value[matchIndex];
+
+  if (match.status !== 'waiting' || !match.court) {
+    $q.notify({
+      type: 'negative',
+      message: 'Cannot start this match',
+      position: 'top'
+    });
+    return;
+  }
+
+  // Check if court is available
+  if (!isCourtAvailable(match.court)) {
+    $q.notify({
+      type: 'negative',
+      message: `Court ${match.court} is currently in use`,
+      position: 'top'
+    });
+    return;
+  }
+
+  // Start the match
+  match.status = 'in-progress';
+  match.startedAt = new Date();
+
+  // Save data
+  saveMatchesToStorage(matches.value);
+
+  $q.notify({
+    type: 'positive',
+    message: `Match started on Court ${match.court}`,
+    position: 'top'
+  });
 };
 
 const assignSpecificCourt = (courtNumber: number) => {
