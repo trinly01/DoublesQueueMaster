@@ -99,7 +99,8 @@
                 <q-list separator v-if="queue.length > 0">
                   <q-item v-for="(player, index) in queue" :key="player.name" class="queue-item">
                     <q-item-section avatar>
-                      <q-avatar :color="getQueuePositionColor(player)" text-color="white" size="md">
+                      <q-avatar :color="player.priority === 'returned' ? 'warning' : 'accent'" text-color="white"
+                        size="md">
                         {{ index + 1 }}
                         <q-tooltip>
                           Position: {{ index + 1 }}
@@ -111,8 +112,8 @@
                     <q-item-section>
                       <q-item-label class="text-weight-medium">
                         {{ player.name }}
-                        <q-chip v-if="player.priority === 'high' || player.priority === 'returned'" label="Returned"
-                          color="orange" text-color="white" size="xs" dense />
+                        <q-chip v-if="player.priority === 'returned'" label="Returned" color="warning"
+                          text-color="white" size="xs" dense class="q-ml-xs" />
                       </q-item-label>
                       <q-item-label caption class="q-pl-xs">
                         <q-chip :label="`Level ${player.level}`" :color="getLevelColor(player.level)" text-color="white"
@@ -121,8 +122,6 @@
                         <span class="q-ml-sm text-grey-6">
                           {{ getQueueTimeInfo(player) }}
                         </span>
-                        <q-chip v-if="player.priority === 'returned'" label="Returned from match" color="orange"
-                          text-color="white" size="xs" dense class="q-ml-sm" />
                       </q-item-label>
                     </q-item-section>
                     <q-item-section side>
@@ -1026,16 +1025,10 @@ const getWaitingPlayersInfo = (): string => {
 };
 
 // Queue management helper functions
-const getQueuePositionColor = (player: Player): string => {
-  if (player.priority === 'high' || player.priority === 'returned') {
-    return 'orange-6';
-  }
-  return 'accent';
-};
 
 const getQueueTimeInfo = (player: Player): string => {
   if (player.priority === 'returned') {
-    return 'Returned';
+    return 'Recently returned';
   }
   if (player.originalQueueTime) {
     const now = new Date();
@@ -1046,7 +1039,7 @@ const getQueueTimeInfo = (player: Player): string => {
     const hours = Math.floor(minutes / 60);
     return `${hours}h ago`;
   }
-  return '';
+  return 'In queue';
 };
 
 const sortQueueByFairness = () => {
