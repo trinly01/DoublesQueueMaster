@@ -1490,6 +1490,7 @@ const generateMatches = (): Match[] => {
   // Calculate how many complete matches we can make
   const maxMatches = Math.floor(queueCopy.length / playersPerMatch);
 
+  // First, create all matches without court assignment
   for (let i = 0; i < maxMatches; i++) {
     const matchPlayers = queueCopy.splice(0, playersPerMatch);
     let arrangedPlayers: Player[];
@@ -1502,23 +1503,22 @@ const generateMatches = (): Match[] => {
       arrangedPlayers = createBalancedMatch(matchPlayers);
     }
 
-    // Create Match object with FIFO order and court assignment
-    const assignedCourt = autoAssignCourts.value ? assignCourt() : undefined;
-
-    // Check if the assigned court is empty (no in-progress matches)
-    const isCourtEmpty = !assignedCourt || !matches.value.some(m => m.court === assignedCourt && m.status === 'in-progress');
-
     const match: Match = {
       id: `match-${Date.now()}-${i}`,
       players: arrangedPlayers,
-      status: isCourtEmpty ? 'in-progress' : 'waiting',
+      status: 'waiting', // Will be updated after court assignment
       order: matches.value.length + i + 1,
       createdAt: new Date(),
-      court: assignedCourt,
-      startedAt: isCourtEmpty ? new Date() : undefined
+      court: undefined, // Will be assigned later
+      startedAt: undefined
     };
 
     newMatches.push(match);
+  }
+
+  // Now assign courts to all matches with proper distribution
+  if (autoAssignCourts.value && newMatches.length > 0) {
+    assignCourtsToMatches(newMatches);
   }
 
   // Update queue by removing matched players
@@ -1569,6 +1569,60 @@ const assignCourt = (): number => {
   }
 
   return leastBusyCourt;
+};
+
+// Assign courts to all matches with proper distribution
+const assignCourtsToMatches = (newMatches: Match[]): void => {
+  const courtCount = getCourtCount();
+
+  // Calculate current load for each court
+  const courtLoads = new Map<number, number>();
+  for (let court = 1; court <= courtCount; court++) {
+    courtLoads.set(court, 0);
+  }
+
+  // Count existing matches per court
+  matches.value.forEach(match => {
+    if (match.court) {
+      const currentLoad = courtLoads.get(match.court) || 0;
+      courtLoads.set(match.court, currentLoad + 1);
+    }
+  });
+
+  // Assign courts to new matches with round-robin distribution
+  for (let i = 0; i < newMatches.length; i++) {
+    const match = newMatches[i];
+
+    // Find the court with the least load
+    let bestCourt = 1;
+    let minLoad = courtLoads.get(1) || 0;
+
+    for (let court = 1; court <= courtCount; court++) {
+      const courtLoad = courtLoads.get(court) || 0;
+      if (courtLoad < minLoad) {
+        minLoad = courtLoad;
+        bestCourt = court;
+      }
+    }
+
+    // Assign court to match
+    match.court = bestCourt;
+
+    // Update load for this court
+    const currentLoad = courtLoads.get(bestCourt) || 0;
+    courtLoads.set(bestCourt, currentLoad + 1);
+
+    // Check if this court is empty (no in-progress matches)
+    const isCourtEmpty = !matches.value.some(m => m.court === bestCourt && m.status === 'in-progress');
+
+    // Set match status based on court availability
+    if (isCourtEmpty) {
+      match.status = 'in-progress';
+      match.startedAt = new Date();
+    } else {
+      match.status = 'waiting';
+    }
+  }
 };
 
 // Helper function to create balanced teams from 4 players with randomness
@@ -1805,8 +1859,8 @@ const completeMatch = () => {
     // Remove match from list
     matches.value.splice(currentMatchIndex.value, 1);
 
-    // Auto-advance next match if available
-    autoAdvanceNextMatch();
+    // Auto-advance next match for this specific court
+    autoAdvanceNextMatchForCourt(match.court);
 
     // Save data
     saveMatchesToStorage(matches.value);
@@ -1825,23 +1879,20 @@ const completeMatch = () => {
   });
 };
 
-const autoAdvanceNextMatch = () => {
+
+// Auto-advance next match for a specific court
+const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
   // Only auto-advance if the setting is enabled
   if (!autoAdvanceMatches.value) return;
 
-  // Find the next waiting match
-  const nextMatch = matches.value.find(match => match.status === 'waiting');
+  // Find the next waiting match for this specific court
+  const nextMatch = matches.value.find(match =>
+    match.status === 'waiting' &&
+    match.court === courtNumber
+  );
 
   if (nextMatch) {
-    // Assign court if auto-assign is enabled and no court is assigned
-    if (!nextMatch.court && autoAssignCourts.value) {
-      const court = assignCourt();
-      if (court > 0) {
-        nextMatch.court = court;
-      }
-    }
-
-    // Start the next match automatically
+    // Start the next match automatically on this court
     nextMatch.status = 'in-progress';
     nextMatch.startedAt = new Date();
 
@@ -1851,7 +1902,7 @@ const autoAdvanceNextMatch = () => {
     // Notify user about auto-advance
     $q.notify({
       type: 'info',
-      message: `Next match started${nextMatch.court ? ` on Court ${nextMatch.court}` : ''}`,
+      message: `Next match started on Court ${courtNumber}`,
       position: 'top',
       timeout: 3000
     });
