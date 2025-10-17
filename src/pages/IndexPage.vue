@@ -1566,6 +1566,129 @@ watch(matchesFilterBy, () => {
   saveUISettingsToStorage();
 });
 
+// Helper function to find the best singles pair from all available players
+const findBestSinglesPair = (availablePlayers: Player[]): Player[] => {
+  if (availablePlayers.length < 2) return availablePlayers;
+
+  // Generate all possible pairs from available players
+  const allPairs: Player[][] = [];
+
+  for (let i = 0; i < availablePlayers.length; i++) {
+    for (let j = i + 1; j < availablePlayers.length; j++) {
+      allPairs.push([availablePlayers[i], availablePlayers[j]]);
+    }
+  }
+
+  // Score each pair based on skill balance and fairness
+  const pairsWithScores = allPairs.map(pair => {
+    const [player1, player2] = pair;
+
+    // Calculate skill difference (lower is better)
+    const skillDifference = Math.abs(player1.level - player2.level);
+
+    // Calculate games played difference (lower is better for fairness)
+    const gamesDifference = Math.abs(player1.gamesPlayed - player2.gamesPlayed);
+
+    // Calculate total games (lower is better - prioritize players who haven't played much)
+    const totalGames = player1.gamesPlayed + player2.gamesPlayed;
+
+    // Combined score (lower is better)
+    const score = skillDifference * 100 + gamesDifference * 10 + totalGames;
+
+    return {
+      pair,
+      score,
+      skillDifference,
+      gamesDifference,
+      totalGames
+    };
+  });
+
+  // Sort by score (best pairs first)
+  pairsWithScores.sort((a, b) => a.score - b.score);
+
+  // Get the best pair
+  const bestPair = pairsWithScores[0].pair;
+
+  // Remove the selected players from the available list
+  const selectedNames = bestPair.map(p => p.name);
+  const remainingPlayers = availablePlayers.filter(p => !selectedNames.includes(p.name));
+
+  // Update the original array
+  availablePlayers.length = 0;
+  availablePlayers.push(...remainingPlayers);
+
+  return bestPair;
+};
+
+// Helper function to find the best doubles group from all available players
+const findBestDoublesGroup = (availablePlayers: Player[]): Player[] => {
+  if (availablePlayers.length < 4) return availablePlayers;
+
+  // Generate all possible combinations of 4 players
+  const allGroups: Player[][] = [];
+
+  for (let i = 0; i < availablePlayers.length; i++) {
+    for (let j = i + 1; j < availablePlayers.length; j++) {
+      for (let k = j + 1; k < availablePlayers.length; k++) {
+        for (let l = k + 1; l < availablePlayers.length; l++) {
+          allGroups.push([
+            availablePlayers[i],
+            availablePlayers[j],
+            availablePlayers[k],
+            availablePlayers[l]
+          ]);
+        }
+      }
+    }
+  }
+
+  // Score each group based on how well they can be balanced into teams
+  const groupsWithScores = allGroups.map(group => {
+    // Use the existing createBalancedMatch logic to see how balanced this group would be
+    const balancedGroup = createBalancedMatch([...group]);
+
+    // Calculate team skill levels
+    const team1Skill = balancedGroup[0].level + balancedGroup[1].level;
+    const team2Skill = balancedGroup[2].level + balancedGroup[3].level;
+    const skillDifference = Math.abs(team1Skill - team2Skill);
+
+    // Calculate total games played (lower is better - prioritize players who haven't played much)
+    const totalGames = group.reduce((sum, player) => sum + player.gamesPlayed, 0);
+
+    // Calculate games played variance (lower is better for fairness)
+    const gamesPlayed = group.map(p => p.gamesPlayed);
+    const gamesVariance = Math.max(...gamesPlayed) - Math.min(...gamesPlayed);
+
+    // Combined score (lower is better)
+    const score = skillDifference * 100 + gamesVariance * 10 + totalGames;
+
+    return {
+      group,
+      score,
+      skillDifference,
+      gamesVariance,
+      totalGames
+    };
+  });
+
+  // Sort by score (best groups first)
+  groupsWithScores.sort((a, b) => a.score - b.score);
+
+  // Get the best group
+  const bestGroup = groupsWithScores[0].group;
+
+  // Remove the selected players from the available list
+  const selectedNames = bestGroup.map(p => p.name);
+  const remainingPlayers = availablePlayers.filter(p => !selectedNames.includes(p.name));
+
+  // Update the original array
+  availablePlayers.length = 0;
+  availablePlayers.push(...remainingPlayers);
+
+  return bestGroup;
+};
+
 // Ultra-flexible match generation that handles ANY combination
 const generateMatches = (): Match[] => {
   const newMatches: Match[] = [];
@@ -1577,14 +1700,16 @@ const generateMatches = (): Match[] => {
 
   // First, create all matches without court assignment
   for (let i = 0; i < maxMatches; i++) {
-    const matchPlayers = queueCopy.splice(0, playersPerMatch);
+    let matchPlayers: Player[];
     let arrangedPlayers: Player[];
 
     if (matchType.value === 'singles') {
-      // For singles, just pair the two players (already sorted by fairness)
-      arrangedPlayers = matchPlayers;
+      // For singles, find the best pair from all remaining players
+      matchPlayers = findBestSinglesPair(queueCopy);
+      arrangedPlayers = createBalancedSinglesMatch(matchPlayers);
     } else {
-      // For doubles, create balanced teams
+      // For doubles, find the best 4 players from all remaining players
+      matchPlayers = findBestDoublesGroup(queueCopy);
       arrangedPlayers = createBalancedMatch(matchPlayers);
     }
 
@@ -1819,6 +1944,28 @@ const generateTeamCombinations = (players: Player[]): Array<{ team1: Player[], t
   }
 
   return combinations;
+};
+
+// Helper function to create balanced singles matches from 2 players
+const createBalancedSinglesMatch = (players: Player[]): Player[] => {
+  // For singles, we want to create the most competitive match possible
+  // Consider both skill level and games played for fairness
+
+  // Sort by level first (most important for competitive matches)
+  const sortedByLevel = [...players].sort((a, b) => a.level - b.level);
+
+  // Calculate skill difference
+  const skillDifference = Math.abs(sortedByLevel[0].level - sortedByLevel[1].level);
+
+  // If skill levels are the same, sort by games played for fairness
+  if (skillDifference === 0) {
+    sortedByLevel.sort((a, b) => a.gamesPlayed - b.gamesPlayed);
+  }
+
+  // For very different skill levels (2+ levels apart), we could consider
+  // giving the lower-skilled player a slight advantage in positioning
+  // But for now, just return the sorted players
+  return sortedByLevel;
 };
 
 // Action functions
