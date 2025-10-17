@@ -610,7 +610,7 @@
             <q-separator />
 
             <div>
-              <q-btn color="accent" @click="resetGamesPlayed" icon="refresh" label="Reset Games Played"
+              <q-btn color="accent" @click="resetGamesPlayed" icon="refresh" label="Reset Stats & Clear Matches"
                 class="full-width" />
             </div>
             <div>
@@ -2055,8 +2055,12 @@ const executeMatchGeneration = () => {
   }
 };
 
-const openMatchResultDialog = (index: number) => {
-  currentMatchIndex.value = index;
+const openMatchResultDialog = (filteredIndex: number) => {
+  // Find the actual match in the global matches array
+  const filteredMatch = filteredMatches.value[filteredIndex];
+  const globalIndex = matches.value.findIndex(match => match.id === filteredMatch.id);
+
+  currentMatchIndex.value = globalIndex;
   selectedWinner.value = null;
   showMatchResultDialog.value = true;
 };
@@ -2217,29 +2221,36 @@ const removeFromQueue = (name: string) => {
 const resetGamesPlayed = () => {
   $q.dialog({
     title: 'Confirm Reset',
-    message: 'Are you sure you want to reset all games played counters to zero?',
+    message: 'Are you sure you want to reset all player stats and clear all matches? This will reset games played, wins, and losses to zero and remove all current matches.',
     cancel: {
       label: 'Cancel',
       color: 'grey',
       flat: true
     },
     ok: {
-      label: 'Reset',
+      label: 'Reset Stats & Matches',
       color: 'negative',
       icon: 'refresh'
     },
     persistent: true
   }).onOk(() => {
+    // Reset player stats
     players.value.forEach(player => {
       player.gamesPlayed = 0;
       player.wins = 0;
       player.losses = 0;
     });
+
+    // Clear all matches (logical consistency)
+    matches.value = [];
+
+    // Save data
     savePlayersToStorage(players.value);
+    saveMatchesToStorage(matches.value);
 
     $q.notify({
       type: 'positive',
-      message: 'All games played counters have been reset',
+      message: 'Player stats reset and all matches cleared',
       position: 'top'
     });
   });
@@ -2684,7 +2695,11 @@ const matchedPlayerNames = newMatch.players.map(p => p.name);
 */
 
 // Match management functions
-const cancelMatch = (matchIndex: number) => {
+const cancelMatch = (filteredIndex: number) => {
+  // Find the actual match in the global matches array
+  const filteredMatch = filteredMatches.value[filteredIndex];
+  const globalIndex = matches.value.findIndex(match => match.id === filteredMatch.id);
+
   $q.dialog({
     title: 'Cancel Match',
     message: 'Are you sure you want to cancel this match? All players will return to the queue.',
@@ -2696,7 +2711,7 @@ const cancelMatch = (matchIndex: number) => {
     },
     persistent: true
   }).onOk(() => {
-    const match = matches.value[matchIndex];
+    const match = matches.value[globalIndex];
     const players = match.players;
 
     // Show dialog to choose how to return players
@@ -2724,7 +2739,7 @@ const cancelMatch = (matchIndex: number) => {
       const courtNumber = match.court;
 
       // Remove match
-      matches.value.splice(matchIndex, 1);
+      matches.value.splice(globalIndex, 1);
 
       // Auto-advance next match for this specific court
       autoAdvanceNextMatchForCourt(courtNumber);
@@ -2743,8 +2758,12 @@ const cancelMatch = (matchIndex: number) => {
 };
 
 
-const openCourtSelectionDialog = (matchIndex: number) => {
-  currentMatchForCourtAssignment.value = matchIndex;
+const openCourtSelectionDialog = (filteredIndex: number) => {
+  // Find the actual match in the global matches array
+  const filteredMatch = filteredMatches.value[filteredIndex];
+  const globalIndex = matches.value.findIndex(match => match.id === filteredMatch.id);
+
+  currentMatchForCourtAssignment.value = globalIndex;
   showCourtSelectionDialog.value = true;
 };
 
@@ -2782,8 +2801,12 @@ const isCourtAvailable = (courtNumber: number): boolean => {
 };
 
 // Start a waiting match
-const startMatch = (matchIndex: number) => {
-  const match = matches.value[matchIndex];
+const startMatch = (filteredIndex: number) => {
+  // Find the actual match in the global matches array
+  const filteredMatch = filteredMatches.value[filteredIndex];
+  const globalIndex = matches.value.findIndex(match => match.id === filteredMatch.id);
+
+  const match = matches.value[globalIndex];
 
   if (match.status !== 'waiting' || !match.court) {
     $q.notify({
@@ -2883,16 +2906,20 @@ const assignSpecificCourt = (courtNumber: number) => {
   }
 };
 
-const editMatch = (matchIndex: number) => {
-  currentMatchIndexForActions.value = matchIndex;
+const editMatch = (filteredIndex: number) => {
+  // Find the actual match in the global matches array
+  const filteredMatch = filteredMatches.value[filteredIndex];
+  const globalIndex = matches.value.findIndex(match => match.id === filteredMatch.id);
+
+  currentMatchIndexForActions.value = globalIndex;
   showMatchEditDialog.value = true;
   manualSelectionStep.value = 1;
 
   // Pre-populate with current players
-  selectedPlayers.value = [...matches.value[matchIndex].players];
+  selectedPlayers.value = [...matches.value[globalIndex].players];
 
   // Determine match type based on number of players
-  const currentMatch = matches.value[matchIndex];
+  const currentMatch = matches.value[globalIndex];
   const isDoublesMatch = currentMatch.players.length === 4;
 
   // For doubles matches, initialize teams
