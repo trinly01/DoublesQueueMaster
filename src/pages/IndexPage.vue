@@ -207,59 +207,77 @@
                 <q-list separator v-if="filteredMatches.length > 0">
                   <q-item v-for="(match, index) in filteredMatches" :key="match.id" class="match-item">
                     <q-item-section>
-                      <!-- Match Header - Clean and Simple -->
-                      <div class="row items-center q-mb-sm">
+                      <!-- Improved Match Layout: Status Left, Players Center, Court Right -->
+                      <div class="row items-center q-pa-sm">
+                        <!-- Left: Status -->
+                        <div class="col-auto q-mr-md">
+                          <q-chip :color="getMatchStatusColor(match.status)" text-color="white" size="sm" dense>
+                            {{ getMatchStatusLabel(match.status) }}
+                          </q-chip>
+                        </div>
+
+                        <!-- Center: Players -->
                         <div class="col">
-                          <div class="row items-center q-gutter-sm">
-                            <q-chip :color="getMatchStatusColor(match.status)" text-color="white" size="sm" dense>
-                              {{ getMatchStatusLabel(match.status) }}
-                            </q-chip>
-                            <span v-if="match.court" class="text-caption text-grey-6">
-                              Court {{ match.court }}
-                            </span>
+                          <!-- Singles Match (2 players) -->
+                          <div v-if="match.players.length === 2" class="row items-center justify-center">
+                            <!-- Player 1 -->
+                            <div class="col text-center">
+                              <div class="column items-center q-mb-xs">
+                                <span class="text-weight-medium text-center">{{ match.players[0].name }}</span>
+                                <q-chip :label="`L${match.players[0].level}`"
+                                  :color="getLevelColor(match.players[0].level)" text-color="white" size="xs" dense />
+                              </div>
+                            </div>
+
+                            <!-- VS Separator -->
+                            <div class="col-auto">
+                              <q-icon name="sports_tennis" color="grey-6" size="sm" class="q-mx-md" />
+                            </div>
+
+                            <!-- Player 2 -->
+                            <div class="col text-center">
+                              <div class="column items-center q-mb-xs">
+                                <span class="text-weight-medium text-center">{{ match.players[1].name }}</span>
+                                <q-chip :label="`L${match.players[1].level}`"
+                                  :color="getLevelColor(match.players[1].level)" text-color="white" size="xs" dense />
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Doubles Match (4 players) -->
+                          <div v-else class="row items-center justify-center">
+                            <!-- Team 1 -->
+                            <div class="col text-center">
+                              <div v-for="player in match.players.slice(0, 2)" :key="player.name"
+                                class="column items-center q-mb-xs">
+                                <span class="text-weight-medium text-center">{{ player.name }}</span>
+                                <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)"
+                                  text-color="white" size="xs" dense />
+                              </div>
+                            </div>
+
+                            <!-- VS Separator -->
+                            <div class="col-auto">
+                              <q-icon name="sports_tennis" color="grey-6" size="sm" class="q-mx-md" />
+                            </div>
+
+                            <!-- Team 2 -->
+                            <div class="col text-center">
+                              <div v-for="player in match.players.slice(2, 4)" :key="player.name"
+                                class="column items-center q-mb-xs">
+                                <span class="text-weight-medium text-center">{{ player.name }}</span>
+                                <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)"
+                                  text-color="white" size="xs" dense />
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <!-- Singles Match (2 players) -->
-                      <div v-if="match.players.length === 2" class="match-teams">
-                        <div class="team team-1">
-                          <div class="player-name text-weight-medium">{{ match.players[0].name }}</div>
-                          <div class="player-level text-caption text-grey-6">Level {{ match.players[0].level }}</div>
-                        </div>
-
-                        <!-- VS -->
-                        <div class="vs-divider">
-                          <q-icon name="sports_tennis" color="grey-6" size="sm" />
-                        </div>
-
-                        <div class="team team-2">
-                          <div class="player-name text-weight-medium">{{ match.players[1].name }}</div>
-                          <div class="player-level text-caption text-grey-6">Level {{ match.players[1].level }}</div>
-                        </div>
-                      </div>
-
-                      <!-- Doubles Match (4 players) -->
-                      <div v-else class="match-teams">
-                        <!-- Team 1 -->
-                        <div class="team team-1">
-                          <div class="player-name text-weight-medium">{{ match.players[0].name }}</div>
-                          <div class="player-level text-caption text-grey-6">Level {{ match.players[0].level }}</div>
-                          <div class="player-name text-weight-medium">{{ match.players[1].name }}</div>
-                          <div class="player-level text-caption text-grey-6">Level {{ match.players[1].level }}</div>
-                        </div>
-
-                        <!-- VS -->
-                        <div class="vs-divider">
-                          <q-icon name="sports_tennis" color="grey-6" size="sm" />
-                        </div>
-
-                        <!-- Team 2 -->
-                        <div class="team team-2">
-                          <div class="player-name text-weight-medium">{{ match.players[2].name }}</div>
-                          <div class="player-level text-caption text-grey-6">Level {{ match.players[2].level }}</div>
-                          <div class="player-name text-weight-medium">{{ match.players[3].name }}</div>
-                          <div class="player-level text-caption text-grey-6">Level {{ match.players[3].level }}</div>
+                        <!-- Right: Court -->
+                        <div class="col-auto q-ml-md">
+                          <q-chip v-if="match.court" color="blue-grey-6" text-color="white" size="sm" dense>
+                            Court {{ match.court }}
+                          </q-chip>
                         </div>
                       </div>
                     </q-item-section>
@@ -267,7 +285,8 @@
                       <q-btn color="grey-7" icon="more_vert" flat round size="sm">
                         <q-menu>
                           <q-list style="min-width: 150px">
-                            <q-item clickable @click="openMatchResultDialog(index)">
+                            <q-item v-if="match.status === 'in-progress'" clickable
+                              @click="openMatchResultDialog(index)">
                               <q-item-section avatar>
                                 <q-icon name="emoji_events" />
                               </q-item-section>
@@ -1590,75 +1609,111 @@ const generateMatches = (): Match[] => {
 const assignCourt = (): number => {
   const courtCount = getCourtCount();
 
-  // First, try to find an empty court (no in-progress matches)
+  // Enhanced load balancing: track both in-progress and waiting matches
+  const courtLoads = new Map<number, { inProgress: number; waiting: number; total: number }>();
   for (let court = 1; court <= courtCount; court++) {
-    const hasInProgressMatch = matches.value.some(m => m.court === court && m.status === 'in-progress');
-    if (!hasInProgressMatch) {
-      return court; // Return first empty court
-    }
+    courtLoads.set(court, { inProgress: 0, waiting: 0, total: 0 });
   }
 
-  // If no empty courts, find the court with least total matches
-  const courtMatchCounts = new Map<number, number>();
-
-  // Initialize all courts with 0 matches
-  for (let court = 1; court <= courtCount; court++) {
-    courtMatchCounts.set(court, 0);
-  }
-
-  // Count matches per court (both in-progress and waiting)
+  // Count existing matches per court with detailed breakdown
   matches.value.forEach(match => {
     if (match.court) {
-      const currentCount = courtMatchCounts.get(match.court) || 0;
-      courtMatchCounts.set(match.court, currentCount + 1);
+      const currentLoad = courtLoads.get(match.court) || { inProgress: 0, waiting: 0, total: 0 };
+      if (match.status === 'in-progress') {
+        currentLoad.inProgress++;
+      } else if (match.status === 'waiting') {
+        currentLoad.waiting++;
+      }
+      currentLoad.total++;
+      courtLoads.set(match.court, currentLoad);
     }
   });
 
-  // Find the court with the least number of assigned matches
-  let leastBusyCourt = 1;
-  let minMatches = courtMatchCounts.get(1) || 0;
+  // Find the best court using enhanced criteria
+  let bestCourt = 1;
+  let bestScore = Infinity;
 
   for (let court = 1; court <= courtCount; court++) {
-    const matchCount = courtMatchCounts.get(court) || 0;
-    if (matchCount < minMatches) {
-      minMatches = matchCount;
-      leastBusyCourt = court;
+    const load = courtLoads.get(court) || { inProgress: 0, waiting: 0, total: 0 };
+
+    // Calculate court score (lower is better)
+    // Priority 1: Empty courts (no in-progress matches)
+    // Priority 2: Courts with fewer total matches
+    // Priority 3: Courts with fewer waiting matches
+    let score = load.total * 1000; // Base score on total matches
+
+    if (load.inProgress > 0) {
+      score += 10000; // Heavy penalty for courts with in-progress matches
+    }
+
+    score += load.waiting * 100; // Slight penalty for waiting matches
+
+    if (score < bestScore) {
+      bestScore = score;
+      bestCourt = court;
     }
   }
 
-  return leastBusyCourt;
+  return bestCourt;
 };
 
 // Assign courts to all matches with proper distribution
 const assignCourtsToMatches = (newMatches: Match[]): void => {
   const courtCount = getCourtCount();
 
-  // Calculate current load for each court
-  const courtLoads = new Map<number, number>();
+  // Enhanced load balancing: track both in-progress and waiting matches
+  const courtLoads = new Map<number, { inProgress: number; waiting: number; total: number }>();
   for (let court = 1; court <= courtCount; court++) {
-    courtLoads.set(court, 0);
+    courtLoads.set(court, { inProgress: 0, waiting: 0, total: 0 });
   }
 
-  // Count existing matches per court
+  // Count existing matches per court with detailed breakdown
   matches.value.forEach(match => {
     if (match.court) {
-      const currentLoad = courtLoads.get(match.court) || 0;
-      courtLoads.set(match.court, currentLoad + 1);
+      const currentLoad = courtLoads.get(match.court) || { inProgress: 0, waiting: 0, total: 0 };
+      if (match.status === 'in-progress') {
+        currentLoad.inProgress++;
+      } else if (match.status === 'waiting') {
+        currentLoad.waiting++;
+      }
+      currentLoad.total++;
+      courtLoads.set(match.court, currentLoad);
     }
   });
 
-  // Assign courts to new matches with round-robin distribution
+  // Track which courts already have in-progress matches
+  const courtsWithInProgress = new Set<number>();
+  matches.value.forEach(match => {
+    if (match.court && match.status === 'in-progress') {
+      courtsWithInProgress.add(match.court);
+    }
+  });
+
+  // Assign courts to new matches with enhanced load balancing
   for (let i = 0; i < newMatches.length; i++) {
     const match = newMatches[i];
 
-    // Find the court with the least load
+    // Find the best court using enhanced criteria
     let bestCourt = 1;
-    let minLoad = courtLoads.get(1) || 0;
+    let bestScore = Infinity;
 
     for (let court = 1; court <= courtCount; court++) {
-      const courtLoad = courtLoads.get(court) || 0;
-      if (courtLoad < minLoad) {
-        minLoad = courtLoad;
+      const load = courtLoads.get(court) || { inProgress: 0, waiting: 0, total: 0 };
+
+      // Calculate court score (lower is better)
+      // Priority 1: Empty courts (no in-progress matches)
+      // Priority 2: Courts with fewer total matches
+      // Priority 3: Courts with fewer waiting matches
+      let score = load.total * 1000; // Base score on total matches
+
+      if (load.inProgress > 0) {
+        score += 10000; // Heavy penalty for courts with in-progress matches
+      }
+
+      score += load.waiting * 100; // Slight penalty for waiting matches
+
+      if (score < bestScore) {
+        bestScore = score;
         bestCourt = court;
       }
     }
@@ -1667,19 +1722,29 @@ const assignCourtsToMatches = (newMatches: Match[]): void => {
     match.court = bestCourt;
 
     // Update load for this court
-    const currentLoad = courtLoads.get(bestCourt) || 0;
-    courtLoads.set(bestCourt, currentLoad + 1);
+    const currentLoad = courtLoads.get(bestCourt) || { inProgress: 0, waiting: 0, total: 0 };
+    currentLoad.total++;
+    courtLoads.set(bestCourt, currentLoad);
 
-    // Check if this court is empty (no in-progress matches)
-    const isCourtEmpty = !matches.value.some(m => m.court === bestCourt && m.status === 'in-progress');
+    // Check if this court is empty (no in-progress matches from existing OR new matches)
+    const isCourtEmpty = !courtsWithInProgress.has(bestCourt);
 
     // Set match status based on court availability
     if (isCourtEmpty) {
       match.status = 'in-progress';
       match.startedAt = new Date();
+      // Mark this court as having an in-progress match
+      courtsWithInProgress.add(bestCourt);
+      // Update in-progress count
+      currentLoad.inProgress++;
     } else {
       match.status = 'waiting';
+      // Update waiting count
+      currentLoad.waiting++;
     }
+
+    // Update the load tracking
+    courtLoads.set(bestCourt, currentLoad);
   }
 };
 
