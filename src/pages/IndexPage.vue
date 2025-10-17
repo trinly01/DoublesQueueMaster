@@ -2711,8 +2711,14 @@ const cancelMatch = (matchIndex: number) => {
       // Return players to queue
       executeQueueReturn(players, returnMethod || queueReturnMethod.value, 'cancelled');
 
+      // Store court number before removing match
+      const courtNumber = match.court;
+
       // Remove match
       matches.value.splice(matchIndex, 1);
+
+      // Auto-advance next match for this specific court
+      autoAdvanceNextMatchForCourt(courtNumber);
 
       // Save data
       saveMatchesToStorage(matches.value);
@@ -2764,20 +2770,66 @@ const assignCourtAutomatically = () => {
 const assignSpecificCourt = (courtNumber: number) => {
   const matchIndex = currentMatchForCourtAssignment.value;
   const match = matches.value[matchIndex];
+  const originalCourt = match.court;
 
-  match.court = courtNumber;
-  saveMatchesToStorage(matches.value);
+  // Check if the target court has an in-progress match
+  const existingInProgressMatch = matches.value.find(m =>
+    m.court === courtNumber && m.status === 'in-progress'
+  );
 
-  // Count matches for this court to show load balancing info
-  const courtMatchCount = matches.value.filter(m => m.court === courtNumber).length;
+  if (existingInProgressMatch) {
+    // Court has an in-progress match - implement swap
+    $q.dialog({
+      title: 'Court Swap Required',
+      message: `Court ${courtNumber} already has a match in progress. Do you want to swap the matches?`,
+      cancel: { label: 'Cancel', color: 'grey', flat: true },
+      ok: {
+        label: 'Swap Matches',
+        color: 'accent',
+        icon: 'swap_horiz'
+      },
+      persistent: true
+    }).onOk(() => {
+      // Perform the swap
+      existingInProgressMatch.court = originalCourt;
+      existingInProgressMatch.status = 'waiting'; // Move to waiting
+      existingInProgressMatch.startedAt = undefined;
 
-  $q.notify({
-    type: 'positive',
-    message: `Assigned to Court ${courtNumber} (${courtMatchCount} total matches)`,
-    position: 'top'
-  });
+      match.court = courtNumber;
+      match.status = 'in-progress';
+      match.startedAt = new Date();
 
-  showCourtSelectionDialog.value = false;
+      saveMatchesToStorage(matches.value);
+
+      $q.notify({
+        type: 'positive',
+        message: `Matches swapped! Match moved to Court ${courtNumber}`,
+        position: 'top'
+      });
+
+      showCourtSelectionDialog.value = false;
+    });
+  } else {
+    // Court is available - simple assignment
+    match.court = courtNumber;
+
+    // If court is empty, start the match
+    const isCourtEmpty = !matches.value.some(m => m.court === courtNumber && m.status === 'in-progress');
+    if (isCourtEmpty) {
+      match.status = 'in-progress';
+      match.startedAt = new Date();
+    }
+
+    saveMatchesToStorage(matches.value);
+
+    $q.notify({
+      type: 'positive',
+      message: `Assigned to Court ${courtNumber}`,
+      position: 'top'
+    });
+
+    showCourtSelectionDialog.value = false;
+  }
 };
 
 const editMatch = (matchIndex: number) => {
