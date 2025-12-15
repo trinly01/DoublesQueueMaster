@@ -46,32 +46,10 @@
             </q-card-section>
             <q-card-section class="q-pa-none">
               <div class="card-content">
-                <q-list separator v-if="players.length > 0">
-                  <q-item v-for="player in sortedPlayers" :key="player.name" class="player-item">
-                    <q-item-section>
-                      <q-item-label class="text-weight-medium">{{ player.name }}</q-item-label>
-                      <q-item-label caption class="q-pl-xs">
-                        <q-chip :label="`Level ${player.level}`" :color="getLevelColor(player.level)" text-color="white"
-                          size="sm" dense />
-                        <span class="q-ml-sm text-grey-7">Games: {{ player.gamesPlayed }}</span>
-                        <span class="q-ml-sm text-positive">W: {{ player.wins }}</span>
-                        <span class="q-ml-sm text-negative">L: {{ player.losses }}</span>
-                      </q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <div class="row items-center q-gutter-xs">
-                        <q-btn flat round color="negative" @click="removePlayer(player.name)" icon="delete" size="sm" />
-                        <q-btn flat color="accent" @click="requeuePlayer(player.name)" icon="input" size="sm"
-                          :disable="queue.some(p => p.name === player.name)" />
-                      </div>
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-                <div v-else class="empty-state">
-                  <q-icon name="people" size="48px" color="grey-4" />
-                  <p class="text-grey-6 q-mt-sm">No players added yet</p>
-                  <p class="text-caption text-grey-5">Click the + button to add your first player</p>
-                </div>
+                <PlayerList :players="players" :sort-by="sortBy" :show-actions="true" :empty-icon="'people'"
+                  :empty-title="'No players added yet'" :empty-subtitle="'Click the + button to add your first player'"
+                  :empty-action="true" @player-remove="removePlayer" @player-requeue="requeuePlayer"
+                  @empty-action="showAddPlayerDialog = true" />
               </div>
             </q-card-section>
           </q-card>
@@ -95,45 +73,9 @@
             </q-card-section>
             <q-card-section class="q-pa-none">
               <div class="card-content">
-                <q-list separator v-if="queue.length > 0">
-                  <q-item v-for="(player, index) in queue" :key="player.name" class="queue-item">
-                    <q-item-section avatar>
-                      <q-avatar :color="player.priority === 'returned' ? 'warning' : 'accent'" text-color="white"
-                        size="md">
-                        {{ index + 1 }}
-                        <q-tooltip>
-                          Position: {{ index + 1 }}
-                          <br>Games: {{ player.gamesPlayed }}
-                          <br>Priority: {{ player.priority || 'normal' }}
-                        </q-tooltip>
-                      </q-avatar>
-                    </q-item-section>
-                    <q-item-section>
-                      <q-item-label class="text-weight-medium">
-                        {{ player.name }}
-                        <q-chip v-if="player.priority === 'returned'" label="Returned" color="warning"
-                          text-color="white" size="xs" dense class="q-ml-xs" />
-                      </q-item-label>
-                      <q-item-label caption class="q-pl-xs">
-                        <q-chip :label="`Level ${player.level}`" :color="getLevelColor(player.level)" text-color="white"
-                          size="xs" dense />
-                        <span class="q-ml-sm">{{ player.gamesPlayed }} games</span>
-                        <span class="q-ml-sm text-grey-6">
-                          {{ getQueueTimeInfo(player) }}
-                        </span>
-                      </q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-btn flat round color="negative" @click="removeFromQueue(player.name)" icon="remove_circle"
-                        size="sm" />
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-                <div v-else class="empty-state">
-                  <q-icon name="queue" size="48px" color="grey-4" />
-                  <p class="text-grey-6 q-mt-sm">Queue is empty</p>
-                  <p class="text-caption text-grey-5">Add players to start generating matches</p>
-                </div>
+                <PlayerList :players="queue" :show-position="true" :show-queue-time="true" :is-in-queue="true"
+                  :empty-icon="'queue'" :empty-title="'Queue is empty'"
+                  :empty-subtitle="'Add players to start generating matches'" @player-remove="removeFromQueue" />
               </div>
             </q-card-section>
             <q-card-section>
@@ -206,144 +148,14 @@
             <q-card-section class="q-pa-none">
               <div class="card-content">
                 <q-list separator v-if="filteredMatches.length > 0">
-                  <q-item v-for="(match, index) in filteredMatches" :key="match.id" class="match-item">
-                    <q-item-section>
-                      <!-- Improved Match Layout: Status Left, Players Center, Court Right -->
-                      <div class="row items-center q-pa-sm">
-                        <!-- Left: Status -->
-                        <div class="col-auto q-mr-md">
-                          <q-chip :color="getMatchStatusColor(match.status)" text-color="white" size="sm" dense>
-                            {{ getMatchStatusLabel(match.status) }}
-                          </q-chip>
-                        </div>
-
-                        <!-- Center: Players -->
-                        <div class="col">
-                          <!-- Singles Match (2 players) -->
-                          <div v-if="match.players.length === 2" class="row items-center justify-center">
-                            <!-- Player 1 -->
-                            <div class="col text-center">
-                              <div class="column items-center q-mb-xs">
-                                <span class="text-weight-medium text-center">{{ match.players[0].name }}</span>
-                                <q-chip :label="`L${match.players[0].level}`"
-                                  :color="getLevelColor(match.players[0].level)" text-color="white" size="xs" dense />
-                              </div>
-                            </div>
-
-                            <!-- VS Separator -->
-                            <div class="col-auto">
-                              <q-icon name="sports_tennis" color="grey-6" size="sm" class="q-mx-md" />
-                            </div>
-
-                            <!-- Player 2 -->
-                            <div class="col text-center">
-                              <div class="column items-center q-mb-xs">
-                                <span class="text-weight-medium text-center">{{ match.players[1].name }}</span>
-                                <q-chip :label="`L${match.players[1].level}`"
-                                  :color="getLevelColor(match.players[1].level)" text-color="white" size="xs" dense />
-                              </div>
-                            </div>
-                          </div>
-
-                          <!-- Doubles Match (4 players) -->
-                          <div v-else class="row items-center justify-center">
-                            <!-- Team 1 -->
-                            <div class="col text-center">
-                              <div v-for="player in match.players.slice(0, 2)" :key="player.name"
-                                class="column items-center q-mb-xs">
-                                <span class="text-weight-medium text-center">{{ player.name }}</span>
-                                <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)"
-                                  text-color="white" size="xs" dense />
-                              </div>
-                            </div>
-
-                            <!-- VS Separator -->
-                            <div class="col-auto">
-                              <q-icon name="sports_tennis" color="grey-6" size="sm" class="q-mx-md" />
-                            </div>
-
-                            <!-- Team 2 -->
-                            <div class="col text-center">
-                              <div v-for="player in match.players.slice(2, 4)" :key="player.name"
-                                class="column items-center q-mb-xs">
-                                <span class="text-weight-medium text-center">{{ player.name }}</span>
-                                <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)"
-                                  text-color="white" size="xs" dense />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <!-- Right: Court -->
-                        <div class="col-auto q-ml-md">
-                          <q-chip v-if="match.court" color="blue-grey-6" text-color="white" size="sm" dense>
-                            Court {{ match.court }}
-                          </q-chip>
-                        </div>
-                      </div>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-btn color="grey-7" icon="more_vert" flat round size="sm">
-                        <q-menu>
-                          <q-list style="min-width: 150px">
-                            <q-item v-if="match.status === 'in-progress'" clickable
-                              @click="openMatchResultDialog(index)">
-                              <q-item-section avatar>
-                                <q-icon name="emoji_events" />
-                              </q-item-section>
-                              <q-item-section>Complete Match</q-item-section>
-                            </q-item>
-
-                            <q-item clickable @click="editMatch(index)">
-                              <q-item-section avatar>
-                                <q-icon name="edit" />
-                              </q-item-section>
-                              <q-item-section>Edit Match</q-item-section>
-                            </q-item>
-
-
-                            <q-item v-if="!match.court && getCourtCount() > 0" clickable
-                              @click="openCourtSelectionDialog(index)">
-                              <q-item-section avatar>
-                                <q-icon name="sports_tennis" />
-                              </q-item-section>
-                              <q-item-section>Assign Court</q-item-section>
-                            </q-item>
-
-                            <q-item v-if="match.court" clickable @click="openCourtSelectionDialog(index)">
-                              <q-item-section avatar>
-                                <q-icon name="swap_horiz" />
-                              </q-item-section>
-                              <q-item-section>Change Court</q-item-section>
-                            </q-item>
-
-                            <q-item v-if="match.status === 'waiting' && match.court && isCourtAvailable(match.court)"
-                              clickable @click="startMatch(index)">
-                              <q-item-section avatar>
-                                <q-icon name="play_arrow" />
-                              </q-item-section>
-                              <q-item-section>Start Match</q-item-section>
-                            </q-item>
-
-                            <q-separator />
-
-                            <q-item clickable @click="cancelMatch(index)" class="text-negative">
-                              <q-item-section avatar>
-                                <q-icon name="cancel" />
-                              </q-item-section>
-                              <q-item-section>Cancel Match</q-item-section>
-                            </q-item>
-                          </q-list>
-                        </q-menu>
-                      </q-btn>
-                    </q-item-section>
-                  </q-item>
+                  <MatchCard v-for="(match, index) in filteredMatches" :key="match.id" :match="match"
+                    :available-courts="getCourtCount()" @completeMatch="openMatchResultDialog(index)"
+                    @editMatch="editMatch(index)" @assignCourt="openCourtSelectionDialog(index)"
+                    @changeCourt="openCourtSelectionDialog(index)" @startMatch="startMatch(index)"
+                    @cancelMatch="cancelMatch(index)" />
                 </q-list>
-                <div v-else class="empty-state">
-                  <q-icon name="sports_tennis" size="48px" color="grey-4" />
-                  <p class="text-grey-6 q-mt-sm">No active matches</p>
-                  <p class="text-caption text-grey-5">Generate matches from the queue to get started</p>
-                </div>
+                <EmptyState v-else icon="sports_tennis" title="No active matches"
+                  subtitle="Generate matches from the queue to get started" />
               </div>
             </q-card-section>
           </q-card>
@@ -353,10 +165,13 @@
       <!-- Mobile Layout: qTabs -->
       <div class="lt-md">
         <q-tabs v-model="activeMobileTab" class="text-grey-7" active-color="primary" indicator-color="primary"
-          align="justify" narrow-indicator>
-          <q-tab name="players" icon="people" :label="`Players (${players.length})`" />
-          <q-tab name="queue" icon="queue" :label="`Queue (${queue.length})`" />
-          <q-tab name="matches" icon="sports_tennis" :label="`Matches (${filteredMatches.length})`" />
+          align="justify" narrow-indicator scrollable="false">
+          <q-tab name="players" icon="people" :label="`Players (${players.length})`"
+            :class="{ shake: tabShakeStates.players }" />
+          <q-tab name="queue" icon="queue" :label="`Queue (${queue.length})`"
+            :class="{ shake: tabShakeStates.queue }" />
+          <q-tab name="matches" icon="sports_tennis" :label="`Matches (${filteredMatches.length})`"
+            :class="{ shake: tabShakeStates.matches }" />
         </q-tabs>
 
         <q-separator />
@@ -365,52 +180,27 @@
           <!-- Players Tab -->
           <q-tab-panel name="players">
             <q-card class="players-card mobile-card" flat bordered>
-              <q-card-section class="players-header text-white q-pa-none">
-                <q-toolbar class="q-pa-md">
-                  <q-toolbar-title>
-                    <q-icon name="people" class="q-mr-sm" />
-                    Players ({{ players.length }})
-                  </q-toolbar-title>
-                  <q-select v-model="sortBy" :options="sortOptions" dense outlined dark color="white" emit-value
-                    map-options style="min-width: 120px">
-                    <template v-slot:prepend>
-                      <q-icon name="sort" />
-                    </template>
-                  </q-select>
-                  <q-btn color="white" @click="showAddPlayerDialog = true" icon="person_add" flat round dense>
-                    <q-tooltip>Add new player to the system</q-tooltip>
-                  </q-btn>
-                </q-toolbar>
-              </q-card-section>
               <q-card-section class="q-pa-none">
                 <div class="card-content mobile-card-content">
-                  <q-list separator v-if="players.length > 0">
-                    <q-item v-for="player in sortedPlayers" :key="player.name" class="player-item">
-                      <q-item-section>
-                        <q-item-label class="text-weight-medium">{{ player.name }}</q-item-label>
-                        <q-item-label caption class="q-pl-xs">
-                          <q-chip :label="`Level ${player.level}`" :color="getLevelColor(player.level)"
-                            text-color="white" size="sm" dense />
-                          <span class="q-ml-sm text-grey-7">Games: {{ player.gamesPlayed }}</span>
-                          <span class="q-ml-sm text-positive">W: {{ player.wins }}</span>
-                          <span class="q-ml-sm text-negative">L: {{ player.losses }}</span>
-                        </q-item-label>
-                      </q-item-section>
-                      <q-item-section side>
-                        <div class="row items-center q-gutter-xs">
-                          <q-btn flat round color="negative" @click="removePlayer(player.name)" icon="delete"
-                            size="sm" />
-                          <q-btn flat color="accent" @click="requeuePlayer(player.name)" icon="input" size="sm"
-                            :disable="queue.some(p => p.name === player.name)" />
-                        </div>
-                      </q-item-section>
-                    </q-item>
-                  </q-list>
-                  <div v-else class="empty-state">
-                    <q-icon name="people" size="48px" color="grey-4" />
-                    <p class="text-grey-6 q-mt-sm">No players added yet</p>
-                    <p class="text-caption text-grey-5">Click the + button to add your first player</p>
+                  <!-- Mobile controls in a compact header -->
+                  <div class="q-pa-md q-pb-sm">
+                    <div class="row items-center justify-between">
+                      <q-select v-model="sortBy" :options="sortOptions" dense outlined emit-value map-options
+                        style="min-width: 120px" class="q-mr-sm">
+                        <template v-slot:prepend>
+                          <q-icon name="sort" />
+                        </template>
+                      </q-select>
+                      <q-btn color="accent" @click="showAddPlayerDialog = true" icon="person_add" flat round dense>
+                        <q-tooltip>Add new player</q-tooltip>
+                      </q-btn>
+                    </div>
                   </div>
+                  <PlayerList :players="players" :sort-by="sortBy" :show-actions="true" :empty-icon="'people'"
+                    :empty-title="'No players added yet'"
+                    :empty-subtitle="'Click the + button to add your first player'" :empty-action="true"
+                    @player-remove="removePlayer" @player-requeue="requeuePlayer"
+                    @empty-action="showAddPlayerDialog = true" />
                 </div>
               </q-card-section>
             </q-card>
@@ -419,60 +209,21 @@
           <!-- Queue Tab -->
           <q-tab-panel name="queue">
             <q-card class="queue-card mobile-card" flat bordered>
-              <q-card-section class="queue-header text-white q-pa-none">
-                <q-toolbar class="q-pa-md">
-                  <q-toolbar-title>
-                    <q-icon name="queue" class="q-mr-sm" />
-                    Players Queue ({{ queue.length }})
-                  </q-toolbar-title>
-                  <div class="queue-stats">
-                    <q-chip :label="`L1: ${queueStats.level1}`" color="green-6" text-color="white" size="sm" />
-                    <q-chip :label="`L2: ${queueStats.level2}`" color="orange-7" text-color="white" size="sm" />
-                    <q-chip :label="`L3: ${queueStats.level3}`" color="red-8" text-color="white" size="sm" />
-                  </div>
-                </q-toolbar>
-              </q-card-section>
               <q-card-section class="q-pa-none">
                 <div class="card-content mobile-card-content">
-                  <q-list separator v-if="queue.length > 0">
-                    <q-item v-for="(player, index) in queue" :key="player.name" class="queue-item">
-                      <q-item-section avatar>
-                        <q-avatar :color="player.priority === 'returned' ? 'warning' : 'accent'" text-color="white"
-                          size="md">
-                          {{ index + 1 }}
-                          <q-tooltip>
-                            Position: {{ index + 1 }}
-                            <br>Games: {{ player.gamesPlayed }}
-                            <br>Priority: {{ player.priority || 'normal' }}
-                          </q-tooltip>
-                        </q-avatar>
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label class="text-weight-medium">
-                          {{ player.name }}
-                          <q-chip v-if="player.priority === 'returned'" label="Returned" color="warning"
-                            text-color="white" size="xs" dense class="q-ml-xs" />
-                        </q-item-label>
-                        <q-item-label caption class="q-pl-xs">
-                          <q-chip :label="`Level ${player.level}`" :color="getLevelColor(player.level)"
-                            text-color="white" size="xs" dense />
-                          <span class="q-ml-sm">{{ player.gamesPlayed }} games</span>
-                          <span class="q-ml-sm text-grey-6">
-                            {{ getQueueTimeInfo(player) }}
-                          </span>
-                        </q-item-label>
-                      </q-item-section>
-                      <q-item-section side>
-                        <q-btn flat round color="negative" @click="removeFromQueue(player.name)" icon="remove_circle"
-                          size="sm" />
-                      </q-item-section>
-                    </q-item>
-                  </q-list>
-                  <div v-else class="empty-state">
-                    <q-icon name="queue" size="48px" color="grey-4" />
-                    <p class="text-grey-6 q-mt-sm">Queue is empty</p>
-                    <p class="text-caption text-grey-5">Add players to start generating matches</p>
+                  <!-- Mobile queue stats -->
+                  <div class="q-pa-md q-pb-sm">
+                    <div class="row items-center justify-between">
+                      <div class="queue-stats">
+                        <q-chip :label="`L1: ${queueStats.level1}`" color="green-6" text-color="white" size="sm" />
+                        <q-chip :label="`L2: ${queueStats.level2}`" color="orange-7" text-color="white" size="sm" />
+                        <q-chip :label="`L3: ${queueStats.level3}`" color="red-8" text-color="white" size="sm" />
+                      </div>
+                    </div>
                   </div>
+                  <PlayerList :players="queue" :show-position="true" :show-queue-time="true" :is-in-queue="true"
+                    :empty-icon="'queue'" :empty-title="'Queue is empty'"
+                    :empty-subtitle="'Add players to start generating matches'" @player-remove="removeFromQueue" />
                 </div>
               </q-card-section>
               <q-card-section>
@@ -528,161 +279,26 @@
           <!-- Matches Tab -->
           <q-tab-panel name="matches">
             <q-card class="matches-card mobile-card" flat bordered>
-              <q-card-section class="matches-header text-white q-pa-none">
-                <q-toolbar class="q-pa-md">
-                  <q-toolbar-title>
-                    <q-icon name="sports_tennis" class="q-mr-sm" />
-                    Matches ({{ filteredMatches.length }})
-                  </q-toolbar-title>
-                  <q-select v-model="matchesFilterBy" :options="matchesFilterOptions" dense outlined dark color="white"
-                    emit-value map-options style="min-width: 120px">
-                    <template v-slot:prepend>
-                      <q-icon name="filter_list" />
-                    </template>
-                  </q-select>
-                </q-toolbar>
-              </q-card-section>
               <q-card-section class="q-pa-none">
                 <div class="card-content mobile-card-content">
-                  <q-list separator v-if="filteredMatches.length > 0">
-                    <q-item v-for="(match, index) in filteredMatches" :key="match.id" class="match-item">
-                      <q-item-section>
-                        <!-- Improved Match Layout: Status Left, Players Center, Court Right -->
-                        <div class="row items-center q-pa-sm">
-                          <!-- Left: Status -->
-                          <div class="col-auto q-mr-md">
-                            <q-chip :color="getMatchStatusColor(match.status)" text-color="white" size="sm" dense>
-                              {{ getMatchStatusLabel(match.status) }}
-                            </q-chip>
-                          </div>
-
-                          <!-- Center: Players -->
-                          <div class="col">
-                            <!-- Singles Match (2 players) -->
-                            <div v-if="match.players.length === 2" class="row items-center justify-center">
-                              <!-- Player 1 -->
-                              <div class="col text-center">
-                                <div class="column items-center q-mb-xs">
-                                  <span class="text-weight-medium text-center">{{ match.players[0].name }}</span>
-                                  <q-chip :label="`L${match.players[0].level}`"
-                                    :color="getLevelColor(match.players[0].level)" text-color="white" size="xs" dense />
-                                </div>
-                              </div>
-
-                              <!-- VS Separator -->
-                              <div class="col-auto">
-                                <q-icon name="sports_tennis" color="grey-6" size="sm" class="q-mx-md" />
-                              </div>
-
-                              <!-- Player 2 -->
-                              <div class="col text-center">
-                                <div class="column items-center q-mb-xs">
-                                  <span class="text-weight-medium text-center">{{ match.players[1].name }}</span>
-                                  <q-chip :label="`L${match.players[1].level}`"
-                                    :color="getLevelColor(match.players[1].level)" text-color="white" size="xs" dense />
-                                </div>
-                              </div>
-                            </div>
-
-                            <!-- Doubles Match (4 players) -->
-                            <div v-else class="row items-center justify-center">
-                              <!-- Team 1 -->
-                              <div class="col text-center">
-                                <div v-for="player in match.players.slice(0, 2)" :key="player.name"
-                                  class="column items-center q-mb-xs">
-                                  <span class="text-weight-medium text-center">{{ player.name }}</span>
-                                  <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)"
-                                    text-color="white" size="xs" dense />
-                                </div>
-                              </div>
-
-                              <!-- VS Separator -->
-                              <div class="col-auto">
-                                <q-icon name="sports_tennis" color="grey-6" size="sm" class="q-mx-md" />
-                              </div>
-
-                              <!-- Team 2 -->
-                              <div class="col text-center">
-                                <div v-for="player in match.players.slice(2, 4)" :key="player.name"
-                                  class="column items-center q-mb-xs">
-                                  <span class="text-weight-medium text-center">{{ player.name }}</span>
-                                  <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)"
-                                    text-color="white" size="xs" dense />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <!-- Right: Court -->
-                          <div class="col-auto q-ml-md">
-                            <q-chip v-if="match.court" color="blue-grey-6" text-color="white" size="sm" dense>
-                              Court {{ match.court }}
-                            </q-chip>
-                          </div>
-                        </div>
-                      </q-item-section>
-                      <q-item-section side>
-                        <q-btn color="grey-7" icon="more_vert" flat round size="sm">
-                          <q-menu>
-                            <q-list style="min-width: 150px">
-                              <q-item v-if="match.status === 'in-progress'" clickable
-                                @click="openMatchResultDialog(index)">
-                                <q-item-section avatar>
-                                  <q-icon name="emoji_events" />
-                                </q-item-section>
-                                <q-item-section>Complete Match</q-item-section>
-                              </q-item>
-
-                              <q-item clickable @click="editMatch(index)">
-                                <q-item-section avatar>
-                                  <q-icon name="edit" />
-                                </q-item-section>
-                                <q-item-section>Edit Match</q-item-section>
-                              </q-item>
-
-
-                              <q-item v-if="!match.court && getCourtCount() > 0" clickable
-                                @click="openCourtSelectionDialog(index)">
-                                <q-item-section avatar>
-                                  <q-icon name="sports_tennis" />
-                                </q-item-section>
-                                <q-item-section>Assign Court</q-item-section>
-                              </q-item>
-
-                              <q-item v-if="match.court" clickable @click="openCourtSelectionDialog(index)">
-                                <q-item-section avatar>
-                                  <q-icon name="swap_horiz" />
-                                </q-item-section>
-                                <q-item-section>Change Court</q-item-section>
-                              </q-item>
-
-                              <q-item v-if="match.status === 'waiting' && match.court && isCourtAvailable(match.court)"
-                                clickable @click="startMatch(index)">
-                                <q-item-section avatar>
-                                  <q-icon name="play_arrow" />
-                                </q-item-section>
-                                <q-item-section>Start Match</q-item-section>
-                              </q-item>
-
-                              <q-separator />
-
-                              <q-item clickable @click="cancelMatch(index)" class="text-negative">
-                                <q-item-section avatar>
-                                  <q-icon name="cancel" />
-                                </q-item-section>
-                                <q-item-section>Cancel Match</q-item-section>
-                              </q-item>
-                            </q-list>
-                          </q-menu>
-                        </q-btn>
-                      </q-item-section>
-                    </q-item>
-                  </q-list>
-                  <div v-else class="empty-state">
-                    <q-icon name="sports_tennis" size="48px" color="grey-4" />
-                    <p class="text-grey-6 q-mt-sm">No active matches</p>
-                    <p class="text-caption text-grey-5">Generate matches from the queue to get started</p>
+                  <!-- Mobile filter control -->
+                  <div class="q-pa-md q-pb-sm">
+                    <q-select v-model="matchesFilterBy" :options="matchesFilterOptions" dense outlined emit-value
+                      map-options style="min-width: 120px">
+                      <template v-slot:prepend>
+                        <q-icon name="filter_list" />
+                      </template>
+                    </q-select>
                   </div>
+                  <q-list separator v-if="filteredMatches.length > 0">
+                    <MatchCard v-for="(match, index) in filteredMatches" :key="match.id" :match="match"
+                      :available-courts="getCourtCount()" @completeMatch="openMatchResultDialog(index)"
+                      @editMatch="editMatch(index)" @assignCourt="openCourtSelectionDialog(index)"
+                      @changeCourt="openCourtSelectionDialog(index)" @startMatch="startMatch(index)"
+                      @cancelMatch="cancelMatch(index)" />
+                  </q-list>
+                  <EmptyState v-else icon="sports_tennis" title="No active matches"
+                    subtitle="Generate matches from the queue to get started" />
                 </div>
               </q-card-section>
             </q-card>
@@ -696,15 +312,7 @@
       <q-card class="bg-white"
         style="max-width: 800px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
         <!-- Header -->
-        <q-card-section class="players-header text-white q-pa-none">
-          <q-toolbar class="q-pa-md">
-            <q-toolbar-title>
-              <q-icon name="person_add" class="q-mr-sm" />
-              Add New Player
-            </q-toolbar-title>
-            <q-btn icon="close" flat round dense v-close-popup />
-          </q-toolbar>
-        </q-card-section>
+        <DialogHeader title="Add New Player" icon="person_add" />
 
         <!-- Content -->
         <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto;">
@@ -825,15 +433,7 @@
       <q-card class="bg-white"
         style="max-width: 800px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
         <!-- Header -->
-        <q-card-section class="matches-header text-white q-pa-none">
-          <q-toolbar class="q-pa-md">
-            <q-toolbar-title>
-              <q-icon name="emoji_events" class="q-mr-sm" />
-              Match Result
-            </q-toolbar-title>
-            <q-btn icon="close" flat round dense v-close-popup />
-          </q-toolbar>
-        </q-card-section>
+        <DialogHeader title="Match Result" icon="emoji_events" />
 
         <!-- Content -->
         <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto;">
@@ -913,15 +513,7 @@
       <q-card class="bg-white"
         style="max-width: 800px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
         <!-- Header -->
-        <q-card-section class="queue-header text-white q-pa-none">
-          <q-toolbar class="q-pa-md">
-            <q-toolbar-title>
-              <q-icon name="settings" class="q-mr-sm" />
-              Settings
-            </q-toolbar-title>
-            <q-btn icon="close" flat round dense v-close-popup />
-          </q-toolbar>
-        </q-card-section>
+        <DialogHeader title="Settings" icon="settings" />
 
         <!-- Content -->
         <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto;">
@@ -975,15 +567,7 @@
       <q-card class="bg-white"
         style="max-width: 700px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
         <!-- Header -->
-        <q-card-section class="players-header text-white q-pa-none">
-          <q-toolbar class="q-pa-md">
-            <q-toolbar-title>
-              <q-icon name="touch_app" class="q-mr-sm" />
-              {{ matchType === 'singles' ? 'Singles' : 'Doubles' }} Match Selection
-            </q-toolbar-title>
-            <q-btn icon="close" flat round dense v-close-popup />
-          </q-toolbar>
-        </q-card-section>
+        <DialogHeader :title="`${matchType === 'singles' ? 'Singles' : 'Doubles'} Match Selection`" icon="touch_app" />
 
         <!-- Content -->
         <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto;">
@@ -1130,15 +714,7 @@
       <q-card class="bg-white"
         style="max-width: 800px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
         <!-- Header -->
-        <q-card-section class="matches-header text-white q-pa-none">
-          <q-toolbar class="q-pa-md">
-            <q-toolbar-title>
-              <q-icon name="edit" class="q-mr-sm" />
-              Edit Match
-            </q-toolbar-title>
-            <q-btn icon="close" flat round dense v-close-popup />
-          </q-toolbar>
-        </q-card-section>
+        <DialogHeader title="Edit Match" icon="edit" />
 
         <!-- Content -->
         <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto;">
@@ -1281,15 +857,7 @@
       <q-card class="bg-white"
         style="max-width: 800px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
         <!-- Header -->
-        <q-card-section class="players-header text-white q-pa-none">
-          <q-toolbar class="q-pa-md">
-            <q-toolbar-title>
-              <q-icon name="swap_horiz" class="q-mr-sm" />
-              Replace Player
-            </q-toolbar-title>
-            <q-btn icon="close" flat round dense v-close-popup />
-          </q-toolbar>
-        </q-card-section>
+        <DialogHeader title="Replace Player" icon="swap_horiz" />
 
         <!-- Content -->
         <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto;">
@@ -1333,15 +901,7 @@
       <q-card class="bg-white"
         style="max-width: 500px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
         <!-- Header -->
-        <q-card-section class="queue-header text-white q-pa-none">
-          <q-toolbar class="q-pa-md">
-            <q-toolbar-title>
-              <q-icon name="sports_tennis" class="q-mr-sm" />
-              Assign Court
-            </q-toolbar-title>
-            <q-btn icon="close" flat round dense v-close-popup />
-          </q-toolbar>
-        </q-card-section>
+        <DialogHeader title="Assign Court" icon="sports_tennis" />
 
         <!-- Content -->
         <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto;">
@@ -1402,6 +962,14 @@
 import { ref, computed, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import TeamArrangement from '../components/TeamArrangement.vue';
+import PlayerList from '../components/PlayerList.vue';
+import EmptyState from '../components/EmptyState.vue';
+import DialogHeader from '../components/DialogHeader.vue';
+import MatchCard from '../components/MatchCard.vue';
+import {
+  getLevelColor,
+  getLevelIcon
+} from '../utils/playerHelpers';
 
 // Player type
 interface Player {
@@ -1579,29 +1147,6 @@ const queueStats = computed(() => {
   return { total, level1, level2, level3 };
 });
 
-const sortedPlayers = computed(() => {
-  return [...players.value].sort((a, b) => {
-    // Sort by selected criteria
-    if (sortBy.value === 'gamesPlayed') {
-      if (a.gamesPlayed !== b.gamesPlayed) {
-        return b.gamesPlayed - a.gamesPlayed; // Descending (most games first)
-      }
-    } else if (sortBy.value === 'wins') {
-      if (a.wins !== b.wins) {
-        return b.wins - a.wins; // Descending (most wins first)
-      }
-    } else if (sortBy.value === 'losses') {
-      if (a.losses !== b.losses) {
-        return b.losses - a.losses; // Descending (most losses first)
-      }
-    } else if (sortBy.value === 'name') {
-      return a.name.localeCompare(b.name);
-    }
-
-    // Secondary sort by name for consistency
-    return a.name.localeCompare(b.name);
-  });
-});
 
 const filteredMatches = computed(() => {
   if (matchesFilterBy.value === 'all') {
@@ -1617,24 +1162,41 @@ const currentMatch = computed(() => {
   return [];
 });
 
-// Helper functions
-const getLevelColor = (level: 1 | 2 | 3): string => {
-  switch (level) {
-    case 1: return 'green-6';      // Beginner - Green shade 6
-    case 2: return 'orange-7';     // Intermediate - Orange shade 7
-    case 3: return 'red-8';        // Advanced - Red shade 8
-    default: return 'grey-5';
-  }
-};
+// Tab shake animation state
+const tabShakeStates = ref({
+  players: false,
+  queue: false,
+  matches: false
+});
 
-const getLevelIcon = (level: 1 | 2 | 3): string => {
-  switch (level) {
-    case 1: return 'star_border';
-    case 2: return 'star_half';
-    case 3: return 'star';
-    default: return 'star_outline';
+// Watch for count changes and trigger shake animation
+watch(() => players.value.length, (newCount, oldCount) => {
+  if (newCount !== oldCount && activeMobileTab.value !== 'players') {
+    tabShakeStates.value.players = true;
+    setTimeout(() => {
+      tabShakeStates.value.players = false;
+    }, 600);
   }
-};
+});
+
+watch(() => queue.value.length, (newCount, oldCount) => {
+  if (newCount !== oldCount && activeMobileTab.value !== 'queue') {
+    tabShakeStates.value.queue = true;
+    setTimeout(() => {
+      tabShakeStates.value.queue = false;
+    }, 600);
+  }
+});
+
+watch(() => filteredMatches.value.length, (newCount, oldCount) => {
+  if (newCount !== oldCount && activeMobileTab.value !== 'matches') {
+    tabShakeStates.value.matches = true;
+    setTimeout(() => {
+      tabShakeStates.value.matches = false;
+    }, 600);
+  }
+});
+
 
 const canGenerateMatches = (): boolean => {
   const total = queue.value.length;
@@ -1692,40 +1254,6 @@ const getWaitingPlayersInfo = (): string => {
   return `${remainingPlayers} player${remainingPlayers > 1 ? 's' : ''} waiting - ${suggestions[remainingPlayers as keyof typeof suggestions]}`;
 };
 
-// Queue management helper functions
-const getMatchStatusColor = (status: string): string => {
-  switch (status) {
-    case 'waiting': return 'grey-6';
-    case 'in-progress': return 'green-6';
-    case 'completed': return 'blue-6';
-    default: return 'grey-6';
-  }
-};
-
-const getMatchStatusLabel = (status: string): string => {
-  switch (status) {
-    case 'waiting': return 'Waiting';
-    case 'in-progress': return 'In Progress';
-    case 'completed': return 'Completed';
-    default: return 'Unknown';
-  }
-};
-
-const getQueueTimeInfo = (player: Player): string => {
-  if (player.priority === 'returned') {
-    return 'Recently returned';
-  }
-  if (player.originalQueueTime) {
-    const now = new Date();
-    const diff = now.getTime() - new Date(player.originalQueueTime).getTime();
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'Just joined';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours}h ago`;
-  }
-  return 'In queue';
-};
 
 const sortQueueByFairness = () => {
   if (autoSortQueue.value) {
@@ -4311,7 +3839,7 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
 // Mobile Tabs Styling
 .mobile-card {
   border-radius: 12px;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 
   .card-content {
     max-height: calc(100vh - 300px);
@@ -4331,12 +3859,46 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
   .q-tab {
     border-radius: 8px 8px 0 0;
     margin: 0 2px;
-    min-height: 48px;
+    min-height: 56px;
+    transition: transform 0.1s ease;
 
     &.q-tab--active {
       background: linear-gradient(135deg, #667eea 0%, #5a67d8 100%);
       color: white !important;
     }
+
+    // Shake animation for tab updates
+    &.shake {
+      animation: tabShake 0.6s ease-in-out;
+    }
+
+    .q-icon {
+      font-size: 1.2rem;
+    }
+  }
+}
+
+// Tab shake animation keyframes
+@keyframes tabShake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-2px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(2px);
   }
 }
 
@@ -4345,7 +3907,7 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
   border-radius: 0 0 12px 12px;
 
   .q-tab-panel {
-    padding: 1rem;
+    padding: 0.5rem;
   }
 }
 
@@ -4353,12 +3915,16 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
 @media (max-width: 480px) {
   .q-tabs {
     .q-tab {
-      min-height: 44px;
+      min-height: 52px;
       font-size: 0.75rem;
 
       .q-tab__content {
         min-width: unset;
         padding: 0 8px;
+      }
+
+      .q-icon {
+        font-size: 1.1rem;
       }
     }
   }
