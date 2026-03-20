@@ -545,8 +545,19 @@
           <div class="q-gutter-y-md">
             <div>
               <div class="text-subtitle2 q-mb-sm">Queue Management</div>
-              <q-select v-model="queueReturnMethod" :options="queueReturnOptions"
-                label="Default method for returning players to queue" outlined dense emit-value map-options />
+              <q-select v-model="queueReturnMethod" :options="queueReturnOptions" label="Return Players to Queue"
+                outlined dense emit-value map-options>
+                <template v-slot:option="scope">
+                  <q-item v-bind="scope.itemProps">
+                    <q-item-section>
+                      <q-item-label>{{ scope.opt.label }}</q-item-label>
+                      <q-item-label v-if="scope.opt.description" caption class="text-grey-7">
+                        {{ scope.opt.description }}
+                      </q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
             </div>
 
             <div>
@@ -555,12 +566,34 @@
 
             <div>
               <q-select v-model="queuePriorityMode" :options="queuePriorityOptions" label="Queue priority order"
-                outlined dense emit-value map-options />
+                outlined dense emit-value map-options>
+                <template v-slot:option="scope">
+                  <q-item v-bind="scope.itemProps">
+                    <q-item-section>
+                      <q-item-label>{{ scope.opt.label }}</q-item-label>
+                      <q-item-label v-if="scope.opt.description" caption class="text-grey-7">
+                        {{ scope.opt.description }}
+                      </q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
             </div>
 
             <div>
               <q-select v-model="matchmakingStyle" :options="matchmakingStyleOptions" label="Matchmaking style" outlined
-                dense emit-value map-options />
+                dense emit-value map-options>
+                <template v-slot:option="scope">
+                  <q-item v-bind="scope.itemProps">
+                    <q-item-section>
+                      <q-item-label>{{ scope.opt.label }}</q-item-label>
+                      <q-item-label v-if="scope.opt.description" caption class="text-grey-7">
+                        {{ scope.opt.description }}
+                      </q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
             </div>
 
             <q-separator />
@@ -1148,52 +1181,52 @@ const matchesFilterOptions = computed(() => {
 // Queue return options
 const queueReturnOptions = [
   {
-    label: 'Fairness First (Recommended)',
+    label: 'Jump to Front',
     value: 'fairness_first',
-    description: 'Players return to front, maintaining fairness'
+    description: 'Returning players go to the front of the queue'
   },
   {
-    label: 'End of Queue',
+    label: 'Go to Back',
     value: 'end_of_queue',
-    description: 'Players added to end of queue'
+    description: 'Returning players go to the end of the queue'
   },
   {
-    label: 'Smart Position',
+    label: 'Priority Position',
     value: 'smart_position',
-    description: 'Calculate position based on games played'
+    description: 'Smart position based on games played'
   }
 ];
 
 // Queue priority options
 const queuePriorityOptions = [
   {
-    label: 'First Come First Served',
+    label: 'First in Line',
     value: 'timestamp',
-    description: 'Players are served in the order they joined the queue'
+    description: 'Players are served in the order they joined'
   },
   {
-    label: 'Fewest Games Played',
+    label: 'Less Played First',
     value: 'gamesPlayed',
-    description: 'Players with fewer games get higher priority (fairness)'
+    description: 'Players with fewer games get priority'
   }
 ];
 
 // Matchmaking style options
 const matchmakingStyleOptions = [
   {
-    label: 'Balanced (Current)',
+    label: 'Standard Balance',
     value: 'balanced',
-    description: 'Match players based on skill level and games played'
+    description: 'Balance teams by skill level and games played'
   },
   {
-    label: 'Win/Loss Separated',
+    label: 'Even Win Rates',
     value: 'win_loss_separated',
-    description: 'Match players with similar overall win rates'
+    description: 'Keep players with similar win rates on opposite teams'
   },
   {
-    label: 'Last Result Separated',
+    label: 'Winners Together',
     value: 'last_result_separated',
-    description: 'Match players based on their last match result (win or loss)'
+    description: 'Group players with the same last match result'
   }
 ];
 
@@ -1411,22 +1444,24 @@ const calculateSmartPosition = (player: Player): number => {
 function getPlayersFromStorage(): Player[] {
   const players = localStorage.getItem('playerList');
   const parsed = players ? JSON.parse(players) : [];
-  // Migrate old data to include wins/losses
+  // Migrate old data to include wins/losses and convert date strings to Date objects
   return parsed.map((player: Partial<Player>) => ({
     ...player,
     wins: player.wins || 0,
-    losses: player.losses || 0
+    losses: player.losses || 0,
+    lastMatchTime: player.lastMatchTime ? new Date(player.lastMatchTime) : undefined
   }));
 }
 
 function getQueueFromStorage(): Player[] {
   const queue = localStorage.getItem('playerQueue');
   const parsed = queue ? JSON.parse(queue) : [];
-  // Migrate old data to include wins/losses
+  // Migrate old data to include wins/losses and convert date strings to Date objects
   return parsed.map((player: Partial<Player>) => ({
     ...player,
     wins: player.wins || 0,
-    losses: player.losses || 0
+    losses: player.losses || 0,
+    originalQueueTime: player.originalQueueTime ? new Date(player.originalQueueTime) : undefined
   }));
 }
 
@@ -1455,7 +1490,13 @@ function getMatchesFromStorage(): Match[] {
     ...match,
     status: match.status || 'waiting',
     order: match.order || 1,
-    createdAt: match.createdAt ? new Date(match.createdAt) : new Date()
+    createdAt: match.createdAt ? new Date(match.createdAt) : new Date(),
+    startedAt: match.startedAt ? new Date(match.startedAt) : undefined,
+    completedAt: match.completedAt ? new Date(match.completedAt) : undefined,
+    players: match.players?.map((player: Partial<Player>) => ({
+      ...player,
+      lastMatchTime: player.lastMatchTime ? new Date(player.lastMatchTime) : undefined
+    })) as Player[]
   })) as Match[];
 }
 
@@ -1511,7 +1552,7 @@ function getQueueSettingsFromStorage(): { queueReturnMethod: 'fairness_first' | 
       matchmakingStyle
     };
   }
-  return { queueReturnMethod: 'fairness_first', autoSortQueue: true, queuePriorityMode: 'gamesPlayed', matchmakingStyle: 'balanced' };
+  return { queueReturnMethod: 'end_of_queue', autoSortQueue: true, queuePriorityMode: 'timestamp', matchmakingStyle: 'last_result_separated' };
 }
 
 function saveQueueSettingsToStorage(): void {
