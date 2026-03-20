@@ -6,7 +6,7 @@
         <div class="row items-center justify-between">
           <div class="col">
             <h1 class="text-h5 text-weight-bold text-white q-mb-xs">
-              🏓 Queue Master
+              🏓 Dink It - Queueing (Open Play)
             </h1>
             <p class="text-caption text-grey-1 q-ma-none">
               Smart matchmaking for singles & doubles
@@ -42,13 +42,26 @@
                 <q-btn color="white" @click="showAddPlayerDialog = true" icon="person_add" flat round dense>
                   <q-tooltip>Add new player to the system</q-tooltip>
                 </q-btn>
+                <q-btn color="white" @click="addAllPlayersToQueue" :disable="allPlayersInQueue" icon="group_add" flat
+                  round dense>
+                  <q-tooltip>Add all players to queue</q-tooltip>
+                </q-btn>
               </q-toolbar>
             </q-card-section>
             <q-card-section class="q-pa-none">
               <div class="card-content">
-                <PlayerList :players="players" :sort-by="sortBy" :show-actions="true" :empty-icon="'people'"
-                  :empty-title="'No players added yet'" :empty-subtitle="'Click the + button to add your first player'"
-                  :empty-action="true" @player-remove="removePlayer" @player-requeue="requeuePlayer"
+                <!-- Search bar -->
+                <div class="q-pa-sm players-search">
+                  <q-input v-model="searchPlayers" dense outlined placeholder="Search players..." clearable>
+                    <template v-slot:prepend>
+                      <q-icon name="search" />
+                    </template>
+                  </q-input>
+                </div>
+                <PlayerList :players="displayPlayers" :sort-by="sortBy" :show-actions="true" :empty-icon="'people'"
+                  :empty-title="searchPlayers ? 'No matching players' : 'No players added yet'"
+                  :empty-subtitle="searchPlayers ? 'Try a different search' : 'Click the + button to add your first player'"
+                  :empty-action="!searchPlayers" @player-remove="removePlayer" @player-requeue="requeuePlayer"
                   @empty-action="showAddPlayerDialog = true" />
               </div>
             </q-card-section>
@@ -194,12 +207,24 @@
                       <q-btn color="accent" @click="showAddPlayerDialog = true" icon="person_add" flat round dense>
                         <q-tooltip>Add new player</q-tooltip>
                       </q-btn>
+                      <q-btn color="accent" @click="addAllPlayersToQueue" :disable="allPlayersInQueue" icon="group_add"
+                        flat round dense>
+                        <q-tooltip>Add all players to queue</q-tooltip>
+                      </q-btn>
                     </div>
                   </div>
-                  <PlayerList :players="players" :sort-by="sortBy" :show-actions="true" :empty-icon="'people'"
-                    :empty-title="'No players added yet'"
-                    :empty-subtitle="'Click the + button to add your first player'" :empty-action="true"
-                    @player-remove="removePlayer" @player-requeue="requeuePlayer"
+                  <!-- Search bar -->
+                  <div class="q-pa-sm players-search">
+                    <q-input v-model="searchPlayers" dense outlined placeholder="Search players..." clearable>
+                      <template v-slot:prepend>
+                        <q-icon name="search" />
+                      </template>
+                    </q-input>
+                  </div>
+                  <PlayerList :players="displayPlayers" :sort-by="sortBy" :show-actions="true" :empty-icon="'people'"
+                    :empty-title="searchPlayers ? 'No matching players' : 'No players added yet'"
+                    :empty-subtitle="searchPlayers ? 'Try a different search' : 'Click the + button to add your first player'"
+                    :empty-action="!searchPlayers" @player-remove="removePlayer" @player-requeue="requeuePlayer"
                     @empty-action="showAddPlayerDialog = true" />
                 </div>
               </q-card-section>
@@ -521,11 +546,21 @@
             <div>
               <div class="text-subtitle2 q-mb-sm">Queue Management</div>
               <q-select v-model="queueReturnMethod" :options="queueReturnOptions"
-                label="Default method for returning players to queue" outlined dense />
+                label="Default method for returning players to queue" outlined dense emit-value map-options />
             </div>
 
             <div>
               <q-toggle v-model="autoSortQueue" label="Automatically sort queue by fairness" color="accent" />
+            </div>
+
+            <div>
+              <q-select v-model="queuePriorityMode" :options="queuePriorityOptions" label="Queue priority order"
+                outlined dense emit-value map-options />
+            </div>
+
+            <div>
+              <q-select v-model="matchmakingStyle" :options="matchmakingStyleOptions" label="Matchmaking style" outlined
+                dense emit-value map-options />
             </div>
 
             <q-separator />
@@ -981,6 +1016,7 @@ interface Player {
   queuePosition?: number;
   originalQueueTime?: Date;
   lastMatchTime?: Date;
+  lastMatchResult?: 'win' | 'loss' | null;
   priority?: 'normal' | 'high' | 'returned';
 }
 
@@ -1062,6 +1098,9 @@ const activeMobileTab = ref<'players' | 'queue' | 'matches'>('players');
 // Sort state
 const sortBy = ref<'gamesPlayed' | 'wins' | 'losses' | 'name'>(getUISettingsFromStorage().sortBy);
 
+// Search state for players
+const searchPlayers = ref<string>('');
+
 // Matches filter state
 const matchesFilterBy = ref<'all' | number>(getUISettingsFromStorage().matchesFilterBy);
 
@@ -1071,6 +1110,8 @@ const matchType = ref<'singles' | 'doubles'>(getUISettingsFromStorage().matchTyp
 // Queue management state
 const queueReturnMethod = ref<'fairness_first' | 'end_of_queue' | 'smart_position'>(getQueueSettingsFromStorage().queueReturnMethod);
 const autoSortQueue = ref<boolean>(getQueueSettingsFromStorage().autoSortQueue);
+const queuePriorityMode = ref<'timestamp' | 'gamesPlayed'>(getQueueSettingsFromStorage().queuePriorityMode);
+const matchmakingStyle = ref<'balanced' | 'win_loss_separated' | 'last_result_separated'>(getQueueSettingsFromStorage().matchmakingStyle || 'balanced');
 const currentMatchIndexForActions = ref<number>(-1);
 
 // Level options for select
@@ -1123,6 +1164,39 @@ const queueReturnOptions = [
   }
 ];
 
+// Queue priority options
+const queuePriorityOptions = [
+  {
+    label: 'First Come First Served',
+    value: 'timestamp',
+    description: 'Players are served in the order they joined the queue'
+  },
+  {
+    label: 'Fewest Games Played',
+    value: 'gamesPlayed',
+    description: 'Players with fewer games get higher priority (fairness)'
+  }
+];
+
+// Matchmaking style options
+const matchmakingStyleOptions = [
+  {
+    label: 'Balanced (Current)',
+    value: 'balanced',
+    description: 'Match players based on skill level and games played'
+  },
+  {
+    label: 'Win/Loss Separated',
+    value: 'win_loss_separated',
+    description: 'Match players with similar overall win rates'
+  },
+  {
+    label: 'Last Result Separated',
+    value: 'last_result_separated',
+    description: 'Match players based on their last match result (win or loss)'
+  }
+];
+
 const courtOptions = computed(() => Array.from({ length: maxCourts.value }, (_, i) => ({
   label: `${i + 1} Court${i > 0 ? 's' : ''}`,
   value: i + 1
@@ -1138,6 +1212,14 @@ const courtSelectionOptions = computed(() => {
 });
 
 // Computed properties
+const displayPlayers = computed(() => {
+  if (!searchPlayers.value?.trim()) {
+    return players.value;
+  }
+  const query = searchPlayers.value.toLowerCase().trim();
+  return players.value.filter(p => p.name.toLowerCase().includes(query));
+});
+
 const queueStats = computed(() => {
   const total = queue.value.length;
   const level1 = queue.value.filter(p => p.level === 1).length;
@@ -1147,12 +1229,25 @@ const queueStats = computed(() => {
   return { total, level1, level2, level3 };
 });
 
+const allPlayersInQueue = computed(() => {
+  if (players.value.length === 0) return true;
+  const queuePlayerNames = new Set(queue.value.map(p => p.name));
+  return players.value.every(p => queuePlayerNames.has(p.name));
+});
+
 
 const filteredMatches = computed(() => {
-  if (matchesFilterBy.value === 'all') {
-    return matches.value;
-  }
-  return matches.value.filter(match => match.court === matchesFilterBy.value);
+  let filtered = matchesFilterBy.value === 'all'
+    ? matches.value
+    : matches.value.filter(match => match.court === matchesFilterBy.value);
+
+  // Sort by status: in-progress first, then waiting
+  filtered = [...filtered].sort((a, b) => {
+    const statusOrder = { 'in-progress': 0, 'waiting': 1, 'completed': 2 };
+    return statusOrder[a.status] - statusOrder[b.status];
+  });
+
+  return filtered;
 });
 
 const currentMatch = computed(() => {
@@ -1257,20 +1352,54 @@ const getWaitingPlayersInfo = (): string => {
 
 const sortQueueByFairness = () => {
   if (autoSortQueue.value) {
-    // Sort by games played (fewer games = higher priority)
-    queue.value.sort((a, b) => a.gamesPlayed - b.gamesPlayed);
+    // Sort based on the configured priority mode
+    switch (queuePriorityMode.value) {
+      case 'gamesPlayed':
+        // Sort by games played (fewer games = higher priority)
+        queue.value.sort((a, b) => a.gamesPlayed - b.gamesPlayed);
+        break;
+      case 'timestamp':
+        // Sort by queue join time (earlier = higher priority)
+        queue.value.sort((a, b) => {
+          const timeA = a.originalQueueTime || new Date(0);
+          const timeB = b.originalQueueTime || new Date(0);
+          return timeA.getTime() - timeB.getTime();
+        });
+        break;
+    }
     saveQueueToStorage(queue.value);
   }
 };
 
 const calculateSmartPosition = (player: Player): number => {
-  // Find position based on games played (fairness)
-  const sortedQueue = [...queue.value].sort((a, b) => a.gamesPlayed - b.gamesPlayed);
-  const playerGames = player.gamesPlayed;
+  // Find position based on the configured priority mode
+  const sortedQueue = [...queue.value].sort((a, b) => {
+    switch (queuePriorityMode.value) {
+      case 'gamesPlayed':
+        return a.gamesPlayed - b.gamesPlayed;
+      case 'timestamp':
+        const timeA = a.originalQueueTime || new Date(0);
+        const timeB = b.originalQueueTime || new Date(0);
+        return timeA.getTime() - timeB.getTime();
+      default:
+        return a.gamesPlayed - b.gamesPlayed;
+    }
+  });
+
+  // Determine the player's priority value based on mode
+  const playerPriority = queuePriorityMode.value === 'timestamp'
+    ? (player.originalQueueTime || new Date(0)).getTime()
+    : player.gamesPlayed;
 
   // Find where this player should be inserted
   for (let i = 0; i < sortedQueue.length; i++) {
-    if (sortedQueue[i].gamesPlayed > playerGames) {
+    const queuePlayerPriority = queuePriorityMode.value === 'timestamp'
+      ? (sortedQueue[i].originalQueueTime || new Date(0)).getTime()
+      : sortedQueue[i].gamesPlayed;
+
+    // For ascending sort: insert before first player with higher priority value
+    // (lower gamesPlayed = higher priority, earlier time = higher priority)
+    if (queuePlayerPriority > playerPriority) {
       return i;
     }
   }
@@ -1363,22 +1492,34 @@ function saveCourtSettingsToStorage(): void {
   }));
 }
 
-function getQueueSettingsFromStorage(): { queueReturnMethod: 'fairness_first' | 'end_of_queue' | 'smart_position'; autoSortQueue: boolean } {
+function getQueueSettingsFromStorage(): { queueReturnMethod: 'fairness_first' | 'end_of_queue' | 'smart_position'; autoSortQueue: boolean; queuePriorityMode: 'timestamp' | 'gamesPlayed'; matchmakingStyle: 'balanced' | 'win_loss_separated' | 'last_result_separated' } {
   const settings = localStorage.getItem('queueSettings');
   if (settings) {
     const parsed = JSON.parse(settings);
+    // Migrate: if stored value is an object (old format), extract the value property
+    const queueReturnMethod = typeof parsed.queueReturnMethod === 'string'
+      ? parsed.queueReturnMethod
+      : (parsed.queueReturnMethod?.value || 'fairness_first');
+    const queuePriorityMode = typeof parsed.queuePriorityMode === 'string'
+      ? parsed.queuePriorityMode
+      : (parsed.queuePriorityMode?.value || 'gamesPlayed');
+    const matchmakingStyle = parsed.matchmakingStyle || 'balanced';
     return {
-      queueReturnMethod: parsed.queueReturnMethod || 'fairness_first',
-      autoSortQueue: parsed.autoSortQueue !== undefined ? parsed.autoSortQueue : true
+      queueReturnMethod,
+      autoSortQueue: parsed.autoSortQueue !== undefined ? parsed.autoSortQueue : true,
+      queuePriorityMode,
+      matchmakingStyle
     };
   }
-  return { queueReturnMethod: 'fairness_first', autoSortQueue: true };
+  return { queueReturnMethod: 'fairness_first', autoSortQueue: true, queuePriorityMode: 'gamesPlayed', matchmakingStyle: 'balanced' };
 }
 
 function saveQueueSettingsToStorage(): void {
   localStorage.setItem('queueSettings', JSON.stringify({
     queueReturnMethod: queueReturnMethod.value,
-    autoSortQueue: autoSortQueue.value
+    autoSortQueue: autoSortQueue.value,
+    queuePriorityMode: queuePriorityMode.value,
+    matchmakingStyle: matchmakingStyle.value
   }));
 }
 
@@ -1425,6 +1566,18 @@ watch(autoSortQueue, () => {
   saveQueueSettingsToStorage();
 });
 
+watch(queuePriorityMode, () => {
+  saveQueueSettingsToStorage();
+  // Re-sort queue when priority mode changes if auto-sort is enabled
+  if (autoSortQueue.value) {
+    sortQueueByFairness();
+  }
+});
+
+watch(matchmakingStyle, () => {
+  saveQueueSettingsToStorage();
+});
+
 // Watch for changes in UI settings and save to storage
 watch(sortBy, () => {
   saveUISettingsToStorage();
@@ -1464,15 +1617,39 @@ const findBestSinglesPair = (availablePlayers: Player[]): Player[] => {
     // Calculate total games (lower is better - prioritize players who haven't played much)
     const totalGames = player1.gamesPlayed + player2.gamesPlayed;
 
+    // Calculate win/loss difference (for win_loss_separated mode)
+    // Players with similar win rates should play each other
+    const winRate1 = player1.gamesPlayed > 0 ? player1.wins / player1.gamesPlayed : 0.5;
+    const winRate2 = player2.gamesPlayed > 0 ? player2.wins / player2.gamesPlayed : 0.5;
+    const winRateDifference = Math.abs(winRate1 - winRate2);
+
+    // Calculate last match result match (for last_result_separated mode)
+    // Players with same last result (both won or both lost) should play each other
+    const lastResultMismatch = matchmakingStyle.value === 'last_result_separated' &&
+      player1.lastMatchResult !== null && player2.lastMatchResult !== null &&
+      player1.lastMatchResult !== player2.lastMatchResult ? 1 : 0;
+
     // Combined score (lower is better)
-    const score = skillDifference * 100 + gamesDifference * 10 + totalGames;
+    let score = skillDifference * 100 + gamesDifference * 10 + totalGames;
+
+    // If win/loss separation is enabled, factor in win rate similarity
+    if (matchmakingStyle.value === 'win_loss_separated') {
+      score += winRateDifference * 50; // Moderate weight for win rate difference
+    }
+
+    // If last result separation is enabled, penalize mismatched last results
+    if (matchmakingStyle.value === 'last_result_separated') {
+      score += lastResultMismatch * 100; // Strong penalty for last result mismatch
+    }
 
     return {
       pair,
       score,
       skillDifference,
       gamesDifference,
-      totalGames
+      totalGames,
+      winRateDifference,
+      lastResultMismatch
     };
   });
 
@@ -1532,15 +1709,45 @@ const findBestDoublesGroup = (availablePlayers: Player[]): Player[] => {
     const gamesPlayed = group.map(p => p.gamesPlayed);
     const gamesVariance = Math.max(...gamesPlayed) - Math.min(...gamesPlayed);
 
+    // Calculate win rate variance (for win_loss_separated mode)
+    // We want all 4 players to have similar win rates
+    const winRates = group.map(p => p.gamesPlayed > 0 ? p.wins / p.gamesPlayed : 0.5);
+    const winRateVariance = Math.max(...winRates) - Math.min(...winRates);
+
+    // Calculate last match result mismatch count (for last_result_separated mode)
+    // Count how many players have different last results from the majority
+    let lastResultMismatchCount = 0;
+    if (matchmakingStyle.value === 'last_result_separated') {
+      const lastResults = group.map(p => p.lastMatchResult).filter(r => r !== null);
+      if (lastResults.length >= 2) {
+        const winCount = lastResults.filter(r => r === 'win').length;
+        const lossCount = lastResults.filter(r => r === 'loss').length;
+        // Penalize groups where results are split (not all same)
+        lastResultMismatchCount = Math.min(winCount, lossCount);
+      }
+    }
+
     // Combined score (lower is better)
-    const score = skillDifference * 100 + gamesVariance * 10 + totalGames;
+    let score = skillDifference * 100 + gamesVariance * 10 + totalGames;
+
+    // If win/loss separation is enabled, factor in win rate variance
+    if (matchmakingStyle.value === 'win_loss_separated') {
+      score += winRateVariance * 50; // Moderate weight for win rate variance
+    }
+
+    // If last result separation is enabled, penalize mixed result groups
+    if (matchmakingStyle.value === 'last_result_separated') {
+      score += lastResultMismatchCount * 100; // Penalty for each mismatched result
+    }
 
     return {
       group,
       score,
       skillDifference,
       gamesVariance,
-      totalGames
+      totalGames,
+      winRateVariance,
+      lastResultMismatchCount
     };
   });
 
@@ -1623,14 +1830,13 @@ const assignCourt = (): number => {
   // Count existing matches per court with detailed breakdown
   matches.value.forEach(match => {
     if (match.court) {
-      const currentLoad = courtLoads.get(match.court) || { inProgress: 0, waiting: 0, total: 0 };
+      const currentLoad = courtLoads.get(match.court)!;
       if (match.status === 'in-progress') {
         currentLoad.inProgress++;
       } else if (match.status === 'waiting') {
         currentLoad.waiting++;
       }
       currentLoad.total++;
-      courtLoads.set(match.court, currentLoad);
     }
   });
 
@@ -1639,10 +1845,10 @@ const assignCourt = (): number => {
   let bestScore = Infinity;
 
   for (let court = 1; court <= courtCount; court++) {
-    const load = courtLoads.get(court) || { inProgress: 0, waiting: 0, total: 0 };
+    const load = courtLoads.get(court)!;
 
     // Calculate court score (lower is better)
-    // Priority 1: Empty courts (no in-progress matches)
+    // Priority 1: Empty courts (no in-progress matches) - highest priority
     // Priority 2: Courts with fewer total matches
     // Priority 3: Courts with fewer waiting matches
     let score = load.total * 1000; // Base score on total matches
@@ -1675,14 +1881,13 @@ const assignCourtsToMatches = (newMatches: Match[]): void => {
   // Count existing matches per court with detailed breakdown
   matches.value.forEach(match => {
     if (match.court) {
-      const currentLoad = courtLoads.get(match.court) || { inProgress: 0, waiting: 0, total: 0 };
+      const currentLoad = courtLoads.get(match.court)!;
       if (match.status === 'in-progress') {
         currentLoad.inProgress++;
       } else if (match.status === 'waiting') {
         currentLoad.waiting++;
       }
       currentLoad.total++;
-      courtLoads.set(match.court, currentLoad);
     }
   });
 
@@ -1698,24 +1903,21 @@ const assignCourtsToMatches = (newMatches: Match[]): void => {
   for (let i = 0; i < newMatches.length; i++) {
     const match = newMatches[i];
 
-    // Find the best court using enhanced criteria
+    // Find the best court using enhanced criteria based on CURRENT loads (including previous assignments in this batch)
     let bestCourt = 1;
     let bestScore = Infinity;
 
     for (let court = 1; court <= courtCount; court++) {
-      const load = courtLoads.get(court) || { inProgress: 0, waiting: 0, total: 0 };
+      const load = courtLoads.get(court)!;
 
       // Calculate court score (lower is better)
       // Priority 1: Empty courts (no in-progress matches)
       // Priority 2: Courts with fewer total matches
-      // Priority 3: Courts with fewer waiting matches
       let score = load.total * 1000; // Base score on total matches
 
       if (load.inProgress > 0) {
         score += 10000; // Heavy penalty for courts with in-progress matches
       }
-
-      score += load.waiting * 100; // Slight penalty for waiting matches
 
       if (score < bestScore) {
         bestScore = score;
@@ -1723,11 +1925,11 @@ const assignCourtsToMatches = (newMatches: Match[]): void => {
       }
     }
 
-    // Assign court to match
+    // Assign court to match (for tracking purposes)
     match.court = bestCourt;
 
-    // Update load for this court
-    const currentLoad = courtLoads.get(bestCourt) || { inProgress: 0, waiting: 0, total: 0 };
+    // Update load for this court IMMEDIATELY so next match sees it
+    const currentLoad = courtLoads.get(bestCourt)!;
     currentLoad.total++;
     courtLoads.set(bestCourt, currentLoad);
 
@@ -1743,6 +1945,9 @@ const assignCourtsToMatches = (newMatches: Match[]): void => {
       // Update in-progress count
       currentLoad.inProgress++;
     } else {
+      // Waiting matches should NOT have a court assigned yet (will be assigned when they start)
+      // Clear the court assignment so they can be assigned to any available court later (FCFS)
+      match.court = undefined;
       match.status = 'waiting';
       // Update waiting count
       currentLoad.waiting++;
@@ -1755,6 +1960,11 @@ const assignCourtsToMatches = (newMatches: Match[]): void => {
 
 // Helper function to create balanced teams from 4 players with randomness
 const createBalancedMatch = (players: Player[]): Player[] => {
+  // If not exactly 4 players, return as-is (cannot balance)
+  if (players.length !== 4) {
+    return players;
+  }
+
   // Sort players by level for better team balancing
   const sortedPlayers = [...players].sort((a, b) => a.level - b.level);
 
@@ -1820,6 +2030,11 @@ const generateTeamCombinations = (players: Player[]): Array<{ team1: Player[], t
 
 // Helper function to create balanced singles matches from 2 players
 const createBalancedSinglesMatch = (players: Player[]): Player[] => {
+  // If not exactly 2 players, return as-is
+  if (players.length !== 2) {
+    return players;
+  }
+
   // For singles, we want to create the most competitive match possible
   // Consider both skill level and games played for fairness
 
@@ -1880,7 +2095,18 @@ const addNewPlayer = () => {
   };
 
   players.value.push(newPlayer);
-  queue.value.push(newPlayer);
+
+  // Add to queue with timestamp
+  const queuePlayer: Player = {
+    ...newPlayer,
+    originalQueueTime: new Date(),
+    priority: 'normal' as const
+  };
+  queue.value.push(queuePlayer);
+
+  if (autoSortQueue.value) {
+    sortQueueByFairness();
+  }
 
   savePlayersToStorage(players.value);
   saveQueueToStorage(queue.value);
@@ -1975,7 +2201,18 @@ const addBulkPlayers = () => {
   // Add valid players
   if (newPlayers.length > 0) {
     players.value.push(...newPlayers);
-    queue.value.push(...newPlayers);
+
+    // Add to queue with timestamps
+    const queuePlayers = newPlayers.map(player => ({
+      ...player,
+      originalQueueTime: new Date(),
+      priority: 'normal' as const
+    }));
+    queue.value.push(...queuePlayers);
+
+    if (autoSortQueue.value) {
+      sortQueueByFairness();
+    }
 
     savePlayersToStorage(players.value);
     saveQueueToStorage(queue.value);
@@ -2131,6 +2368,9 @@ const completeMatch = () => {
     // Remove match from list
     matches.value.splice(currentMatchIndex.value, 1);
 
+    // Return players to queue using configured method
+    executeQueueReturn(match.players, queueReturnMethod.value, 'completed');
+
     // Auto-advance next match for this specific court
     autoAdvanceNextMatchForCourt(courtNumber);
 
@@ -2152,18 +2392,21 @@ const completeMatch = () => {
 };
 
 
-// Auto-advance next match for a specific court
+// Auto-advance next match for a specific court (FCFS based on creation time)
 const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
   // Only auto-advance if the setting is enabled
   if (!autoAdvanceMatches.value) return;
 
-  // Find the next waiting match for this specific court
-  const nextMatch = matches.value.find(match =>
-    match.status === 'waiting' &&
-    match.court === courtNumber
-  );
+  // Find the oldest waiting match (by creation time)
+  const waitingMatches = matches.value
+    .filter(match => match.status === 'waiting')
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()); // Oldest first
+
+  const nextMatch = waitingMatches[0];
 
   if (nextMatch) {
+    // Always assign the freed court to this match (FCFS: oldest waiting match gets next available court)
+    nextMatch.court = courtNumber;
     // Start the next match automatically on this court
     nextMatch.status = 'in-progress';
     nextMatch.startedAt = new Date();
@@ -2174,7 +2417,7 @@ const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
     // Notify user about auto-advance
     $q.notify({
       type: 'info',
-      message: `Next match started on Court ${courtNumber}`,
+      message: `Match started on Court ${courtNumber}`,
       position: 'top',
       timeout: 3000
     });
@@ -2305,13 +2548,81 @@ const requeuePlayer = (name: string) => {
   }
 };
 
+const addAllPlayersToQueue = () => {
+  // Find players not already in queue
+  const queuePlayerNames = new Set(queue.value.map(p => p.name));
+  const playersToAdd = players.value.filter(p => !queuePlayerNames.has(p.name));
+
+  if (playersToAdd.length === 0) {
+    $q.notify({
+      type: 'info',
+      message: 'All players are already in the queue',
+      position: 'top'
+    });
+    return;
+  }
+
+  // Show confirmation dialog
+  $q.dialog({
+    title: 'Add Players to Queue',
+    message: `Add ${playersToAdd.length} player(s) to the queue?`,
+    cancel: {
+      label: 'Cancel',
+      color: 'grey',
+      flat: true
+    },
+    persistent: false,
+    ok: {
+      label: 'Add',
+      color: 'accent',
+      icon: 'person_add'
+    }
+  }).onOk(() => {
+    // Add each player to queue with timestamp
+    const now = new Date();
+    const newQueuePlayers = playersToAdd.map(player => ({
+      ...player,
+      originalQueueTime: now,
+      priority: 'normal' as const
+    }));
+
+    queue.value.push(...newQueuePlayers);
+
+    // Sort if auto-sort is enabled
+    if (autoSortQueue.value) {
+      sortQueueByFairness();
+    }
+
+    saveQueueToStorage(queue.value);
+
+    $q.notify({
+      type: 'positive',
+      message: `Added ${playersToAdd.length} player(s) to queue`,
+      position: 'top'
+    });
+  });
+};
+
 // Enhanced queue return functions
 
 const executeQueueReturn = (players: Player[], method: string, reason: string) => {
   const now = new Date();
 
+  // Filter out players already in queue to prevent duplicates
+  const existingQueueNames = new Set(queue.value.map(p => p.name));
+  const playersToAdd = players.filter(p => !existingQueueNames.has(p.name));
+
+  if (playersToAdd.length === 0) {
+    $q.notify({
+      type: 'info',
+      message: 'All players are already in the queue',
+      position: 'top'
+    });
+    return;
+  }
+
   // Add queue metadata to players
-  const queuePlayers = players.map(player => ({
+  const queuePlayers = playersToAdd.map(player => ({
     ...player,
     originalQueueTime: now,
     priority: (reason === 'cancelled' ? 'high' : 'returned') as 'normal' | 'high' | 'returned'
@@ -2345,7 +2656,7 @@ const executeQueueReturn = (players: Player[], method: string, reason: string) =
 
   $q.notify({
     type: 'positive',
-    message: `${players.length} player(s) returned to queue using ${method} method`,
+    message: `${playersToAdd.length} player(s) returned to queue using ${method} method`,
     position: 'top'
   });
 };
@@ -2630,10 +2941,8 @@ const createManualMatchWithCourt = () => {
     matchPlayers = [...selectedPlayers.value];
   }
 
-  // Create the match with court assignment
+  // Determine if match will start immediately or be waiting
   const assignedCourt = selectedCourt.value || (autoAssignCourts.value ? assignCourt() : undefined);
-
-  // Check if the assigned court is empty (no in-progress matches)
   const isCourtEmpty = !assignedCourt || !matches.value.some(m => m.court === assignedCourt && m.status === 'in-progress');
 
   const newMatch: Match = {
@@ -2642,7 +2951,8 @@ const createManualMatchWithCourt = () => {
     status: isCourtEmpty ? 'in-progress' : 'waiting',
     order: matches.value.length + 1,
     createdAt: new Date(),
-    court: assignedCourt,
+    // Only assign court if match will be in-progress; waiting matches have no court (FCFS)
+    court: isCourtEmpty ? assignedCourt : undefined,
     startedAt: isCourtEmpty ? new Date() : undefined
   };
 
@@ -2827,13 +3137,19 @@ const startMatch = (filteredIndex: number) => {
 
   const match = matches.value[globalIndex];
 
-  if (match.status !== 'waiting' || !match.court) {
+  if (match.status !== 'waiting') {
     $q.notify({
       type: 'negative',
       message: 'Cannot start this match',
       position: 'top'
     });
     return;
+  }
+
+  // Assign a court if not already assigned
+  if (!match.court) {
+    const assignedCourt = assignCourt();
+    match.court = assignedCourt;
   }
 
   // Check if court is available
@@ -2889,8 +3205,11 @@ const assignSpecificCourt = (courtNumber: number) => {
       existingInProgressMatch.startedAt = undefined;
 
       match.court = courtNumber;
-      match.status = 'in-progress';
-      match.startedAt = new Date();
+      // Only start if it was already in-progress (shouldn't happen for waiting matches)
+      if (match.status !== 'in-progress') {
+        match.status = 'in-progress';
+        match.startedAt = new Date();
+      }
 
       saveMatchesToStorage(matches.value);
 
@@ -2906,12 +3225,8 @@ const assignSpecificCourt = (courtNumber: number) => {
     // Court is available - simple assignment
     match.court = courtNumber;
 
-    // If court is empty, start the match
-    const isCourtEmpty = !matches.value.some(m => m.court === courtNumber && m.status === 'in-progress');
-    if (isCourtEmpty) {
-      match.status = 'in-progress';
-      match.startedAt = new Date();
-    }
+    // Don't auto-start the match; it will start via auto-advance or manual start button
+    // Just assign the court and leave status as is
 
     saveMatchesToStorage(matches.value);
 
