@@ -3563,7 +3563,7 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
   }
 }
 
-// Desktop (gt-sm) - equal height cards with flexible scroll areas
+// Desktop (gt-sm) - equal height cards with viewport-based scroll areas
 @media (min-width: 768px) {
 
   .players-card,
@@ -3578,23 +3578,122 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
   .players-card>.q-card-section:first-child,
   .queue-card>.q-card-section:first-child,
   .matches-card>.q-card-section:first-child {
-    flex: 0 0 auto;
+    flex: 0 0 auto; // Header section stays at natural height
+    display: flex;
+    flex-direction: column;
   }
 
   .players-card>.q-card-section:nth-child(2),
   .matches-card>.q-card-section:nth-child(2),
   .queue-card>.q-card-section:nth-child(2) {
-    flex: 1 1 auto;
+    flex: 1 1 auto; // Fill remaining space
     display: flex;
     flex-direction: column;
+    min-height: 0; // Critical: allow this flex container to shrink properly
   }
 
   .card-content {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    padding-bottom: 1rem; // Add spacing at bottom for scroll visibility
-    min-height: 0; // Important for proper flex shrinking
+    min-height: 0; // Critical for proper flex shrinking
+
+    // Fixed header elements (stats, filters) should not be part of scrolling
+    >*:not(.player-list):not(.q-list) {
+      flex: 0 0 auto;
+    }
+  }
+
+  // Players card: q-list with viewport-based fixed height
+  .players-card .q-list {
+    flex: 0 0 auto; // Don't grow, use fixed height
+    max-height: calc(100vh - 380px); // Fixed height based on viewport
+    overflow-y: auto; // Scroll when content exceeds height
+
+    // Always visible scrollbar
+    scrollbar-width: auto;
+    -ms-overflow-style: auto;
+
+    &::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      transition: background 0.2s ease;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.5);
+      }
+    }
+  }
+
+  // Queue card: PlayerList with viewport-based fixed height (accounting for bottom controls)
+  .queue-card .player-list {
+    flex: 0 0 auto; // Don't grow, use fixed height
+    max-height: calc(100vh - 480px); // Fixed height leaving space for header + bottom controls
+    overflow-y: auto; // Scroll when content exceeds height
+
+    // Always visible scrollbar
+    scrollbar-width: auto;
+    -ms-overflow-style: auto;
+
+    &::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      transition: background 0.2s ease;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.5);
+      }
+    }
+  }
+
+  // Matches card: q-list with viewport-based fixed height
+  .matches-card .q-list {
+    flex: 0 0 auto; // Don't grow, use fixed height
+    max-height: calc(100vh - 380px); // Fixed height based on viewport
+    overflow-y: auto; // Scroll when content exceeds height
+
+    // Always visible scrollbar
+    scrollbar-width: auto;
+    -ms-overflow-style: auto;
+
+    &::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      transition: background 0.2s ease;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.5);
+      }
+    }
   }
 
   // Queue card buttons section stays at natural height (auto)
