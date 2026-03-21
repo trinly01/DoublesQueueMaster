@@ -2396,7 +2396,8 @@ const completeMatch = () => {
     const match = matches.value[currentMatchIndex.value];
     const courtNumber = match.court; // Store court number before removing match
 
-    // Update games played for all players
+    // Update games played for all players and collect updated players
+    const updatedPlayers: Player[] = [];
     match.players.forEach(player => {
       const foundPlayer = players.value.find(p => p.name === player.name);
       if (foundPlayer) {
@@ -2411,17 +2412,22 @@ const completeMatch = () => {
 
         if (isWinner) {
           foundPlayer.wins++;
+          foundPlayer.lastMatchResult = 'win';
         } else {
           foundPlayer.losses++;
+          foundPlayer.lastMatchResult = 'loss';
         }
+
+        // Add the updated player to the list
+        updatedPlayers.push(foundPlayer);
       }
     });
 
     // Remove match from list
     matches.value.splice(currentMatchIndex.value, 1);
 
-    // Return players to queue using configured method
-    executeQueueReturn(match.players, queueReturnMethod.value, 'completed');
+    // Return updated players to queue using configured method
+    executeQueueReturn(updatedPlayers, queueReturnMethod.value, 'completed');
 
     // Auto-advance next match for this specific court
     autoAdvanceNextMatchForCourt(courtNumber);
@@ -2456,23 +2462,29 @@ const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
 
   const nextMatch = waitingMatches[0];
 
-  if (nextMatch) {
-    // Always assign the freed court to this match (FCFS: oldest waiting match gets next available court)
-    nextMatch.court = courtNumber;
-    // Start the next match automatically on this court
-    nextMatch.status = 'in-progress';
-    nextMatch.startedAt = new Date();
+  if (nextMatch && courtNumber) {
+    // Check if the court is actually available (no in-progress match on it)
+    if (isCourtAvailable(courtNumber)) {
+      // Court is available, assign and start the match
+      nextMatch.court = courtNumber;
+      nextMatch.status = 'in-progress';
+      nextMatch.startedAt = new Date();
 
-    // Save the changes
-    saveMatchesToStorage(matches.value);
+      // Save the changes
+      saveMatchesToStorage(matches.value);
 
-    // Notify user about auto-advance
-    $q.notify({
-      type: 'info',
-      message: `Match started on Court ${courtNumber}`,
-      position: 'top',
-      timeout: 3000
-    });
+      // Notify user about auto-advance
+      $q.notify({
+        type: 'info',
+        message: `Match started on Court ${courtNumber}`,
+        position: 'top',
+        timeout: 3000
+      });
+    } else {
+      // Court is still occupied, don't auto-start the match
+      // The match will remain in waiting status and can be started manually later
+      console.log(`Court ${courtNumber} is occupied, cannot auto-advance waiting match`);
+    }
   }
 };
 
