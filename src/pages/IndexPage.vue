@@ -610,13 +610,24 @@
 
             <q-separator />
 
-            <div>
-              <q-btn color="accent" @click="resetGamesPlayed" icon="refresh" label="Reset Stats & Clear Matches"
-                class="full-width" />
+            <div class="text-subtitle2 q-mb-sm">Data Management</div>
+
+            <div class="row q-gutter-sm">
+              <div class="col">
+                <q-btn color="accent" @click="resetGamesPlayed" icon="refresh" label="Reset Stats" class="full-width" />
+              </div>
+              <div class="col">
+                <q-btn color="warning" @click="clearMatches" icon="delete" label="Clear Matches" class="full-width" />
+              </div>
+              <div class="col">
+                <q-btn color="warning" @click="clearQueue" icon="delete_outline" label="Clear Queue"
+                  class="full-width" />
+              </div>
             </div>
-            <div>
-              <q-btn color="negative" @click="resetAllData" icon="delete_forever" label="Reset All Data"
-                class="full-width" />
+
+            <div class="q-mt-sm">
+              <q-btn color="negative" @click="resetAllData" icon="delete_forever"
+                label="Reset Everything (Incl. Players)" class="full-width" />
             </div>
           </div>
         </q-card-section>
@@ -2523,16 +2534,16 @@ const removeFromQueue = (name: string) => {
 
 const resetGamesPlayed = () => {
   $q.dialog({
-    title: 'Confirm Reset',
-    message: 'Are you sure you want to reset all player stats and clear all matches? This will reset games played, wins, and losses to zero and remove all current matches.',
+    title: 'Confirm Reset Stats',
+    message: 'Are you sure you want to reset all player stats? This will set games played, wins, and losses to zero for all players.',
     cancel: {
       label: 'Cancel',
       color: 'grey',
       flat: true
     },
     ok: {
-      label: 'Reset Stats & Matches',
-      color: 'negative',
+      label: 'Reset Stats',
+      color: 'accent',
       icon: 'refresh'
     },
     persistent: true
@@ -2544,16 +2555,72 @@ const resetGamesPlayed = () => {
       player.losses = 0;
     });
 
-    // Clear all matches (logical consistency)
+    // Save data
+    savePlayersToStorage(players.value);
+
+    $q.notify({
+      type: 'positive',
+      message: 'All player stats have been reset',
+      position: 'top'
+    });
+  });
+};
+
+const clearMatches = () => {
+  $q.dialog({
+    title: 'Confirm Clear Matches',
+    message: 'Are you sure you want to clear all matches? This will remove all current matches from the system.',
+    cancel: {
+      label: 'Cancel',
+      color: 'grey',
+      flat: true
+    },
+    ok: {
+      label: 'Clear Matches',
+      color: 'warning',
+      icon: 'delete'
+    },
+    persistent: true
+  }).onOk(() => {
+    // Clear all matches
     matches.value = [];
 
     // Save data
-    savePlayersToStorage(players.value);
     saveMatchesToStorage(matches.value);
 
     $q.notify({
       type: 'positive',
-      message: 'Player stats reset and all matches cleared',
+      message: 'All matches have been cleared',
+      position: 'top'
+    });
+  });
+};
+
+const clearQueue = () => {
+  $q.dialog({
+    title: 'Confirm Clear Queue',
+    message: 'Are you sure you want to clear the queue? This will remove all players from the queue.',
+    cancel: {
+      label: 'Cancel',
+      color: 'grey',
+      flat: true
+    },
+    ok: {
+      label: 'Clear Queue',
+      color: 'warning',
+      icon: 'delete_outline'
+    },
+    persistent: true
+  }).onOk(() => {
+    // Clear the queue
+    queue.value = [];
+
+    // Save data
+    saveQueueToStorage(queue.value);
+
+    $q.notify({
+      type: 'positive',
+      message: 'Queue has been cleared',
       position: 'top'
     });
   });
