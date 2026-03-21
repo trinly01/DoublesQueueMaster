@@ -6,7 +6,7 @@
         <div class="row items-center justify-between">
           <div class="col">
             <h1 class="text-h5 text-weight-bold text-white q-mb-xs">
-              🏓 Dink It - Queueing (Open Play)
+              🏓 Dink It (Open Play)
             </h1>
             <p class="text-caption text-grey-1 q-ma-none">
               Smart matchmaking for singles & doubles
@@ -3563,22 +3563,43 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
   }
 }
 
-// Queue card removed flexible height - buttons sit naturally below
+// Desktop (gt-sm) - equal height cards with flexible scroll areas
+@media (min-width: 768px) {
 
-.card-content {
-  height: 400px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding-bottom: 0.5rem; // Add spacing at bottom
-}
+  .players-card,
+  .queue-card,
+  .matches-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
 
-// For queue card, shorter to accommodate buttons section
-.queue-card .card-content {
-  height: 304px; // 96px shorter than other lists
+  // Make all cards equal height by stretching flex containers
+  .players-card>.q-card-section:first-child,
+  .queue-card>.q-card-section:first-child,
+  .matches-card>.q-card-section:first-child {
+    flex: 0 0 auto;
+  }
 
-  @media (max-width: 768px) {
-    height: 204px;
+  .players-card>.q-card-section:nth-child(2),
+  .matches-card>.q-card-section:nth-child(2),
+  .queue-card>.q-card-section:nth-child(2) {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 1rem; // Add spacing at bottom for scroll visibility
+    min-height: 0; // Important for proper flex shrinking
+  }
+
+  // Queue card buttons section stays at natural height (auto)
+  .queue-card>.q-card-section:nth-child(3) {
+    flex: 0 0 auto;
   }
 }
 
@@ -3681,43 +3702,37 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
     margin-top: 0px;
   }
 
-  .card-content {
-    height: 300px;
-  }
-
   .sort-select {
     min-width: 100px !important;
   }
 }
 
-// Custom scrollbar
+// Custom scrollbar - always visible for better UX
 .q-list {
   flex: 1;
   overflow-y: auto;
 
+  // Firefox
+  scrollbar-width: auto;
+  -ms-overflow-style: auto;
+
   &::-webkit-scrollbar {
-    width: 6px;
+    width: 12px;
+    height: 12px;
   }
 
   &::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: transparent;
-    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
     transition: background 0.2s ease;
 
     &:hover {
-      background: #c1c1c1;
-    }
-  }
-
-  // Show scrollbar only on hover
-  &:hover {
-    &::-webkit-scrollbar-thumb {
-      background: #e0e0e0;
+      background: rgba(0, 0, 0, 0.5);
     }
   }
 }
@@ -4196,15 +4211,56 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
 .mobile-card {
   border-radius: 12px;
   margin-top: 0.5rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
 
-  .card-content {
-    max-height: calc(100vh - 300px);
-  }
+.mobile-card>.q-card-section:first-child {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; // Critical for proper flex shrinking
 }
 
 .mobile-card-content {
-  height: calc(100vh - 320px);
-  min-height: 400px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; // Critical: allow flex item to shrink below content size
+  padding-bottom: 1rem; // Add spacing at bottom for scroll visibility
+
+  // Ensure the PlayerList component takes remaining space and scrolls
+  .player-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0; // Allow proper flex shrinking
+  }
+
+  // Fixed header elements (stats, filters) should not be part of scrolling
+  >*:not(.player-list) {
+    flex: 0 0 auto;
+  }
+}
+
+// Adjust mobile card content for different screen sizes
+@media (max-width: 480px) {
+  .mobile-card-content {
+    min-height: 300px;
+  }
+}
+
+@media (max-height: 600px) {
+  .mobile-card-content {
+    min-height: 250px;
+  }
+}
+
+// For very small screens
+@media (max-width: 360px) {
+  .mobile-card-content {
+    min-height: 280px;
+  }
 }
 
 // Tab styling for mobile
@@ -4231,6 +4287,35 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
     .q-icon {
       font-size: 1.2rem;
     }
+  }
+}
+
+// Ensure mobile tab panels have proper height for scrolling
+.lt-md {
+  .q-tab-panels {
+    height: 100%;
+  }
+
+  .q-tab-panel {
+    height: 100%;
+    min-height: 500px; // Ensure enough height for all tabs
+    padding: 0;
+
+    .mobile-card {
+      height: 100%;
+    }
+  }
+
+  // Queue tab specific: reduce player list height to show bottom buttons
+  .queue-card .mobile-card-content {
+    // Leave more space for bottom controls (~240px) plus some padding
+    max-height: calc(100vh - 396px);
+  }
+
+  // Players and Matches tabs can use full height (no bottom controls)
+  .players-card .mobile-card-content,
+  .matches-card .mobile-card-content {
+    max-height: calc(100vh - 220px);
   }
 }
 
@@ -4285,9 +4370,17 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
     }
   }
 
-  .mobile-card-content {
-    height: calc(100vh - 280px);
-    min-height: 350px;
+  // Queue tab: even smaller height for very small screens
+  .queue-card .mobile-card-content {
+    max-height: calc(100vh - 340px);
+    min-height: 280px;
+  }
+
+  // Players and Matches tabs
+  .players-card .mobile-card-content,
+  .matches-card .mobile-card-content {
+    max-height: calc(100vh - 220px);
+    min-height: 320px;
   }
 }
 </style>
