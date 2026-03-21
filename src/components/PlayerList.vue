@@ -126,7 +126,7 @@ const getPositionColor = (player: Player): string => {
 
 <style lang="scss" scoped>
 .player-list {
-  height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
 }
@@ -134,31 +134,5 @@ const getPositionColor = (player: Player): string => {
 .q-list {
   flex: 1;
   overflow-y: auto;
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: transparent;
-    border-radius: 3px;
-    transition: background 0.2s ease;
-
-    &:hover {
-      background: #c1c1c1;
-    }
-  }
-
-  // Show scrollbar only on hover
-  &:hover {
-    &::-webkit-scrollbar-thumb {
-      background: #e0e0e0;
-    }
-  }
 }
 </style>
