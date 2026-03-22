@@ -31,6 +31,9 @@
     <q-item-section side v-if="showActions">
       <div class="row items-center q-gutter-xs">
         <slot name="actions" :player="player">
+          <q-btn flat round color="primary" @click.stop="$emit('edit', player)" icon="edit" size="sm">
+            <q-tooltip>Edit player</q-tooltip>
+          </q-btn>
           <q-btn flat round color="negative" @click.stop="$emit('remove', player.name)" icon="delete" size="sm" />
           <q-btn flat color="accent" @click.stop="$emit('requeue', player.name)" icon="input" size="sm"
             :disable="isInQueue" />
@@ -73,6 +76,7 @@ withDefaults(defineProps<Props>(), {
 
 defineEmits<{
   click: [player: Player];
+  edit: [player: Player];
   remove: [name: string];
   requeue: [name: string];
 }>();

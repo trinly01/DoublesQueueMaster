@@ -3,8 +3,8 @@
     <q-list separator v-if="players.length > 0">
       <PlayerCard v-for="player in displayPlayers" :key="player.name" :player="player" :show-avatar="showAvatar"
         :show-actions="showActions" :show-queue-time="showQueueTime" :is-selected="isPlayerSelected(player)"
-        :is-in-queue="isInQueue" @click="$emit('playerClick', player)" @remove="$emit('playerRemove', $event)"
-        @requeue="$emit('playerRequeue', $event)">
+        :is-in-queue="isInQueue" @click="$emit('playerClick', player)" @edit="$emit('playerEdit', $event)"
+        @remove="$emit('playerRemove', $event)" @requeue="$emit('playerRequeue', $event)">
         <template v-if="showPosition" #actions="{ player: playerItem }">
           <q-avatar :color="getPositionColor(playerItem)" text-color="white" size="sm" class="q-mr-sm">
             {{ getPlayerPosition(playerItem) }}
@@ -85,6 +85,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 defineEmits<{
   playerClick: [player: Player];
+  playerEdit: [player: Player];
   playerRemove: [name: string];
   playerRequeue: [name: string];
   emptyAction: [];

@@ -61,8 +61,8 @@
                 <PlayerList :players="displayPlayers" :sort-by="sortBy" :show-actions="true" :empty-icon="'people'"
                   :empty-title="searchPlayers ? 'No matching players' : 'No players added yet'"
                   :empty-subtitle="searchPlayers ? 'Try a different search' : 'Click the + button to add your first player'"
-                  :empty-action="!searchPlayers" @player-remove="removePlayer" @player-requeue="requeuePlayer"
-                  @empty-action="showAddPlayerDialog = true" />
+                  :empty-action="!searchPlayers" @player-edit="openEditPlayerDialog" @player-remove="removePlayer"
+                  @player-requeue="requeuePlayer" @empty-action="showAddPlayerDialog = true" />
               </div>
             </q-card-section>
           </q-card>
@@ -224,8 +224,8 @@
                   <PlayerList :players="displayPlayers" :sort-by="sortBy" :show-actions="true" :empty-icon="'people'"
                     :empty-title="searchPlayers ? 'No matching players' : 'No players added yet'"
                     :empty-subtitle="searchPlayers ? 'Try a different search' : 'Click the + button to add your first player'"
-                    :empty-action="!searchPlayers" @player-remove="removePlayer" @player-requeue="requeuePlayer"
-                    @empty-action="showAddPlayerDialog = true" />
+                    :empty-action="!searchPlayers" @player-edit="openEditPlayerDialog" @player-remove="removePlayer"
+                    @player-requeue="requeuePlayer" @empty-action="showAddPlayerDialog = true" />
                 </div>
               </q-card-section>
             </q-card>
@@ -449,6 +449,64 @@
             :disable="bulkPlayers.length === 0" icon="group_add">
             <q-tooltip>Import all {{ bulkPlayers.length }} players to the system</q-tooltip>
           </q-btn>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Edit Player Dialog -->
+    <q-dialog v-model="showEditPlayerDialog" :maximized="$q.screen.lt.md">
+      <q-card class="bg-white"
+        style="max-width: 800px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
+        <!-- Header -->
+        <DialogHeader title="Edit Player" icon="edit" />
+
+        <!-- Content -->
+        <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto;">
+          <div class="q-gutter-y-md">
+            <div class="text-subtitle2 q-mb-sm">
+              Editing: <strong>{{ editingPlayer?.name }}</strong>
+            </div>
+
+            <q-input v-model="editPlayerName" label="Player Name" type="text"
+              :rules="[val => !!val?.trim() || 'Player name is required']" outlined dense autofocus>
+              <template v-slot:prepend>
+                <q-icon name="person" />
+              </template>
+            </q-input>
+
+            <q-select v-model="editPlayerLevel" :options="levelOptions" label="Player Level"
+              :rules="[val => val !== null || 'Player level is required']" outlined dense emit-value map-options>
+              <template v-slot:prepend>
+                <q-icon name="star" />
+              </template>
+              <template v-slot:option="scope">
+                <q-item v-bind="scope.itemProps">
+                  <q-item-section avatar>
+                    <q-icon :name="getLevelIcon(scope.opt.value)" :color="getLevelColor(scope.opt.value)" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ scope.opt.label }}</q-item-label>
+                    <q-item-label caption>{{ scope.opt.description }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
+
+            <q-banner v-if="hasNameConflict" class="q-mt-md" color="warning" icon="warning">
+              <template v-slot:avatar>
+                <q-icon name="warning" color="warning" />
+              </template>
+              Another player with this name already exists. Please choose a different name.
+            </q-banner>
+          </div>
+        </q-card-section>
+
+        <!-- Footer Actions -->
+        <q-separator />
+        <q-card-actions align="right" class="q-pa-md">
+          <q-btn flat label="Cancel" color="grey" @click="showEditPlayerDialog = false" />
+          <q-btn color="accent" @click="savePlayerEdit" label="Save Changes" icon="save"
+            :disable="!editPlayerName?.trim() || editPlayerLevel === null || hasNameConflict" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -1153,6 +1211,12 @@ const matchType = ref<'singles' | 'doubles'>(getUISettingsFromStorage().matchTyp
 
 // Queue management state
 const queueReturnMethod = ref<'fairness_first' | 'end_of_queue' | 'smart_position'>(getQueueSettingsFromStorage().queueReturnMethod);
+
+// Edit player state
+const showEditPlayerDialog = ref(false);
+const editingPlayer = ref<Player | null>(null);
+const editPlayerName = ref<string | null>(null);
+const editPlayerLevel = ref<1 | 2 | 3 | null>(null);
 const autoSortQueue = ref<boolean>(getQueueSettingsFromStorage().autoSortQueue);
 const queuePriorityMode = ref<'timestamp' | 'gamesPlayed'>(getQueueSettingsFromStorage().queuePriorityMode);
 const matchmakingStyle = ref<'balanced' | 'win_loss_separated' | 'last_result_separated'>(getQueueSettingsFromStorage().matchmakingStyle || 'balanced');
@@ -1299,6 +1363,19 @@ const currentMatch = computed(() => {
     return matches.value[currentMatchIndex.value].players;
   }
   return [];
+});
+
+// Edit player computed
+const hasNameConflict = computed(() => {
+  if (!editPlayerName.value?.trim() || !editingPlayer.value) {
+    return false;
+  }
+  const trimmedName = editPlayerName.value.trim();
+  // Check if another player (excluding the current editing player) has the same name (case-insensitive)
+  return players.value.some(player =>
+    player.name.toLowerCase() === trimmedName.toLowerCase() &&
+    player.name !== editingPlayer.value?.name
+  );
 });
 
 // Tab shake animation state
@@ -3578,6 +3655,89 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
   // Close dialog and reset
   showReplacePlayerDialog.value = false;
   playerToReplaceInEdit.value = null;
+};
+
+// Edit player functions
+const openEditPlayerDialog = (player: Player) => {
+  editingPlayer.value = player;
+  editPlayerName.value = player.name;
+  editPlayerLevel.value = player.level;
+  showEditPlayerDialog.value = true;
+};
+
+const savePlayerEdit = () => {
+  if (!editingPlayer.value || !editPlayerName.value?.trim() || editPlayerLevel.value === null) {
+    return;
+  }
+
+  const trimmedName = editPlayerName.value.trim();
+  const originalName = editingPlayer.value.name;
+  const newLevel = editPlayerLevel.value;
+
+  // Double check for name conflicts
+  if (hasNameConflict.value) {
+    $q.notify({
+      type: 'negative',
+      message: `Player "${trimmedName}" already exists`,
+      position: 'top'
+    });
+    return;
+  }
+
+  // Update player in players list
+  const playerIndex = players.value.findIndex(p => p.name === originalName);
+  if (playerIndex === -1) {
+    $q.notify({
+      type: 'negative',
+      message: 'Player not found',
+      position: 'top'
+    });
+    return;
+  }
+
+  // Update the player object (preserving all other properties)
+  players.value[playerIndex] = {
+    ...players.value[playerIndex],
+    name: trimmedName,
+    level: newLevel
+  };
+
+  // Update player in queue (if present)
+  const queuePlayerIndex = queue.value.findIndex(p => p.name === originalName);
+  if (queuePlayerIndex !== -1) {
+    queue.value[queuePlayerIndex] = {
+      ...queue.value[queuePlayerIndex],
+      name: trimmedName,
+      level: newLevel
+    };
+  }
+
+  // Update player in all matches
+  matches.value.forEach(match => {
+    match.players.forEach(player => {
+      if (player.name === originalName) {
+        player.name = trimmedName;
+        player.level = newLevel;
+      }
+    });
+  });
+
+  // Save to storage
+  savePlayersToStorage(players.value);
+  saveQueueToStorage(queue.value);
+  saveMatchesToStorage(matches.value);
+
+  $q.notify({
+    type: 'positive',
+    message: `Player updated to "${trimmedName}" (Level ${newLevel})`,
+    position: 'top'
+  });
+
+  // Reset and close dialog
+  showEditPlayerDialog.value = false;
+  editingPlayer.value = null;
+  editPlayerName.value = null;
+  editPlayerLevel.value = null;
 };
 
 </script>
