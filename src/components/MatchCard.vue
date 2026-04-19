@@ -1,75 +1,41 @@
 <template>
   <q-item class="match-item" @click="$emit('click', match)" clickable>
     <q-item-section>
-      <!-- Match Layout: Status Left, Players Center, Court Right -->
-      <div class="row items-center q-pa-sm">
-        <!-- Left: Status -->
-        <div class="col-auto q-mr-md">
+      <!-- Match Layout: Players split around center (status+court+icon) -->
+      <div class="row items-center q-pa-sm no-wrap">
+        <!-- Left: Team 1 players -->
+        <div class="col text-center">
+          <div v-for="player in getPlayersForTeam1(match)" :key="player.name" class="column items-center q-mb-xs">
+            <span class="text-weight-medium text-center">{{
+              player.name
+            }}</span>
+            <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)" text-color="white" size="xs"
+              dense />
+          </div>
+        </div>
+
+        <!-- Center: Status + Icon + Court stacked -->
+        <div class="col-auto q-mx-md center-group">
+          <q-chip v-if="match.court" color="blue-grey-8" text-color="white" size="sm" dense>
+            Court
+            <q-avatar color="blue-grey-10" style="left: 12px" dense size="sm" rounded text-color="white">{{ match.court
+              }}</q-avatar>
+          </q-chip>
+          <q-icon name="sports_tennis" color="grey-6" size="sm" />
           <q-chip :color="getMatchStatusColor(match.status)" text-color="white" size="sm" dense>
             {{ getMatchStatusLabel(match.status) }}
           </q-chip>
         </div>
 
-        <!-- Center: Players -->
-        <div class="col">
-          <!-- Singles Match (2 players) -->
-          <div v-if="match.players.length === 2" class="row items-center justify-center">
-            <!-- Player 1 -->
-            <div class="col text-center">
-              <div class="column items-center q-mb-xs">
-                <span class="text-weight-medium text-center">{{ match.players[0].name }}</span>
-                <q-chip :label="`L${match.players[0].level}`" :color="getLevelColor(match.players[0].level)"
-                  text-color="white" size="xs" dense />
-              </div>
-            </div>
-
-            <!-- VS Separator -->
-            <div class="col-auto">
-              <q-icon name="sports_tennis" color="grey-6" size="sm" class="q-mx-md" />
-            </div>
-
-            <!-- Player 2 -->
-            <div class="col text-center">
-              <div class="column items-center q-mb-xs">
-                <span class="text-weight-medium text-center">{{ match.players[1].name }}</span>
-                <q-chip :label="`L${match.players[1].level}`" :color="getLevelColor(match.players[1].level)"
-                  text-color="white" size="xs" dense />
-              </div>
-            </div>
+        <!-- Right: Team 2 players -->
+        <div class="col text-center">
+          <div v-for="player in getPlayersForTeam2(match)" :key="player.name" class="column items-center q-mb-xs">
+            <span class="text-weight-medium text-center">{{
+              player.name
+            }}</span>
+            <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)" text-color="white" size="xs"
+              dense />
           </div>
-
-          <!-- Doubles Match (4 players) -->
-          <div v-else class="row items-center justify-center">
-            <!-- Team 1 -->
-            <div class="col text-center">
-              <div v-for="player in match.players.slice(0, 2)" :key="player.name" class="column items-center q-mb-xs">
-                <span class="text-weight-medium text-center">{{ player.name }}</span>
-                <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)" text-color="white" size="xs"
-                  dense />
-              </div>
-            </div>
-
-            <!-- VS Separator -->
-            <div class="col-auto">
-              <q-icon name="sports_tennis" color="grey-6" size="sm" class="q-mx-md" />
-            </div>
-
-            <!-- Team 2 -->
-            <div class="col text-center">
-              <div v-for="player in match.players.slice(2, 4)" :key="player.name" class="column items-center q-mb-xs">
-                <span class="text-weight-medium text-center">{{ player.name }}</span>
-                <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)" text-color="white" size="xs"
-                  dense />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Court -->
-        <div class="col-auto q-ml-md">
-          <q-chip v-if="match.court" color="blue-grey-6" text-color="white" size="sm" dense>
-            Court {{ match.court }}
-          </q-chip>
         </div>
       </div>
     </q-item-section>
@@ -106,8 +72,9 @@
               <q-item-section>Change Court</q-item-section>
             </q-item>
 
-            <q-item v-if="match.status === 'waiting' && match.court && isCourtAvailable" clickable
-              @click="$emit('startMatch')">
+            <q-item v-if="
+              match.status === 'waiting' && match.court && isCourtAvailable
+            " clickable @click="$emit('startMatch')">
               <q-item-section avatar>
                 <q-icon name="play_arrow" />
               </q-item-section>
@@ -133,7 +100,7 @@
 import {
   getLevelColor,
   getMatchStatusColor,
-  getMatchStatusLabel
+  getMatchStatusLabel,
 } from '../utils/playerHelpers';
 
 // Player interface
@@ -168,7 +135,7 @@ interface Props {
 
 withDefaults(defineProps<Props>(), {
   showActions: true,
-  availableCourts: 0
+  availableCourts: 0,
 });
 
 defineEmits<{
@@ -180,6 +147,22 @@ defineEmits<{
   startMatch: [];
   cancelMatch: [];
 }>();
+
+// Helper: Get team 1 players (first 2 for doubles, first 1 for singles)
+const getPlayersForTeam1 = (match: Match) => {
+  if (match.players.length === 2) {
+    return [match.players[0]];
+  }
+  return match.players.slice(0, 2);
+};
+
+// Helper: Get team 2 players (last 2 for doubles, last 1 for singles)
+const getPlayersForTeam2 = (match: Match) => {
+  if (match.players.length === 2) {
+    return [match.players[1]];
+  }
+  return match.players.slice(2, 4);
+};
 
 // Helper function to check if court is available
 const isCourtAvailable = (): boolean => {
@@ -195,6 +178,64 @@ const isCourtAvailable = (): boolean => {
 
   &:hover {
     background-color: rgba(0, 0, 0, 0.02);
+  }
+
+  // Center group (status + icon + court) vertical stack
+  .center-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    line-height: 1;
+
+    .q-chip {
+      margin: 0;
+    }
+
+    .q-icon {
+      margin: 0;
+      font-size: 1rem;
+    }
+  }
+
+  // Court chip styling
+  .court-chip {
+    font-size: 0.75rem;
+    min-height: 20px;
+  }
+
+  // Mobile adjustments
+  @media (max-width: 768px) {
+    .center-group {
+      .q-chip {
+        font-size: 0.7rem;
+        min-height: 18px;
+        padding: 0 5px;
+      }
+
+      .q-icon {
+        font-size: 0.8rem;
+        margin: 0;
+      }
+
+      .court-avatar {
+        font-size: 0.7rem;
+        min-width: 22px;
+        min-height: 22px;
+      }
+    }
+
+    // Reduce player level chip size
+    .q-chip--size-xs {
+      font-size: 0.6rem;
+      min-height: 14px;
+      padding: 0 3px;
+    }
+
+    // Compact player names
+    .text-weight-medium {
+      font-size: 0.8rem;
+    }
   }
 }
 </style>
