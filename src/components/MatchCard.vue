@@ -16,9 +16,9 @@
 
         <!-- Center: Status + Icon + Court stacked -->
         <div class="col-auto q-mx-md center-group">
-          <q-chip v-if="match.court" color="blue-grey-8" text-color="white" size="sm" dense>
+          <q-chip v-if="match.court" color="blue-grey-7" text-color="white" size="sm" dense>
             Court
-            <q-avatar color="blue-grey-10" style="left: 12px" dense size="sm" rounded text-color="white">{{ match.court
+            <q-avatar color="blue-grey-9" style="left: 10px" dense size="xs" rounded text-color="white">{{ match.court
               }}</q-avatar>
           </q-chip>
           <q-icon name="sports_tennis" color="grey-6" size="sm" />
