@@ -1,31 +1,63 @@
 <template>
   <div class="player-list">
     <q-list separator v-if="players.length > 0">
-      <PlayerCard v-for="player in displayPlayers" :key="player.name" :player="player" :show-avatar="showAvatar"
-        :show-actions="showActions" :show-queue-time="showQueueTime" :is-selected="isPlayerSelected(player)"
-        :is-in-queue="isInQueue" @click="$emit('playerClick', player)" @edit="$emit('playerEdit', $event)"
-        @remove="$emit('playerRemove', $event)" @requeue="$emit('playerRequeue', $event)">
+      <PlayerCard
+        v-for="player in displayPlayers"
+        :key="player.name"
+        :player="player"
+        :show-avatar="showAvatar"
+        :show-actions="showActions"
+        :show-queue-time="showQueueTime"
+        :is-selected="isPlayerSelected(player)"
+        :is-in-queue="isInQueue"
+        @click="$emit('playerClick', player)"
+        @edit="$emit('playerEdit', $event)"
+        @remove="$emit('playerRemove', $event)"
+        @requeue="$emit('playerRequeue', $event)"
+      >
         <template v-if="showPosition" #actions="{ player: playerItem }">
-          <q-avatar :color="getPositionColor(playerItem)" text-color="white" size="sm" class="q-mr-sm">
+          <q-avatar
+            :color="getPositionColor(playerItem)"
+            text-color="white"
+            size="sm"
+            class="q-mr-sm"
+          >
             {{ getPlayerPosition(playerItem) }}
-            <q-tooltip>
-              Position: {{ getPlayerPosition(playerItem) }}
-              <br>Games: {{ playerItem.gamesPlayed }}
-              <br>Priority: {{ playerItem.priority || 'normal' }}
-            </q-tooltip>
           </q-avatar>
-          <q-btn flat round color="negative" @click.stop="$emit('playerRemove', playerItem.name)" icon="delete"
-            size="sm" />
-          <q-btn flat color="accent" @click.stop="$emit('playerRequeue', playerItem.name)" icon="input" size="sm"
-            :disable="isInQueue" />
+          <q-btn
+            flat
+            round
+            color="negative"
+            @click.stop="$emit('playerRemove', playerItem.name)"
+            icon="delete"
+            size="sm"
+          />
+          <q-btn
+            v-if="showRequeueButton"
+            flat
+            color="accent"
+            @click.stop="$emit('playerRequeue', playerItem.name)"
+            icon="input"
+            size="sm"
+            :disable="isInQueue"
+          />
         </template>
       </PlayerCard>
     </q-list>
 
-    <EmptyState v-else :icon="emptyIcon" :title="emptyTitle" :subtitle="emptySubtitle">
+    <EmptyState
+      v-else
+      :icon="emptyIcon"
+      :title="emptyTitle"
+      :subtitle="emptySubtitle"
+    >
       <template v-if="emptyAction" #action>
-        <q-btn :color="emptyActionColor" :icon="emptyActionIcon" :label="emptyActionLabel"
-          @click="$emit('emptyAction')" />
+        <q-btn
+          :color="emptyActionColor"
+          :icon="emptyActionIcon"
+          :label="emptyActionLabel"
+          @click="$emit('emptyAction')"
+        />
       </template>
     </EmptyState>
   </div>
@@ -56,6 +88,7 @@ interface Props {
   showQueueTime?: boolean;
   showPosition?: boolean;
   isInQueue?: boolean;
+  showRequeueButton?: boolean;
   emptyIcon?: string;
   emptyTitle?: string;
   emptySubtitle?: string;
@@ -73,6 +106,7 @@ const props = withDefaults(defineProps<Props>(), {
   showQueueTime: false,
   showPosition: false,
   isInQueue: false,
+  showRequeueButton: true,
   emptyIcon: 'people',
   emptyTitle: 'No players found',
   emptySubtitle: 'Add players to get started',
@@ -80,7 +114,7 @@ const props = withDefaults(defineProps<Props>(), {
   emptyActionColor: 'accent',
   emptyActionIcon: 'person_add',
   emptyActionLabel: 'Add Player',
-  selectedPlayers: () => []
+  selectedPlayers: () => [],
 });
 
 defineEmits<{
@@ -103,6 +137,15 @@ const displayPlayers = computed(() => {
         return b.wins - a.wins;
       case 'losses':
         return b.losses - a.losses;
+      case 'winRate':
+        const aWinRate = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
+        const bWinRate = b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
+        // Primary: win rate, Secondary: games played (for tiebreaker), Tertiary: name
+        const rateDiff = bWinRate - aWinRate;
+        if (rateDiff !== 0) return rateDiff;
+        const gamesDiff = b.gamesPlayed - a.gamesPlayed;
+        if (gamesDiff !== 0) return gamesDiff;
+        return a.name.localeCompare(b.name);
       case 'name':
         return a.name.localeCompare(b.name);
       default:
@@ -112,11 +155,11 @@ const displayPlayers = computed(() => {
 });
 
 const isPlayerSelected = (player: Player): boolean => {
-  return props.selectedPlayers.some(p => p.name === player.name);
+  return props.selectedPlayers.some((p) => p.name === player.name);
 };
 
 const getPlayerPosition = (player: Player): number => {
-  return props.players.findIndex(p => p.name === player.name) + 1;
+  return props.players.findIndex((p) => p.name === player.name) + 1;
 };
 
 const getPositionColor = (player: Player): string => {
