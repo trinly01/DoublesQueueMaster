@@ -46,23 +46,23 @@
                             <q-icon name="touch_app" size="xs" /> Click to select, click another to swap
                         </div>
                         <q-list v-if="team1.length > 0">
-                            <q-item v-for="(player, index) in team1" :key="player.name" clickable
+                            <q-item v-for="(player, index) in team1" :key="player.username" clickable
                                 class="team-player-item swappable-player" :class="{
-                                    'selected-for-swap': selectedForSwap?.name === player.name,
-                                    'can-swap-with': selectedForSwap && selectedForSwap.name !== player.name
+                                    'selected-for-swap': selectedForSwap?.username === player.username,
+                                    'can-swap-with': selectedForSwap && selectedForSwap.username !== player.username
                                 }" @click="selectPlayerForSwap(player, 'team1')">
                                 <q-item-section avatar>
                                     <q-avatar :color="getLevelColor(player.level)" text-color="white"
-                                        :class="{ 'swap-pulse': selectedForSwap?.name === player.name }">
+                                        :class="{ 'swap-pulse': selectedForSwap?.username === player.username }">
                                         {{ index + 1 }}
-                                        <q-tooltip>{{ player.name }} - Level {{ player.level }} - Position {{ index + 1
+                                        <q-tooltip>{{ player.username }} - Level {{ player.level }} - Position {{ index + 1
                                         }}</q-tooltip>
                                     </q-avatar>
                                 </q-item-section>
                                 <q-item-section>
                                     <q-item-label class="text-weight-medium">
-                                        {{ player.name }}
-                                        <q-icon v-if="selectedForSwap?.name === player.name" name="check_circle"
+                                        {{ player.username }}
+                                        <q-icon v-if="selectedForSwap?.username === player.username" name="check_circle"
                                             color="green" size="sm" class="q-ml-xs swap-icon-pulse" />
                                     </q-item-label>
                                     <q-item-label caption>Level {{ player.level }}</q-item-label>
@@ -95,23 +95,23 @@
                             <q-icon name="touch_app" size="xs" /> Click to select, click another to swap
                         </div>
                         <q-list v-if="team2.length > 0">
-                            <q-item v-for="(player, index) in team2" :key="player.name" clickable
+                            <q-item v-for="(player, index) in team2" :key="player.username" clickable
                                 class="team-player-item swappable-player" :class="{
-                                    'selected-for-swap': selectedForSwap?.name === player.name,
-                                    'can-swap-with': selectedForSwap && selectedForSwap.name !== player.name
+                                    'selected-for-swap': selectedForSwap?.username === player.username,
+                                    'can-swap-with': selectedForSwap && selectedForSwap.username !== player.username
                                 }" @click="selectPlayerForSwap(player, 'team2')">
                                 <q-item-section avatar>
                                     <q-avatar :color="getLevelColor(player.level)" text-color="white"
-                                        :class="{ 'swap-pulse': selectedForSwap?.name === player.name }">
+                                        :class="{ 'swap-pulse': selectedForSwap?.username === player.username }">
                                         {{ index + 1 }}
-                                        <q-tooltip>{{ player.name }} - Level {{ player.level }} - Position {{ index + 1
+                                        <q-tooltip>{{ player.username }} - Level {{ player.level }} - Position {{ index + 1
                                         }}</q-tooltip>
                                     </q-avatar>
                                 </q-item-section>
                                 <q-item-section>
                                     <q-item-label class="text-weight-medium">
-                                        {{ player.name }}
-                                        <q-icon v-if="selectedForSwap?.name === player.name" name="check_circle"
+                                        {{ player.username }}
+                                        <q-icon v-if="selectedForSwap?.username === player.username" name="check_circle"
                                             color="green" size="sm" class="q-ml-xs swap-icon-pulse" />
                                     </q-item-label>
                                     <q-item-label caption>Level {{ player.level }}</q-item-label>
@@ -135,18 +135,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 
-// Player interface
-interface Player {
-    name: string;
-    level: 1 | 2 | 3;
-    gamesPlayed: number;
-    wins: number;
-    losses: number;
-    queuePosition?: number;
-    originalQueueTime?: Date;
-    lastMatchTime?: Date;
-    priority?: 'normal' | 'high' | 'returned';
-}
+import type { Player } from '../services/matchmaking';
 
 // Props
 interface Props {
@@ -243,7 +232,7 @@ const selectPlayerForSwap = (player: Player, team: 'team1' | 'team2') => {
     }
 
     // If clicking the same player, deselect
-    if (selectedForSwap.value.name === player.name) {
+    if (selectedForSwap.value.username === player.username) {
         selectedForSwap.value = null;
         selectedForSwapTeam.value = null;
         return;
@@ -254,8 +243,8 @@ const selectPlayerForSwap = (player: Player, team: 'team1' | 'team2') => {
     const team2Array = [...props.team2];
 
     // Remove both players from their current teams
-    const newTeam1 = team1Array.filter(p => p.name !== selectedForSwap.value!.name && p.name !== player.name);
-    const newTeam2 = team2Array.filter(p => p.name !== selectedForSwap.value!.name && p.name !== player.name);
+    const newTeam1 = team1Array.filter(p => p.username !== selectedForSwap.value!.username && p.username !== player.username);
+    const newTeam2 = team2Array.filter(p => p.username !== selectedForSwap.value!.username && p.username !== player.username);
 
     // Add them to their new teams
     if (selectedForSwapTeam.value === 'team1') {

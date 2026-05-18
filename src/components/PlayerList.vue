@@ -3,13 +3,14 @@
     <q-list separator v-if="players.length > 0">
       <PlayerCard
         v-for="player in displayPlayers"
-        :key="player.name"
+        :key="player.username"
         :player="player"
         :show-avatar="showAvatar"
         :show-actions="showActions"
         :show-queue-time="showQueueTime"
         :is-selected="isPlayerSelected(player)"
         :is-in-queue="isInQueue"
+        :sort-by="sortBy"
         @click="$emit('playerClick', player)"
         @edit="$emit('playerEdit', $event)"
         @remove="$emit('playerRemove', $event)"
@@ -28,7 +29,7 @@
             flat
             round
             color="negative"
-            @click.stop="$emit('playerRemove', playerItem.name)"
+            @click.stop="$emit('playerRemove', playerItem.username)"
             icon="delete"
             size="sm"
           />
@@ -36,7 +37,7 @@
             v-if="showRequeueButton"
             flat
             color="accent"
-            @click.stop="$emit('playerRequeue', playerItem.name)"
+            @click.stop="$emit('playerRequeue', playerItem.username)"
             icon="input"
             size="sm"
             :disable="isInQueue"
@@ -68,18 +69,11 @@ import { computed } from 'vue';
 import PlayerCard from './PlayerCard.vue';
 import EmptyState from './EmptyState.vue';
 
-// Player interface
-interface Player {
-  name: string;
-  level: 1 | 2 | 3;
-  gamesPlayed: number;
-  wins: number;
-  losses: number;
-  queuePosition?: number;
-  originalQueueTime?: Date;
-  lastMatchTime?: Date;
-  priority?: 'normal' | 'high' | 'returned';
-}
+import type { Player as BasePlayer } from '../services/matchmaking';
+type Player = BasePlayer & {
+  enteredAt?: number;
+  queueType?: 'GENERAL' | 'WINNERS' | 'LOSERS';
+};
 
 interface Props {
   players: Player[];
@@ -120,8 +114,8 @@ const props = withDefaults(defineProps<Props>(), {
 defineEmits<{
   playerClick: [player: Player];
   playerEdit: [player: Player];
-  playerRemove: [name: string];
-  playerRequeue: [name: string];
+  playerRemove: [username: string];
+  playerRequeue: [username: string];
   emptyAction: [];
 }>();
 
@@ -131,39 +125,41 @@ const displayPlayers = computed(() => {
 
   return [...props.players].sort((a, b) => {
     switch (props.sortBy) {
-      case 'gamesPlayed':
-        return b.gamesPlayed - a.gamesPlayed;
+      case 'rating':
+        return b.rating - a.rating;
+      case 'matchesPlayed':
+        return b.matchesPlayed - a.matchesPlayed;
       case 'wins':
-        return b.wins - a.wins;
+        return (b.wins || 0) - (a.wins || 0);
       case 'losses':
-        return b.losses - a.losses;
-      case 'winRate':
-        const aWinRate = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
-        const bWinRate = b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
-        // Primary: win rate, Secondary: games played (for tiebreaker), Tertiary: name
-        const rateDiff = bWinRate - aWinRate;
-        if (rateDiff !== 0) return rateDiff;
-        const gamesDiff = b.gamesPlayed - a.gamesPlayed;
-        if (gamesDiff !== 0) return gamesDiff;
-        return a.name.localeCompare(b.name);
+        return (b.losses || 0) - (a.losses || 0);
+      case 'winRate': {
+        const rateA = a.matchesPlayed ? (a.wins || 0) / a.matchesPlayed : 0;
+        const rateB = b.matchesPlayed ? (b.wins || 0) / b.matchesPlayed : 0;
+        if (rateA === rateB) {
+          return b.matchesPlayed - a.matchesPlayed;
+        }
+        return rateB - rateA;
+      }
       case 'name':
-        return a.name.localeCompare(b.name);
+        return a.username.localeCompare(b.username);
       default:
-        return a.name.localeCompare(b.name);
+        return a.username.localeCompare(b.username);
     }
   });
 });
 
 const isPlayerSelected = (player: Player): boolean => {
-  return props.selectedPlayers.some((p) => p.name === player.name);
+  return props.selectedPlayers.some((p) => p.username === player.username);
 };
 
 const getPlayerPosition = (player: Player): number => {
-  return props.players.findIndex((p) => p.name === player.name) + 1;
+  return props.players.findIndex((p) => p.username === player.username) + 1;
 };
 
 const getPositionColor = (player: Player): string => {
-  if (player.priority === 'returned') return 'warning';
+  if (player.queueType === 'WINNERS') return 'positive';
+  if (player.queueType === 'LOSERS') return 'negative';
   return 'accent';
 };
 </script>

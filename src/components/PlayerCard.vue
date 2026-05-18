@@ -2,22 +2,26 @@
   <q-item class="player-item" :class="{ 'player-selected': isSelected }" @click="$emit('click', player)" clickable>
     <q-item-section avatar v-if="showAvatar">
       <q-avatar :color="getLevelColor(player.level)" text-color="white" size="md">
-        {{ getPlayerInitials(player.name) }}
+        {{ getPlayerInitials(player.username) }}
       </q-avatar>
     </q-item-section>
 
     <q-item-section>
       <q-item-label class="text-weight-medium">
-        {{ player.name }}
-        <q-chip v-if="player.priority === 'returned'" label="Returned" color="warning" text-color="white" size="xs"
-          dense />
+        {{ player.username }}
+        <q-chip v-if="player.queueType && player.queueType !== 'GENERAL'" 
+                :label="player.queueType" 
+                :color="player.queueType === 'WINNERS' ? 'positive' : 'negative'" 
+                text-color="white" size="xs" dense />
       </q-item-label>
       <q-item-label caption class="player-stats">
-        <span class="text-grey-7">G:{{ player.gamesPlayed }}</span>
-        <span class="q-ml-xs text-positive">W:{{ player.wins }}</span>
-        <span class="q-ml-xs text-negative">L:{{ player.losses }}</span>
-        <!-- <span v-if="showQueueTime && player.originalQueueTime" class="q-ml-sm text-grey-6">
-          {{ getQueueTimeInfo(player) }}
+        <span class="text-grey-7">G:{{ player.matchesPlayed }}</span>
+        <span class="q-ml-xs text-positive" v-if="player.wins !== undefined">W:{{ player.wins || 0 }}</span>
+        <span class="q-ml-xs text-negative" v-if="player.losses !== undefined">L:{{ player.losses || 0 }}</span>
+        <span class="q-ml-xs text-info" v-if="player.wins !== undefined && sortBy === 'winRate'">WR:{{ player.matchesPlayed ? Math.round(((player.wins || 0) / player.matchesPlayed) * 100) : 0 }}%</span>
+        <span class="q-ml-xs text-primary" v-if="!sortBy || sortBy !== 'winRate'">Pts:{{ player.rating }}</span>
+        <!-- <span v-if="showQueueTime && player.enteredAt" class="q-ml-sm text-grey-6">
+          {{ getQueueTimeInfo(player.enteredAt) }}
         </span> -->
       </q-item-label>
     </q-item-section>
@@ -28,8 +32,8 @@
           <q-btn flat round color="primary" @click.stop="$emit('edit', player)" icon="edit" size="sm">
             <q-tooltip>Edit player</q-tooltip>
           </q-btn>
-          <q-btn flat round color="negative" @click.stop="$emit('remove', player.name)" icon="delete" size="sm" />
-          <q-btn flat round color="accent" @click.stop="$emit('requeue', player.name)" icon="input" size="sm"
+          <q-btn flat round color="negative" @click.stop="$emit('remove', player.username)" icon="delete" size="sm" />
+          <q-btn flat round color="accent" @click.stop="$emit('requeue', player.username)" icon="input" size="sm"
             :disable="isInQueue" />
         </slot>
       </div>
@@ -38,18 +42,11 @@
 </template>
 
 <script setup lang="ts">
-// Player interface
-interface Player {
-  name: string;
-  level: 1 | 2 | 3;
-  gamesPlayed: number;
-  wins: number;
-  losses: number;
-  queuePosition?: number;
-  originalQueueTime?: Date;
-  lastMatchTime?: Date;
-  priority?: 'normal' | 'high' | 'returned';
-}
+import type { Player as BasePlayer } from '../services/matchmaking';
+type Player = BasePlayer & {
+  enteredAt?: number;
+  queueType?: 'GENERAL' | 'WINNERS' | 'LOSERS';
+};
 
 interface Props {
   player: Player;
@@ -58,6 +55,7 @@ interface Props {
   showQueueTime?: boolean;
   isSelected?: boolean;
   isInQueue?: boolean;
+  sortBy?: string;
 }
 
 withDefaults(defineProps<Props>(), {
@@ -71,8 +69,8 @@ withDefaults(defineProps<Props>(), {
 defineEmits<{
   click: [player: Player];
   edit: [player: Player];
-  remove: [name: string];
-  requeue: [name: string];
+  remove: [username: string];
+  requeue: [username: string];
 }>();
 
 // Helper functions

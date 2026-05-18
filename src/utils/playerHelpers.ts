@@ -1,26 +1,26 @@
 // Player utility functions - extracted to reduce duplication
 
-export interface Player {
-  name: string;
-  level: 1 | 2 | 3;
-  gamesPlayed: number;
-  wins: number;
-  losses: number;
-  queuePosition?: number;
-  originalQueueTime?: Date;
-  lastMatchTime?: Date;
-  priority?: 'normal' | 'high' | 'returned';
+import { Player } from '../services/matchmaking';
+
+// We also need a UI-level representation for Queue to show wait times
+export interface UIQueueEntry {
+  player: Player;
+  queueType: 'GENERAL' | 'WINNERS' | 'LOSERS';
+  enteredAt: number;
 }
 
-export interface Match {
-  id: string;
-  players: Player[];
+export interface UIMatch {
+  id: string; // from matchId
+  teamA: Player[];
+  teamB: Player[];
   status: 'waiting' | 'in-progress' | 'completed';
   court?: number;
   order: number;
   createdAt: Date;
   startedAt?: Date;
   completedAt?: Date;
+  queueSource?: string;
+  expectedDifference?: number;
 }
 
 /**
@@ -58,20 +58,14 @@ export const getLevelIcon = (level: 1 | 2 | 3): string => {
 /**
  * Get queue time information for a player
  */
-export const getQueueTimeInfo = (player: Player): string => {
-  if (player.priority === 'returned') {
-    return 'Recently returned';
-  }
-  if (player.originalQueueTime) {
-    const now = new Date();
-    const diff = now.getTime() - new Date(player.originalQueueTime).getTime();
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'Just joined';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours}h ago`;
-  }
-  return 'In queue';
+export const getQueueTimeInfo = (enteredAt: number): string => {
+  const now = Date.now();
+  const diff = now - enteredAt;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'Just joined';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ago`;
 };
 
 /**
@@ -106,38 +100,7 @@ export const getMatchStatusLabel = (status: string): string => {
   }
 };
 
-/**
- * Sort players by various criteria
- */
-export const sortPlayers = (players: Player[], sortBy: string): Player[] => {
-  return [...players].sort((a, b) => {
-    switch (sortBy) {
-      case 'gamesPlayed':
-        return b.gamesPlayed - a.gamesPlayed;
-      case 'wins':
-        return b.wins - a.wins;
-      case 'losses':
-        return b.losses - a.losses;
-      case 'name':
-        return a.name.localeCompare(b.name);
-      default:
-        return a.name.localeCompare(b.name);
-    }
-  });
-};
 
-/**
- * Filter matches by court
- */
-export const filterMatchesByCourt = (
-  matches: Match[],
-  courtFilter: string | number,
-): Match[] => {
-  if (courtFilter === 'all') {
-    return matches;
-  }
-  return matches.filter((match) => match.court === courtFilter);
-};
 
 /**
  * Calculate team skill level
