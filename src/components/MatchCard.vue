@@ -3,11 +3,11 @@
     <q-item-section>
       <!-- Match Layout: Players split around center (status+court+icon) -->
       <div class="row items-center q-pa-sm no-wrap">
-        <!-- Left: Team 1 players -->
+        <!-- Left: Team A players -->
         <div class="col text-center">
-          <div v-for="player in getPlayersForTeam1(match)" :key="player.name" class="column items-center q-mb-xs">
+          <div v-for="player in match.teamA" :key="player.username" class="column items-center q-mb-xs">
             <span class="text-weight-medium text-center">{{
-              player.name
+              player.username
             }}</span>
             <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)" text-color="white" size="xs"
               dense />
@@ -27,16 +27,19 @@
           </q-chip>
         </div>
 
-        <!-- Right: Team 2 players -->
+        <!-- Right: Team B players -->
         <div class="col text-center">
-          <div v-for="player in getPlayersForTeam2(match)" :key="player.name" class="column items-center q-mb-xs">
+          <div v-for="player in match.teamB" :key="player.username" class="column items-center q-mb-xs">
             <span class="text-weight-medium text-center">{{
-              player.name
+              player.username
             }}</span>
             <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)" text-color="white" size="xs"
               dense />
           </div>
         </div>
+      </div>
+      <div v-if="match.expectedDifference !== undefined" class="text-center text-caption text-grey-6 q-mt-xs">
+        Balance diff: {{ match.expectedDifference.toFixed(1) }} rating pts
       </div>
     </q-item-section>
 
@@ -105,26 +108,23 @@ import {
 
 // Player interface
 interface Player {
-  name: string;
+  username: string;
   level: 1 | 2 | 3;
-  gamesPlayed: number;
-  wins: number;
-  losses: number;
-  queuePosition?: number;
-  originalQueueTime?: Date;
-  lastMatchTime?: Date;
-  priority?: 'normal' | 'high' | 'returned';
+  rating: number;
+  matchesPlayed: number;
 }
 
 interface Match {
   id: string;
-  players: Player[];
+  teamA: Player[];
+  teamB: Player[];
   status: 'waiting' | 'in-progress' | 'completed';
   court?: number;
   order: number;
   createdAt: Date;
   startedAt?: Date;
   completedAt?: Date;
+  expectedDifference?: number;
 }
 
 interface Props {
@@ -148,21 +148,7 @@ defineEmits<{
   cancelMatch: [];
 }>();
 
-// Helper: Get team 1 players (first 2 for doubles, first 1 for singles)
-const getPlayersForTeam1 = (match: Match) => {
-  if (match.players.length === 2) {
-    return [match.players[0]];
-  }
-  return match.players.slice(0, 2);
-};
 
-// Helper: Get team 2 players (last 2 for doubles, last 1 for singles)
-const getPlayersForTeam2 = (match: Match) => {
-  if (match.players.length === 2) {
-    return [match.players[1]];
-  }
-  return match.players.slice(2, 4);
-};
 
 // Helper function to check if court is available
 const isCourtAvailable = (): boolean => {
