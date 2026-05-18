@@ -49,7 +49,7 @@
                   color="white"
                   emit-value
                   map-options
-                  style="min-width: 200px"
+                  style="min-width: 170px"
                 >
                   <template v-slot:prepend>
                     <q-icon name="sort" />
@@ -1264,7 +1264,14 @@
                         >L:{{ player.losses || 0 }}</span
                       >
                       <span class="q-ml-xs text-info"
-                        >WR:{{ player.matchesPlayed ? Math.round(((player.wins || 0) / player.matchesPlayed) * 100) : 0 }}%</span
+                        >WR:{{
+                          player.matchesPlayed
+                            ? Math.round(
+                                ((player.wins || 0) / player.matchesPlayed) *
+                                  100,
+                              )
+                            : 0
+                        }}%</span
                       >
                       <span class="q-ml-sm text-primary"
                         >Rating: {{ player.rating }}</span
@@ -1545,7 +1552,14 @@
                         >L:{{ player.losses || 0 }}</span
                       >
                       <span class="q-ml-xs text-info"
-                        >WR:{{ player.matchesPlayed ? Math.round(((player.wins || 0) / player.matchesPlayed) * 100) : 0 }}%</span
+                        >WR:{{
+                          player.matchesPlayed
+                            ? Math.round(
+                                ((player.wins || 0) / player.matchesPlayed) *
+                                  100,
+                              )
+                            : 0
+                        }}%</span
                       >
                     </q-item-label>
                   </q-item-section>
@@ -1622,7 +1636,14 @@
                         >L:{{ player.losses || 0 }}</span
                       >
                       <span class="q-ml-xs text-info"
-                        >WR:{{ player.matchesPlayed ? Math.round(((player.wins || 0) / player.matchesPlayed) * 100) : 0 }}%</span
+                        >WR:{{
+                          player.matchesPlayed
+                            ? Math.round(
+                                ((player.wins || 0) / player.matchesPlayed) *
+                                  100,
+                              )
+                            : 0
+                        }}%</span
                       >
                       <span
                         v-if="player.priority === 'returned'"
@@ -1940,7 +1961,7 @@ const players = computed(() =>
   })),
 );
 const queue = computed(() => {
-  return MatchmakingApp.state.queues.map((q) => {
+  const mapped = MatchmakingApp.state.queues.map((q) => {
     const p = MatchmakingApp.state.players[q.username];
     return {
       ...p,
@@ -1949,6 +1970,32 @@ const queue = computed(() => {
       queueType: q.queueType,
     };
   });
+
+  if (autoSortQueue.value) {
+    const sortFn = (
+      a: { matchesPlayed: number; enteredAt: number },
+      b: { matchesPlayed: number; enteredAt: number },
+    ) => {
+      if (queuePriorityMode.value === 'gamesPlayed') {
+        if (a.matchesPlayed !== b.matchesPlayed) {
+          return a.matchesPlayed - b.matchesPlayed;
+        }
+      }
+      return a.enteredAt - b.enteredAt;
+    };
+
+    const winners = mapped
+      .filter((q) => q.queueType === 'WINNERS')
+      .sort(sortFn);
+    const losers = mapped.filter((q) => q.queueType === 'LOSERS').sort(sortFn);
+    const general = mapped
+      .filter((q) => q.queueType === 'GENERAL')
+      .sort(sortFn);
+
+    return [...winners, ...losers, ...general];
+  }
+
+  return mapped;
 });
 const matches = computed(() => {
   return MatchmakingApp.state.activeMatches.map((m, index) => {
@@ -2119,7 +2166,7 @@ const matchTypeOptions = [
 
 // Sort options
 const sortOptions = [
-  { label: 'Rating (High-Low)', value: 'rating' },
+  { label: 'Rating', value: 'rating' },
   { label: 'Win Rate', value: 'winRate' },
   { label: 'Wins', value: 'wins' },
   { label: 'Games Played', value: 'matchesPlayed' },
@@ -2354,26 +2401,6 @@ const getWaitingPlayersInfo = (): string => {
   return `${remainingPlayers} player${remainingPlayers > 1 ? 's' : ''} waiting - ${suggestions[remainingPlayers as keyof typeof suggestions]}`;
 };
 
-const sortQueueByFairness = () => {
-  if (autoSortQueue.value) {
-    // Sort based on the configured priority mode
-    switch (queuePriorityMode.value) {
-      case 'gamesPlayed':
-        // Sort by games played (fewer games = higher priority)
-        queue.value.sort((a, b) => a.matchesPlayed - b.matchesPlayed);
-        break;
-      case 'timestamp':
-        // Sort by queue join time (earlier = higher priority)
-        queue.value.sort((a, b) => {
-          const timeA = a.enteredAt || 0;
-          const timeB = b.enteredAt || 0;
-          return timeA - timeB;
-        });
-        break;
-    }
-  }
-};
-
 // Storage functions
 
 function getCourtSettingsFromStorage(): {
@@ -2510,10 +2537,6 @@ watch(autoSortQueue, () => {
 
 watch(queuePriorityMode, () => {
   saveQueueSettingsToStorage();
-  // Re-sort queue when priority mode changes if auto-sort is enabled
-  if (autoSortQueue.value) {
-    sortQueueByFairness();
-  }
 });
 
 // Watch for changes in UI settings and save to storage
