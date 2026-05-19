@@ -1201,6 +1201,7 @@
                 label="Select Club"
                 outlined
                 dense
+                clearable
                 emit-value
                 map-options
               />
@@ -2838,6 +2839,9 @@ watch(likhaClubUUID, (newVal) => {
     if (selected && selected.clubIdString) {
       likhaClubId.value = selected.clubIdString;
     }
+    fetchLikhaAppState();
+  } else {
+    likhaClubId.value = '';
   }
 });
 
