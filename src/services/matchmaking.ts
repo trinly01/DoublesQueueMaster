@@ -131,6 +131,7 @@ export const MatchmakerEngine = {
  */
 export class LocalMatchmakingSystem {
   public state: AppState;
+  public onStateChange: (() => void) | null = null;
 
   constructor(defaultTeamSize: number = 2) {
     const initialState = this.loadState() || {
@@ -146,6 +147,9 @@ export class LocalMatchmakingSystem {
   private saveState() {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+      if (this.onStateChange) {
+        this.onStateChange();
+      }
     }
   }
 

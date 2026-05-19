@@ -43,7 +43,7 @@
       </div>
     </q-item-section>
 
-    <q-item-section side v-if="showActions">
+    <q-item-section side v-if="showActions && !isReadOnlyMode">
       <q-btn color="grey-7" icon="more_vert" flat round size="sm">
         <q-menu>
           <q-list style="min-width: 150px">
@@ -100,11 +100,14 @@
 </template>
 
 <script setup lang="ts">
+import { inject } from 'vue';
 import {
   getLevelColor,
   getMatchStatusColor,
   getMatchStatusLabel,
 } from '../utils/playerHelpers';
+
+const isReadOnlyMode = inject('isReadOnlyMode', false);
 
 // Player interface
 interface Player {

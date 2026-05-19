@@ -25,23 +25,25 @@
           >
             {{ getPlayerPosition(playerItem) }}
           </q-avatar>
-          <q-btn
-            flat
-            round
-            color="negative"
-            @click.stop="$emit('playerRemove', playerItem.username)"
-            icon="delete"
-            size="sm"
-          />
-          <q-btn
-            v-if="showRequeueButton"
-            flat
-            color="accent"
-            @click.stop="$emit('playerRequeue', playerItem.username)"
-            icon="input"
-            size="sm"
-            :disable="isInQueue"
-          />
+          <template v-if="!isReadOnlyMode">
+            <q-btn
+              flat
+              round
+              color="negative"
+              @click.stop="$emit('playerRemove', playerItem.username)"
+              icon="delete"
+              size="sm"
+            />
+            <q-btn
+              v-if="showRequeueButton"
+              flat
+              color="accent"
+              @click.stop="$emit('playerRequeue', playerItem.username)"
+              icon="input"
+              size="sm"
+              :disable="isInQueue"
+            />
+          </template>
         </template>
       </PlayerCard>
     </q-list>
@@ -52,7 +54,7 @@
       :title="emptyTitle"
       :subtitle="emptySubtitle"
     >
-      <template v-if="emptyAction" #action>
+      <template v-if="emptyAction && !isReadOnlyMode" #action>
         <q-btn
           :color="emptyActionColor"
           :icon="emptyActionIcon"
@@ -65,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, inject } from 'vue';
 import PlayerCard from './PlayerCard.vue';
 import EmptyState from './EmptyState.vue';
 
@@ -118,6 +120,8 @@ defineEmits<{
   playerRequeue: [username: string];
   emptyAction: [];
 }>();
+
+const isReadOnlyMode = inject('isReadOnlyMode', false);
 
 // Computed and helper functions
 const displayPlayers = computed(() => {

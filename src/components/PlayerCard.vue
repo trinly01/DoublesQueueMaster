@@ -29,12 +29,14 @@
     <q-item-section side v-if="showActions">
       <div class="row items-center ">
         <slot name="actions" :player="player">
-          <q-btn flat round color="primary" @click.stop="$emit('edit', player)" icon="edit" size="sm">
-            <q-tooltip>Edit player</q-tooltip>
-          </q-btn>
-          <q-btn flat round color="negative" @click.stop="$emit('remove', player.username)" icon="delete" size="sm" />
-          <q-btn flat round color="accent" @click.stop="$emit('requeue', player.username)" icon="input" size="sm"
-            :disable="isInQueue" />
+          <template v-if="!isReadOnlyMode">
+            <q-btn flat round color="primary" @click.stop="$emit('edit', player)" icon="edit" size="sm">
+              <q-tooltip>Edit player</q-tooltip>
+            </q-btn>
+            <q-btn flat round color="negative" @click.stop="$emit('remove', player.username)" icon="delete" size="sm" />
+            <q-btn flat round color="accent" @click.stop="$emit('requeue', player.username)" icon="input" size="sm"
+              :disable="isInQueue" />
+          </template>
         </slot>
       </div>
     </q-item-section>
@@ -42,6 +44,7 @@
 </template>
 
 <script setup lang="ts">
+import { inject } from 'vue';
 import type { Player as BasePlayer } from '../services/matchmaking';
 type Player = BasePlayer & {
   enteredAt?: number;
@@ -57,6 +60,8 @@ interface Props {
   isInQueue?: boolean;
   sortBy?: string;
 }
+
+const isReadOnlyMode = inject('isReadOnlyMode', false);
 
 withDefaults(defineProps<Props>(), {
   showAvatar: true,
