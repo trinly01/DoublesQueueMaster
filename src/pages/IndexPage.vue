@@ -2272,9 +2272,14 @@ const fetchLikhaAppState = async () => {
 
 const startWatchModePolling = () => {
   if (pollInterval) clearInterval(pollInterval);
-  if (!likhaToken.value && likhaClubId.value && likhaUrl.value) {
+  if (likhaClubId.value && likhaUrl.value) {
+    // Always fetch state once when the club is loaded or changes
     fetchLikhaAppState();
-    pollInterval = setInterval(fetchLikhaAppState, 5000);
+    
+    // Only poll in Watch Mode (no token)
+    if (!likhaToken.value) {
+      pollInterval = setInterval(fetchLikhaAppState, 5000);
+    }
   }
 };
 
