@@ -29,6 +29,13 @@
     </div>
 
     <div class="container q-pa-md">
+      <q-banner v-if="!isOnline" :class="$q.dark.isActive ? 'bg-grey-9' : 'bg-grey-3'" class="q-mb-md rounded-borders">
+        <template v-slot:avatar>
+          <q-icon name="signal_wifi_off" color="primary" />
+        </template>
+        You have lost connection to the internet. This app is offline. Any changes made will be saved locally and synced automatically when you reconnect.
+      </q-banner>
+
       <!-- Desktop/Large Tablet Layout: 3 Columns -->
       <div class="row q-col-gutter-lg gt-sm">
         <!-- Left Column: Players List -->
@@ -2010,7 +2017,7 @@
 import { MatchmakingApp } from '../services/matchmaking';
 import type { Player } from '../services/matchmaking';
 
-import { ref, computed, watch, onMounted, provide } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, provide } from 'vue';
 import { useQuasar, debounce } from 'quasar';
 import TeamArrangement from '../components/TeamArrangement.vue';
 import PlayerList from '../components/PlayerList.vue';
@@ -2273,21 +2280,45 @@ const fetchLikhaAppState = async () => {
 const startWatchModePolling = () => {
   if (pollInterval) clearInterval(pollInterval);
   if (likhaClubId.value && likhaUrl.value) {
-    // Always fetch state once when the club is loaded or changes
-    fetchLikhaAppState();
-    
-    // Only poll in Watch Mode (no token)
     if (!likhaToken.value) {
+      // Always fetch state once when the club is loaded or changes
+      fetchLikhaAppState();
       pollInterval = setInterval(fetchLikhaAppState, 5000);
     }
   }
 };
 
+const isOnline = ref(navigator.onLine);
+
+const updateOnlineStatus = () => {
+  const wasOffline = !isOnline.value;
+  isOnline.value = navigator.onLine;
+  
+  if (isOnline.value && wasOffline && likhaToken.value) {
+    // We just came back online and we are an admin! Sync offline changes to cloud.
+    syncStateToLikha();
+    $q.notify({
+      type: 'positive',
+      message: 'Connection restored. Syncing offline changes...',
+      position: 'top',
+      timeout: 3000
+    });
+  }
+};
+
 onMounted(() => {
+  window.addEventListener('online', updateOnlineStatus);
+  window.addEventListener('offline', updateOnlineStatus);
+  
   if (likhaUrl.value && likhaToken.value) {
     fetchClubs();
   }
   startWatchModePolling();
+});
+
+onUnmounted(() => {
+  window.removeEventListener('online', updateOnlineStatus);
+  window.removeEventListener('offline', updateOnlineStatus);
 });
 
 watch([likhaToken, likhaClubId, likhaUrl], () => {
