@@ -56,6 +56,7 @@
                   </template>
                 </q-select>
                 <q-btn
+                  v-if="!isReadOnlyMode"
                   color="white"
                   @click="showAddPlayerDialog = true"
                   icon="person_add"
@@ -66,6 +67,7 @@
                   <q-tooltip>Add new player to the system</q-tooltip>
                 </q-btn>
                 <q-btn
+                  v-if="!isReadOnlyMode"
                   color="white"
                   @click="addAllPlayersToQueue"
                   :disable="allPlayersInQueue"
@@ -190,6 +192,7 @@
 
               <div class="row q-gutter-sm">
                 <q-btn
+                  v-if="!isReadOnlyMode"
                   class="col"
                   color="accent"
                   @click="generateNewMatches"
@@ -208,6 +211,7 @@
                   </q-tooltip>
                 </q-btn>
                 <q-btn
+                  v-if="!isReadOnlyMode"
                   class="col"
                   color="accent"
                   @click="startManualSelection"
@@ -362,6 +366,7 @@
                         </template>
                       </q-select>
                       <q-btn
+                        v-if="!isReadOnlyMode"
                         color="accent"
                         @click="showAddPlayerDialog = true"
                         icon="person_add"
@@ -372,6 +377,7 @@
                         <q-tooltip>Add new player</q-tooltip>
                       </q-btn>
                       <q-btn
+                        v-if="!isReadOnlyMode"
                         color="accent"
                         @click="addAllPlayersToQueue"
                         :disable="allPlayersInQueue"
@@ -491,6 +497,7 @@
 
                 <div class="row q-gutter-sm">
                   <q-btn
+                    v-if="!isReadOnlyMode"
                     class="col"
                     color="accent"
                     @click="generateNewMatches"
@@ -509,6 +516,7 @@
                     </q-tooltip>
                   </q-btn>
                   <q-btn
+                    v-if="!isReadOnlyMode"
                     class="col"
                     color="accent"
                     @click="startManualSelection"
@@ -619,7 +627,7 @@
         <!-- Content -->
         <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
           <!-- Mode Toggle -->
-          <div class="q-mb-md q-pb-lg">
+          <div class="q-mb-md q-pb-lg" v-if="!isReadOnlyMode">
             <q-btn-toggle
               v-model="bulkImportMode"
               :options="[
@@ -1042,137 +1050,200 @@
         <!-- Content -->
         <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
           <div class="q-gutter-y-md">
-            <div>
-              <div class="text-subtitle2 q-mb-sm">Queue Management</div>
-              <q-select
-                v-model="queueReturnMethod"
-                :options="queueReturnOptions"
-                label="Return Players to Queue"
-                outlined
-                dense
-                emit-value
-                map-options
-              >
-                <template v-slot:option="scope">
-                  <q-item v-bind="scope.itemProps">
-                    <q-item-section>
-                      <q-item-label>{{ scope.opt.label }}</q-item-label>
-                      <q-item-label
-                        v-if="scope.opt.description"
-                        caption
-                        class="text-grey-7"
-                      >
-                        {{ scope.opt.description }}
-                      </q-item-label>
-                    </q-item-section>
-                  </q-item>
-                </template>
-              </q-select>
-            </div>
+            <template v-if="!isReadOnlyMode">
+              <div>
+                <div class="text-subtitle2 q-mb-sm">Queue Management</div>
+                <q-select
+                  v-model="queueReturnMethod"
+                  :options="queueReturnOptions"
+                  label="Return Players to Queue"
+                  outlined
+                  dense
+                  emit-value
+                  map-options
+                >
+                  <template v-slot:option="scope">
+                    <q-item v-bind="scope.itemProps">
+                      <q-item-section>
+                        <q-item-label>{{ scope.opt.label }}</q-item-label>
+                        <q-item-label
+                          v-if="scope.opt.description"
+                          caption
+                          class="text-grey-7"
+                        >
+                          {{ scope.opt.description }}
+                        </q-item-label>
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                </q-select>
+              </div>
 
-            <div>
-              <q-toggle
-                v-model="autoSortQueue"
-                label="Automatically sort queue by fairness"
-                color="accent"
-              />
-            </div>
-
-            <div>
-              <q-select
-                v-model="queuePriorityMode"
-                :options="queuePriorityOptions"
-                label="Queue priority order"
-                outlined
-                dense
-                emit-value
-                map-options
-              >
-                <template v-slot:option="scope">
-                  <q-item v-bind="scope.itemProps">
-                    <q-item-section>
-                      <q-item-label>{{ scope.opt.label }}</q-item-label>
-                      <q-item-label
-                        v-if="scope.opt.description"
-                        caption
-                        class="text-grey-7"
-                      >
-                        {{ scope.opt.description }}
-                      </q-item-label>
-                    </q-item-section>
-                  </q-item>
-                </template>
-              </q-select>
-            </div>
-
-            <q-separator />
-
-            <div>
-              <div class="text-subtitle2 q-mb-sm">Court Management</div>
-              <q-select
-                v-model="availableCourts"
-                :options="courtOptions"
-                label="Number of available courts"
-                outlined
-                dense
-              />
-              <q-toggle
-                v-model="autoAssignCourts"
-                label="Automatically assign courts to matches"
-                color="accent"
-                class="q-mt-sm"
-              />
-              <q-toggle
-                v-model="autoAdvanceMatches"
-                label="Automatically start next match when one completes"
-                color="accent"
-                class="q-mt-sm"
-              />
-            </div>
-
-            <q-separator />
-
-            <div class="text-subtitle2 q-mb-sm">Data Management</div>
-
-            <div class="row q-gutter-sm">
-              <div class="col">
-                <q-btn
+              <div>
+                <q-toggle
+                  v-model="autoSortQueue"
+                  label="Automatically sort queue by fairness"
                   color="accent"
-                  @click="resetGamesPlayed"
-                  icon="refresh"
-                  label="Reset Stats"
-                  class="full-width"
                 />
               </div>
-              <div class="col">
-                <q-btn
-                  color="warning"
-                  @click="clearMatches"
-                  icon="delete"
-                  label="Clear Matches"
-                  class="full-width"
-                />
-              </div>
-              <div class="col">
-                <q-btn
-                  color="warning"
-                  @click="clearQueue"
-                  icon="delete_outline"
-                  label="Clear Queue"
-                  class="full-width"
-                />
-              </div>
-            </div>
 
-            <div class="q-mt-sm">
-              <q-btn
-                color="negative"
-                @click="resetAllData"
-                icon="delete_forever"
-                label="Reset Everything (Incl. Players)"
-                class="full-width"
+              <div>
+                <q-select
+                  v-model="queuePriorityMode"
+                  :options="queuePriorityOptions"
+                  label="Queue priority order"
+                  outlined
+                  dense
+                  emit-value
+                  map-options
+                >
+                  <template v-slot:option="scope">
+                    <q-item v-bind="scope.itemProps">
+                      <q-item-section>
+                        <q-item-label>{{ scope.opt.label }}</q-item-label>
+                        <q-item-label
+                          v-if="scope.opt.description"
+                          caption
+                          class="text-grey-7"
+                        >
+                          {{ scope.opt.description }}
+                        </q-item-label>
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                </q-select>
+              </div>
+
+              <q-separator />
+
+              <div>
+                <div class="text-subtitle2 q-mb-sm">Court Management</div>
+                <q-select
+                  v-model="availableCourts"
+                  :options="courtOptions"
+                  label="Number of available courts"
+                  outlined
+                  dense
+                />
+                <q-toggle
+                  v-model="autoAssignCourts"
+                  label="Automatically assign courts to matches"
+                  color="accent"
+                  class="q-mt-sm"
+                />
+                <q-toggle
+                  v-model="autoAdvanceMatches"
+                  label="Automatically start next match when one completes"
+                  color="accent"
+                  class="q-mt-sm"
+                />
+              </div>
+
+              <q-separator />
+            </template>
+
+            <div class="text-subtitle2 q-mb-sm">Cloud Integration</div>
+
+            <q-banner
+              v-if="isReadOnlyMode"
+              class="bg-warning text-dark q-mb-md rounded-borders"
+            >
+              <template v-slot:avatar>
+                <q-icon name="visibility" />
+              </template>
+              <span class="text-weight-bold">Watch Mode Active:</span>
+              Viewing live data from Club ID "{{ likhaClubId }}". Changes are disabled without a Token.
+            </q-banner>
+
+            <div class="q-gutter-y-sm q-mb-md">
+              <q-input
+                v-model="likhaUrl"
+                label="Likha URL"
+                outlined
+                dense
+                placeholder="https://dink-it.zyberlab.com"
+              />
+              <q-input
+                v-model="likhaToken"
+                label="Likha Token (Write Access)"
+                outlined
+                dense
+                type="password"
+              />
+              <q-input
+                v-model="likhaClubId"
+                label="Club ID (Read Access without Token)"
+                outlined
+                dense
+              />
+              <div class="row items-center q-gutter-x-sm">
+                <q-btn
+                  color="primary"
+                  label="Fetch Clubs"
+                  @click="fetchClubs"
+                  :disable="!likhaUrl || !likhaToken"
+                  outline
+                  dense
+                />
+                <q-spinner v-if="isFetchingClubs" color="primary" size="2em" />
+              </div>
+              <q-select
+                v-if="clubOptions.length > 0"
+                v-model="likhaClubUUID"
+                :options="clubOptions"
+                label="Select Club"
+                outlined
+                dense
+                emit-value
+                map-options
               />
             </div>
+
+            <q-separator />
+
+            <template v-if="!isReadOnlyMode">
+              <div class="text-subtitle2 q-mb-sm">Data Management</div>
+
+              <div class="row q-gutter-sm">
+                <div class="col">
+                  <q-btn
+                    color="accent"
+                    @click="resetGamesPlayed"
+                    icon="refresh"
+                    label="Reset Stats"
+                    class="full-width"
+                  />
+                </div>
+                <div class="col">
+                  <q-btn
+                    color="warning"
+                    @click="clearMatches"
+                    icon="delete"
+                    label="Clear Matches"
+                    class="full-width"
+                  />
+                </div>
+                <div class="col">
+                  <q-btn
+                    color="warning"
+                    @click="clearQueue"
+                    icon="delete_outline"
+                    label="Clear Queue"
+                    class="full-width"
+                  />
+                </div>
+              </div>
+
+              <div class="q-mt-sm">
+                <q-btn
+                  color="negative"
+                  @click="resetAllData"
+                  icon="delete_forever"
+                  label="Reset Everything (Incl. Players)"
+                  class="full-width"
+                />
+              </div>
+            </template>
           </div>
         </q-card-section>
 
@@ -1939,8 +2010,8 @@
 import { MatchmakingApp } from '../services/matchmaking';
 import type { Player } from '../services/matchmaking';
 
-import { ref, computed, watch } from 'vue';
-import { useQuasar } from 'quasar';
+import { ref, computed, watch, onMounted, provide } from 'vue';
+import { useQuasar, debounce } from 'quasar';
 import TeamArrangement from '../components/TeamArrangement.vue';
 import PlayerList from '../components/PlayerList.vue';
 import EmptyState from '../components/EmptyState.vue';
@@ -2079,6 +2150,145 @@ const autoAdvanceMatches = ref<boolean>(
 );
 const maxCourts = ref<number>(8);
 
+// Likha Integration State
+const likhaUrl = ref<string>(getLikhaSettingsFromStorage().likhaUrl);
+const likhaToken = ref<string>(getLikhaSettingsFromStorage().likhaToken);
+const likhaClubId = ref<string | null>(
+  getLikhaSettingsFromStorage().likhaClubId,
+);
+const likhaClubUUID = ref<string | null>(
+  getLikhaSettingsFromStorage().likhaClubUUID || null,
+);
+const clubOptions = ref<
+  { label: string; value: string; clubIdString?: string }[]
+>([]);
+const isFetchingClubs = ref<boolean>(false);
+
+const isReadOnlyMode = computed(() => {
+  return !!likhaClubId.value && !likhaToken.value;
+});
+provide('isReadOnlyMode', isReadOnlyMode);
+
+const fetchClubs = async () => {
+  if (!likhaUrl.value || !likhaToken.value) return;
+  isFetchingClubs.value = true;
+  try {
+    const url = likhaUrl.value.endsWith('/')
+      ? likhaUrl.value.slice(0, -1)
+      : likhaUrl.value;
+    const response = await fetch(`${url}/items/club`, {
+      headers: {
+        Authorization: `Bearer ${likhaToken.value}`,
+      },
+    });
+    const data = await response.json();
+    console.log('Data from fetch clubs', data);
+    if (data.data) {
+      clubOptions.value = data.data.map(
+        (c: {
+          name?: string;
+          title?: string;
+          id: string;
+          clubId?: string;
+        }) => ({
+          label: c.name || c.title || c.id,
+          value: c.id,
+          clubIdString: c.clubId || c.id,
+        }),
+      );
+      $q.notify({
+        type: 'positive',
+        message: `Fetched ${clubOptions.value.length} clubs`,
+        position: 'top',
+      });
+    } else if (data.errors) {
+      throw new Error(data.errors[0].message);
+    }
+  } catch (err: unknown) {
+    console.error('Failed to fetch clubs', err);
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    $q.notify({
+      type: 'negative',
+      message: `Failed to fetch clubs: ${errorMessage}`,
+      position: 'top',
+    });
+  } finally {
+    isFetchingClubs.value = false;
+  }
+};
+
+let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+const fetchLikhaAppState = async () => {
+  if (!likhaClubId.value || !likhaUrl.value) return;
+  try {
+    const url = likhaUrl.value.endsWith('/')
+      ? likhaUrl.value.slice(0, -1)
+      : likhaUrl.value;
+
+    const isId = likhaClubUUID.value
+      ? true
+      : /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+          likhaClubId.value,
+        );
+    const targetId = likhaClubUUID.value || likhaClubId.value;
+    const endpoint = isId
+      ? `${url}/items/club/${targetId}?fields=appState`
+      : `${url}/items/club?filter[clubId][_eq]=${likhaClubId.value}&fields=appState`;
+
+    const res = await fetch(endpoint);
+    if (!res.ok) return;
+    const data = await res.json();
+    console.log('Data from fetch appState', data);
+
+    const appState = isId
+      ? data.data?.appState
+      : data.data && data.data.length > 0
+        ? data.data[0].appState
+        : null;
+
+    if (appState) {
+      if (appState.matchmaking) {
+        Object.assign(MatchmakingApp.state, appState.matchmaking);
+      }
+      if (appState.courtSettings) {
+        autoAssignCourts.value = appState.courtSettings.autoAssignCourts;
+        autoAdvanceMatches.value = appState.courtSettings.autoAdvanceMatches;
+      }
+      if (appState.queueSettings) {
+        queueReturnMethod.value = appState.queueSettings.queueReturnMethod;
+        autoSortQueue.value = appState.queueSettings.autoSortQueue;
+        queuePriorityMode.value = appState.queueSettings.queuePriorityMode;
+      }
+      if (appState.uiSettings) {
+        sortBy.value = appState.uiSettings.sortBy;
+        matchType.value = appState.uiSettings.matchType;
+      }
+    }
+  } catch (err) {
+    // Silent catch for polling
+  }
+};
+
+const startWatchModePolling = () => {
+  if (pollInterval) clearInterval(pollInterval);
+  if (!likhaToken.value && likhaClubId.value && likhaUrl.value) {
+    fetchLikhaAppState();
+    pollInterval = setInterval(fetchLikhaAppState, 5000);
+  }
+};
+
+onMounted(() => {
+  if (likhaUrl.value && likhaToken.value) {
+    fetchClubs();
+  }
+  startWatchModePolling();
+});
+
+watch([likhaToken, likhaClubId, likhaUrl], () => {
+  startWatchModePolling();
+});
+
 // Helper function to extract court count from q-select value
 const getCourtCount = (): number => {
   if (
@@ -2117,9 +2327,9 @@ const selectedForSwapTeam = ref<'team1' | 'team2' | null>(null);
 const activeMobileTab = ref<'players' | 'queue' | 'matches'>('players');
 
 // Sort state
-const sortBy = ref<'gamesPlayed' | 'wins' | 'losses' | 'name'>(
-  getUISettingsFromStorage().sortBy,
-);
+const sortBy = ref<
+  'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name'
+>(getUISettingsFromStorage().sortBy);
 
 // Search state for players
 const searchPlayers = ref<string>('');
@@ -2403,6 +2613,41 @@ const getWaitingPlayersInfo = (): string => {
 
 // Storage functions
 
+function getLikhaSettingsFromStorage(): {
+  likhaUrl: string;
+  likhaToken: string;
+  likhaClubId: string | null;
+  likhaClubUUID?: string | null;
+} {
+  const settings = localStorage.getItem('likhaSettings');
+  if (settings) {
+    const parsed = JSON.parse(settings);
+    // Ensure existing storage gets the new default if empty
+    if (!parsed.likhaUrl) {
+      parsed.likhaUrl = 'https://dink-it.zyberlab.com';
+    }
+    return parsed;
+  }
+  return {
+    likhaUrl: 'https://dink-it.zyberlab.com',
+    likhaToken: '',
+    likhaClubId: null,
+    likhaClubUUID: null,
+  };
+}
+
+function saveLikhaSettingsToStorage(): void {
+  localStorage.setItem(
+    'likhaSettings',
+    JSON.stringify({
+      likhaUrl: likhaUrl.value,
+      likhaToken: likhaToken.value,
+      likhaClubId: likhaClubId.value,
+      likhaClubUUID: likhaClubUUID.value,
+    }),
+  );
+}
+
 function getCourtSettingsFromStorage(): {
   availableCourts: number;
   autoAssignCourts: boolean;
@@ -2482,7 +2727,7 @@ function saveQueueSettingsToStorage(): void {
 }
 
 function getUISettingsFromStorage(): {
-  sortBy: 'gamesPlayed' | 'wins' | 'losses' | 'name';
+  sortBy: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
   matchType: 'singles' | 'doubles';
   matchesFilterBy: 'all' | number;
 } {
@@ -2490,13 +2735,15 @@ function getUISettingsFromStorage(): {
   if (settings) {
     const parsed = JSON.parse(settings);
     return {
-      sortBy: parsed.sortBy || 'gamesPlayed',
+      sortBy:
+        (parsed.sortBy === 'gamesPlayed' ? 'matchesPlayed' : parsed.sortBy) ||
+        'matchesPlayed',
       matchType: parsed.matchType || 'doubles',
       matchesFilterBy: parsed.matchesFilterBy || 'all',
     };
   }
   return {
-    sortBy: 'gamesPlayed',
+    sortBy: 'matchesPlayed',
     matchType: 'doubles',
     matchesFilterBy: 'all',
   };
@@ -2516,41 +2763,138 @@ function saveUISettingsToStorage(): void {
 // Watch for changes in court settings and save to storage
 watch(availableCourts, () => {
   saveCourtSettingsToStorage();
+  syncStateToLikha();
 });
 
 watch(autoAssignCourts, () => {
   saveCourtSettingsToStorage();
+  syncStateToLikha();
 });
 
 watch(autoAdvanceMatches, () => {
   saveCourtSettingsToStorage();
+  syncStateToLikha();
 });
 
 // Watch for changes in queue settings and save to storage
 watch(queueReturnMethod, () => {
   saveQueueSettingsToStorage();
+  syncStateToLikha();
 });
 
 watch(autoSortQueue, () => {
   saveQueueSettingsToStorage();
+  syncStateToLikha();
 });
 
 watch(queuePriorityMode, () => {
   saveQueueSettingsToStorage();
+  syncStateToLikha();
+});
+
+watch([likhaUrl, likhaToken, likhaClubId, likhaClubUUID], () => {
+  saveLikhaSettingsToStorage();
+});
+
+watch(likhaClubUUID, (newVal) => {
+  if (newVal) {
+    const selected = clubOptions.value.find((c) => c.value === newVal);
+    if (selected && selected.clubIdString) {
+      likhaClubId.value = selected.clubIdString;
+    }
+  }
 });
 
 // Watch for changes in UI settings and save to storage
 watch(sortBy, () => {
   saveUISettingsToStorage();
+  syncStateToLikha();
 });
 
 watch(matchType, () => {
   saveUISettingsToStorage();
+  syncStateToLikha();
 });
 
 watch(matchesFilterBy, () => {
   saveUISettingsToStorage();
+  syncStateToLikha();
 });
+
+const syncStateToLikha = debounce(async () => {
+  if (!likhaUrl.value || !likhaToken.value || !likhaClubId.value) return;
+
+  const payload = {
+    matchmaking: MatchmakingApp.state,
+    courtSettings: {
+      availableCourts: getCourtCount(),
+      autoAssignCourts: autoAssignCourts.value,
+      autoAdvanceMatches: autoAdvanceMatches.value,
+    },
+    queueSettings: {
+      queueReturnMethod: queueReturnMethod.value,
+      autoSortQueue: autoSortQueue.value,
+      queuePriorityMode: queuePriorityMode.value,
+    },
+    uiSettings: {
+      sortBy: sortBy.value,
+      matchType: matchType.value,
+    },
+  };
+
+  const url = likhaUrl.value.endsWith('/')
+    ? likhaUrl.value.slice(0, -1)
+    : likhaUrl.value;
+  try {
+    const isId = likhaClubUUID.value
+      ? true
+      : /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+          likhaClubId.value,
+        );
+    const targetId = likhaClubUUID.value || likhaClubId.value;
+    const endpoint = isId
+      ? `${url}/items/club/${targetId}`
+      : `${url}/items/club?filter[clubId][_eq]=${likhaClubId.value}`;
+
+    const response = await fetch(endpoint, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${likhaToken.value}`,
+      },
+      body: JSON.stringify({ appState: payload }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      console.error('Likha sync failed', data);
+    } else {
+      console.log('Successfully synced state to Likha club');
+    }
+  } catch (err) {
+    console.error('Failed to sync state to Likha', err);
+  }
+}, 2000);
+
+MatchmakingApp.onStateChange = syncStateToLikha;
+
+watch(
+  () => [
+    MatchmakingApp.state,
+    availableCourts.value,
+    autoAssignCourts.value,
+    autoAdvanceMatches.value,
+    queueReturnMethod.value,
+    autoSortQueue.value,
+    queuePriorityMode.value,
+    sortBy.value,
+    matchType.value,
+    likhaClubId.value,
+  ],
+  () => {
+    syncStateToLikha();
+  },
+  { deep: true },
+);
 
 // Helper function to find the best singles pair from all available players
 // Ultra-flexible match generation that handles ANY combination
