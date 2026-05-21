@@ -9,17 +9,16 @@
     <q-item-section>
       <q-item-label class="text-weight-medium">
         {{ player.username }}
-        <q-chip v-if="player.queueType && player.queueType !== 'GENERAL'" 
-                :label="player.queueType" 
-                :color="player.queueType === 'WINNERS' ? 'positive' : 'negative'" 
-                text-color="white" size="xs" dense />
+        <q-chip v-if="player.queueType && player.queueType !== 'GENERAL'" :label="player.queueType"
+          :color="player.queueType === 'WINNERS' ? 'positive' : 'negative'" text-color="white" size="xs" dense />
       </q-item-label>
       <q-item-label caption class="player-stats">
         <span class="text-grey-7">G:{{ player.matchesPlayed }}</span>
         <span class="q-ml-xs text-positive" v-if="player.wins !== undefined">W:{{ player.wins || 0 }}</span>
         <span class="q-ml-xs text-negative" v-if="player.losses !== undefined">L:{{ player.losses || 0 }}</span>
-        <span class="q-ml-xs text-info" v-if="player.wins !== undefined && sortBy === 'winRate'">WR:{{ player.matchesPlayed ? Math.round(((player.wins || 0) / player.matchesPlayed) * 100) : 0 }}%</span>
-        <span class="q-ml-xs text-primary" v-if="!sortBy || sortBy !== 'winRate'">Pts:{{ player.rating }}</span>
+        <span class="q-ml-xs text-info" v-if="player.wins !== undefined && sortBy === 'winRate'">WR:{{
+          player.matchesPlayed ? Math.round(((player.wins || 0) / player.matchesPlayed) * 100) : 0 }}%</span>
+        <span class="q-ml-xs text-primary" v-if="!sortBy || sortBy !== 'winRate'">R:{{ player.rating }}</span>
         <!-- <span v-if="showQueueTime && player.enteredAt" class="q-ml-sm text-grey-6">
           {{ getQueueTimeInfo(player.enteredAt) }}
         </span> -->
@@ -30,11 +29,11 @@
       <div class="row items-center ">
         <slot name="actions" :player="player">
           <template v-if="!isReadOnlyMode">
-            <q-btn flat round color="primary" @click.stop="$emit('edit', player)" icon="edit" size="sm">
+            <q-btn flat round color="primary" @click.stop="$emit('edit', player)" icon="edit" size="xs">
               <q-tooltip>Edit player</q-tooltip>
             </q-btn>
-            <q-btn flat round color="negative" @click.stop="$emit('remove', player.username)" icon="delete" size="sm" />
-            <q-btn flat round color="accent" @click.stop="$emit('requeue', player.username)" icon="input" size="sm"
+            <q-btn flat round color="negative" @click.stop="$emit('remove', player.username)" icon="delete" size="xs" />
+            <q-btn flat round color="accent" @click.stop="$emit('requeue', player.username)" icon="input" size="xs"
               :disable="isInQueue" />
           </template>
         </slot>
