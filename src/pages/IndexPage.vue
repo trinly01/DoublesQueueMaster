@@ -1267,15 +1267,7 @@ const queue = computed(() => {
       return a.enteredAt - b.enteredAt;
     };
 
-    const winners = mapped
-      .filter((q) => q.queueType === 'WINNERS')
-      .sort(sortFn);
-    const losers = mapped.filter((q) => q.queueType === 'LOSERS').sort(sortFn);
-    const general = mapped
-      .filter((q) => q.queueType === 'GENERAL')
-      .sort(sortFn);
-
-    return [...winners, ...losers, ...general];
+    return [...mapped].sort(sortFn);
   }
 
   return mapped;
@@ -2353,9 +2345,19 @@ const addBulkPlayers = () => {
 
 const generateNewMatches = () => {
   MatchmakingApp.state.teamSize = matchType.value === 'singles' ? 1 : 2;
+  const prevCount = MatchmakingApp.state.activeMatches.length;
   MatchmakingApp.draftNextMatches(queuePriorityMode.value);
 
-  if (autoAssignCourts.value || autoAdvanceMatches.value) {
+  if (autoAssignCourts.value) {
+    for (let i = prevCount; i < MatchmakingApp.state.activeMatches.length; i++) {
+      const actualMatch = MatchmakingApp.state.activeMatches[i];
+      if (!actualMatch.court) {
+        actualMatch.court = assignCourt();
+      }
+    }
+  }
+
+  if (autoAdvanceMatches.value) {
     const courtCount = getCourtCount();
     for (let c = 1; c <= courtCount; c++) {
       if (isCourtAvailable(c)) {
@@ -2363,6 +2365,8 @@ const generateNewMatches = () => {
       }
     }
   }
+
+  MatchmakingApp.persist();
 
   $q.notify({
     type: 'positive',
@@ -2394,7 +2398,22 @@ const completeMatch = () => {
     return;
   }
 
-  MatchmakingApp.reportMatchScore(match.id, scoreA, scoreB);
+  const freedCourt = match.court;
+
+  MatchmakingApp.reportMatchScore(match.id, scoreA, scoreB, queueReturnMethod.value);
+
+  if (freedCourt && autoAdvanceMatches.value) {
+    autoAdvanceNextMatchForCourt(freedCourt);
+  } else if (autoAdvanceMatches.value) {
+    const courtCount = getCourtCount();
+    for (let c = 1; c <= courtCount; c++) {
+      if (isCourtAvailable(c)) {
+        autoAdvanceNextMatchForCourt(c);
+      }
+    }
+  }
+
+  MatchmakingApp.persist();
 
   showMatchResultDialog.value = false;
   currentMatchIndex.value = -1;
@@ -2415,7 +2434,7 @@ const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
 
   // Find the oldest waiting match (by creation time)
   const waitingMatches = matches.value
-    .filter((match) => match.status === 'waiting')
+    .filter((match) => match.status === 'waiting' && (!match.court || match.court === courtNumber))
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()); // Oldest first
 
   const nextMatch = waitingMatches[0];
@@ -3257,9 +3276,17 @@ const editMatch = (filteredIndex: number) => {
 const saveMatchEdit = () => {
   // Store original match before updating
   const originalMatch = matches.value[currentMatchIndexForActions.value];
+  const actualMatch = MatchmakingApp.state.activeMatches.find(m => m.matchId === originalMatch.id);
+
+  if (!actualMatch) {
+    $q.notify({ type: 'negative', message: 'Match not found', position: 'top' });
+    return;
+  }
 
   // Create the updated match
   let updatedPlayers: Player[];
+  let newTeamA: string[] = [];
+  let newTeamB: string[] = [];
 
   if (
     currentMatchType.value === 'doubles' &&
@@ -3269,21 +3296,51 @@ const saveMatchEdit = () => {
   ) {
     // For doubles with proper teams, use the arranged teams
     updatedPlayers = [...manualTeam1.value, ...manualTeam2.value];
-  } else {
-    // For singles or any other configuration, use selected players directly
+    newTeamA = manualTeam1.value.map(p => p.username);
+    newTeamB = manualTeam2.value.map(p => p.username);
+  } else if (selectedPlayers.value.length === 2) {
+    // For singles
     updatedPlayers = [...selectedPlayers.value];
+    newTeamA = [selectedPlayers.value[0].username];
+    newTeamB = [selectedPlayers.value[1].username];
+  } else {
+    // Fallback: If not properly configured, just use selected players
+    // Split them in half
+    updatedPlayers = [...selectedPlayers.value];
+    const half = Math.ceil(updatedPlayers.length / 2);
+    newTeamA = updatedPlayers.slice(0, half).map(p => p.username);
+    newTeamB = updatedPlayers.slice(half).map(p => p.username);
   }
 
-  // Update the match with new players
-  matches.value[currentMatchIndexForActions.value].players = updatedPlayers;
+  // Find players added and removed from the match
+  const originalUsernames = originalMatch.players.map(p => p.username);
+  const updatedUsernames = updatedPlayers.map(p => p.username);
 
-  // Update queue (remove added players, add removed players)
-  const queueChanges = updateQueueAfterEdit(
-    originalMatch.players,
-    updatedPlayers,
-  );
+  const removedFromMatch = originalMatch.players.filter(p => !updatedUsernames.includes(p.username));
+  const addedToMatch = updatedPlayers.filter(p => !originalUsernames.includes(p.username));
+
+  // Remove players added to the match from the queue
+  addedToMatch.forEach(p => {
+    MatchmakingApp.removeFromQueue(p.username);
+  });
+
+  // Return players removed from the match back to the queue
+  removedFromMatch.forEach(p => {
+    if (!MatchmakingApp.state.queues.some(q => q.username === p.username)) {
+      MatchmakingApp.state.queues.push({
+        username: p.username,
+        queueType: 'GENERAL',
+        enteredAt: Date.now()
+      });
+    }
+  });
+
+  // Update the match teams in MatchmakingApp state
+  actualMatch.teamA = newTeamA;
+  actualMatch.teamB = newTeamB;
 
   // Save data
+  MatchmakingApp.persist();
 
   // Close dialog and reset
   showMatchEditDialog.value = false;
@@ -3296,15 +3353,13 @@ const saveMatchEdit = () => {
 
   // Show detailed notification about changes
   let message = 'Match updated successfully!';
-  if (queueChanges.removed.length > 0 || queueChanges.added.length > 0) {
+  if (removedFromMatch.length > 0 || addedToMatch.length > 0) {
     const changes = [];
-    if (queueChanges.removed.length > 0) {
-      changes.push(
-        `${queueChanges.removed.length} player(s) returned to queue`,
-      );
+    if (removedFromMatch.length > 0) {
+      changes.push(`${removedFromMatch.length} player(s) returned to queue`);
     }
-    if (queueChanges.added.length > 0) {
-      changes.push(`${queueChanges.added.length} player(s) removed from queue`);
+    if (addedToMatch.length > 0) {
+      changes.push(`${addedToMatch.length} player(s) removed from queue`);
     }
     message += ` (${changes.join(', ')})`;
   }
@@ -3315,10 +3370,6 @@ const saveMatchEdit = () => {
     position: 'top',
     timeout: 4000,
   });
-};
-
-const updateQueueAfterEdit = (...args: unknown[]) => {
-  return { removed: [], added: args };
 };
 
 // Match edit helper functions
@@ -3431,11 +3482,9 @@ const savePlayerEdit = () => {
     return;
   }
 
-  // Update player in players list
-  const playerIndex = players.value.findIndex(
-    (p) => p.username === originalName,
-  );
-  if (playerIndex === -1) {
+  // Update in MatchmakingApp state directly
+  const playerState = MatchmakingApp.state.players[originalName];
+  if (!playerState) {
     $q.notify({
       type: 'negative',
       message: 'Player not found',
@@ -3444,36 +3493,34 @@ const savePlayerEdit = () => {
     return;
   }
 
-  // Update the player object (preserving all other properties)
-  players.value[playerIndex] = {
-    ...players.value[playerIndex],
-    username: trimmedName,
-    level: newLevel,
-  };
-
-  // Update player in queue (if present)
-  const queuePlayerIndex = queue.value.findIndex(
-    (p) => p.username === originalName,
-  );
-  if (queuePlayerIndex !== -1) {
-    queue.value[queuePlayerIndex] = {
-      ...queue.value[queuePlayerIndex],
+  if (originalName !== trimmedName) {
+    MatchmakingApp.state.players[trimmedName] = {
+      ...playerState,
       username: trimmedName,
       level: newLevel,
     };
-  }
+    delete MatchmakingApp.state.players[originalName];
 
-  // Update player in all matches
-  matches.value.forEach((match) => {
-    match.players.forEach((player) => {
-      if (player.username === originalName) {
-        player.username = trimmedName;
-        player.level = newLevel;
+    // Update queue
+    MatchmakingApp.state.queues.forEach((q) => {
+      if (q.username === originalName) {
+        q.username = trimmedName;
       }
     });
-  });
 
-  // Save to storage
+    // Update active matches
+    MatchmakingApp.state.activeMatches.forEach((m) => {
+      const idxA = m.teamA.indexOf(originalName);
+      if (idxA !== -1) m.teamA[idxA] = trimmedName;
+
+      const idxB = m.teamB.indexOf(originalName);
+      if (idxB !== -1) m.teamB[idxB] = trimmedName;
+    });
+  } else {
+    playerState.level = newLevel;
+  }
+
+  MatchmakingApp.persist();
 
   $q.notify({
     type: 'positive',
