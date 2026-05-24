@@ -185,7 +185,7 @@
                     :available-courts="getCourtCount()" @completeMatch="openMatchResultDialog(index)"
                     @editMatch="editMatch(index)" @assignCourt="openCourtSelectionDialog(index)"
                     @changeCourt="openCourtSelectionDialog(index)" @startMatch="startMatch(index)"
-                    @cancelMatch="cancelMatch(index)" />
+                    @cancelMatch="cancelMatch(index)" :is-court-available="match.court ? isCourtAvailable(match.court) : false" />
                 </q-list>
                 <EmptyState v-else icon="sports_tennis" title="No active matches"
                   subtitle="Generate matches from the queue to get started" />
@@ -352,7 +352,7 @@
                       :available-courts="getCourtCount()" @completeMatch="openMatchResultDialog(index)"
                       @editMatch="editMatch(index)" @assignCourt="openCourtSelectionDialog(index)"
                       @changeCourt="openCourtSelectionDialog(index)" @startMatch="startMatch(index)"
-                      @cancelMatch="cancelMatch(index)" />
+                      @cancelMatch="cancelMatch(index)" :is-court-available="match.court ? isCourtAvailable(match.court) : false" />
                   </q-list>
                   <EmptyState v-else icon="sports_tennis" title="No active matches"
                     subtitle="Generate matches from the queue to get started" />
