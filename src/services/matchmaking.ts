@@ -218,7 +218,7 @@ export class LocalMatchmakingSystem {
   }
 
   // 2. Draft the next round of matches from waiting players
-  public draftNextMatches(priorityMode: 'timestamp' | 'gamesPlayed' = 'timestamp') {
+  public draftNextMatches(priorityMode: string = 'timestamp') {
     const playersNeeded = this.state.teamSize * 2;
 
     const sortFn = (a: QueueEntry, b: QueueEntry) => {
@@ -232,22 +232,52 @@ export class LocalMatchmakingSystem {
       return a.enteredAt - b.enteredAt;
     };
 
-    // Prioritize WINNERS -> LOSERS -> GENERAL, maintaining order within each
-    const winners = this.state.queues.filter(q => q.queueType === 'WINNERS').sort(sortFn);
-    const losers = this.state.queues.filter(q => q.queueType === 'LOSERS').sort(sortFn);
-    const general = this.state.queues.filter(q => q.queueType === 'GENERAL').sort(sortFn);
-
-    const prioritizedQueue = [...winners, ...losers, ...general];
+    const prioritizedQueue = [...this.state.queues].sort(sortFn);
 
     while (prioritizedQueue.length >= playersNeeded) {
-      // Pop the front of the combined line
-      const draftedEntries = prioritizedQueue.splice(0, playersNeeded);
+      let draftedEntries: QueueEntry[] = [];
+      
+      const winners = prioritizedQueue.filter(q => q.queueType === 'WINNERS');
+      const losers = prioritizedQueue.filter(q => q.queueType === 'LOSERS');
+      const general = prioritizedQueue.filter(q => q.queueType === 'GENERAL');
+      
+      // Find all groups that have enough players to form a match
+      const validGroups = [];
+      if (winners.length >= playersNeeded) validGroups.push(winners);
+      if (losers.length >= playersNeeded) validGroups.push(losers);
+      if (general.length >= playersNeeded) validGroups.push(general);
+      
+      if (validGroups.length > 0) {
+         // Find the group that contains the player who has been waiting longest in prioritizedQueue
+         let bestGroup = validGroups[0];
+         let bestIndex = prioritizedQueue.length;
+         
+         for (const group of validGroups) {
+           const index = prioritizedQueue.findIndex(q => q.username === group[0].username);
+           if (index < bestIndex) {
+             bestIndex = index;
+             bestGroup = group;
+           }
+         }
+         draftedEntries = bestGroup.slice(0, playersNeeded);
+      } else {
+         // Fallback to drafting from top of queue if no pure group has enough
+         draftedEntries = prioritizedQueue.slice(0, playersNeeded);
+      }
+
+      const draftedUsernames = draftedEntries.map(e => e.username);
+      
+      // Remove drafted entries from the temporary priority array for the next iteration
+      for (let i = prioritizedQueue.length - 1; i >= 0; i--) {
+        if (draftedUsernames.includes(prioritizedQueue[i].username)) {
+           prioritizedQueue.splice(i, 1);
+        }
+      }
       
       // Hydrate usernames into full Player objects
       const playersToBalance = draftedEntries.map(entry => this.state.players[entry.username]);
 
       // Remove these players from the global queue
-      const draftedUsernames = draftedEntries.map(e => e.username);
       this.state.queues = this.state.queues.filter(q => !draftedUsernames.includes(q.username));
 
       // Generate the match
@@ -259,7 +289,7 @@ export class LocalMatchmakingSystem {
       // Push to active matches
       this.state.activeMatches.push({
         matchId: Math.random().toString(36).substring(2, 9), // Simple local ID
-        queueSource: dominantSource,
+        queueSource: dominantSource as 'GENERAL' | 'WINNERS' | 'LOSERS' | 'MANUAL',
         teamA: match.teamA.map(p => p.username),
         teamB: match.teamB.map(p => p.username),
         expectedDifference: match.expectedDifference,
@@ -272,7 +302,7 @@ export class LocalMatchmakingSystem {
   }
 
   // 3. Report a score for an active match
-  public reportMatchScore(matchId: string, teamAScore: number, teamBScore: number) {
+  public reportMatchScore(matchId: string, teamAScore: number, teamBScore: number, returnMethod: string = 'end_of_queue') {
     const matchIndex = this.state.activeMatches.findIndex(m => m.matchId === matchId);
     if (matchIndex === -1) return;
 
@@ -295,19 +325,25 @@ export class LocalMatchmakingSystem {
     updatedWinners.forEach(p => this.state.players[p.username] = p);
     updatedLosers.forEach(p => this.state.players[p.username] = p);
 
-    const now = Date.now();
+    let winnerEnteredAt = Date.now();
+    let loserEnteredAt = Date.now();
+    
+    if (returnMethod === 'fairness_first') {
+      winnerEnteredAt = 0;
+      loserEnteredAt = 0;
+    }
 
     // Send Winners back to Winners Queue (only if they aren't somehow already there)
     updatedWinners.forEach(p => {
       if (!this.state.queues.some(q => q.username === p.username)) {
-         this.state.queues.push({ username: p.username, queueType: 'WINNERS', enteredAt: now });
+         this.state.queues.push({ username: p.username, queueType: 'WINNERS', enteredAt: winnerEnteredAt });
       }
     });
 
     // Send Losers back to Losers Queue
     updatedLosers.forEach(p => {
       if (!this.state.queues.some(q => q.username === p.username)) {
-         this.state.queues.push({ username: p.username, queueType: 'LOSERS', enteredAt: now });
+         this.state.queues.push({ username: p.username, queueType: 'LOSERS', enteredAt: loserEnteredAt });
       }
     });
 
