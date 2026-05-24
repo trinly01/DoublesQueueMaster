@@ -2453,6 +2453,7 @@ const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
       }
 
       // Save the changes
+      MatchmakingApp.persist();
 
       // Notify user about auto-advance
       $q.notify({
@@ -3055,6 +3056,8 @@ const cancelMatch = (filteredIndex: number) => {
         autoAdvanceNextMatchForCourt(courtNumber);
       }
 
+      MatchmakingApp.persist();
+
       $q.notify({
         type: 'positive',
         message: 'Match cancelled and players returned to queue',
@@ -3161,6 +3164,7 @@ const startMatch = (filteredIndex: number) => {
   actualMatch.createdAt = Date.now();
 
   // Save data
+  MatchmakingApp.persist();
 
   $q.notify({
     type: 'positive',
@@ -3220,6 +3224,8 @@ const assignSpecificCourt = (courtNumber: number) => {
         position: 'top',
       });
 
+      MatchmakingApp.persist();
+
       showCourtSelectionDialog.value = false;
     });
   } else {
@@ -3233,6 +3239,7 @@ const assignSpecificCourt = (courtNumber: number) => {
 
     // Don't auto-start the match; it will start via auto-advance or manual start button
     // Just assign the court and leave status as is
+    MatchmakingApp.persist();
 
     $q.notify({
       type: 'positive',

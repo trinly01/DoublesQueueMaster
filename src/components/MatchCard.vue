@@ -76,7 +76,7 @@
             </q-item>
 
             <q-item v-if="
-              match.status === 'waiting' && match.court && isCourtAvailable
+              match.status === 'waiting' && match.court && isCourtAvailable()
             " clickable @click="$emit('startMatch')">
               <q-item-section avatar>
                 <q-icon name="play_arrow" />
