@@ -76,7 +76,7 @@
             </q-item>
 
             <q-item v-if="
-              match.status === 'waiting' && match.court && isCourtAvailable()
+              match.status === 'waiting' && match.court && isCourtAvailable
             " clickable @click="$emit('startMatch')">
               <q-item-section avatar>
                 <q-icon name="play_arrow" />
@@ -134,11 +134,13 @@ interface Props {
   match: Match;
   showActions?: boolean;
   availableCourts?: number;
+  isCourtAvailable?: boolean;
 }
 
 withDefaults(defineProps<Props>(), {
   showActions: true,
   availableCourts: 0,
+  isCourtAvailable: true,
 });
 
 defineEmits<{
@@ -150,15 +152,6 @@ defineEmits<{
   startMatch: [];
   cancelMatch: [];
 }>();
-
-
-
-// Helper function to check if court is available
-const isCourtAvailable = (): boolean => {
-  // This would need to be passed as a prop or injected
-  // For now, returning true as placeholder
-  return true;
-};
 </script>
 
 <style lang="scss" scoped>
