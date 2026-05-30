@@ -15,6 +15,10 @@ export interface Player {
   wins: number;
   losses: number;
   priority?: string;
+  history?: {
+    playedWith: Record<string, number>;
+    playedAgainst: Record<string, number>;
+  };
 }
 
 export interface QueueEntry {
@@ -143,10 +147,39 @@ export const MatchmakerEngine = {
     const evaluated = allMatchups.map(matchup => {
       const ratingA = harmonicMean(matchup.teamA);
       const ratingB = harmonicMean(matchup.teamB);
-      return { ...matchup, expectedDifference: Math.abs(ratingA - ratingB) };
+      const expectedDifference = Math.abs(ratingA - ratingB);
+      
+      // Calculate Novelty Penalty
+      let noveltyPenalty = 0;
+      
+      // Penalty for playing with same teammates
+      const addTeamPenalty = (team: Player[]) => {
+        for (let i = 0; i < team.length; i++) {
+          for (let j = i + 1; j < team.length; j++) {
+            const historyCount = team[i].history?.playedWith?.[team[j].username] || 0;
+            noveltyPenalty += historyCount * 50; // 50 rating points penalty per previous match together
+          }
+        }
+      };
+      addTeamPenalty(matchup.teamA);
+      addTeamPenalty(matchup.teamB);
+      
+      // Penalty for playing against same opponents
+      for (const pA of matchup.teamA) {
+        for (const pB of matchup.teamB) {
+          const historyCount = pA.history?.playedAgainst?.[pB.username] || 0;
+          noveltyPenalty += historyCount * 15; // 15 rating points penalty per previous match against
+        }
+      }
+
+      return { 
+        ...matchup, 
+        expectedDifference,
+        combinedScore: expectedDifference + noveltyPenalty
+      };
     });
 
-    evaluated.sort((a, b) => a.expectedDifference - b.expectedDifference);
+    evaluated.sort((a, b) => a.combinedScore - b.combinedScore);
 
     // Pick randomly from the top 3 fairest combinations to prevent stale teams
     const poolSize = Math.min(3, evaluated.length);
@@ -348,6 +381,28 @@ export class LocalMatchmakingSystem {
     const losers = teamAWon ? teamB : teamA;
     const scoreW = teamAWon ? teamAScore : teamBScore;
     const scoreL = teamAWon ? teamBScore : teamAScore;
+
+    // Update Match History for Matchup Novelty
+    const updateHistory = (playerArray: Player[], opponentArray: Player[]) => {
+      playerArray.forEach(p => {
+        if (!p.history) p.history = { playedWith: {}, playedAgainst: {} };
+        
+        // Played with teammates
+        playerArray.forEach(teammate => {
+          if (teammate.username !== p.username) {
+            p.history!.playedWith[teammate.username] = (p.history!.playedWith[teammate.username] || 0) + 1;
+          }
+        });
+        
+        // Played against opponents
+        opponentArray.forEach(opponent => {
+          p.history!.playedAgainst[opponent.username] = (p.history!.playedAgainst[opponent.username] || 0) + 1;
+        });
+      });
+    };
+    
+    updateHistory(teamA, teamB);
+    updateHistory(teamB, teamA);
 
     // Apply Math
     const { updatedWinners, updatedLosers } = RatingEngine.calculateShift(winners, losers, scoreW, scoreL);

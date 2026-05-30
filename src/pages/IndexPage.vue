@@ -1313,58 +1313,23 @@
               </div>
 
               <q-list separator bordered class="rounded-borders">
-                <q-item
+                <PlayerCard
                   v-for="player in queue"
                   :key="player.username"
-                  clickable
+                  :player="player"
+                  :isSelected="isPlayerSelected(player)"
+                  :showActions="true"
                   @click="togglePlayerSelection(player)"
-                  :class="{ 'selected-player': isPlayerSelected(player) }"
-                  class="player-selection-item"
+                  class="player-selection-item cursor-pointer"
                 >
-                  <q-item-section avatar>
+                  <template #actions="{ player }">
                     <q-checkbox
                       :model-value="isPlayerSelected(player)"
                       color="accent"
                       @click.stop="togglePlayerSelection(player)"
                     />
-                  </q-item-section>
-                  <q-item-section>
-                    <q-item-label class="text-weight-medium">{{
-                      player.username
-                    }}</q-item-label>
-                    <q-item-label caption class="q-pl-xs">
-                      <q-chip
-                        :label="`Level ${player.level}`"
-                        :color="getLevelColor(player.level)"
-                        text-color="white"
-                        size="sm"
-                        dense
-                      />
-                      <span class="q-ml-sm text-grey-7"
-                        >G: {{ player.matchesPlayed }}</span
-                      >
-                      <span class="q-ml-xs text-positive"
-                        >W:{{ player.wins || 0 }}</span
-                      >
-                      <span class="q-ml-xs text-negative"
-                        >L:{{ player.losses || 0 }}</span
-                      >
-                      <span class="q-ml-xs text-info"
-                        >WR:{{
-                          player.matchesPlayed
-                            ? Math.round(
-                                ((player.wins || 0) / player.matchesPlayed) *
-                                  100,
-                              )
-                            : 0
-                        }}%</span
-                      >
-                      <span class="q-ml-sm text-primary"
-                        >Rating: {{ (player.matchesPlayed || 0) < 3 ? 'NR' : player.rating }}</span
-                      >
-                    </q-item-label>
-                  </q-item-section>
-                </q-item>
+                  </template>
+                </PlayerCard>
               </q-list>
             </div>
 
@@ -2029,6 +1994,7 @@ import { ref, computed, watch, onMounted, onUnmounted, provide } from 'vue';
 import { useQuasar, debounce } from 'quasar';
 import TeamArrangement from '../components/TeamArrangement.vue';
 import PlayerList from '../components/PlayerList.vue';
+import PlayerCard from '../components/PlayerCard.vue';
 import EmptyState from '../components/EmptyState.vue';
 import DialogHeader from '../components/DialogHeader.vue';
 import MatchCard from '../components/MatchCard.vue';
@@ -2059,14 +2025,26 @@ const queue = computed(() => {
 
   if (autoSortQueue.value) {
     const sortFn = (
-      a: { matchesPlayed: number; enteredAt: number },
-      b: { matchesPlayed: number; enteredAt: number },
+      a: { matchesPlayed: number; enteredAt: number; queueType: string },
+      b: { matchesPlayed: number; enteredAt: number; queueType: string },
     ) => {
+      // 1. Group visually by Queue Type (Winners -> Losers -> General)
+      const typeOrder: Record<string, number> = { 'WINNERS': 0, 'LOSERS': 1, 'GENERAL': 2 };
+      const orderA = typeOrder[a.queueType] ?? 2;
+      const orderB = typeOrder[b.queueType] ?? 2;
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+
+      // 2. Sort by Priority Settings
       if (queuePriorityMode.value === 'gamesPlayed') {
         if (a.matchesPlayed !== b.matchesPlayed) {
           return a.matchesPlayed - b.matchesPlayed;
         }
       }
+      
+      // 3. Fallback to FIFO Timestamp
       return a.enteredAt - b.enteredAt;
     };
 
@@ -4317,6 +4295,20 @@ const savePlayerEdit = () => {
 
       const idxB = m.teamB.indexOf(originalName);
       if (idxB !== -1) m.teamB[idxB] = trimmedName;
+    });
+
+    // Update history records for all players
+    Object.values(MatchmakingApp.state.players).forEach((p) => {
+      if (p.history) {
+        if (p.history.playedWith[originalName] !== undefined) {
+          p.history.playedWith[trimmedName] = p.history.playedWith[originalName];
+          delete p.history.playedWith[originalName];
+        }
+        if (p.history.playedAgainst[originalName] !== undefined) {
+          p.history.playedAgainst[trimmedName] = p.history.playedAgainst[originalName];
+          delete p.history.playedAgainst[originalName];
+        }
+      }
     });
   } else {
     playerState.level = newLevel;
