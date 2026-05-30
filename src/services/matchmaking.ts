@@ -51,17 +51,28 @@ const STORAGE_KEY = 'quasar_matchmaking_state';
  */
 export const RatingEngine = {
   calculateShift: (winners: Player[], losers: Player[], scoreW: number, scoreL: number) => {
-    const avgW = winners.reduce((sum, p) => sum + p.rating, 0) / winners.length;
-    const avgL = losers.reduce((sum, p) => sum + p.rating, 0) / losers.length;
+    // Calculate team strength using Harmonic Mean to heavily penalize skill variance (Weakest Link Theorem)
+    const harmonicMean = (team: Player[]) => {
+      if (team.length === 0) return 1500;
+      const sumReciprocal = team.reduce((sum, p) => sum + (1 / Math.max(1, p.rating)), 0);
+      return team.length / sumReciprocal;
+    };
+
+    const ratingW = harmonicMean(winners);
+    const ratingL = harmonicMean(losers);
+    
     const totalWinnerRating = winners.reduce((sum, p) => sum + p.rating, 0);
     const totalLoserRating = losers.reduce((sum, p) => sum + p.rating, 0);
 
-    const expectedW = 1 / (1 + Math.pow(10, (avgL - avgW) / 400));
+    const expectedW = 1 / (1 + Math.pow(10, (ratingL - ratingW) / 400));
     const multiplier = 1 + (Math.abs(scoreW - scoreL) * 0.05);
 
     const applyToPlayer = (player: Player, isWinner: boolean, team: Player[]): Player => {
-      // Fast-Track Accuracy: K drops from 80 -> 60 -> 40 -> 20 over first 3 games
-      const K = Math.max(20, 80 - (player.matchesPlayed * 20)); 
+      // Fast-Track Accuracy: baseK drops from 80 -> 60 -> 40 -> 20 over first 3 games
+      const baseK = Math.max(20, 80 - (player.matchesPlayed * 20)); 
+      // Inverse Stakes Scaling: Halve the volatility in Doubles because you are only 50% responsible for the match
+      const K = baseK / team.length;
+      
       const outcome = isWinner ? 1 : 0;
       const expected = isWinner ? expectedW : (1 - expectedW);
       
@@ -122,10 +133,17 @@ export const MatchmakerEngine = {
   draftBalancedMatch: (players: Player[], teamSize: number) => {
     const allMatchups = MatchmakerEngine.getCombinations(players, teamSize);
 
+    // Calculate team strength using Harmonic Mean
+    const harmonicMean = (team: Player[]) => {
+      if (team.length === 0) return 1500;
+      const sumReciprocal = team.reduce((sum, p) => sum + (1 / Math.max(1, p.rating)), 0);
+      return team.length / sumReciprocal;
+    };
+
     const evaluated = allMatchups.map(matchup => {
-      const avgA = matchup.teamA.reduce((sum, p) => sum + p.rating, 0) / teamSize;
-      const avgB = matchup.teamB.reduce((sum, p) => sum + p.rating, 0) / teamSize;
-      return { ...matchup, expectedDifference: Math.abs(avgA - avgB) };
+      const ratingA = harmonicMean(matchup.teamA);
+      const ratingB = harmonicMean(matchup.teamB);
+      return { ...matchup, expectedDifference: Math.abs(ratingA - ratingB) };
     });
 
     evaluated.sort((a, b) => a.expectedDifference - b.expectedDifference);
