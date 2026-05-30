@@ -1360,7 +1360,7 @@
                         }}%</span
                       >
                       <span class="q-ml-sm text-primary"
-                        >Rating: {{ player.rating }}</span
+                        >Rating: {{ (player.matchesPlayed || 0) < 3 ? 'NR' : player.rating }}</span
                       >
                     </q-item-label>
                   </q-item-section>

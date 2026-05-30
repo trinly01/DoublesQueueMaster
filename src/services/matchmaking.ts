@@ -54,13 +54,14 @@ export const RatingEngine = {
     const avgW = winners.reduce((sum, p) => sum + p.rating, 0) / winners.length;
     const avgL = losers.reduce((sum, p) => sum + p.rating, 0) / losers.length;
     const expectedW = 1 / (1 + Math.pow(10, (avgL - avgW) / 400));
-    const multiplier = 1 + (Math.abs(scoreW - scoreL) * 0.1);
+    const multiplier = 1 + (Math.abs(scoreW - scoreL) * 0.05);
 
     const applyToPlayer = (player: Player, isWinner: boolean): Player => {
       // Fast-Track Accuracy: K drops from 80 -> 60 -> 40 -> 20 over first 3 games
       const K = Math.max(20, 80 - (player.matchesPlayed * 20)); 
       const outcome = isWinner ? 1 : 0;
-      const shift = K * multiplier * (outcome - expectedW);
+      const expected = isWinner ? expectedW : (1 - expectedW);
+      const shift = K * multiplier * (outcome - expected);
 
       return {
         ...player,
