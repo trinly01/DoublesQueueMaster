@@ -53,15 +53,27 @@ export const RatingEngine = {
   calculateShift: (winners: Player[], losers: Player[], scoreW: number, scoreL: number) => {
     const avgW = winners.reduce((sum, p) => sum + p.rating, 0) / winners.length;
     const avgL = losers.reduce((sum, p) => sum + p.rating, 0) / losers.length;
+    const totalWinnerRating = winners.reduce((sum, p) => sum + p.rating, 0);
+    const totalLoserRating = losers.reduce((sum, p) => sum + p.rating, 0);
+
     const expectedW = 1 / (1 + Math.pow(10, (avgL - avgW) / 400));
     const multiplier = 1 + (Math.abs(scoreW - scoreL) * 0.05);
 
-    const applyToPlayer = (player: Player, isWinner: boolean): Player => {
+    const applyToPlayer = (player: Player, isWinner: boolean, team: Player[]): Player => {
       // Fast-Track Accuracy: K drops from 80 -> 60 -> 40 -> 20 over first 3 games
       const K = Math.max(20, 80 - (player.matchesPlayed * 20)); 
       const outcome = isWinner ? 1 : 0;
       const expected = isWinner ? expectedW : (1 - expectedW);
-      const shift = K * multiplier * (outcome - expected);
+      
+      // Base shift if points were distributed equally
+      const baseShift = K * multiplier * (outcome - expected);
+
+      // Proportional distribution (Backpack problem solver)
+      const totalTeamRating = isWinner ? totalWinnerRating : totalLoserRating;
+      const proportionalShare = player.rating / totalTeamRating;
+      
+      // Scale shift by their share relative to an even split (1 / team.length)
+      const shift = baseShift * (proportionalShare * team.length);
 
       return {
         ...player,
@@ -73,8 +85,8 @@ export const RatingEngine = {
     };
 
     return {
-      updatedWinners: winners.map(p => applyToPlayer(p, true)),
-      updatedLosers: losers.map(p => applyToPlayer(p, false))
+      updatedWinners: winners.map(p => applyToPlayer(p, true, winners)),
+      updatedLosers: losers.map(p => applyToPlayer(p, false, losers))
     };
   }
 };
