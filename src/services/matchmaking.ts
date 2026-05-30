@@ -36,6 +36,7 @@ export interface ActiveMatch {
   status: 'waiting' | 'in-progress' | 'completed';
   court?: number;
   createdAt?: number;
+  originalQueueTypes?: Record<string, 'GENERAL' | 'WINNERS' | 'LOSERS'>;
 }
 
 export interface AppState {
@@ -350,6 +351,12 @@ export class LocalMatchmakingSystem {
       // Determine the dominant queue source for the UI tag (just use the first player's type)
       const dominantSource = draftedEntries[0].queueType || 'GENERAL';
 
+      // Map original queue types
+      const originalQueueTypes: Record<string, 'GENERAL' | 'WINNERS' | 'LOSERS'> = {};
+      draftedEntries.forEach(entry => {
+        originalQueueTypes[entry.username] = entry.queueType;
+      });
+
       // Push to active matches
       this.state.activeMatches.push({
         matchId: Math.random().toString(36).substring(2, 9), // Simple local ID
@@ -358,7 +365,8 @@ export class LocalMatchmakingSystem {
         teamB: match.teamB.map(p => p.username),
         expectedDifference: match.expectedDifference,
         status: 'waiting',
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        originalQueueTypes
       });
     }
 
