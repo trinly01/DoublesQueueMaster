@@ -2488,10 +2488,14 @@ const filteredMatches = computed(() => {
       ? matches.value
       : matches.value.filter((match) => match.court === matchesFilterBy.value);
 
-  // Sort by status: in-progress first, then waiting
+  // Sort by status: in-progress first, then waiting, then explicitly by FIFO (oldest first)
   filtered = [...filtered].sort((a, b) => {
     const statusOrder = { 'in-progress': 0, waiting: 1, completed: 2 };
-    return statusOrder[a.status] - statusOrder[b.status];
+    const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+    if (statusDiff !== 0) return statusDiff;
+    
+    // Within same status, sort by FIFO (oldest first)
+    return a.createdAt.getTime() - b.createdAt.getTime();
   });
 
   return filtered;
@@ -3652,6 +3656,13 @@ const createManualMatchWithCourt = () => {
     !matches.value.some(
       (m) => m.court === assignedCourt && m.status === 'in-progress',
     );
+    
+  // Map original queue types
+  const originalQueueTypes: Record<string, 'GENERAL' | 'WINNERS' | 'LOSERS'> = {};
+  matchPlayers.forEach((p) => {
+    const queueEntry = MatchmakingApp.state.queues.find((q) => q.username === p.username);
+    originalQueueTypes[p.username] = queueEntry?.queueType || 'GENERAL';
+  });
 
   MatchmakingApp.state.activeMatches.push({
     matchId: `match-${Date.now()}`,
@@ -3668,6 +3679,7 @@ const createManualMatchWithCourt = () => {
     status: isCourtEmpty ? 'in-progress' : 'waiting',
     court: isCourtEmpty ? assignedCourt : undefined,
     createdAt: Date.now(),
+    originalQueueTypes,
   });
 
   matchPlayers.forEach((p) => MatchmakingApp.removeFromQueue(p.username));
@@ -3797,10 +3809,12 @@ const cancelMatch = (filteredIndex: number) => {
       for (const username of playerUsernames) {
         MatchmakingApp.state.queues.push({
           username,
-          queueType:
+          queueType: 
+            actualMatch.originalQueueTypes?.[username] || 
             (actualMatch.queueSource === 'MANUAL'
               ? 'GENERAL'
-              : actualMatch.queueSource) || 'GENERAL',
+              : actualMatch.queueSource) || 
+            'GENERAL',
           enteredAt: enteredAt,
         });
       }
