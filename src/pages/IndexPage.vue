@@ -1145,12 +1145,6 @@
                   dense
                 />
                 <q-toggle
-                  v-model="autoAssignCourts"
-                  label="Automatically assign courts to matches"
-                  color="accent"
-                  class="q-mt-sm"
-                />
-                <q-toggle
                   v-model="autoAdvanceMatches"
                   label="Automatically start next match when one completes"
                   color="accent"
@@ -2155,9 +2149,6 @@ interface CourtOption {
 const availableCourts = ref<number | CourtOption>(
   getCourtSettingsFromStorage().availableCourts,
 );
-const autoAssignCourts = ref<boolean>(
-  getCourtSettingsFromStorage().autoAssignCourts,
-);
 const autoAdvanceMatches = ref<boolean>(
   getCourtSettingsFromStorage().autoAdvanceMatches,
 );
@@ -2265,7 +2256,6 @@ const fetchLikhaAppState = async () => {
         Object.assign(MatchmakingApp.state, appState.matchmaking);
       }
       if (appState.courtSettings) {
-        autoAssignCourts.value = appState.courtSettings.autoAssignCourts;
         autoAdvanceMatches.value = appState.courtSettings.autoAdvanceMatches;
       }
       if (appState.queueSettings) {
@@ -2692,7 +2682,6 @@ function saveLikhaSettingsToStorage(): void {
 
 function getCourtSettingsFromStorage(): {
   availableCourts: number;
-  autoAssignCourts: boolean;
   autoAdvanceMatches: boolean;
 } {
   const settings = localStorage.getItem('courtSettings');
@@ -2700,8 +2689,6 @@ function getCourtSettingsFromStorage(): {
     const parsed = JSON.parse(settings);
     return {
       availableCourts: parsed.availableCourts || 2,
-      autoAssignCourts:
-        parsed.autoAssignCourts !== undefined ? parsed.autoAssignCourts : true,
       autoAdvanceMatches:
         parsed.autoAdvanceMatches !== undefined
           ? parsed.autoAdvanceMatches
@@ -2710,7 +2697,6 @@ function getCourtSettingsFromStorage(): {
   }
   return {
     availableCourts: 2,
-    autoAssignCourts: true,
     autoAdvanceMatches: true,
   };
 }
@@ -2720,7 +2706,6 @@ function saveCourtSettingsToStorage(): void {
     'courtSettings',
     JSON.stringify({
       availableCourts: availableCourts.value,
-      autoAssignCourts: autoAssignCourts.value,
       autoAdvanceMatches: autoAdvanceMatches.value,
     }),
   );
@@ -2808,11 +2793,6 @@ watch(availableCourts, () => {
   syncStateToLikha();
 });
 
-watch(autoAssignCourts, () => {
-  saveCourtSettingsToStorage();
-  syncStateToLikha();
-});
-
 watch(autoAdvanceMatches, () => {
   saveCourtSettingsToStorage();
   syncStateToLikha();
@@ -2873,7 +2853,6 @@ const syncStateToLikha = debounce(async () => {
     matchmaking: MatchmakingApp.state,
     courtSettings: {
       availableCourts: getCourtCount(),
-      autoAssignCourts: autoAssignCourts.value,
       autoAdvanceMatches: autoAdvanceMatches.value,
     },
     queueSettings: {
@@ -2926,7 +2905,6 @@ watch(
   () => [
     MatchmakingApp.state,
     availableCourts.value,
-    autoAssignCourts.value,
     autoAdvanceMatches.value,
     queueReturnMethod.value,
     autoSortQueue.value,
@@ -3154,21 +3132,7 @@ const addBulkPlayers = () => {
 
 const generateNewMatches = () => {
   MatchmakingApp.state.teamSize = matchType.value === 'singles' ? 1 : 2;
-  const prevCount = MatchmakingApp.state.activeMatches.length;
   MatchmakingApp.draftNextMatches(queuePriorityMode.value);
-
-  if (autoAssignCourts.value) {
-    for (
-      let i = prevCount;
-      i < MatchmakingApp.state.activeMatches.length;
-      i++
-    ) {
-      const actualMatch = MatchmakingApp.state.activeMatches[i];
-      if (!actualMatch.court) {
-        actualMatch.court = assignCourt();
-      }
-    }
-  }
 
   if (autoAdvanceMatches.value) {
     const courtCount = getCourtCount();
@@ -3592,7 +3556,7 @@ const finalizeManualMatch = () => {
     status: 'waiting',
     order: matches.value.length + 1,
     createdAt: new Date(),
-    court: autoAssignCourts.value ? assignCourt() : undefined
+    court: undefined
   };
   matches.value.push(newMatch);
 
@@ -3704,8 +3668,7 @@ const createManualMatchWithCourt = () => {
     matchPlayers = [...selectedPlayers.value];
   }
 
-  const assignedCourt =
-    selectedCourt.value || (autoAssignCourts.value ? assignCourt() : undefined);
+  const assignedCourt = selectedCourt.value || undefined;
   const isCourtEmpty =
     !assignedCourt ||
     !matches.value.some(
@@ -3764,7 +3727,7 @@ const newMatch: Match = {
   status: 'waiting',
   order: matches.value.length + 1,
   createdAt: new Date(),
-  court: autoAssignCourts.value ? assignCourt() : undefined
+  court: undefined
 };
   matches.value.push(newMatch);
 
