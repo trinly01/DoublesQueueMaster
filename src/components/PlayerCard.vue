@@ -18,7 +18,7 @@
         <span class="q-ml-xs text-negative" v-if="player.losses !== undefined">L:{{ player.losses || 0 }}</span>
         <span class="q-ml-xs text-info" v-if="player.wins !== undefined && sortBy === 'winRate'">WR:{{
           player.matchesPlayed ? Math.round(((player.wins || 0) / player.matchesPlayed) * 100) : 0 }}%</span>
-        <span class="q-ml-xs text-primary" v-if="!sortBy || sortBy !== 'winRate'">R:{{ player.rating }}</span>
+        <span class="q-ml-xs text-primary" v-if="!sortBy || sortBy !== 'winRate'">R:{{ (player.matchesPlayed || 0) < 3 ? 'NR' : player.rating }}</span>
         <!-- <span v-if="showQueueTime && player.enteredAt" class="q-ml-sm text-grey-6">
           {{ getQueueTimeInfo(player.enteredAt) }}
         </span> -->
