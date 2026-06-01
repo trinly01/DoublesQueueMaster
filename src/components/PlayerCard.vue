@@ -1,24 +1,64 @@
 <template>
-  <q-item class="player-item" :class="{ 'player-selected': isSelected }" @click="$emit('click', player)" clickable>
+  <q-item
+    class="player-item"
+    :class="{ 'player-selected': isSelected }"
+    @click="$emit('click', player)"
+    clickable
+  >
     <q-item-section avatar v-if="showAvatar">
-      <q-avatar :color="getLevelColor(player.level)" text-color="white" size="md">
+      <q-avatar
+        :color="getLevelColor(player.level)"
+        text-color="white"
+        size="md"
+      >
         {{ getPlayerInitials(player.username) }}
+        <q-badge
+          v-if="player.userId"
+          floating
+          rounded
+          color="blue-6"
+          style="padding: 2px; min-height: 14px; min-width: 14px"
+        >
+          <q-icon name="verified" size="10px" />
+          <q-tooltip>Registered member</q-tooltip>
+        </q-badge>
       </q-avatar>
     </q-item-section>
 
     <q-item-section>
       <q-item-label class="text-weight-medium">
         {{ player.username }}
-        <q-chip v-if="player.queueType && player.queueType !== 'GENERAL'" :label="player.queueType"
-          :color="player.queueType === 'WINNERS' ? 'positive' : 'negative'" text-color="white" size="xs" dense />
+        <q-chip
+          v-if="player.queueType && player.queueType !== 'GENERAL'"
+          :label="player.queueType"
+          :color="player.queueType === 'WINNERS' ? 'positive' : 'negative'"
+          text-color="white"
+          size="xs"
+          dense
+        />
       </q-item-label>
       <q-item-label caption class="player-stats">
         <span class="text-grey-7">G:{{ player.matchesPlayed }}</span>
-        <span class="q-ml-xs text-positive" v-if="player.wins !== undefined">W:{{ player.wins || 0 }}</span>
-        <span class="q-ml-xs text-negative" v-if="player.losses !== undefined">L:{{ player.losses || 0 }}</span>
-        <span class="q-ml-xs text-info" v-if="player.wins !== undefined && sortBy === 'winRate'">WR:{{
-          player.matchesPlayed ? Math.round(((player.wins || 0) / player.matchesPlayed) * 100) : 0 }}%</span>
-        <span class="q-ml-xs text-primary" v-if="!sortBy || sortBy !== 'winRate'">R:{{ (player.matchesPlayed || 0) < 3 ? 'NR' : player.rating }}</span>
+        <span class="q-ml-xs text-positive" v-if="player.wins !== undefined"
+          >W:{{ player.wins || 0 }}</span
+        >
+        <span class="q-ml-xs text-negative" v-if="player.losses !== undefined"
+          >L:{{ player.losses || 0 }}</span
+        >
+        <span
+          class="q-ml-xs text-info"
+          v-if="player.wins !== undefined && sortBy === 'winRate'"
+          >WR:{{
+            player.matchesPlayed
+              ? Math.round(((player.wins || 0) / player.matchesPlayed) * 100)
+              : 0
+          }}%</span
+        >
+        <span
+          class="q-ml-xs text-primary"
+          v-if="!sortBy || sortBy !== 'winRate'"
+          >R:{{ (player.matchesPlayed || 0) < 3 ? 'NR' : player.rating }}</span
+        >
         <!-- <span v-if="showQueueTime && player.enteredAt" class="q-ml-sm text-grey-6">
           {{ getQueueTimeInfo(player.enteredAt) }}
         </span> -->
@@ -26,16 +66,35 @@
     </q-item-section>
 
     <q-item-section side v-if="showActions">
-      <div class="row items-center ">
+      <div class="row items-center">
         <slot name="actions" :player="player">
-          <template v-if="!isReadOnlyMode">
-            <q-btn flat round color="primary" @click.stop="$emit('edit', player)" icon="edit" size="xs">
-              <q-tooltip>Edit player</q-tooltip>
-            </q-btn>
-            <q-btn flat round color="negative" @click.stop="$emit('remove', player.username)" icon="delete" size="xs" />
-            <q-btn flat round color="accent" @click.stop="$emit('requeue', player.username)" icon="input" size="xs"
-              :disable="isInQueue" />
-          </template>
+          <q-btn
+            flat
+            round
+            color="primary"
+            @click.stop="$emit('edit', player)"
+            icon="edit"
+            size="xs"
+          >
+            <q-tooltip>Edit player</q-tooltip>
+          </q-btn>
+          <q-btn
+            flat
+            round
+            color="negative"
+            @click.stop="$emit('remove', player.username)"
+            icon="delete"
+            size="xs"
+          />
+          <q-btn
+            flat
+            round
+            color="accent"
+            @click.stop="$emit('requeue', player.username)"
+            icon="input"
+            size="xs"
+            :disable="isInQueue"
+          />
         </slot>
       </div>
     </q-item-section>
@@ -43,11 +102,11 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue';
 import type { Player as BasePlayer } from '../services/matchmaking';
 type Player = BasePlayer & {
   enteredAt?: number;
   queueType?: 'GENERAL' | 'WINNERS' | 'LOSERS';
+  userId?: string;
 };
 
 interface Props {
@@ -59,8 +118,6 @@ interface Props {
   isInQueue?: boolean;
   sortBy?: string;
 }
-
-const isReadOnlyMode = inject('isReadOnlyMode', false);
 
 withDefaults(defineProps<Props>(), {
   showAvatar: true,
@@ -150,7 +207,6 @@ const getPlayerInitials = (name: string): string => {
 // Mobile adjustments for side actions to prevent overlap
 @media (max-width: 1023px) {
   .player-item {
-
     // Allow main content to shrink
     .q-item__section--main {
       min-width: 0;

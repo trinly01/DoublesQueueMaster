@@ -48,6 +48,7 @@
                 label="Enter Club ID"
                 dense
                 color="primary"
+                @keyup.enter="joinClub"
               />
             </div>
             <div class="col-4">
