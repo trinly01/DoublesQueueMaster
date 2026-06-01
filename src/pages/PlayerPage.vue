@@ -76,7 +76,59 @@
               />
             </div>
           </div>
+          <div class="text-center q-mt-sm">
+            <q-btn
+              flat
+              color="accent"
+              size="sm"
+              icon="add_circle"
+              label="Create New Club"
+              @click="showCreateClubDialog = true"
+            />
+          </div>
         </q-card-section>
+
+        <!-- Create Club Dialog -->
+        <q-dialog v-model="showCreateClubDialog" persistent>
+          <q-card style="min-width: 320px; max-width: 90vw">
+            <q-card-section class="row items-center q-pb-none">
+              <div class="text-h6">Create Club</div>
+              <q-space />
+              <q-btn icon="close" flat round dense v-close-popup />
+            </q-card-section>
+
+            <q-card-section class="q-pt-md">
+              <q-input
+                v-model="newClubId"
+                filled
+                label="Club ID (unique URL slug)"
+                dense
+                class="q-mb-sm"
+                :rules="[(val) => !!val?.trim() || 'Club ID is required']"
+                hint="e.g. san-fabian-dinkers"
+              />
+              <q-input
+                v-model="newClubName"
+                filled
+                label="Club Name"
+                dense
+                :rules="[(val) => !!val?.trim() || 'Club name is required']"
+              />
+            </q-card-section>
+
+            <q-card-actions align="right">
+              <q-btn flat label="Cancel" color="primary" v-close-popup />
+              <q-btn
+                flat
+                label="Request"
+                color="primary"
+                :loading="createClubLoading"
+                :disable="!newClubId?.trim() || !newClubName?.trim()"
+                @click="createClub"
+              />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
 
         <q-card-actions align="center" class="q-mt-lg q-gutter-sm">
           <q-btn
@@ -171,6 +223,7 @@ import { useQuasar, LocalStorage } from 'quasar';
 import { likhaClient } from 'src/boot/likha';
 import {
   readItems,
+  createItem,
   updateItem,
   uploadFiles,
   updateUser,
@@ -205,6 +258,11 @@ const currentPassword = ref('');
 const newPassword = ref('');
 const confirmNewPassword = ref('');
 const changePasswordLoading = ref(false);
+
+const showCreateClubDialog = ref(false);
+const newClubId = ref('');
+const newClubName = ref('');
+const createClubLoading = ref(false);
 
 const triggerAvatarUpload = () => {
   avatarInput.value?.click();
@@ -276,6 +334,45 @@ const changePassword = async () => {
     console.error('Password change failed:', err);
   } finally {
     changePasswordLoading.value = false;
+  }
+};
+
+const createClub = async () => {
+  if (
+    !newClubId.value.trim() ||
+    !newClubName.value.trim() ||
+    !currentUserId.value
+  )
+    return;
+  createClubLoading.value = true;
+  try {
+    await likhaClient.request(
+      createItem('club', {
+        clubId: newClubId.value.trim(),
+        name: newClubName.value.trim(),
+        admins: { create: [{ directus_users_id: currentUserId.value }] },
+        players: { create: [{ directus_users_id: currentUserId.value }] },
+      }),
+    );
+
+    const createdName = newClubName.value;
+    showCreateClubDialog.value = false;
+    newClubId.value = '';
+    newClubName.value = '';
+
+    $q.dialog({
+      title: 'Request Submitted',
+      message: `Your club request for "${createdName}" has been submitted. It is now pending approval. You will be notified once an admin approves your request.`,
+      ok: 'OK',
+      persistent: true,
+    });
+  } catch (err) {
+    console.error('Create club failed:', err);
+    const error = err as { errors?: { message?: string }[] };
+    const msg = error?.errors?.[0]?.message || 'Failed to create club';
+    $q.notify({ color: 'negative', message: msg });
+  } finally {
+    createClubLoading.value = false;
   }
 };
 

@@ -43,7 +43,7 @@
           <div class="row items-center justify-between">
             <div class="col">
               <h1 class="text-h5 text-weight-bold text-white q-mb-xs">
-                🏓 Dink It
+                🏓 Dink It — {{ clubName }}
               </h1>
               <p class="text-caption text-grey-1 q-ma-none">
                 Smart matchmaking for singles & doubles
@@ -2258,10 +2258,12 @@ const route = useRoute();
 const router = useRouter();
 const currentClubId = ref<string>('');
 const currentClubUUID = ref<string>('');
+const clubName = ref<string>('');
 const clubLoadingState = ref<'loading' | 'loaded' | 'not-found' | 'error'>(
   'loading',
 );
 const clubErrorMessage = ref<string>('');
+let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
 // Current user and club membership
 const currentUserId = ref<string>('');
@@ -2330,6 +2332,14 @@ const loadClubData = async (clubId: string) => {
     return;
   }
 
+  // If switching clubs, clear cached matchmaking state so the new club starts fresh
+  if (
+    (currentClubId.value && currentClubId.value !== clubId) ||
+    (MatchmakingApp.state.clubId && MatchmakingApp.state.clubId !== clubId)
+  ) {
+    MatchmakingApp.resetState();
+  }
+
   clubLoadingState.value = 'loading';
   try {
     const result = await likhaClient.request(
@@ -2342,6 +2352,7 @@ const loadClubData = async (clubId: string) => {
         fields: [
           'id',
           'clubId',
+          'name',
           'appState',
           'players.directus_users_id.id',
           'players.directus_users_id.username',
@@ -2357,6 +2368,7 @@ const loadClubData = async (clubId: string) => {
       const club = result[0] as unknown as {
         id: string;
         clubId: string;
+        name?: string;
         appState?: {
           matchmaking?: unknown;
           courtSettings?: {
@@ -2400,6 +2412,8 @@ const loadClubData = async (clubId: string) => {
       };
       currentClubId.value = clubId;
       currentClubUUID.value = club.id;
+      clubName.value = club.name || clubId;
+      MatchmakingApp.state.clubId = clubId;
 
       // Local client is the source of truth. Only use cloud settings as fallback
       // when local state doesn't have them yet (first visit / new device).
@@ -2461,6 +2475,10 @@ const loadClubData = async (clubId: string) => {
           MatchmakingApp.state.matchesFilterBy =
             serverMatchmaking.matchesFilterBy;
         }
+      } else {
+        // Cloud appState is blank/null — clear local data so UI starts fresh
+        MatchmakingApp.resetState();
+        MatchmakingApp.state.clubId = clubId;
       }
       // Determine admin status from raw club data
       const isAdminFromData = (club.admins || []).some(
@@ -2713,6 +2731,15 @@ const performCloudSync = async () => {
       return;
     }
 
+    // 3b. Only sync if local state belongs to this club
+    if (MatchmakingApp.state.clubId !== currentClubId.value) {
+      hasPendingCloudSync.value = false;
+      console.log(
+        'Skipped cloud sync: local state belongs to a different club',
+      );
+      return;
+    }
+
     // 4. Update our timestamp and push
     MatchmakingApp.state.lastModified = Date.now();
 
@@ -2793,11 +2820,22 @@ onMounted(async () => {
   } else {
     clubLoadingState.value = 'loaded';
   }
+
+  // Non-admins: poll server every 2 minutes to stay in sync with admin changes
+  refreshInterval = setInterval(() => {
+    if (!isCurrentUserAdmin.value && isOnline.value && currentClubId.value) {
+      loadClubData(currentClubId.value);
+    }
+  }, 120000);
 });
 
 onUnmounted(() => {
   window.removeEventListener('online', updateOnlineStatus);
   window.removeEventListener('offline', updateOnlineStatus);
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+    refreshInterval = null;
+  }
 });
 
 // Helper function to extract court count from q-select value

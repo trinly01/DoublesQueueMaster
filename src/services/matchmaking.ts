@@ -57,6 +57,7 @@ export interface AppState {
   matchType?: 'singles' | 'doubles';
   matchesFilterBy?: 'all' | number;
   lastModified?: number;
+  clubId?: string; // Which club this local state belongs to
 }
 
 const STORAGE_KEY = 'quasar_matchmaking_state';
@@ -259,6 +260,7 @@ export class LocalMatchmakingSystem {
       initialState.matchesFilterBy = 'all';
     if (initialState.lastModified === undefined)
       initialState.lastModified = Date.now();
+    if (initialState.clubId === undefined) initialState.clubId = '';
 
     this.state = reactive(initialState);
   }
@@ -296,6 +298,23 @@ export class LocalMatchmakingSystem {
     this.state.players = {};
     this.state.queues = [];
     this.state.activeMatches = [];
+  }
+
+  public resetState() {
+    this.state.players = {};
+    this.state.queues = [];
+    this.state.activeMatches = [];
+    this.state.availableCourts = 1;
+    this.state.autoAdvanceMatches = true;
+    this.state.queueReturnMethod = 'fairness_first';
+    this.state.autoSortQueue = true;
+    this.state.queuePriorityMode = 'timestamp';
+    this.state.sortBy = 'matchesPlayed';
+    this.state.matchType = 'doubles';
+    this.state.matchesFilterBy = 'all';
+    this.state.lastModified = Date.now();
+    this.state.clubId = '';
+    this.saveState();
   }
 
   // --- PUBLIC API FOR UI (VUE COMPONENTS) ---
