@@ -16,10 +16,10 @@
           v-if="player.userId"
           floating
           rounded
-          color="blue-6"
+          color="accent"
           style="padding: 2px; min-height: 14px; min-width: 14px"
         >
-          <q-icon name="verified" size="10px" />
+          <q-icon name="verified" size="12px" />
           <q-tooltip>Registered member</q-tooltip>
         </q-badge>
       </q-avatar>
@@ -71,7 +71,7 @@
       </q-item-label>
     </q-item-section>
 
-    <q-item-section side v-if="showActions">
+    <q-item-section side v-if="showActions || $slots.actions">
       <div class="row items-center">
         <slot name="actions" :player="player">
           <q-btn
