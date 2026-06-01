@@ -14,6 +14,7 @@
     "build": "quasar build -m pwa"
   },
   "dependencies": {
+    "@likha-erp/likha-sdk": "^1.0.7",
     "@quasar/extras": "^1.16.4",
     "quasar": "^2.16.0",
     "register-service-worker": "^1.7.2",

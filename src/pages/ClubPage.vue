@@ -1991,6 +1991,7 @@ import { MatchmakingApp } from '../services/matchmaking';
 import type { Player } from '../services/matchmaking';
 
 import { ref, computed, watch, onMounted, onUnmounted, provide } from 'vue';
+import { useRoute } from 'vue-router';
 import { useQuasar, debounce } from 'quasar';
 import TeamArrangement from '../components/TeamArrangement.vue';
 import PlayerList from '../components/PlayerList.vue';
@@ -2280,9 +2281,17 @@ const updateOnlineStatus = () => {
   }
 };
 
+const route = useRoute();
+
 onMounted(() => {
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
+
+  // URL param takes priority over stored settings
+  const urlClubId = route.params['clubId'] as string | undefined;
+  if (urlClubId) {
+    likhaClubId.value = urlClubId;
+  }
 
   if (likhaUrl.value && likhaToken.value) {
     fetchClubs();
