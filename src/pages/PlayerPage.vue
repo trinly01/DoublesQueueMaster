@@ -85,7 +85,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar, LocalStorage } from 'quasar';
 import { likhaClient } from 'src/boot/likha';
-import { readMe } from '@likha-erp/likha-sdk';
+import { readMe, readItems, updateItem } from '@likha-erp/likha-sdk';
 
 const router = useRouter();
 const $q = useQuasar();
@@ -95,13 +95,52 @@ const lastName = ref('');
 const email = ref('');
 const playerRating = ref(1500);
 const username = ref('');
+const currentUserId = ref('');
 
-const clubId = ref('');
+const LAST_CLUB_KEY = 'lastClubId';
+const clubId = ref((LocalStorage.getItem(LAST_CLUB_KEY) as string) || '');
 const loading = ref(true);
 
-const joinClub = () => {
-  if (clubId.value) {
+const joinClub = async () => {
+  if (!clubId.value) return;
+
+  try {
+    // Fetch club to check membership
+    const clubs = await likhaClient.request(
+      readItems('club', {
+        filter: { clubId: { _eq: clubId.value } },
+        fields: ['id', 'players.directus_users_id.id'],
+      }),
+    );
+
+    if (!clubs || clubs.length === 0) {
+      $q.notify({ color: 'negative', message: 'Club not found' });
+      return;
+    }
+
+    const club = clubs[0] as unknown as {
+      id: string;
+      players?: Array<{ directus_users_id?: { id: string } }>;
+    };
+
+    const isMember = club.players?.some(
+      (p) => p.directus_users_id?.id === currentUserId.value,
+    );
+
+    if (!isMember) {
+      await likhaClient.request(
+        updateItem('club', club.id, {
+          players: { create: [{ directus_users_id: currentUserId.value }] },
+        }),
+      );
+      $q.notify({ color: 'positive', message: 'Joined club successfully!' });
+    }
+
+    LocalStorage.set(LAST_CLUB_KEY, clubId.value);
     router.push(`/club/${clubId.value}`);
+  } catch (err) {
+    console.error('Failed to join club:', err);
+    $q.notify({ color: 'negative', message: 'Failed to join club' });
   }
 };
 
@@ -113,6 +152,9 @@ onMounted(async () => {
       lastName.value = user.last_name || '';
       email.value = user.email || '';
       username.value = user.username || '';
+
+      currentUserId.value =
+        ((user as Record<string, unknown>).id as string) || '';
 
       // If there is a custom rating field or property returned from user
       const userObj = user as Record<string, unknown>;
@@ -167,6 +209,7 @@ const onLogout = () => {
 }
 .brand-title {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

@@ -699,11 +699,8 @@
             <!-- Mode Toggle -->
             <div class="q-mb-md q-pb-lg">
               <q-btn-toggle
-                v-model="bulkImportMode"
-                :options="[
-                  { label: 'Single Player', value: false, icon: 'person' },
-                  { label: 'Bulk Import', value: true, icon: 'group_add' },
-                ]"
+                v-model="addPlayerMode"
+                :options="addPlayerModeOptions"
                 color="grey-5"
                 toggle-color="accent"
                 spread
@@ -712,7 +709,7 @@
             </div>
 
             <!-- Single Player Mode -->
-            <div v-if="!bulkImportMode" class="q-gutter-y-md">
+            <div v-if="addPlayerMode === 'single'" class="q-gutter-y-md">
               <q-input
                 v-model="newPlayerName"
                 label="Player Name"
@@ -761,7 +758,7 @@
             </div>
 
             <!-- Bulk Import Mode -->
-            <div v-else class="q-gutter-y-md">
+            <div v-else-if="addPlayerMode === 'bulk'" class="q-gutter-y-md">
               <!-- Text Input -->
               <div>
                 <q-input
@@ -849,6 +846,61 @@
                 </q-list>
               </div>
             </div>
+
+            <!-- Club Members Mode -->
+            <div v-else-if="addPlayerMode === 'club'" class="q-gutter-y-md">
+              <q-select
+                v-model="selectedClubMembers"
+                :options="
+                  clubMembers
+                    .filter(
+                      (m) =>
+                        m.id &&
+                        !Object.values(MatchmakingApp.state.players).some(
+                          (p) => p.userId === m.id,
+                        ),
+                    )
+                    .map((m) => ({
+                      label: m.username || m.email?.split('@')[0] || 'Unknown',
+                      value: m.id,
+                      rating: m.rating || 1500,
+                    }))
+                "
+                label="Select club members to add"
+                multiple
+                outlined
+                dense
+                emit-value
+                map-options
+                option-label="label"
+                option-value="value"
+                use-input
+                input-debounce="0"
+              >
+                <template v-slot:prepend>
+                  <q-icon name="groups" />
+                </template>
+                <template v-slot:option="scope">
+                  <q-item v-bind="scope.itemProps">
+                    <q-item-section>
+                      <q-item-label>{{ scope.opt.label }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-chip size="sm" color="primary" text-color="white"
+                        >Rating: {{ scope.opt.rating }}</q-chip
+                      >
+                    </q-item-section>
+                  </q-item>
+                </template>
+                <template v-slot:no-option>
+                  <q-item>
+                    <q-item-section class="text-grey">
+                      No club members available to add
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
+            </div>
           </q-card-section>
 
           <!-- Footer Actions -->
@@ -865,7 +917,7 @@
 
             <!-- Single Player Mode Button -->
             <q-btn
-              v-if="!bulkImportMode"
+              v-if="addPlayerMode === 'single'"
               color="accent"
               @click="addNewPlayer"
               label="Add Player"
@@ -877,7 +929,7 @@
 
             <!-- Bulk Import Mode Button -->
             <q-btn
-              v-else
+              v-else-if="addPlayerMode === 'bulk'"
               color="accent"
               @click="addBulkPlayers"
               label="Import All Players"
@@ -886,6 +938,21 @@
             >
               <q-tooltip
                 >Import all {{ bulkPlayers.length }} players to the
+                system</q-tooltip
+              >
+            </q-btn>
+
+            <!-- Club Members Mode Button -->
+            <q-btn
+              v-else-if="addPlayerMode === 'club'"
+              color="accent"
+              @click="addClubMembers"
+              label="Add Selected Members"
+              :disable="selectedClubMembers.length === 0"
+              icon="groups"
+            >
+              <q-tooltip
+                >Add {{ selectedClubMembers.length }} member(s) to the
                 system</q-tooltip
               >
             </q-btn>
@@ -913,16 +980,29 @@
             <div class="q-gutter-y-md">
               <div class="text-subtitle2 q-mb-sm">
                 Editing: <strong>{{ editingPlayer?.username }}</strong>
+                <q-badge
+                  v-if="editingPlayer?.userId"
+                  color="blue-6"
+                  class="q-ml-sm"
+                >
+                  <q-icon name="verified" size="12px" />
+                  <q-tooltip>Linked account — name is read-only</q-tooltip>
+                </q-badge>
               </div>
 
               <q-input
                 v-model="editPlayerName"
                 label="Player Name"
                 type="text"
-                :rules="[(val) => !!val?.trim() || 'Player name is required']"
+                :readonly="!!editingPlayer?.userId"
+                :hint="
+                  editingPlayer?.userId
+                    ? 'Name managed by linked account'
+                    : undefined
+                "
                 outlined
                 dense
-                autofocus
+                :bg-color="editingPlayer?.userId ? 'grey-2' : undefined"
               >
                 <template v-slot:prepend>
                   <q-icon name="person" />
@@ -1987,13 +2067,19 @@
         </q-card>
       </q-dialog>
     </template>
+
+    <q-page-sticky position="bottom-left" :offset="[18, 18]">
+      <q-btn round icon="arrow_back" color="primary" @click="goHome">
+        <q-tooltip>Back to clubs</q-tooltip>
+      </q-btn>
+    </q-page-sticky>
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { MatchmakingApp } from '../services/matchmaking';
 import type { Player } from '../services/matchmaking';
-import { readItems, updateItem } from '@likha-erp/likha-sdk';
+import { readItems, updateItem, readMe } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/boot/likha';
 
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -2020,15 +2106,18 @@ const players = computed(() =>
   })),
 );
 const queue = computed(() => {
-  const mapped = MatchmakingApp.state.queues.map((q) => {
-    const p = MatchmakingApp.state.players[q.username];
-    return {
-      ...p,
-      username: p.username,
-      enteredAt: q.enteredAt,
-      queueType: q.queueType,
-    };
-  });
+  const mapped = MatchmakingApp.state.queues
+    .map((q) => {
+      const p = MatchmakingApp.state.players[q.username];
+      if (!p) return null;
+      return {
+        ...p,
+        username: p.username,
+        enteredAt: q.enteredAt,
+        queueType: q.queueType,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 
   if (autoSortQueue.value) {
     const sortFn = (
@@ -2094,8 +2183,9 @@ const teamBScore = ref<number>(0);
 
 const newPlayerName = ref<string | null>(null);
 const newPlayerLevel = ref<1 | 2 | 3 | null>(null);
-// Bulk import state
-const bulkImportMode = ref<boolean>(false);
+// Add player dialog mode: 'single' | 'bulk' | 'club'
+const addPlayerMode = ref<'single' | 'bulk' | 'club'>('single');
+const selectedClubMembers = ref<string[]>([]);
 const bulkPlayerText = ref<string>('');
 const bulkPlayers = ref<
   Array<{ username: string; level: 1 | 2 | 3; original: string }>
@@ -2163,6 +2253,43 @@ const clubLoadingState = ref<'loading' | 'loaded' | 'not-found' | 'error'>(
 );
 const clubErrorMessage = ref<string>('');
 
+// Current user and club membership
+const currentUserId = ref<string>('');
+const clubMembers = ref<
+  Array<{
+    id: string;
+    username?: string;
+    email?: string;
+    rating?: number;
+    isAdmin?: boolean;
+  }>
+>([]);
+const isCurrentUserAdmin = computed(() => {
+  const isAdmin = clubMembers.value.some(
+    (m) => m.id === currentUserId.value && m.isAdmin,
+  );
+  console.log(
+    'isCurrentUserAdmin:',
+    isAdmin,
+    'currentUserId:',
+    currentUserId.value,
+    'clubMembers:',
+    clubMembers.value,
+  );
+  return isAdmin;
+});
+
+const addPlayerModeOptions = computed(() => {
+  const opts = [
+    { label: 'Single Player', value: 'single', icon: 'person' },
+    { label: 'Bulk Import', value: 'bulk', icon: 'group_add' },
+  ];
+  if (isCurrentUserAdmin.value && clubMembers.value.length > 0) {
+    opts.push({ label: 'Club Members', value: 'club', icon: 'groups' });
+  }
+  return opts;
+});
+
 const goHome = () => {
   router.push('/');
 };
@@ -2201,6 +2328,8 @@ const loadClubData = async (clubId: string) => {
           'players.directus_users_id.username',
           'players.directus_users_id.email',
           'players.directus_users_id.rating',
+          'admins.directus_users_id.id',
+          'admins.directus_users_id.email',
         ] as unknown as string[],
       }),
     );
@@ -2243,6 +2372,12 @@ const loadClubData = async (clubId: string) => {
             rating?: number;
           };
         }>;
+        admins?: Array<{
+          directus_users_id?: {
+            id: string;
+            email?: string;
+          };
+        }>;
       };
       currentClubId.value = clubId;
       currentClubUUID.value = club.id;
@@ -2274,6 +2409,24 @@ const loadClubData = async (clubId: string) => {
           club.appState.uiSettings.matchesFilterBy;
       }
       MatchmakingApp.persist();
+
+      // Build clubMembers list with admin flags
+      const adminIds = new Set(
+        (club.admins || []).map((a) => a.directus_users_id?.id).filter(Boolean),
+      );
+      clubMembers.value =
+        (club.players || [])
+          .map((p) => {
+            const u = p.directus_users_id;
+            return {
+              id: u?.id || '',
+              username: u?.username,
+              email: u?.email,
+              rating: u?.rating,
+              isAdmin: adminIds.has(u?.id),
+            };
+          })
+          .filter((m) => m.id) || [];
 
       // Merge club players into local state
       if (club.players && Array.isArray(club.players)) {
@@ -2381,6 +2534,14 @@ onMounted(async () => {
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
 
+  // Fetch current user
+  try {
+    const me = await likhaClient.request(readMe());
+    currentUserId.value = ((me as Record<string, unknown>).id as string) || '';
+  } catch {
+    // Not logged in or error — continue in local mode
+  }
+
   // Load club from URL param
   const clubId = route.params['clubId'] as string;
   if (clubId) {
@@ -2408,6 +2569,17 @@ const getCourtCount = (): number => {
 
 // Dialog states
 const showAddPlayerDialog = ref(false);
+watch(showAddPlayerDialog, (open) => {
+  if (open) {
+    addPlayerMode.value = 'single';
+    selectedClubMembers.value = [];
+    newPlayerName.value = null;
+    newPlayerLevel.value = null;
+    bulkPlayerText.value = '';
+    bulkPlayers.value = [];
+    bulkDefaultLevel.value = 2;
+  }
+});
 const showSettingsDialog = ref(false);
 const showMatchResultDialog = ref(false);
 const showMatchEditDialog = ref(false);
@@ -2913,6 +3085,60 @@ const generateTeamCombinations = (
 
 // Helper function to create balanced singles matches from 2 players
 // Action functions
+const addClubMembers = () => {
+  if (selectedClubMembers.value.length === 0) return;
+
+  const added: string[] = [];
+  const skipped: string[] = [];
+
+  selectedClubMembers.value.forEach((memberId) => {
+    const member = clubMembers.value.find((m) => m.id === memberId);
+    if (!member) return;
+
+    const username =
+      member.username || member.email?.split('@')[0] || 'Unknown';
+
+    if (MatchmakingApp.state.players[username]) {
+      skipped.push(username);
+      return;
+    }
+
+    MatchmakingApp.state.players[username] = {
+      username,
+      userId: member.id,
+      rating: member.rating || 1500,
+      level: 2,
+      matchesPlayed: 0,
+      wins: 0,
+      losses: 0,
+    };
+    added.push(username);
+  });
+
+  if (added.length > 0) {
+    $q.notify({
+      type: 'positive',
+      message: `Added ${added.length} member(s): ${added.join(', ')}`,
+      position: 'top',
+      timeout: 3000,
+    });
+  }
+  if (skipped.length > 0) {
+    $q.notify({
+      type: 'warning',
+      message: `Skipped ${skipped.length} existing player(s): ${skipped.join(', ')}`,
+      position: 'top',
+      timeout: 3000,
+    });
+  }
+
+  addPlayerMode.value = 'single';
+  selectedClubMembers.value = [];
+  showAddPlayerDialog.value = false;
+  MatchmakingApp.persist();
+  syncToCloud();
+};
+
 const addNewPlayer = () => {
   if (!newPlayerName.value?.trim() || newPlayerLevel.value === null) return;
   const trimmedName = newPlayerName.value.trim();
@@ -2981,7 +3207,8 @@ const addBulkPlayers = () => {
   }
 
   // Reset form and close dialog
-  bulkImportMode.value = false;
+  addPlayerMode.value = 'single';
+  selectedClubMembers.value = [];
   bulkPlayerText.value = '';
   bulkPlayers.value = [];
   bulkDefaultLevel.value = 2;
@@ -4165,7 +4392,7 @@ const savePlayerEdit = () => {
     return;
   }
 
-  if (originalName !== trimmedName) {
+  if (originalName !== trimmedName && !playerState.userId) {
     MatchmakingApp.state.players[trimmedName] = {
       ...playerState,
       username: trimmedName,
