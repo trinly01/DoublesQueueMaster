@@ -25,7 +25,7 @@
           >
             {{ getPlayerPosition(playerItem) }}
           </q-avatar>
-          <template v-if="!isReadOnlyMode">
+          <template v-if="showActions">
             <q-btn
               flat
               round
@@ -54,7 +54,7 @@
       :title="emptyTitle"
       :subtitle="emptySubtitle"
     >
-      <template v-if="emptyAction && !isReadOnlyMode" #action>
+      <template v-if="emptyAction && showActions" #action>
         <q-btn
           :color="emptyActionColor"
           :icon="emptyActionIcon"
@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject } from 'vue';
+import { computed } from 'vue';
 import PlayerCard from './PlayerCard.vue';
 import EmptyState from './EmptyState.vue';
 
@@ -120,8 +120,6 @@ defineEmits<{
   playerRequeue: [username: string];
   emptyAction: [];
 }>();
-
-const isReadOnlyMode = inject('isReadOnlyMode', false);
 
 // Computed and helper functions
 const displayPlayers = computed(() => {

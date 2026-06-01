@@ -49,7 +49,7 @@
                 Smart matchmaking for singles & doubles
               </p>
             </div>
-            <div class="col-auto">
+            <div v-if="isCurrentUserAdmin" class="col-auto">
               <q-btn
                 color="white"
                 icon="settings"
@@ -124,6 +124,7 @@
                     </template>
                   </q-select>
                   <q-btn
+                    v-if="isCurrentUserAdmin"
                     color="white"
                     @click="showAddPlayerDialog = true"
                     icon="person_add"
@@ -134,6 +135,7 @@
                     <q-tooltip>Add new player to the system</q-tooltip>
                   </q-btn>
                   <q-btn
+                    v-if="isCurrentUserAdmin"
                     color="white"
                     @click="addAllPlayersToQueue"
                     :disable="allPlayersInQueue"
@@ -165,8 +167,8 @@
                   <PlayerList
                     :players="displayPlayers"
                     :sort-by="sortBy"
-                    :show-actions="true"
-                    :show-requeue-button="true"
+                    :show-actions="isCurrentUserAdmin"
+                    :show-requeue-button="isCurrentUserAdmin"
                     :empty-icon="'people'"
                     :empty-title="
                       searchPlayers
@@ -227,6 +229,7 @@
                     :show-position="true"
                     :show-queue-time="true"
                     :is-in-queue="true"
+                    :show-actions="isCurrentUserAdmin"
                     :show-requeue-button="false"
                     :empty-icon="'queue'"
                     :empty-title="'Queue is empty'"
@@ -235,7 +238,7 @@
                   />
                 </div>
               </q-card-section>
-              <q-card-section>
+              <q-card-section v-if="isCurrentUserAdmin">
                 <!-- Match Type Selector -->
                 <div class="q-mb-md">
                   <div class="text-caption text-grey-7 q-mb-xs">Match Type</div>
@@ -256,7 +259,7 @@
                   </q-select>
                 </div>
 
-                <div class="row q-gutter-sm">
+                <div v-if="isCurrentUserAdmin" class="row q-gutter-sm">
                   <q-btn
                     class="col"
                     color="accent"
@@ -353,6 +356,7 @@
                       :key="match.id"
                       :match="match"
                       :available-courts="getCourtCount()"
+                      :show-actions="isCurrentUserAdmin"
                       @completeMatch="openMatchResultDialog(index)"
                       @editMatch="editMatch(index)"
                       @assignCourt="openCourtSelectionDialog(index)"
@@ -433,6 +437,7 @@
                           </template>
                         </q-select>
                         <q-btn
+                          v-if="isCurrentUserAdmin"
                           color="accent"
                           @click="showAddPlayerDialog = true"
                           icon="person_add"
@@ -443,6 +448,7 @@
                           <q-tooltip>Add new player</q-tooltip>
                         </q-btn>
                         <q-btn
+                          v-if="isCurrentUserAdmin"
                           color="accent"
                           @click="addAllPlayersToQueue"
                           :disable="allPlayersInQueue"
@@ -472,8 +478,8 @@
                     <PlayerList
                       :players="displayPlayers"
                       :sort-by="sortBy"
-                      :show-actions="true"
-                      :show-requeue-button="true"
+                      :show-actions="isCurrentUserAdmin"
+                      :show-requeue-button="isCurrentUserAdmin"
                       :empty-icon="'people'"
                       :empty-title="
                         searchPlayers
@@ -531,6 +537,7 @@
                       :show-position="true"
                       :show-queue-time="true"
                       :is-in-queue="true"
+                      :show-actions="isCurrentUserAdmin"
                       :show-requeue-button="false"
                       :empty-icon="'queue'"
                       :empty-title="'Queue is empty'"
@@ -539,7 +546,7 @@
                     />
                   </div>
                 </q-card-section>
-                <q-card-section>
+                <q-card-section v-if="isCurrentUserAdmin">
                   <!-- Match Type Selector -->
                   <div class="q-mb-md">
                     <div class="text-caption text-grey-7 q-mb-xs">
@@ -562,7 +569,7 @@
                     </q-select>
                   </div>
 
-                  <div class="row q-gutter-sm">
+                  <div v-if="isCurrentUserAdmin" class="row q-gutter-sm">
                     <q-btn
                       class="col"
                       color="accent"
@@ -654,6 +661,7 @@
                         :key="match.id"
                         :match="match"
                         :available-courts="getCourtCount()"
+                        :show-actions="isCurrentUserAdmin"
                         @completeMatch="openMatchResultDialog(index)"
                         @editMatch="editMatch(index)"
                         @assignCourt="openCourtSelectionDialog(index)"
@@ -1284,9 +1292,11 @@
 
               <q-separator />
 
-              <div class="text-subtitle2 q-mb-sm">Data Management</div>
+              <div v-if="isCurrentUserAdmin" class="text-subtitle2 q-mb-sm">
+                Data Management
+              </div>
 
-              <div class="row q-gutter-sm">
+              <div v-if="isCurrentUserAdmin" class="row q-gutter-sm">
                 <div class="col">
                   <q-btn
                     color="accent"
@@ -1316,7 +1326,7 @@
                 </div>
               </div>
 
-              <div class="q-mt-sm">
+              <div v-if="isCurrentUserAdmin" class="q-mt-sm">
                 <q-btn
                   color="negative"
                   @click="resetAllData"
@@ -2069,7 +2079,7 @@
     </template>
 
     <q-page-sticky position="bottom-left" :offset="[18, 18]">
-      <q-btn round icon="person" color="primary" @click="goHome">
+      <q-btn round icon="person" color="accent" @click="goHome">
         <q-tooltip>Back to profile</q-tooltip>
       </q-btn>
     </q-page-sticky>
@@ -2255,6 +2265,7 @@ const clubErrorMessage = ref<string>('');
 
 // Current user and club membership
 const currentUserId = ref<string>('');
+const clubAdminIds = ref<Set<string>>(new Set());
 const clubMembers = ref<
   Array<{
     id: string;
@@ -2278,6 +2289,14 @@ const isCurrentUserAdmin = computed(() => {
   );
   return isAdmin;
 });
+
+// Dynamic max-height for queue list: taller when match-type + buttons are hidden
+const queueMaxHeightDesktop = computed(() =>
+  isCurrentUserAdmin.value ? 'calc(100vh - 480px)' : 'calc(100vh - 340px)',
+);
+const queueMaxHeightMobile = computed(() =>
+  isCurrentUserAdmin.value ? 'calc(100vh - 460px)' : 'calc(100vh - 300px)',
+);
 
 const addPlayerModeOptions = computed(() => {
   const opts = [
@@ -2443,6 +2462,50 @@ const loadClubData = async (clubId: string) => {
             serverMatchmaking.matchesFilterBy;
         }
       }
+      // Determine admin status from raw club data
+      const isAdminFromData = (club.admins || []).some(
+        (a) => a.directus_users_id?.id === currentUserId.value,
+      );
+
+      // Seed / sync player roster, queue, and matches from appState
+      // Admins: local is source of truth — only seed if empty.
+      // Non-admins: server is source of truth — always overwrite.
+      if (serverMatchmaking) {
+        if (isAdminFromData) {
+          if (
+            Object.keys(MatchmakingApp.state.players).length === 0 &&
+            serverMatchmaking.players
+          ) {
+            MatchmakingApp.state.players = { ...serverMatchmaking.players };
+          }
+          if (
+            MatchmakingApp.state.queues.length === 0 &&
+            serverMatchmaking.queues
+          ) {
+            MatchmakingApp.state.queues = [...serverMatchmaking.queues];
+          }
+          if (
+            MatchmakingApp.state.activeMatches.length === 0 &&
+            serverMatchmaking.activeMatches
+          ) {
+            MatchmakingApp.state.activeMatches = [
+              ...serverMatchmaking.activeMatches,
+            ];
+          }
+        } else {
+          if (serverMatchmaking.players) {
+            MatchmakingApp.state.players = { ...serverMatchmaking.players };
+          }
+          if (serverMatchmaking.queues) {
+            MatchmakingApp.state.queues = [...serverMatchmaking.queues];
+          }
+          if (serverMatchmaking.activeMatches) {
+            MatchmakingApp.state.activeMatches = [
+              ...serverMatchmaking.activeMatches,
+            ];
+          }
+        }
+      }
       // Backward-compat: migrate old separate settings blocks into MatchmakingApp.state
       if (club.appState?.courtSettings) {
         const ac = club.appState.courtSettings.availableCourts;
@@ -2483,9 +2546,11 @@ const loadClubData = async (clubId: string) => {
       }
       MatchmakingApp.persist();
 
-      // Build clubMembers list with admin flags
-      const adminIds = new Set(
-        (club.admins || []).map((a) => a.directus_users_id?.id).filter(Boolean),
+      // Build admin set and clubMembers list
+      clubAdminIds.value = new Set(
+        (club.admins || [])
+          .map((a) => a.directus_users_id?.id)
+          .filter((id): id is string => !!id),
       );
       clubMembers.value =
         (club.players || [])
@@ -2496,7 +2561,7 @@ const loadClubData = async (clubId: string) => {
               username: u?.username,
               email: u?.email,
               rating: u?.rating,
-              isAdmin: adminIds.has(u?.id),
+              isAdmin: clubAdminIds.value.has(u?.id || ''),
             };
           })
           .filter((m) => m.id) || [];
@@ -2601,7 +2666,14 @@ const performCloudSync = async () => {
       return;
     }
 
-    // 3. Update our timestamp and push
+    // 3. Only allow admins to write to the cloud
+    if (!currentUserId.value || !clubAdminIds.value.has(currentUserId.value)) {
+      hasPendingCloudSync.value = false;
+      console.log('Skipped cloud sync: not an admin');
+      return;
+    }
+
+    // 4. Update our timestamp and push
     MatchmakingApp.state.lastModified = Date.now();
 
     const payload = {
@@ -4682,99 +4754,28 @@ const savePlayerEdit = () => {
     }
   }
 
-  // Players card: q-list with viewport-based fixed height
-  .players-card .q-list {
-    flex: 0 0 auto; // Don't grow, use fixed height
-    max-height: calc(100vh - 380px); // Fixed height based on viewport
-    overflow-y: auto; // Scroll when content exceeds height
-
-    // Always visible scrollbar
-    scrollbar-width: auto;
-    -ms-overflow-style: auto;
-
-    &::-webkit-scrollbar {
-      width: 12px;
-      height: 12px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.05);
-      border-radius: 6px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 6px;
-      transition: background 0.2s ease;
-
-      &:hover {
-        background: rgba(0, 0, 0, 0.5);
-      }
-    }
+  // Players card: PlayerList with capped scrollable height
+  .players-card .player-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: calc(100vh - 380px);
+    overflow-y: auto;
   }
 
-  // Queue card: PlayerList with viewport-based fixed height (accounting for bottom controls)
+  // Queue card: PlayerList with dynamic max-height based on admin controls visibility
   .queue-card .player-list {
-    flex: 0 0 auto; // Don't grow, use fixed height
-    max-height: calc(
-      100vh - 480px
-    ); // Fixed height leaving space for header + bottom controls
-    overflow-y: auto; // Scroll when content exceeds height
-
-    // Always visible scrollbar
-    scrollbar-width: auto;
-    -ms-overflow-style: auto;
-
-    &::-webkit-scrollbar {
-      width: 12px;
-      height: 12px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.05);
-      border-radius: 6px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 6px;
-      transition: background 0.2s ease;
-
-      &:hover {
-        background: rgba(0, 0, 0, 0.5);
-      }
-    }
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: v-bind(queueMaxHeightDesktop);
+    overflow-y: auto;
   }
 
-  // Matches card: q-list with viewport-based fixed height
+  // Matches card: q-list with capped scrollable height
   .matches-card .q-list {
-    flex: 0 0 auto; // Don't grow, use fixed height
-    max-height: calc(100vh - 280px); // Fixed height based on viewport
-    overflow-y: auto; // Scroll when content exceeds height
-
-    // Always visible scrollbar
-    scrollbar-width: auto;
-    -ms-overflow-style: auto;
-
-    &::-webkit-scrollbar {
-      width: 12px;
-      height: 12px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.05);
-      border-radius: 6px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 6px;
-      transition: background 0.2s ease;
-
-      &:hover {
-        background: rgba(0, 0, 0, 0.5);
-      }
-    }
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: calc(100vh - 280px);
+    overflow-y: auto;
   }
 
   // Queue card buttons section stays at natural height (auto)
@@ -4893,26 +4894,6 @@ const savePlayerEdit = () => {
   // Firefox
   scrollbar-width: auto;
   -ms-overflow-style: auto;
-
-  &::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 6px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 6px;
-    transition: background 0.2s ease;
-
-    &:hover {
-      background: rgba(0, 0, 0, 0.5);
-    }
-  }
 }
 
 // Manual Selection Dialog Styles
@@ -5518,16 +5499,27 @@ const savePlayerEdit = () => {
     }
   }
 
-  // Queue tab specific: reduce player list height to show bottom buttons
-  .queue-card .mobile-card-content {
-    // Leave more space for bottom controls (~240px) plus some padding
-    max-height: calc(100vh - 396px);
-  }
-
-  // Players and Matches tabs can use full height (no bottom controls)
+  // All cards: let flex layout determine height dynamically based on visible controls
+  .queue-card .mobile-card-content,
   .players-card .mobile-card-content,
   .matches-card .mobile-card-content {
-    max-height: calc(100vh - 220px);
+    flex: 1;
+    min-height: 0; // Allow shrinking to fit available space
+  }
+
+  // Mobile queue list: shorter max-height when admin controls are visible
+  .queue-card .player-list {
+    max-height: v-bind(queueMaxHeightMobile);
+  }
+
+  // Mobile players list: capped scrollable height
+  .players-card .player-list {
+    max-height: calc(100vh - 280px);
+  }
+
+  // Mobile matches list: capped scrollable height
+  .matches-card .q-list {
+    max-height: calc(100vh - 280px);
   }
 }
 
@@ -5581,17 +5573,11 @@ const savePlayerEdit = () => {
     }
   }
 
-  // Queue tab: even smaller height for very small screens
-  .queue-card .mobile-card-content {
-    max-height: calc(100vh - 340px);
-    min-height: 280px;
-  }
-
-  // Players and Matches tabs
+  // All cards: keep reasonable minimum height on very small screens
+  .queue-card .mobile-card-content,
   .players-card .mobile-card-content,
   .matches-card .mobile-card-content {
-    max-height: calc(100vh - 220px);
-    min-height: 320px;
+    min-height: 280px;
   }
 }
 </style>
