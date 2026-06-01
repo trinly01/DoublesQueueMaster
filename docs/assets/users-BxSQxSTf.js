@@ -1,0 +1,1 @@
+const t=(e,r,s={})=>()=>({path:"/users/register",method:"POST",body:JSON.stringify({email:e,password:r,...s})}),a=e=>()=>({path:"/users/register/verify-email",params:{token:e},method:"GET"});export{t as n,a as r};
