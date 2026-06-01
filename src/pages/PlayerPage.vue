@@ -7,10 +7,24 @@
 
       <template v-if="!loading">
         <q-card-section class="text-center q-pb-md">
-          <q-avatar size="100px" class="shadow-3 q-mb-md">
-            <img
-              src="https://cdn.quasar.dev/img/avatar.png"
-              alt="Player Avatar"
+          <q-avatar size="100px" class="shadow-3 q-mb-md relative-position">
+            <img v-if="avatarUrl" :src="avatarUrl" alt="Player Avatar" />
+            <q-icon v-else name="person" size="60px" color="grey-5" />
+            <q-badge
+              v-if="currentUserId"
+              floating
+              color="primary"
+              class="cursor-pointer"
+              @click="triggerAvatarUpload"
+            >
+              <q-icon name="photo_camera" size="14px" />
+            </q-badge>
+            <input
+              ref="avatarInput"
+              type="file"
+              accept="image/*"
+              style="display: none"
+              @change="onAvatarSelected"
             />
           </q-avatar>
 
@@ -64,8 +78,16 @@
           </div>
         </q-card-section>
 
-        <q-card-actions align="center" class="q-mt-lg">
-          <!-- <q-btn outline color="primary" label="Edit Profile" icon="edit" rounded class="edit-btn" /> -->
+        <q-card-actions align="center" class="q-mt-lg q-gutter-sm">
+          <q-btn
+            outline
+            color="primary"
+            label="Change Password"
+            icon="lock_reset"
+            rounded
+            class="edit-btn"
+            @click="showChangePasswordDialog = true"
+          />
           <q-btn
             unelevated
             color="negative"
@@ -75,31 +97,187 @@
             @click="onLogout"
           />
         </q-card-actions>
+
+        <!-- Change Password Dialog -->
+        <q-dialog v-model="showChangePasswordDialog" persistent>
+          <q-card style="min-width: 320px; max-width: 90vw">
+            <q-card-section class="row items-center q-pb-none">
+              <div class="text-h6">Change Password</div>
+              <q-space />
+              <q-btn icon="close" flat round dense v-close-popup />
+            </q-card-section>
+
+            <q-card-section class="q-pt-md">
+              <q-input
+                v-model="currentPassword"
+                filled
+                type="password"
+                label="Current Password"
+                dense
+                class="q-mb-sm"
+              />
+              <q-input
+                v-model="newPassword"
+                filled
+                type="password"
+                label="New Password"
+                dense
+                class="q-mb-sm"
+                :rules="[
+                  (val) =>
+                    (val && val.length >= 8) ||
+                    'Password must be at least 8 characters',
+                ]"
+              />
+              <q-input
+                v-model="confirmNewPassword"
+                filled
+                type="password"
+                label="Confirm New Password"
+                dense
+                :rules="[
+                  (val) => val === newPassword || 'Passwords do not match',
+                ]"
+              />
+            </q-card-section>
+
+            <q-card-actions align="right">
+              <q-btn flat label="Cancel" color="primary" v-close-popup />
+              <q-btn
+                flat
+                label="Update"
+                color="primary"
+                :loading="changePasswordLoading"
+                :disable="
+                  !currentPassword ||
+                  !newPassword ||
+                  newPassword.length < 8 ||
+                  newPassword !== confirmNewPassword
+                "
+                @click="changePassword"
+              />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
       </template>
     </q-card>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar, LocalStorage } from 'quasar';
 import { likhaClient } from 'src/boot/likha';
-import { readMe, readItems, updateItem } from '@likha-erp/likha-sdk';
+import {
+  readItems,
+  updateItem,
+  uploadFiles,
+  updateUser,
+  updateMe,
+} from '@likha-erp/likha-sdk';
+import { PlayerProfile } from 'src/services/playerProfile';
 
 const router = useRouter();
 const $q = useQuasar();
 
-const firstName = ref('');
-const lastName = ref('');
-const email = ref('');
-const playerRating = ref(1500);
-const username = ref('');
-const currentUserId = ref('');
+const firstName = computed(() => PlayerProfile.state.firstName);
+const lastName = computed(() => PlayerProfile.state.lastName);
+const playerRating = computed(() => PlayerProfile.state.rating);
+const username = computed(() => PlayerProfile.state.username);
+const currentUserId = computed(() => PlayerProfile.state.id);
+
+const avatarUrl = computed(() => {
+  const avatar = PlayerProfile.state.avatar;
+  if (avatar) {
+    return `https://dink-it.zyberlab.com/assets/${avatar}`;
+  }
+  return '';
+});
 
 const LAST_CLUB_KEY = 'lastClubId';
 const clubId = ref((LocalStorage.getItem(LAST_CLUB_KEY) as string) || '');
-const loading = ref(true);
+const loading = computed(() => PlayerProfile.loading.value);
+const avatarInput = ref<HTMLInputElement | null>(null);
+
+const showChangePasswordDialog = ref(false);
+const currentPassword = ref('');
+const newPassword = ref('');
+const confirmNewPassword = ref('');
+const changePasswordLoading = ref(false);
+
+const triggerAvatarUpload = () => {
+  avatarInput.value?.click();
+};
+
+const onAvatarSelected = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file || !currentUserId.value) return;
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const uploadResult = await likhaClient.request(uploadFiles(formData));
+    const uploaded = Array.isArray(uploadResult)
+      ? uploadResult[0]
+      : uploadResult;
+    const avatarId = uploaded?.id;
+
+    if (avatarId) {
+      await likhaClient.request(
+        updateUser(currentUserId.value, { avatar: avatarId }),
+      );
+      PlayerProfile.state.avatar = avatarId;
+      PlayerProfile.saveState();
+      $q.notify({ color: 'positive', message: 'Avatar updated!' });
+    }
+  } catch (err) {
+    console.error('Avatar upload failed:', err);
+    $q.notify({ color: 'negative', message: 'Failed to upload avatar' });
+  } finally {
+    input.value = '';
+  }
+};
+
+const changePassword = async () => {
+  if (!currentUserId.value || !newPassword.value) return;
+  changePasswordLoading.value = true;
+  try {
+    // 1. Verify current password by attempting login
+    await likhaClient.login({
+      email: PlayerProfile.state.email,
+      password: currentPassword.value,
+    });
+
+    // 2. Update to new password
+    await likhaClient.request(updateMe({ password: newPassword.value }));
+
+    $q.notify({ color: 'positive', message: 'Password updated successfully!' });
+    showChangePasswordDialog.value = false;
+    currentPassword.value = '';
+    newPassword.value = '';
+    confirmNewPassword.value = '';
+  } catch (err) {
+    const error = err as { errors?: { message?: string }[] };
+    const msg = error?.errors?.[0]?.message?.toLowerCase() || '';
+    if (
+      msg.includes('credentials') ||
+      msg.includes('password') ||
+      msg.includes('invalid')
+    ) {
+      $q.notify({
+        color: 'negative',
+        message: 'Current password is incorrect',
+      });
+    } else {
+      $q.notify({ color: 'negative', message: 'Failed to update password' });
+    }
+    console.error('Password change failed:', err);
+  } finally {
+    changePasswordLoading.value = false;
+  }
+};
 
 const joinClub = async () => {
   if (!clubId.value) return;
@@ -139,42 +317,45 @@ const joinClub = async () => {
     LocalStorage.set(LAST_CLUB_KEY, clubId.value);
     router.push(`/club/${clubId.value}`);
   } catch (err) {
-    console.error('Failed to join club:', err);
-    $q.notify({ color: 'negative', message: 'Failed to join club' });
+    console.warn('Join club failed (offline?), using cached data:', err);
+
+    // Offline fallback: proceed if cached matchmaking data exists
+    const cached = LocalStorage.getItem('quasar_matchmaking_state') as Record<
+      string,
+      unknown
+    > | null;
+    if (cached && Object.keys(cached).length > 0) {
+      LocalStorage.set(LAST_CLUB_KEY, clubId.value);
+      $q.notify({
+        color: 'warning',
+        message: 'Offline — using cached club data',
+      });
+      router.push(`/club/${clubId.value}`);
+    } else {
+      $q.notify({ color: 'negative', message: 'Failed to join club' });
+    }
   }
 };
 
 onMounted(async () => {
-  try {
-    const user = await likhaClient.request(readMe());
-    if (user) {
-      firstName.value = user.first_name || '';
-      lastName.value = user.last_name || '';
-      email.value = user.email || '';
-      username.value = user.username || '';
+  // Load from cache instantly (for offline / fast startup)
+  if (!PlayerProfile.hasCachedProfile()) {
+    PlayerProfile.loading.value = true;
+  }
 
-      currentUserId.value =
-        ((user as Record<string, unknown>).id as string) || '';
+  // Attempt server fetch; silently falls back to cache when offline
+  const fetched = await PlayerProfile.fetchProfile();
 
-      // If there is a custom rating field or property returned from user
-      const userObj = user as Record<string, unknown>;
-      if (typeof userObj.rating === 'number') {
-        playerRating.value = userObj.rating;
-      } else if (
-        typeof userObj.rating === 'string' &&
-        !isNaN(Number(userObj.rating))
-      ) {
-        playerRating.value = Number(userObj.rating);
-      }
-    }
-  } catch (error) {
-    console.error('Failed to fetch player profile:', error);
+  if (!fetched && !PlayerProfile.hasCachedProfile()) {
     $q.notify({
       color: 'negative',
-      message: 'Failed to fetch player profile',
+      message: 'No cached profile available',
     });
-  } finally {
-    loading.value = false;
+  } else if (!fetched && PlayerProfile.error.value) {
+    $q.notify({
+      color: 'warning',
+      message: PlayerProfile.error.value,
+    });
   }
 });
 
@@ -192,6 +373,7 @@ const onLogout = () => {
       console.error('Logout API call error:', error);
     } finally {
       LocalStorage.remove('likha-data');
+      PlayerProfile.clearProfile();
       $q.notify({
         color: 'info',
         message: 'Logged out successfully',

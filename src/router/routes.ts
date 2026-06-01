@@ -1,40 +1,43 @@
 import { RouteRecordRaw } from 'vue-router';
+import MainLayout from 'layouts/MainLayout.vue';
+import PlayerPage from 'pages/PlayerPage.vue';
+import ClubPage from 'pages/ClubPage.vue';
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    component: () => import('layouts/MainLayout.vue'),
+    component: MainLayout,
     children: [
-      { 
-        path: '', 
-        component: () => import('pages/PlayerPage.vue'),
-        meta: { requiresAuth: true }
+      {
+        path: '',
+        component: PlayerPage,
+        meta: { requiresAuth: true },
       },
-      { 
-        path: 'login', 
+      {
+        path: 'login',
         component: () => import('pages/LoginPage.vue'),
-        meta: { requiresUnauth: true }
+        meta: { requiresUnauth: true },
       },
-      { 
-        path: 'register', 
+      {
+        path: 'register',
         component: () => import('pages/RegisterPage.vue'),
-        meta: { requiresUnauth: true }
+        meta: { requiresUnauth: true },
       },
-      { 
-        path: 'forgot-password', 
+      {
+        path: 'forgot-password',
         component: () => import('pages/ForgotPasswordPage.vue'),
-        meta: { requiresUnauth: true }
+        meta: { requiresUnauth: true },
       },
-      { 
-        path: 'reset-password', 
+      {
+        path: 'reset-password',
         component: () => import('pages/ResetPasswordPage.vue'),
-        meta: { requiresUnauth: true }
+        meta: { requiresUnauth: true },
       },
-      { 
-        path: 'club/:clubId', 
-        component: () => import('pages/ClubPage.vue'),
-        meta: { requiresAuth: true }
-      }
+      {
+        path: 'club/:clubId',
+        component: ClubPage,
+        meta: { requiresAuth: true },
+      },
     ],
   },
 
