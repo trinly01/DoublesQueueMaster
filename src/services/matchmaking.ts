@@ -56,6 +56,7 @@ export interface AppState {
   sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
   matchType?: 'singles' | 'doubles';
   matchesFilterBy?: 'all' | number;
+  lastModified?: number;
 }
 
 const STORAGE_KEY = 'quasar_matchmaking_state';
@@ -256,12 +257,15 @@ export class LocalMatchmakingSystem {
       initialState.matchType = 'doubles';
     if (initialState.matchesFilterBy === undefined)
       initialState.matchesFilterBy = 'all';
+    if (initialState.lastModified === undefined)
+      initialState.lastModified = Date.now();
 
     this.state = reactive(initialState);
   }
 
   // --- INTERNAL STORAGE METHODS ---
   private saveState() {
+    this.state.lastModified = Date.now();
     LocalStorage.set(STORAGE_KEY, this.state);
     if (this.onStateChange) {
       this.onStateChange();
@@ -285,7 +289,6 @@ export class LocalMatchmakingSystem {
   public clearSession() {
     this.state.queues = [];
     this.state.activeMatches = [];
-    this.saveState();
   }
 
   public hardResetEverything() {
@@ -332,7 +335,6 @@ export class LocalMatchmakingSystem {
         queueType: 'GENERAL',
         enteredAt: Date.now(),
       });
-      this.saveState();
     }
   }
 
@@ -340,7 +342,6 @@ export class LocalMatchmakingSystem {
     this.state.queues = this.state.queues.filter(
       (q) => q.username !== username,
     );
-    this.saveState();
   }
 
   // 2. Draft the next round of matches from waiting players
@@ -450,8 +451,6 @@ export class LocalMatchmakingSystem {
         originalQueueTypes,
       });
     }
-
-    this.saveState();
   }
 
   // 3. Report a score for an active match
@@ -546,8 +545,6 @@ export class LocalMatchmakingSystem {
 
     // Remove match from active list
     this.state.activeMatches.splice(matchIndex, 1);
-
-    this.saveState();
   }
 
   public persist() {

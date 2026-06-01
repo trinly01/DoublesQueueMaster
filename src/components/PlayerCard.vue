@@ -57,7 +57,13 @@
         <span
           class="q-ml-xs text-primary"
           v-if="!sortBy || sortBy !== 'winRate'"
-          >R:{{ (player.matchesPlayed || 0) < 3 ? 'NR' : player.rating }}</span
+          >R:{{
+            player.userId
+              ? player.rating
+              : (player.matchesPlayed || 0) < 3
+                ? 'NR'
+                : player.rating
+          }}</span
         >
         <!-- <span v-if="showQueueTime && player.enteredAt" class="q-ml-sm text-grey-6">
           {{ getQueueTimeInfo(player.enteredAt) }}

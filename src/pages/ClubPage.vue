@@ -2069,8 +2069,8 @@
     </template>
 
     <q-page-sticky position="bottom-left" :offset="[18, 18]">
-      <q-btn round icon="arrow_back" color="primary" @click="goHome">
-        <q-tooltip>Back to clubs</q-tooltip>
+      <q-btn round icon="person" color="primary" @click="goHome">
+        <q-tooltip>Back to profile</q-tooltip>
       </q-btn>
     </q-page-sticky>
   </q-page>
@@ -2078,13 +2078,13 @@
 
 <script setup lang="ts">
 import { MatchmakingApp } from '../services/matchmaking';
-import type { Player } from '../services/matchmaking';
+import type { Player, AppState } from '../services/matchmaking';
 import { readItems, updateItem, readMe } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/boot/likha';
 
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useQuasar, debounce } from 'quasar';
+import { useQuasar } from 'quasar';
 import TeamArrangement from '../components/TeamArrangement.vue';
 import PlayerList from '../components/PlayerList.vue';
 import PlayerCard from '../components/PlayerCard.vue';
@@ -2382,31 +2382,104 @@ const loadClubData = async (clubId: string) => {
       currentClubId.value = clubId;
       currentClubUUID.value = club.id;
 
-      // Restore matchmaking and settings from cloud appState first if available
-      if (club.appState?.matchmaking) {
-        Object.assign(MatchmakingApp.state, club.appState.matchmaking);
+      // Local client is the source of truth. Only use cloud settings as fallback
+      // when local state doesn't have them yet (first visit / new device).
+      const serverMatchmaking = club.appState?.matchmaking as
+        | AppState
+        | undefined;
+      if (serverMatchmaking) {
+        // Only merge settings that are missing locally — never overwrite queues/matches/players
+        if (
+          MatchmakingApp.state.availableCourts === undefined &&
+          serverMatchmaking.availableCourts !== undefined
+        ) {
+          MatchmakingApp.state.availableCourts =
+            serverMatchmaking.availableCourts;
+        }
+        if (
+          MatchmakingApp.state.autoAdvanceMatches === undefined &&
+          serverMatchmaking.autoAdvanceMatches !== undefined
+        ) {
+          MatchmakingApp.state.autoAdvanceMatches =
+            serverMatchmaking.autoAdvanceMatches;
+        }
+        if (
+          MatchmakingApp.state.queueReturnMethod === undefined &&
+          serverMatchmaking.queueReturnMethod !== undefined
+        ) {
+          MatchmakingApp.state.queueReturnMethod =
+            serverMatchmaking.queueReturnMethod;
+        }
+        if (
+          MatchmakingApp.state.autoSortQueue === undefined &&
+          serverMatchmaking.autoSortQueue !== undefined
+        ) {
+          MatchmakingApp.state.autoSortQueue = serverMatchmaking.autoSortQueue;
+        }
+        if (
+          MatchmakingApp.state.queuePriorityMode === undefined &&
+          serverMatchmaking.queuePriorityMode !== undefined
+        ) {
+          MatchmakingApp.state.queuePriorityMode =
+            serverMatchmaking.queuePriorityMode;
+        }
+        if (
+          MatchmakingApp.state.sortBy === undefined &&
+          serverMatchmaking.sortBy !== undefined
+        ) {
+          MatchmakingApp.state.sortBy = serverMatchmaking.sortBy;
+        }
+        if (
+          MatchmakingApp.state.matchType === undefined &&
+          serverMatchmaking.matchType !== undefined
+        ) {
+          MatchmakingApp.state.matchType = serverMatchmaking.matchType;
+        }
+        if (
+          MatchmakingApp.state.matchesFilterBy === undefined &&
+          serverMatchmaking.matchesFilterBy !== undefined
+        ) {
+          MatchmakingApp.state.matchesFilterBy =
+            serverMatchmaking.matchesFilterBy;
+        }
       }
       // Backward-compat: migrate old separate settings blocks into MatchmakingApp.state
       if (club.appState?.courtSettings) {
         const ac = club.appState.courtSettings.availableCourts;
-        MatchmakingApp.state.availableCourts =
-          typeof ac === 'object' ? (ac as CourtOption).value : (ac as number);
-        MatchmakingApp.state.autoAdvanceMatches =
-          club.appState.courtSettings.autoAdvanceMatches;
+        if (MatchmakingApp.state.availableCourts === undefined) {
+          MatchmakingApp.state.availableCourts =
+            typeof ac === 'object' ? (ac as CourtOption).value : (ac as number);
+        }
+        if (MatchmakingApp.state.autoAdvanceMatches === undefined) {
+          MatchmakingApp.state.autoAdvanceMatches =
+            club.appState.courtSettings.autoAdvanceMatches;
+        }
       }
       if (club.appState?.queueSettings) {
-        MatchmakingApp.state.queueReturnMethod =
-          club.appState.queueSettings.queueReturnMethod;
-        MatchmakingApp.state.autoSortQueue =
-          club.appState.queueSettings.autoSortQueue;
-        MatchmakingApp.state.queuePriorityMode =
-          club.appState.queueSettings.queuePriorityMode;
+        if (MatchmakingApp.state.queueReturnMethod === undefined) {
+          MatchmakingApp.state.queueReturnMethod =
+            club.appState.queueSettings.queueReturnMethod;
+        }
+        if (MatchmakingApp.state.autoSortQueue === undefined) {
+          MatchmakingApp.state.autoSortQueue =
+            club.appState.queueSettings.autoSortQueue;
+        }
+        if (MatchmakingApp.state.queuePriorityMode === undefined) {
+          MatchmakingApp.state.queuePriorityMode =
+            club.appState.queueSettings.queuePriorityMode;
+        }
       }
       if (club.appState?.uiSettings) {
-        MatchmakingApp.state.sortBy = club.appState.uiSettings.sortBy;
-        MatchmakingApp.state.matchType = club.appState.uiSettings.matchType;
-        MatchmakingApp.state.matchesFilterBy =
-          club.appState.uiSettings.matchesFilterBy;
+        if (MatchmakingApp.state.sortBy === undefined) {
+          MatchmakingApp.state.sortBy = club.appState.uiSettings.sortBy;
+        }
+        if (MatchmakingApp.state.matchType === undefined) {
+          MatchmakingApp.state.matchType = club.appState.uiSettings.matchType;
+        }
+        if (MatchmakingApp.state.matchesFilterBy === undefined) {
+          MatchmakingApp.state.matchesFilterBy =
+            club.appState.uiSettings.matchesFilterBy;
+        }
       }
       MatchmakingApp.persist();
 
@@ -2484,19 +2557,57 @@ const loadClubData = async (clubId: string) => {
   }
 };
 
-// Immediate sync to cloud
+// Immediate sync to cloud (read-before-write for multi-admin conflict detection)
 const performCloudSync = async () => {
+  hasPendingCloudSync.value = true;
+
   if (!isOnline.value || !likhaUrl.value || !currentClubUUID.value) {
-    hasPendingCloudSync.value = true;
     return;
   }
 
   try {
+    // 1. Read current server state first
+    const serverResult = await likhaClient.request(
+      readItems('club', {
+        filter: { id: { _eq: currentClubUUID.value } },
+        fields: ['appState'],
+      }),
+    );
+
+    const serverAppState = (
+      serverResult?.[0] as unknown as {
+        appState?: { matchmaking?: { lastModified?: number } };
+      }
+    )?.appState;
+    const serverTimestamp = serverAppState?.matchmaking?.lastModified ?? 0;
+    const localTimestamp = MatchmakingApp.state.lastModified ?? 0;
+
+    // 2. Conflict detection: server has newer data from another admin
+    if (serverTimestamp > localTimestamp) {
+      $q.notify({
+        type: 'warning',
+        message: 'Another admin made changes. Refresh to see latest state.',
+        position: 'top',
+        timeout: 5000,
+        actions: [
+          {
+            label: 'Refresh',
+            color: 'white',
+            handler: () => window.location.reload(),
+          },
+        ],
+      });
+      hasPendingCloudSync.value = true;
+      return;
+    }
+
+    // 3. Update our timestamp and push
+    MatchmakingApp.state.lastModified = Date.now();
+
     const payload = {
       matchmaking: MatchmakingApp.state,
     };
 
-    // Save to cloud using Likha SDK
     await likhaClient.request(
       updateItem('club', currentClubUUID.value, {
         appState: payload,
@@ -2511,16 +2622,29 @@ const performCloudSync = async () => {
   }
 };
 
-// Sync state to cloud (debounced for rapid settings watchers)
-const syncToCloud = debounce(performCloudSync, 2000);
-
 const updateOnlineStatus = () => {
   const wasOffline = !isOnline.value;
   isOnline.value = navigator.onLine;
 
-  // If we just came back online and have pending sync, sync now
+  // If we just came back online and have pending sync, sync now with retry
   if (isOnline.value && wasOffline && hasPendingCloudSync.value) {
-    syncToCloud();
+    const attemptSync = async (retries = 3, delay = 1000) => {
+      try {
+        await performCloudSync();
+      } catch {
+        if (retries > 0) {
+          setTimeout(() => attemptSync(retries - 1, delay * 2), delay);
+        } else {
+          $q.notify({
+            type: 'negative',
+            message: 'Cloud sync failed after reconnect. Will retry.',
+            position: 'top',
+            timeout: 3000,
+          });
+        }
+      }
+    };
+    attemptSync();
     $q.notify({
       type: 'positive',
       message: 'Back online. Syncing to cloud...',
@@ -2931,22 +3055,14 @@ const getWaitingPlayersInfo = (): string => {
 };
 
 // Watch for matchmaking state changes and sync to cloud
-watch(
-  () => MatchmakingApp.state,
-  () => {
-    syncToCloud();
-  },
-  { deep: true },
-);
-
-// Set up matchmaking state change handler
-MatchmakingApp.onStateChange = syncToCloud;
+// Set up matchmaking state change handler for explicit sync calls
+MatchmakingApp.onStateChange = performCloudSync;
 
 // Watch for cloud config changes and save to localStorage
 watch([likhaUrl, likhaToken], () => {
   localStorage.setItem('likhaUrl', likhaUrl.value);
   localStorage.setItem('likhaToken', likhaToken.value);
-  syncToCloud();
+  performCloudSync();
 });
 
 // Helper function to find the best singles pair from all available players
@@ -3136,7 +3252,6 @@ const addClubMembers = () => {
   selectedClubMembers.value = [];
   showAddPlayerDialog.value = false;
   MatchmakingApp.persist();
-  syncToCloud();
 };
 
 const addNewPlayer = () => {
@@ -3146,6 +3261,7 @@ const addNewPlayer = () => {
   newPlayerName.value = null;
   newPlayerLevel.value = null;
   showAddPlayerDialog.value = false;
+  MatchmakingApp.persist();
   $q.notify({
     type: 'positive',
     message: `Player "${trimmedName}" added successfully`,
@@ -3213,6 +3329,7 @@ const addBulkPlayers = () => {
   bulkPlayers.value = [];
   bulkDefaultLevel.value = 2;
   showAddPlayerDialog.value = false;
+  MatchmakingApp.persist();
 };
 
 const generateNewMatches = () => {
@@ -3323,9 +3440,6 @@ const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
         actualMatch.createdAt = Date.now();
       }
 
-      // Save the changes
-      MatchmakingApp.persist();
-
       // Notify user about auto-advance
       $q.notify({
         type: 'info',
@@ -3344,22 +3458,39 @@ const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
 };
 
 const removePlayer = (username: string) => {
-  delete MatchmakingApp.state.players[username];
-  MatchmakingApp.removeFromQueue(username);
-  MatchmakingApp.persist();
-  $q.notify({
-    type: 'info',
-    message: `Player "${username}" removed`,
-    position: 'top',
+  $q.dialog({
+    title: 'Remove Player',
+    message: `Are you sure you want to remove "${username}"? This will delete their stats and remove them from the queue.`,
+    cancel: { label: 'Cancel', color: 'grey', flat: true },
+    ok: { label: 'Remove', color: 'negative', icon: 'delete' },
+    persistent: true,
+  }).onOk(() => {
+    delete MatchmakingApp.state.players[username];
+    MatchmakingApp.removeFromQueue(username);
+    MatchmakingApp.persist();
+    $q.notify({
+      type: 'info',
+      message: `Player "${username}" removed`,
+      position: 'top',
+    });
   });
 };
 
 const removeFromQueue = (username: string) => {
-  MatchmakingApp.removeFromQueue(username);
-  $q.notify({
-    type: 'info',
-    message: `Player "${username}" removed from queue`,
-    position: 'top',
+  $q.dialog({
+    title: 'Remove from Queue',
+    message: `Remove "${username}" from the queue?`,
+    cancel: { label: 'Cancel', color: 'grey', flat: true },
+    ok: { label: 'Remove', color: 'warning', icon: 'remove_circle' },
+    persistent: true,
+  }).onOk(() => {
+    MatchmakingApp.removeFromQueue(username);
+    MatchmakingApp.persist();
+    $q.notify({
+      type: 'info',
+      message: `Player "${username}" removed from queue`,
+      position: 'top',
+    });
   });
 };
 
@@ -3420,8 +3551,6 @@ const clearMatches = () => {
     MatchmakingApp.state.activeMatches = [];
     MatchmakingApp.persist();
 
-    // Save data
-
     $q.notify({
       type: 'positive',
       message: 'All matches have been cleared',
@@ -3451,8 +3580,6 @@ const clearQueue = () => {
     MatchmakingApp.state.queues = [];
     MatchmakingApp.persist();
 
-    // Save data
-
     $q.notify({
       type: 'positive',
       message: 'Queue has been cleared',
@@ -3464,9 +3591,10 @@ const clearQueue = () => {
 const requeuePlayer = (username: string) => {
   const p = players.value.find((p) => p.username === username);
   if (p) MatchmakingApp.checkInPlayer(p.username, p.level);
+  MatchmakingApp.persist();
   $q.notify({
     type: 'positive',
-    message: `Player "${name}" added to queue`,
+    message: `Player "${username}" added to queue`,
     position: 'top',
   });
 };
@@ -3475,6 +3603,7 @@ const addAllPlayersToQueue = () => {
   players.value.forEach((p) =>
     MatchmakingApp.checkInPlayer(p.username, p.level),
   );
+  MatchmakingApp.persist();
   $q.notify({
     type: 'positive',
     message: 'Added all players to queue',
@@ -3497,6 +3626,7 @@ const resetAllData = () => {
     },
   }).onOk(() => {
     MatchmakingApp.hardResetEverything();
+    MatchmakingApp.persist();
     showSettingsDialog.value = false;
     $q.notify({
       type: 'warning',
@@ -4436,7 +4566,6 @@ const savePlayerEdit = () => {
   }
 
   MatchmakingApp.persist();
-  performCloudSync();
 
   $q.notify({
     type: 'positive',
