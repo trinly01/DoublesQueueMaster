@@ -6,6 +6,7 @@ import {
   createWebHistory,
 } from 'vue-router';
 import routes from './routes';
+import { LocalStorage } from 'quasar';
 
 /*
  * If not building with SSR mode, you can
@@ -29,6 +30,26 @@ export default route(function (/* { store, ssrContext } */) {
     // quasar.conf.js -> build -> vueRouterMode
     // quasar.conf.js -> build -> publicPath
     history: createHistory(process.env.VUE_ROUTER_BASE),
+  });
+
+  Router.beforeEach((to, from, next) => {
+    const hasSession = LocalStorage.has('likha-data');
+
+    if (to.matched.some(record => record.meta.requiresAuth)) {
+      if (!hasSession) {
+        next({ path: '/login', query: { redirect: to.fullPath } });
+      } else {
+        next();
+      }
+    } else if (to.matched.some(record => record.meta.requiresUnauth)) {
+      if (hasSession) {
+        next({ path: '/' });
+      } else {
+        next();
+      }
+    } else {
+      next();
+    }
   });
 
   return Router;
