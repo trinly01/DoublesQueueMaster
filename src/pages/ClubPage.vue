@@ -2094,7 +2094,7 @@ import { likhaClient } from 'src/boot/likha';
 
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useQuasar } from 'quasar';
+import { useQuasar, LocalStorage } from 'quasar';
 import TeamArrangement from '../components/TeamArrangement.vue';
 import PlayerList from '../components/PlayerList.vue';
 import PlayerCard from '../components/PlayerCard.vue';
@@ -2566,6 +2566,14 @@ const loadClubData = async (clubId: string) => {
           })
           .filter((m) => m.id) || [];
 
+      // Persist club metadata for offline admin detection
+      LocalStorage.set(`quasar_club_meta_${clubId}`, {
+        clubUUID: club.id,
+        adminIds: Array.from(clubAdminIds.value),
+        members: clubMembers.value,
+        timestamp: Date.now(),
+      });
+
       // Merge club players into local state
       if (club.players && Array.isArray(club.players)) {
         club.players.forEach((p) => {
@@ -2616,9 +2624,41 @@ const loadClubData = async (clubId: string) => {
       clubErrorMessage.value = `Club "${clubId}" not found. You can still use the app in local mode.`;
     }
   } catch (err) {
-    console.error('Failed to load club:', err);
-    clubLoadingState.value = 'error';
-    clubErrorMessage.value = 'Failed to load club data. Working in local mode.';
+    console.warn(
+      'Failed to load club from server (offline?), using cache:',
+      err,
+    );
+
+    // Offline fallback: use cached matchmaking state if available
+    const cached = LocalStorage.getItem('quasar_matchmaking_state') as Record<
+      string,
+      unknown
+    > | null;
+    if (cached && Object.keys(cached).length > 0) {
+      currentClubId.value = clubId;
+
+      // Restore club metadata for admin detection
+      const meta = LocalStorage.getItem(`quasar_club_meta_${clubId}`) as {
+        clubUUID?: string;
+        adminIds?: string[];
+        members?: typeof clubMembers.value;
+      } | null;
+      if (meta) {
+        currentClubUUID.value = meta.clubUUID || '';
+        clubAdminIds.value = new Set(meta.adminIds || []);
+        clubMembers.value = meta.members || [];
+      }
+
+      clubLoadingState.value = 'loaded';
+      $q.notify({
+        color: 'warning',
+        message: 'Offline — showing cached club data',
+      });
+    } else {
+      clubLoadingState.value = 'error';
+      clubErrorMessage.value =
+        'Failed to load club data. No cached data available.';
+    }
   }
 };
 
@@ -2730,12 +2770,20 @@ onMounted(async () => {
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
 
-  // Fetch current user
+  // Fetch current user (or restore from cache if offline)
   try {
     const me = await likhaClient.request(readMe());
     currentUserId.value = ((me as Record<string, unknown>).id as string) || '';
+    if (currentUserId.value) {
+      LocalStorage.set('quasar_current_user_id', currentUserId.value);
+    }
   } catch {
-    // Not logged in or error — continue in local mode
+    const cachedUserId = LocalStorage.getItem('quasar_current_user_id') as
+      | string
+      | null;
+    if (cachedUserId) {
+      currentUserId.value = cachedUserId;
+    }
   }
 
   // Load club from URL param
