@@ -133,6 +133,28 @@ export const RatingEngine = {
   },
 };
 
+// Harmonic Mean of team ratings (same logic used in draftBalancedMatch)
+export const computeTeamRating = (team: Player[]) => {
+  if (team.length === 0) return 1500;
+  const sumReciprocal = team.reduce(
+    (sum, p) => sum + 1 / Math.max(1, p.rating),
+    0,
+  );
+  return team.length / sumReciprocal;
+};
+
+// Forecasted win probability for each team
+export const computeWinProbability = (teamA: Player[], teamB: Player[]) => {
+  const ratingA = computeTeamRating(teamA);
+  const ratingB = computeTeamRating(teamB);
+  const probA = 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
+  return {
+    teamA: probA,
+    teamB: 1 - probA,
+    expectedDifference: Math.abs(ratingA - ratingB),
+  };
+};
+
 /**
  * ==========================================
  * 3. BALANCED MATCHMAKING ALGORITHM

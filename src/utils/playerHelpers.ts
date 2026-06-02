@@ -21,7 +21,19 @@ export interface UIMatch {
   completedAt?: Date;
   queueSource?: string;
   expectedDifference?: number;
+  winProbability?: number; // Team A win probability (0-1)
 }
+
+/**
+ * Get forecast chip color based on win probability (0-1).
+ * 50% = grey, >50% = green shade 1-10, <50% = red shade 1-10.
+ */
+export const getForecastColor = (prob: number): string => {
+  const margin = Math.abs(prob - 0.5);
+  if (margin < 0.01) return 'grey-6';
+  const shade = Math.min(10, Math.max(1, Math.ceil(margin * 20)));
+  return prob > 0.5 ? `green-${shade}` : `red-${shade}`;
+};
 
 /**
  * Get the color for a player level

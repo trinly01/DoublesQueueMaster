@@ -2123,6 +2123,7 @@ import EmptyState from '../components/EmptyState.vue';
 import DialogHeader from '../components/DialogHeader.vue';
 import MatchCard from '../components/MatchCard.vue';
 import { getLevelColor, getLevelIcon } from '../utils/playerHelpers';
+import { computeWinProbability } from '../services/matchmaking';
 
 // Player type
 
@@ -2186,25 +2187,26 @@ const queue = computed(() => {
 });
 const matches = computed(() => {
   return MatchmakingApp.state.activeMatches.map((m, index) => {
+    const teamA = m.teamA.map((u) => ({
+      ...MatchmakingApp.state.players[u],
+      username: u,
+    }));
+    const teamB = m.teamB.map((u) => ({
+      ...MatchmakingApp.state.players[u],
+      username: u,
+    }));
+    const stats = computeWinProbability(teamA, teamB);
     return {
       id: m.matchId,
-      teamA: m.teamA.map((u) => ({
-        ...MatchmakingApp.state.players[u],
-        username: u,
-      })),
-      teamB: m.teamB.map((u) => ({
-        ...MatchmakingApp.state.players[u],
-        username: u,
-      })),
-      players: [...m.teamA, ...m.teamB].map((u) => ({
-        ...MatchmakingApp.state.players[u],
-        username: u,
-      })),
-      expectedDifference: m.expectedDifference,
+      teamA,
+      teamB,
+      players: [...teamA, ...teamB],
+      expectedDifference: stats.expectedDifference,
+      winProbability: stats.teamA,
       status: m.status || 'in-progress',
       court: m.court,
       order: index + 1,
-      createdAt: m.createdAt ? new Date(m.createdAt) : new Date(),
+      createdAt: new Date(m.createdAt || Date.now()),
       queueSource: m.queueSource,
     };
   });
