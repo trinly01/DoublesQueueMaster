@@ -1,10 +1,13 @@
 <template>
   <q-page class="flex flex-center player-page">
-    <q-card class="player-card shadow-4 q-pa-xl relative-position" bordered>
-      <q-inner-loading :showing="loading">
-        <q-spinner-gears size="50px" color="primary" />
-      </q-inner-loading>
-
+    <div v-if="loading" class="flex flex-center" style="min-height: 90vh">
+      <q-spinner-gears size="60px" color="primary" />
+    </div>
+    <q-card
+      v-else
+      class="player-card shadow-4 q-pa-xl relative-position"
+      bordered
+    >
       <template v-if="!loading">
         <q-card-section class="text-center q-pb-md">
           <q-avatar size="100px" class="shadow-3 q-mb-md relative-position">
@@ -70,7 +73,8 @@
                 color="primary"
                 label="Join"
                 @click="joinClub"
-                :disable="!clubId"
+                :loading="joinLoading"
+                :disable="!clubId || joinLoading"
                 class="full-width join-btn"
                 dense
               />
@@ -250,6 +254,7 @@ const avatarUrl = computed(() => {
 
 const LAST_CLUB_KEY = 'lastClubId';
 const clubId = ref((LocalStorage.getItem(LAST_CLUB_KEY) as string) || '');
+const joinLoading = ref(false);
 const loading = computed(() => PlayerProfile.loading.value);
 const avatarInput = ref<HTMLInputElement | null>(null);
 
@@ -377,7 +382,8 @@ const createClub = async () => {
 };
 
 const joinClub = async () => {
-  if (!clubId.value) return;
+  if (!clubId.value || joinLoading.value) return;
+  joinLoading.value = true;
 
   try {
     // Fetch club to check membership
@@ -431,6 +437,8 @@ const joinClub = async () => {
     } else {
       $q.notify({ color: 'negative', message: 'Failed to join club' });
     }
+  } finally {
+    joinLoading.value = false;
   }
 };
 

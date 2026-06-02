@@ -3690,12 +3690,11 @@ const resetGamesPlayed = () => {
     },
     persistent: true,
   }).onOk(() => {
-    // Reset player stats
+    // Reset player stats (preserve ratings)
     Object.values(MatchmakingApp.state.players).forEach((player) => {
       player.matchesPlayed = 0;
       player.wins = 0;
       player.losses = 0;
-      player.rating = 1500;
     });
 
     // Save data
