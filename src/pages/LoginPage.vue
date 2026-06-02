@@ -2,9 +2,14 @@
   <q-page class="flex flex-center login-page">
     <q-card class="q-pa-lg login-card shadow-4" bordered>
       <q-card-section class="text-center q-pb-sm q-pt-none">
-        <div class="brand-logo q-mb-none">🏓</div>
+        <img
+          :src="logoUrl"
+          alt="Logo"
+          class="brand-logo"
+          style="height: 64px; margin-bottom: 8px"
+        />
         <div class="text-h4 text-weight-bold text-primary brand-title q-mb-xs">
-          Dink It
+          DinkMatch
         </div>
         <div class="text-subtitle1 text-grey-7">
           Sign in to your player account
@@ -57,12 +62,17 @@
                 type="email"
                 label="Email Address"
                 lazy-rules
+                autofocus
+                autocomplete="username"
+                autocapitalize="off"
+                autocorrect="off"
                 :rules="[
                   (val) => (val && val.length > 0) || 'Please enter your email',
                 ]"
                 color="primary"
                 dense
                 hide-bottom-space
+                :disable="loading"
               >
                 <template v-slot:prepend>
                   <q-icon name="email" color="primary" />
@@ -74,9 +84,10 @@
               <q-input
                 filled
                 v-model="password"
-                type="password"
+                :type="showPassword ? 'text' : 'password'"
                 label="Password"
                 lazy-rules
+                autocomplete="current-password"
                 :rules="[
                   (val) =>
                     (val && val.length > 0) || 'Please enter your password',
@@ -84,15 +95,31 @@
                 color="primary"
                 dense
                 hide-bottom-space
+                :disable="loading"
               >
                 <template v-slot:prepend>
                   <q-icon name="lock" color="primary" />
+                </template>
+                <template v-slot:append>
+                  <q-icon
+                    :name="showPassword ? 'visibility_off' : 'visibility'"
+                    class="cursor-pointer"
+                    color="grey-6"
+                    @click="showPassword = !showPassword"
+                  />
                 </template>
               </q-input>
             </div>
           </div>
 
-          <div class="text-right q-mt-xs q-mb-xs">
+          <div class="row items-center justify-between q-mt-sm q-mb-sm">
+            <q-checkbox
+              v-model="rememberMe"
+              label="Remember me"
+              color="primary"
+              size="sm"
+              dense
+            />
             <router-link
               to="/forgot-password"
               class="text-primary text-caption text-weight-medium text-decoration-none"
@@ -100,7 +127,7 @@
             >
           </div>
 
-          <div class="q-mt-xs">
+          <div>
             <q-btn
               label="Login"
               type="submit"
@@ -108,6 +135,7 @@
               size="lg"
               class="full-width login-btn"
               :loading="loading"
+              :disable="!email || !password"
               unelevated
               rounded
             />
@@ -128,6 +156,7 @@
 </template>
 
 <script setup lang="ts">
+import logoUrl from 'src/assets/queue master logo.png';
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
@@ -136,6 +165,8 @@ import { registerUserVerify } from '@likha-erp/likha-sdk';
 
 const email = ref('');
 const password = ref('');
+const showPassword = ref(false);
+const rememberMe = ref(false);
 const loading = ref(false);
 
 type VerifyStatus = 'idle' | 'loading' | 'success' | 'error';
@@ -215,6 +246,7 @@ const onSubmit = async () => {
 .brand-title {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 .login-card {
@@ -250,7 +282,21 @@ const onSubmit = async () => {
 }
 @media (max-width: 480px) {
   .login-card {
-    padding: 16px !important;
+    padding: 24px !important;
+    max-width: none;
+    border-radius: 0;
+    background-color: #ffffff;
+    backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .login-card:hover {
+    transform: none;
+    box-shadow: none;
   }
 }
 </style>
