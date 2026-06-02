@@ -877,57 +877,70 @@
 
             <!-- Club Members Mode -->
             <div v-else-if="addPlayerMode === 'club'" class="q-gutter-y-md">
-              <q-select
-                v-model="selectedClubMembers"
-                :options="
-                  clubMembers
-                    .filter(
-                      (m) =>
-                        m.id &&
-                        !Object.values(MatchmakingApp.state.players).some(
-                          (p) => p.userId === m.id,
-                        ),
-                    )
-                    .map((m) => ({
-                      label: m.username || m.email?.split('@')[0] || 'Unknown',
-                      value: m.id,
-                      rating: m.rating || 1500,
-                    }))
-                "
-                label="Select club members to add"
-                multiple
+              <!-- Search -->
+              <q-input
+                v-model="clubMemberSearch"
+                label="Search club members"
                 outlined
                 dense
-                emit-value
-                map-options
-                option-label="label"
-                option-value="value"
-                use-input
-                input-debounce="0"
+                clearable
               >
                 <template v-slot:prepend>
-                  <q-icon name="groups" />
+                  <q-icon name="search" />
                 </template>
-                <template v-slot:option="scope">
-                  <q-item v-bind="scope.itemProps">
-                    <q-item-section>
-                      <q-item-label>{{ scope.opt.label }}</q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-chip size="sm" color="primary" text-color="white"
-                        >Rating: {{ scope.opt.rating }}</q-chip
-                      >
-                    </q-item-section>
-                  </q-item>
-                </template>
-                <template v-slot:no-option>
-                  <q-item>
-                    <q-item-section class="text-grey">
-                      No club members available to add
-                    </q-item-section>
-                  </q-item>
-                </template>
-              </q-select>
+              </q-input>
+
+              <!-- Selected count -->
+              <div class="text-caption text-grey-7">
+                {{ selectedClubMembers.length }} member(s) selected
+              </div>
+
+              <!-- Members list -->
+              <q-list separator bordered class="rounded-borders">
+                <q-item
+                  v-for="member in availableClubMembers"
+                  :key="member.id"
+                  clickable
+                  @click="toggleClubMember(member.id)"
+                  :class="{ 'bg-purple-1': isClubMemberSelected(member.id) }"
+                >
+                  <q-item-section avatar>
+                    <q-avatar color="primary" text-color="white" size="sm">
+                      {{
+                        (member.username || member.email?.split('@')[0] || 'U')
+                          .charAt(0)
+                          .toUpperCase()
+                      }}
+                    </q-avatar>
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-weight-medium">
+                      {{
+                        member.username ||
+                        member.email?.split('@')[0] ||
+                        'Unknown'
+                      }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <div class="row items-center q-gutter-sm">
+                      <q-chip size="sm" color="primary" text-color="white">
+                        R: {{ member.rating || 1500 }}
+                      </q-chip>
+                      <q-checkbox
+                        :model-value="isClubMemberSelected(member.id)"
+                        color="accent"
+                        @click.stop="toggleClubMember(member.id)"
+                      />
+                    </div>
+                  </q-item-section>
+                </q-item>
+                <q-item v-if="availableClubMembers.length === 0">
+                  <q-item-section class="text-grey">
+                    No club members available to add
+                  </q-item-section>
+                </q-item>
+              </q-list>
             </div>
           </q-card-section>
 
@@ -2219,6 +2232,7 @@ const newPlayerLevel = ref<1 | 2 | 3 | null>(null);
 // Add player dialog mode: 'single' | 'bulk' | 'club'
 const addPlayerMode = ref<'single' | 'bulk' | 'club'>('single');
 const selectedClubMembers = ref<string[]>([]);
+const clubMemberSearch = ref('');
 const bulkPlayerText = ref<string>('');
 const bulkPlayers = ref<
   Array<{ username: string; level: 1 | 2 | 3; original: string }>
@@ -2300,6 +2314,35 @@ const clubMembers = ref<
     isAdmin?: boolean;
   }>
 >([]);
+
+const availableClubMembers = computed(() => {
+  const search = clubMemberSearch.value.toLowerCase();
+  return clubMembers.value
+    .filter(
+      (m) =>
+        m.id &&
+        !Object.values(MatchmakingApp.state.players).some(
+          (p) => p.userId === m.id,
+        ) &&
+        (!search ||
+          (m.username || '').toLowerCase().includes(search) ||
+          (m.email || '').toLowerCase().includes(search)),
+    )
+    .sort((a, b) => (a.username || '').localeCompare(b.username || ''));
+});
+
+const toggleClubMember = (memberId: string) => {
+  const idx = selectedClubMembers.value.indexOf(memberId);
+  if (idx >= 0) {
+    selectedClubMembers.value.splice(idx, 1);
+  } else {
+    selectedClubMembers.value.push(memberId);
+  }
+};
+
+const isClubMemberSelected = (memberId: string): boolean => {
+  return selectedClubMembers.value.includes(memberId);
+};
 const isCurrentUserAdmin = computed(() => {
   const isAdmin = clubMembers.value.some(
     (m) => m.id === currentUserId.value && m.isAdmin,
@@ -2878,6 +2921,7 @@ watch(showAddPlayerDialog, (open) => {
   if (open) {
     addPlayerMode.value = 'single';
     selectedClubMembers.value = [];
+    clubMemberSearch.value = '';
     newPlayerName.value = null;
     newPlayerLevel.value = null;
     bulkPlayerText.value = '';
@@ -3431,6 +3475,7 @@ const addClubMembers = () => {
 
   addPlayerMode.value = 'single';
   selectedClubMembers.value = [];
+  clubMemberSearch.value = '';
   showAddPlayerDialog.value = false;
   MatchmakingApp.persist();
 };
