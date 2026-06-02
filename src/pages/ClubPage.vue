@@ -42,17 +42,20 @@
         <div class="container">
           <div class="row items-center justify-between">
             <div class="col">
-              <h1 class="text-h5 text-weight-bold text-white q-mb-xs">
+              <div class="row items-center q-mb-none">
                 <img
                   :src="logoUrl"
                   alt="Logo"
-                  style="
-                    height: 28px;
-                    vertical-align: middle;
-                    margin-right: 4px;
-                  "
+                  style="height: 20px; margin-right: 6px"
                 />
-                DinkMatch — {{ clubName }}
+                <span class="text-caption text-weight-medium text-white">
+                  DinkMatch
+                </span>
+              </div>
+              <h1
+                class="text-h5 text-weight-bold text-white q-mt-none q-mb-none"
+              >
+                {{ clubName }}
               </h1>
               <p class="text-caption text-grey-1 q-ma-none">
                 Smart matchmaking for singles & doubles
@@ -62,10 +65,10 @@
               <q-btn
                 color="white"
                 icon="settings"
-                label="Settings"
                 @click="showSettingsDialog = true"
                 flat
-                size="sm"
+                round
+                dense
               >
                 <q-tooltip>Open settings and preferences</q-tooltip>
               </q-btn>
