@@ -5,49 +5,130 @@
       <div class="row items-center q-pa-sm no-wrap">
         <!-- Left: Team A players -->
         <div class="col text-center">
-          <div v-for="player in match.teamA" :key="player.username" class="column items-center q-mb-xs">
+          <div
+            v-for="player in match.teamA"
+            :key="player.username"
+            class="column items-center q-mb-xs"
+          >
             <span class="text-weight-medium text-center">{{
               player.username
             }}</span>
-            <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)" text-color="white" size="xs"
-              dense />
+            <q-chip
+              :label="`L${player.level}`"
+              :color="getLevelColor(player.level)"
+              text-color="white"
+              size="xs"
+              dense
+            />
           </div>
         </div>
 
         <!-- Center: Status + Icon + Court stacked -->
         <div class="col-auto q-mx-md center-group">
-          <q-chip v-if="match.court" color="blue-grey-7" text-color="white" size="sm" dense>
+          <q-chip
+            v-if="match.court"
+            color="blue-grey-7"
+            text-color="white"
+            size="sm"
+            dense
+          >
             Court
-            <q-avatar color="blue-grey-9" style="left: 10px" dense size="xs" rounded text-color="white">{{ match.court
-              }}</q-avatar>
+            <q-avatar
+              color="blue-grey-9"
+              style="left: 10px"
+              dense
+              size="xs"
+              rounded
+              text-color="white"
+              >{{ match.court }}</q-avatar
+            >
           </q-chip>
-          <q-icon name="sports_tennis" color="grey-6" size="sm" />
-          <q-chip :color="getMatchStatusColor(match.status)" text-color="white" size="sm" dense>
+          <span class="text-caption text-grey-6">
+            {{
+              match.winProbability !== undefined
+                ? (match.winProbability * 100).toFixed(0)
+                : ''
+            }}%
+            <q-icon name="sports_tennis" color="grey-6" size="sm" />
+            {{
+              match.winProbability !== undefined
+                ? ((1 - match.winProbability) * 100).toFixed(0)
+                : ''
+            }}%
+          </span>
+          <q-chip
+            :color="getMatchStatusColor(match.status)"
+            text-color="white"
+            size="sm"
+            dense
+          >
             {{ getMatchStatusLabel(match.status) }}
           </q-chip>
         </div>
 
         <!-- Right: Team B players -->
         <div class="col text-center">
-          <div v-for="player in match.teamB" :key="player.username" class="column items-center q-mb-xs">
+          <div
+            v-for="player in match.teamB"
+            :key="player.username"
+            class="column items-center q-mb-xs"
+          >
             <span class="text-weight-medium text-center">{{
               player.username
             }}</span>
-            <q-chip :label="`L${player.level}`" :color="getLevelColor(player.level)" text-color="white" size="xs"
-              dense />
+            <q-chip
+              :label="`L${player.level}`"
+              :color="getLevelColor(player.level)"
+              text-color="white"
+              size="xs"
+              dense
+            />
           </div>
         </div>
       </div>
-      <div v-if="match.expectedDifference !== undefined" class="text-center text-caption text-grey-6 q-mt-xs">
-        Balance diff: {{ match.expectedDifference.toFixed(1) }} rating pts
+      <!-- <div
+        v-if="match.winProbability !== undefined"
+        class="text-center text-caption q-mt-xs row justify-center q-gutter-xs"
+      >
+        <q-chip
+          :color="getForecastColor(match.winProbability)"
+          text-color="white"
+          size="xs"
+          dense
+        >
+          {{ (match.winProbability * 100).toFixed(0) }}%
+        </q-chip>
+        <span class="text-grey-6">vs</span>
+        <q-chip
+          :color="getForecastColor(1 - match.winProbability)"
+          text-color="white"
+          size="xs"
+          dense
+        >
+          {{ ((1 - match.winProbability) * 100).toFixed(0) }}%
+        </q-chip>
       </div>
+      <div
+        v-if="match.expectedDifference !== undefined"
+        class="text-center text-caption text-grey-6 q-mt-xs"
+      >
+        Balance diff: {{ match.expectedDifference.toFixed(1) }} rating pts
+        <span v-if="match.winProbability !== undefined">
+          {{ (match.winProbability * 100).toFixed(0) }} |
+          {{ ((1 - match.winProbability) * 100).toFixed(0) }}
+        </span>
+      </div> -->
     </q-item-section>
 
     <q-item-section side v-if="showActions && !isReadOnlyMode">
       <q-btn color="grey-7" icon="more_vert" flat round size="sm">
         <q-menu>
           <q-list style="min-width: 150px">
-            <q-item v-if="match.status === 'in-progress'" clickable @click="$emit('completeMatch')">
+            <q-item
+              v-if="match.status === 'in-progress'"
+              clickable
+              @click="$emit('completeMatch')"
+            >
               <q-item-section avatar>
                 <q-icon name="emoji_events" />
               </q-item-section>
@@ -61,7 +142,11 @@
               <q-item-section>Edit Match</q-item-section>
             </q-item>
 
-            <q-item v-if="!match.court && availableCourts > 0" clickable @click="$emit('assignCourt')">
+            <q-item
+              v-if="!match.court && availableCourts > 0"
+              clickable
+              @click="$emit('assignCourt')"
+            >
               <q-item-section avatar>
                 <q-icon name="sports_tennis" />
               </q-item-section>
@@ -75,9 +160,13 @@
               <q-item-section>Change Court</q-item-section>
             </q-item>
 
-            <q-item v-if="
-              match.status === 'waiting' && match.court && isCourtAvailable
-            " clickable @click="$emit('startMatch')">
+            <q-item
+              v-if="
+                match.status === 'waiting' && match.court && isCourtAvailable
+              "
+              clickable
+              @click="$emit('startMatch')"
+            >
               <q-item-section avatar>
                 <q-icon name="play_arrow" />
               </q-item-section>
@@ -86,7 +175,11 @@
 
             <q-separator />
 
-            <q-item clickable @click="$emit('cancelMatch')" class="text-negative">
+            <q-item
+              clickable
+              @click="$emit('cancelMatch')"
+              class="text-negative"
+            >
               <q-item-section avatar>
                 <q-icon name="cancel" />
               </q-item-section>
@@ -109,25 +202,33 @@ import {
 
 const isReadOnlyMode = inject('isReadOnlyMode', false);
 
-// Player interface
+// Player interface (matches matchmaking.ts Player)
 interface Player {
   username: string;
+  name?: string;
   level: 1 | 2 | 3;
   rating: number;
   matchesPlayed: number;
+  wins: number;
+  losses: number;
+  priority?: string;
+  userId?: string;
 }
 
 interface Match {
   id: string;
   teamA: Player[];
   teamB: Player[];
+  players?: Player[];
   status: 'waiting' | 'in-progress' | 'completed';
   court?: number;
   order: number;
   createdAt: Date;
   startedAt?: Date;
   completedAt?: Date;
+  queueSource?: string;
   expectedDifference?: number;
+  winProbability?: number;
 }
 
 interface Props {
