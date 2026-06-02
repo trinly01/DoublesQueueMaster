@@ -1,4 +1,4 @@
-# 🏓 Queue Master
+# 🏓 DinkMatch
 
 Smart matchmaking system for singles and doubles matches.
 
