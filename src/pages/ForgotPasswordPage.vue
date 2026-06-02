@@ -3,9 +3,16 @@
     <q-card class="q-pa-lg forgot-card shadow-4" bordered>
       <template v-if="!emailSent">
         <q-card-section class="text-center q-pb-sm q-pt-none">
-          <div class="brand-logo q-mb-none">🏓</div>
-          <div class="text-h4 text-weight-bold text-primary brand-title q-mb-xs">
-            Dink It
+          <img
+            :src="logoUrl"
+            alt="Logo"
+            class="brand-logo q-mb-none"
+            style="height: 48px"
+          />
+          <div
+            class="text-h4 text-weight-bold text-primary brand-title q-mb-xs"
+          >
+            DinkMatch
           </div>
           <div class="text-subtitle1 text-grey-7">Reset your password</div>
         </q-card-section>
@@ -65,22 +72,32 @@
       <!-- Success state -->
       <template v-else>
         <q-card-section class="text-center q-pa-lg">
-          <q-icon name="mark_email_unread" color="primary" size="80px" class="q-mb-md" />
-          <div class="text-h5 text-weight-bold text-primary brand-title q-mb-md">
+          <q-icon
+            name="mark_email_unread"
+            color="primary"
+            size="80px"
+            class="q-mb-md"
+          />
+          <div
+            class="text-h5 text-weight-bold text-primary brand-title q-mb-md"
+          >
             Check Your Email
           </div>
           <p class="text-body1 text-grey-8">
-            If an account exists for this address, we've sent a password reset link to:
+            If an account exists for this address, we've sent a password reset
+            link to:
           </p>
           <p class="text-subtitle1 text-weight-bold text-primary q-mb-lg">
             {{ email }}
           </p>
-          <q-banner class="bg-blue-1 text-blue-9 rounded-borders q-mb-xl text-left">
+          <q-banner
+            class="bg-blue-1 text-blue-9 rounded-borders q-mb-xl text-left"
+          >
             <template v-slot:avatar>
               <q-icon name="info" color="primary" />
             </template>
-            Please check your inbox (and spam folder) and click the link to reset
-            your password.
+            Please check your inbox (and spam folder) and click the link to
+            reset your password.
           </q-banner>
           <q-btn
             label="Back to Sign In"
@@ -97,6 +114,7 @@
 </template>
 
 <script setup lang="ts">
+import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed } from 'vue';
 
 import { likhaClient } from 'src/boot/likha';
@@ -105,7 +123,6 @@ import { passwordRequest } from '@likha-erp/likha-sdk';
 const email = ref('');
 const loading = ref(false);
 const emailSent = ref(false);
-
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const isEmailValid = computed(() => emailRegex.test(email.value.trim()));
@@ -138,6 +155,7 @@ const onSubmit = async () => {
 .brand-title {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 .forgot-card {
@@ -173,7 +191,21 @@ const onSubmit = async () => {
 }
 @media (max-width: 480px) {
   .forgot-card {
-    padding: 16px !important;
+    padding: 24px !important;
+    max-width: none;
+    border-radius: 0;
+    background-color: #ffffff;
+    backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .forgot-card:hover {
+    transform: none;
+    box-shadow: none;
   }
 }
 </style>

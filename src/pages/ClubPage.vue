@@ -43,7 +43,16 @@
           <div class="row items-center justify-between">
             <div class="col">
               <h1 class="text-h5 text-weight-bold text-white q-mb-xs">
-                🏓 Dink It — {{ clubName }}
+                <img
+                  :src="logoUrl"
+                  alt="Logo"
+                  style="
+                    height: 28px;
+                    vertical-align: middle;
+                    margin-right: 4px;
+                  "
+                />
+                DinkMatch — {{ clubName }}
               </h1>
               <p class="text-caption text-grey-1 q-ma-none">
                 Smart matchmaking for singles & doubles
@@ -267,8 +276,10 @@
                     size="md"
                     icon="auto_awesome"
                     :disable="!canGenerateMatches()"
+                    stack
+                    no-caps
                   >
-                    <span class="gt-xs">Auto Generate</span>
+                    <span class="gt-xs">Auto</span>
                     <span class="lt-sm">Auto</span>
                     <q-tooltip v-if="!canGenerateMatches()">
                       {{
@@ -286,8 +297,10 @@
                     icon="touch_app"
                     :disable="queue.length < (matchType === 'singles' ? 2 : 4)"
                     outline
+                    stack
+                    no-caps
                   >
-                    <span class="gt-xs">Manual Selection</span>
+                    <span class="gt-xs">Manual</span>
                     <span class="lt-sm">Manual</span>
                     <q-tooltip
                       v-if="queue.length < (matchType === 'singles' ? 2 : 4)"
@@ -577,8 +590,10 @@
                       size="md"
                       icon="auto_awesome"
                       :disable="!canGenerateMatches()"
+                      stack
+                      no-caps
                     >
-                      <span class="gt-xs">Auto Generate</span>
+                      <span class="gt-xs">Auto</span>
                       <span class="lt-sm">Auto</span>
                       <q-tooltip v-if="!canGenerateMatches()">
                         {{
@@ -598,8 +613,10 @@
                         queue.length < (matchType === 'singles' ? 2 : 4)
                       "
                       outline
+                      stack
+                      no-caps
                     >
-                      <span class="gt-xs">Manual Selection</span>
+                      <span class="gt-xs">Manual</span>
                       <span class="lt-sm">Manual</span>
                       <q-tooltip
                         v-if="queue.length < (matchType === 'singles' ? 2 : 4)"
@@ -2092,6 +2109,7 @@ import type { Player, AppState } from '../services/matchmaking';
 import { readItems, updateItem, readMe } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/boot/likha';
 
+import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar, LocalStorage } from 'quasar';

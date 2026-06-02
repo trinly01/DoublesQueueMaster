@@ -1,4 +1,7 @@
 {
+  "short_name": "DinkMatch",
+  "name": "DinkMatch — Smart Matchmaking",
+  "description": "Smart matchmaking for singles & doubles",
   "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#027be3",

@@ -3,11 +3,16 @@
     <q-card class="q-pa-lg register-card shadow-4" bordered>
       <template v-if="!registeredSuccessfully">
         <q-card-section class="text-center q-pb-sm q-pt-none">
-          <div class="brand-logo q-mb-none">🏓</div>
+          <img
+            :src="logoUrl"
+            alt="Logo"
+            class="brand-logo q-mb-none"
+            style="height: 48px"
+          />
           <div
             class="text-h4 text-weight-bold text-primary brand-title q-mb-xs"
           >
-            Dink It
+            DinkMatch
           </div>
           <div class="text-subtitle1 text-grey-7">
             Sign up for a player account
@@ -192,6 +197,7 @@
 </template>
 
 <script setup lang="ts">
+import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import { likhaClient } from 'src/boot/likha';
@@ -307,7 +313,21 @@ const onSubmit = async () => {
 
 @media (max-width: 480px) {
   .register-card {
-    padding: 16px !important;
+    padding: 24px !important;
+    max-width: none;
+    border-radius: 0;
+    background-color: #ffffff;
+    backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .register-card:hover {
+    transform: none;
+    box-shadow: none;
   }
 }
 </style>

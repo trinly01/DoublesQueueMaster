@@ -4,12 +4,20 @@
       <!-- No token state -->
       <template v-if="!token">
         <q-card-section class="text-center q-pa-lg">
-          <q-icon name="link_off" color="negative" size="80px" class="q-mb-md" />
-          <div class="text-h5 text-weight-bold text-primary brand-title q-mb-md">
+          <q-icon
+            name="link_off"
+            color="negative"
+            size="80px"
+            class="q-mb-md"
+          />
+          <div
+            class="text-h5 text-weight-bold text-primary brand-title q-mb-md"
+          >
             Invalid Link
           </div>
           <p class="text-body1 text-grey-8 q-mb-lg">
-            This password reset link is missing or invalid. Please request a new one.
+            This password reset link is missing or invalid. Please request a new
+            one.
           </p>
           <q-btn
             label="Request New Reset Link"
@@ -25,9 +33,16 @@
       <!-- Reset form -->
       <template v-else-if="!resetSuccess">
         <q-card-section class="text-center q-pb-sm q-pt-none">
-          <div class="brand-logo q-mb-none">🏓</div>
-          <div class="text-h4 text-weight-bold text-primary brand-title q-mb-xs">
-            Dink It
+          <img
+            :src="logoUrl"
+            alt="Logo"
+            class="brand-logo q-mb-none"
+            style="height: 48px"
+          />
+          <div
+            class="text-h4 text-weight-bold text-primary brand-title q-mb-xs"
+          >
+            DinkMatch
           </div>
           <div class="text-subtitle1 text-grey-7">Choose a new password</div>
         </q-card-section>
@@ -106,12 +121,20 @@
       <!-- Success state -->
       <template v-else>
         <q-card-section class="text-center q-pa-lg">
-          <q-icon name="check_circle" color="positive" size="80px" class="q-mb-md" />
-          <div class="text-h5 text-weight-bold text-primary brand-title q-mb-md">
+          <q-icon
+            name="check_circle"
+            color="positive"
+            size="80px"
+            class="q-mb-md"
+          />
+          <div
+            class="text-h5 text-weight-bold text-primary brand-title q-mb-md"
+          >
             Password Reset!
           </div>
           <p class="text-body1 text-grey-8 q-mb-lg">
-            Your password has been updated. You can now sign in with your new password.
+            Your password has been updated. You can now sign in with your new
+            password.
           </p>
           <q-btn
             label="Sign In"
@@ -128,6 +151,7 @@
 </template>
 
 <script setup lang="ts">
+import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
@@ -144,8 +168,7 @@ const loading = ref(false);
 const resetSuccess = ref(false);
 
 const isFormValid = computed(
-  () =>
-    password.value.length >= 8 && password.value === confirmPassword.value,
+  () => password.value.length >= 8 && password.value === confirmPassword.value,
 );
 
 onMounted(() => {
@@ -197,6 +220,7 @@ const onSubmit = async () => {
 .brand-title {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 .reset-card {
@@ -232,7 +256,21 @@ const onSubmit = async () => {
 }
 @media (max-width: 480px) {
   .reset-card {
-    padding: 16px !important;
+    padding: 24px !important;
+    max-width: none;
+    border-radius: 0;
+    background-color: #ffffff;
+    backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .reset-card:hover {
+    transform: none;
+    box-shadow: none;
   }
 }
 </style>
