@@ -46,6 +46,8 @@
             text-color="white"
             icon="star"
             size="lg"
+            clickable
+            @click="showHistoryDialog = true"
           >
             Rating: {{ playerRating === 1500 ? 'NR' : playerRating }}
           </q-chip>
@@ -154,6 +156,58 @@
           />
         </q-card-actions>
 
+        <!-- Rating History Dialog -->
+        <q-dialog v-model="showHistoryDialog" maximized>
+          <q-card style="min-width: 320px; max-width: 90vw; max-height: 70vh">
+            <q-card-section class="row items-center q-pb-none">
+              <div class="text-h6">Rating History</div>
+              <q-space />
+              <q-btn icon="close" flat round dense v-close-popup />
+            </q-card-section>
+
+            <q-card-section
+              class="q-pt-md"
+              style="max-height: 55vh; overflow-y: auto"
+            >
+              <div
+                ref="chartRef"
+                class="chart-container"
+                v-if="sortedEvents.length"
+              ></div>
+              <q-list separator v-if="sortedEvents.length">
+                <q-item
+                  v-for="event in sortedEvents"
+                  :key="event.day"
+                  class="q-px-sm"
+                >
+                  <q-item-section>
+                    <q-item-label caption class="text-grey">{{
+                      event.day
+                    }}</q-item-label>
+                    <q-item-label class="text-weight-medium">
+                      <span class="text-positive">{{ event.wins }}W</span>
+                      <span class="text-grey"> / </span>
+                      <span class="text-negative">{{ event.losses }}L</span>
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-chip
+                      class="history-rating text-weight-bold"
+                      text-color="white"
+                      size="md"
+                    >
+                      {{ event.rating }}
+                    </q-chip>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="text-center text-grey q-py-md">
+                No rating history available.
+              </div>
+            </q-card-section>
+          </q-card>
+        </q-dialog>
+
         <!-- Change Password Dialog -->
         <q-dialog v-model="showChangePasswordDialog" persistent>
           <q-card style="min-width: 320px; max-width: 90vw">
@@ -221,7 +275,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar, LocalStorage } from 'quasar';
 import { likhaClient } from 'src/boot/likha';
@@ -233,7 +287,8 @@ import {
   updateUser,
   updateMe,
 } from '@likha-erp/likha-sdk';
-import { PlayerProfile } from 'src/services/playerProfile';
+import { PlayerProfile, RatingEvent } from 'src/services/playerProfile';
+import * as echarts from 'echarts';
 
 const router = useRouter();
 const $q = useQuasar();
@@ -268,6 +323,95 @@ const showCreateClubDialog = ref(false);
 const newClubId = ref('');
 const newClubName = ref('');
 const createClubLoading = ref(false);
+const showHistoryDialog = ref(false);
+
+const playerEvents = computed(() => PlayerProfile.state.events || []);
+
+const sortedEvents = computed<RatingEvent[]>(() => {
+  return [...playerEvents.value].sort((a, b) => {
+    const dateA = new Date(a.day).getTime();
+    const dateB = new Date(b.day).getTime();
+    return dateB - dateA;
+  });
+});
+
+const chartRef = ref<HTMLDivElement | null>(null);
+let chartInstance: echarts.ECharts | null = null;
+
+const initChart = () => {
+  if (!chartRef.value || sortedEvents.value.length === 0) return;
+
+  if (chartInstance) {
+    chartInstance.dispose();
+    chartInstance = null;
+  }
+
+  const chronological = [...sortedEvents.value].reverse();
+  const days = chronological.map((e) => e.day);
+  const wins = chronological.map((e) => e.wins);
+  const losses = chronological.map((e) => e.losses);
+  const ratings = chronological.map((e) => e.rating);
+
+  chartInstance = echarts.init(chartRef.value);
+  chartInstance.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['Wins', 'Losses', 'Rating'], bottom: 0 },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '18%',
+      top: '10%',
+      containLabel: true,
+    },
+    xAxis: { type: 'category', boundaryGap: false, data: days },
+    yAxis: [
+      { type: 'value', name: 'W/L', position: 'left' },
+      {
+        type: 'value',
+        name: 'Rating',
+        position: 'right',
+        splitLine: { show: false },
+      },
+    ],
+    series: [
+      {
+        name: 'Wins',
+        type: 'line',
+        smooth: true,
+        itemStyle: { color: '#21ba45' },
+        emphasis: { focus: 'series' },
+        data: wins,
+      },
+      {
+        name: 'Losses',
+        type: 'line',
+        smooth: true,
+        itemStyle: { color: '#c10015' },
+        emphasis: { focus: 'series' },
+        data: losses,
+      },
+      {
+        name: 'Rating',
+        type: 'line',
+        smooth: true,
+        yAxisIndex: 1,
+        itemStyle: { color: '#9f7aea' },
+        lineStyle: { width: 3 },
+        emphasis: { focus: 'series' },
+        data: ratings,
+      },
+    ],
+  });
+};
+
+watch(showHistoryDialog, (val) => {
+  if (val) {
+    nextTick(() => initChart());
+  } else if (chartInstance) {
+    chartInstance.dispose();
+    chartInstance = null;
+  }
+});
 
 const triggerAvatarUpload = () => {
   avatarInput.value?.click();
@@ -531,5 +675,13 @@ const onLogout = () => {
 .edit-btn {
   color: #5a67d8 !important;
   border-color: #5a67d8 !important;
+}
+.chart-container {
+  width: 100%;
+  height: 280px;
+  margin-bottom: 16px;
+}
+.history-rating {
+  background: linear-gradient(135deg, #764ba2 0%, #9f7aea 100%) !important;
 }
 </style>

@@ -1,7 +1,14 @@
 import { reactive } from 'vue';
 import { LocalStorage } from 'quasar';
 import { likhaClient } from 'src/boot/likha';
-import { readMe } from '@likha-erp/likha-sdk';
+import { readMe, readItems } from '@likha-erp/likha-sdk';
+
+export interface RatingEvent {
+  day: string;
+  wins: number;
+  losses: number;
+  rating: number;
+}
 
 export interface UserProfile {
   id: string;
@@ -12,6 +19,7 @@ export interface UserProfile {
   rating: number;
   avatar?: string;
   lastModified?: number;
+  events?: RatingEvent[];
 }
 
 const STORAGE_KEY = 'quasar_player_profile';
@@ -32,6 +40,7 @@ export class PlayerProfileService {
       rating: saved?.rating ?? 1500,
       avatar: saved?.avatar || '',
       lastModified: saved?.lastModified || 0,
+      events: saved?.events || [],
     });
   }
 
@@ -87,6 +96,24 @@ export class PlayerProfileService {
         this.state.avatar = (userObj.avatar ?? '') as string;
         this.state.rating = rating;
 
+        try {
+          const events = await likhaClient.request(
+            readItems('event', {
+              filter: { player: { _eq: this.state.id } },
+              fields: ['day', 'wins', 'losses', 'rating'],
+              sort: ['-day'],
+              limit: 10,
+            }),
+          );
+
+          console.log('Events', events);
+          this.state.events = Array.isArray(events)
+            ? (events as RatingEvent[])
+            : [];
+        } catch {
+          this.state.events = [];
+        }
+
         this.saveState();
         this.loading.value = false;
         return true;
@@ -111,6 +138,7 @@ export class PlayerProfileService {
     this.state.rating = 1500;
     this.state.avatar = '';
     this.state.lastModified = 0;
+    this.state.events = [];
   }
 
   public hasCachedProfile(): boolean {
