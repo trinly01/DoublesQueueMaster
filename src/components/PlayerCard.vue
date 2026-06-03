@@ -7,11 +7,29 @@
   >
     <q-item-section avatar v-if="showAvatar">
       <q-avatar
+        v-if="!player.avatar || avatarLoadError"
         :color="getLevelColor(player.level)"
         text-color="white"
         size="md"
       >
         {{ getPlayerInitials(player.username) }}
+        <q-badge
+          v-if="player.userId"
+          floating
+          rounded
+          color="accent"
+          style="padding: 2px; min-height: 14px; min-width: 14px"
+        >
+          <q-icon name="verified" size="12px" />
+          <q-tooltip>Registered member</q-tooltip>
+        </q-badge>
+      </q-avatar>
+      <q-avatar v-else size="md">
+        <img
+          :src="player.avatar"
+          :alt="player.username"
+          @error="handleAvatarError"
+        />
         <q-badge
           v-if="player.userId"
           floating
@@ -57,13 +75,7 @@
         <span
           class="q-ml-xs text-primary"
           v-if="!sortBy || sortBy !== 'winRate'"
-          >R:{{
-            player.userId
-              ? player.rating
-              : (player.matchesPlayed || 0) < 3
-                ? 'NR'
-                : player.rating
-          }}</span
+          >R:{{ player.rating === 1500 ? 'NR' : player.rating }}</span
         >
         <!-- <span v-if="showQueueTime && player.enteredAt" class="q-ml-sm text-grey-6">
           {{ getQueueTimeInfo(player.enteredAt) }}
@@ -108,6 +120,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from 'vue';
 import type { Player as BasePlayer } from '../services/matchmaking';
 type Player = BasePlayer & {
   enteredAt?: number;
@@ -125,7 +138,7 @@ interface Props {
   sortBy?: string;
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   showAvatar: true,
   showActions: true,
   showQueueTime: false,
@@ -139,6 +152,16 @@ defineEmits<{
   remove: [username: string];
   requeue: [username: string];
 }>();
+
+const avatarLoadError = ref(false);
+
+// Reset error when player changes
+watch(
+  () => props.player,
+  () => {
+    avatarLoadError.value = false;
+  },
+);
 
 // Helper functions
 const getLevelColor = (level: 1 | 2 | 3): string => {
@@ -156,6 +179,10 @@ const getLevelColor = (level: 1 | 2 | 3): string => {
 
 const getPlayerInitials = (name: string): string => {
   return name.charAt(0).toUpperCase();
+};
+
+const handleAvatarError = () => {
+  avatarLoadError.value = true;
 };
 
 // const getQueueTimeInfo = (player: Player): string => {
