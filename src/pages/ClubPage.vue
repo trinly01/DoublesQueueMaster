@@ -3027,8 +3027,8 @@ const updateOnlineStatus = () => {
   if (isOnline.value && wasOffline && hasPendingCloudSync.value) {
     const attemptSync = async (retries = 3, delay = 1000) => {
       try {
-        // Skip server merge when coming back online to preserve offline changes
-        await performCloudSync(true);
+        // Perform normal sync with server merge to handle concurrent admin changes
+        await performCloudSync(false);
         // After successful sync, refresh ratings to pull the updated values from cloud
         void refreshPlayerRatings();
       } catch {
@@ -3084,10 +3084,7 @@ const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
   if (incomingTs === lastSyncedServerTimestamp.value) return;
 
   const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
-  MatchmakingApp.state.players = merged.players;
-  MatchmakingApp.state.queues = merged.queues;
-  MatchmakingApp.state.activeMatches = merged.activeMatches;
-  MatchmakingApp.state.lastModified = merged.lastModified;
+  Object.assign(MatchmakingApp.state, merged);
   MatchmakingApp.persistSilently();
   lastSyncedServerTimestamp.value = incomingTs;
 };
