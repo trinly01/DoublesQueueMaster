@@ -18,21 +18,30 @@
       <q-icon name="search_off" size="120px" color="grey-5" />
       <div class="text-h4 text-weight-bold q-mt-md">Club Not Found</div>
       <div
-        class="text-body1 text-grey-7 q-mt-sm text-center"
+        class="text-body1 text-grey-9 q-mt-sm text-center"
         style="max-width: 420px"
-      >
-        {{ clubErrorMessage }}
+        v-html="clubErrorMessage"
+      ></div>
+      <div class="row q-gutter-sm q-mt-lg justify-center">
+        <q-btn
+          color="primary"
+          label="Back to Home"
+          icon="arrow_back"
+          size="md"
+          @click="goHome"
+          unelevated
+          rounded
+        />
+        <q-btn
+          color="grey-9"
+          label="Call for Activation"
+          icon="phone"
+          size="md"
+          @click="callForActivation"
+          outline
+          rounded
+        />
       </div>
-      <q-btn
-        color="primary"
-        label="Back to Home"
-        icon="arrow_back"
-        size="md"
-        class="q-mt-lg"
-        @click="goHome"
-        unelevated
-        rounded
-      />
     </div>
 
     <!-- Main App Content -->
@@ -2382,6 +2391,10 @@ const goHome = () => {
   router.push('/');
 };
 
+const callForActivation = () => {
+  window.location.href = 'tel:+639762298311';
+};
+
 // Cloud sync state
 const isOnline = ref(navigator.onLine);
 const hasPendingCloudSync = ref(false);
@@ -2424,6 +2437,7 @@ const loadClubData = async (clubId: string) => {
           'id',
           'clubId',
           'name',
+          'status',
           'appState',
           'players.directus_users_id.id',
           'players.directus_users_id.username',
@@ -2440,6 +2454,7 @@ const loadClubData = async (clubId: string) => {
         id: string;
         clubId: string;
         name?: string;
+        status?: string;
         appState?: {
           matchmaking?: unknown;
           courtSettings?: {
@@ -2486,6 +2501,18 @@ const loadClubData = async (clubId: string) => {
       currentClubUUID.value = club.id;
       clubName.value = club.name || clubId;
       MatchmakingApp.state.clubId = clubId;
+
+      // Check if club is unpublished and user is admin
+      if (club.status !== 'published') {
+        const isAdmin = (club.admins || []).some(
+          (a) => a.directus_users_id?.id === currentUserId.value,
+        );
+        if (isAdmin) {
+          clubLoadingState.value = 'not-found';
+          clubErrorMessage.value = `Club "${club.name || clubId}" is not yet activated. Please pay 499 Php monthly subscription. Contact <a href="mailto:contact@zyberlab.com">contact@zyberlab.com</a> for activation.`;
+          return;
+        }
+      }
 
       // Local client is the source of truth. Only use cloud settings as fallback
       // when local state doesn't have them yet (first visit / new device).
@@ -2741,11 +2768,66 @@ const loadClubData = async (clubId: string) => {
 
       clubLoadingState.value = 'loaded';
     } else {
-      // Club not found
+      // Club not found or unpublished
       clubLoadingState.value = 'not-found';
-      clubErrorMessage.value = `Club "${clubId}" not found. You can still use the app in local mode.`;
+      clubErrorMessage.value = `Club "${clubId}" not found or not yet activated. Please pay 499 Php monthly subscription. Contact <a href="mailto:contact@zyberlab.com">contact@zyberlab.com</a> for activation.`;
     }
   } catch (err) {
+    // Check if the error is due to an unpublished club
+    const error = err as { response?: { status?: number }; message?: string };
+    if (
+      error?.response?.status === 403 ||
+      error?.message?.includes('unpublished')
+    ) {
+      // Try to fetch club without filter to check if it exists but is unpublished
+      try {
+        const clubResult = await likhaClient.request(
+          readItems('club', {
+            filter: {
+              clubId: {
+                _eq: clubId,
+              },
+            },
+            fields: [
+              'id',
+              'clubId',
+              'name',
+              'status',
+              'admins.directus_users_id.id',
+            ] as unknown as string[],
+            limit: 1,
+          }),
+        );
+
+        if (clubResult && clubResult.length > 0) {
+          const unpublishedClub = clubResult[0] as unknown as {
+            id: string;
+            clubId: string;
+            name?: string;
+            status?: string;
+            admins?: Array<{
+              directus_users_id?: {
+                id: string;
+              };
+            }>;
+          };
+
+          // Check if current user is an admin of this unpublished club
+          const isAdmin = (unpublishedClub.admins || []).some(
+            (a) => a.directus_users_id?.id === currentUserId.value,
+          );
+
+          if (isAdmin) {
+            clubLoadingState.value = 'not-found';
+            clubErrorMessage.value = `Club "${unpublishedClub.name || clubId}" is not yet activated. Please pay 499 Php monthly subscription. Contact <a href="mailto:contact@zyberlab.com">contact@zyberlab.com</a> for activation.`;
+            return;
+          }
+        }
+      } catch {
+        // Ignore secondary fetch error, fall through to generic error handling
+      }
+    }
+
     console.warn(
       'Failed to load club from server (offline?), using cache:',
       err,
