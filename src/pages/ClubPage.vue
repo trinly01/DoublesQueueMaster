@@ -2742,54 +2742,15 @@ const loadClubData = async (clubId: string) => {
                   userRating || existingPlayer.rating || 1500;
                 if (dbTs > 0) existingPlayer.ratingUpdatedAt = dbTs;
               }
-            } else {
-              // First time checking in / joining club player
-              const username =
-                (typeof user.username === 'string'
-                  ? user.username
-                  : undefined) ||
-                (typeof user.email === 'string'
-                  ? user.email.split('@')[0]
-                  : undefined) ||
-                'Unknown';
 
-              // Only add if username is not already taken by another local player
-              if (!MatchmakingApp.state.players[username]) {
-                const avatarId =
-                  typeof user.avatar === 'string' ? user.avatar : undefined;
-                MatchmakingApp.state.players[username] = {
-                  username,
-                  userId: typeof user.id === 'string' ? user.id : undefined,
-                  rating: typeof user.rating === 'number' ? user.rating : 1500,
-                  level: 2,
-                  matchesPlayed: 0,
-                  wins: 0,
-                  losses: 0,
-                  ratingUpdatedAt:
-                    typeof user.rating_updated_at === 'number'
-                      ? user.rating_updated_at
-                      : undefined,
-                  avatar: avatarId
-                    ? `${likhaUrl.value}/assets/${avatarId}`
-                    : undefined,
-                };
-              } else {
-                // If username is taken, update their userId
-                const local = MatchmakingApp.state.players[username];
-                if (typeof user.id === 'string') local.userId = user.id;
-                const avatarId =
-                  typeof user.avatar === 'string' ? user.avatar : undefined;
-                if (avatarId)
-                  local.avatar = `${likhaUrl.value}/assets/${avatarId}`;
-                const dbTs = Number(user.rating_updated_at || 0);
-                const localTs = Number(local.ratingUpdatedAt || 0);
-                const shouldAdopt = dbTs > 0 ? dbTs > localTs : localTs === 0;
-                if (typeof user.rating === 'number' && shouldAdopt) {
-                  local.rating = user.rating;
-                  if (dbTs > 0) local.ratingUpdatedAt = dbTs;
-                }
+              // Update avatar if present
+              const avatarId =
+                typeof user.avatar === 'string' ? user.avatar : undefined;
+              if (avatarId) {
+                existingPlayer.avatar = `${likhaUrl.value}/assets/${avatarId}`;
               }
             }
+            // Note: We do NOT add new club members automatically - that should be done via the "Add Club Members" UI
           }
         });
         MatchmakingApp.persist();
@@ -3805,6 +3766,7 @@ const addClubMembers = () => {
       matchesPlayed: 0,
       wins: 0,
       losses: 0,
+      avatar: member.avatar,
     };
     added.push(username);
   });
@@ -4046,6 +4008,7 @@ const removePlayer = (username: string) => {
   }).onOk(() => {
     delete MatchmakingApp.state.players[username];
     MatchmakingApp.removeFromQueue(username);
+    MatchmakingApp.state.lastModified = Date.now();
     MatchmakingApp.persist();
     $q.notify({
       type: 'info',
