@@ -629,6 +629,24 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     else mergedPlayers[username] = localIsNewer ? lp : sp;
   }
 
+  // Handle deletions: if a player exists on one side but not the other,
+  // the newer side's version wins (deletion wins over creation)
+  if (localIsNewer) {
+    // Local is newer: delete players that exist on server but not locally
+    for (const username of Object.keys(server.players || {})) {
+      if (!local.players || !local.players[username]) {
+        delete mergedPlayers[username];
+      }
+    }
+  } else {
+    // Server is newer: delete players that exist locally but not on server
+    for (const username of Object.keys(local.players || {})) {
+      if (!server.players || !server.players[username]) {
+        delete mergedPlayers[username];
+      }
+    }
+  }
+
   // Latest writer owns the ephemeral session state + settings.
   const session = localIsNewer ? local : server;
 
