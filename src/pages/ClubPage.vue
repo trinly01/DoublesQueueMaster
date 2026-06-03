@@ -905,7 +905,7 @@
               </div>
 
               <!-- Members list -->
-              <q-list separator bordered class="rounded-borders">
+              <q-list separator dense class="rounded-borders">
                 <q-item
                   v-for="member in availableClubMembers"
                   :key="member.id"
@@ -914,12 +914,44 @@
                   :class="{ 'bg-purple-1': isClubMemberSelected(member.id) }"
                 >
                   <q-item-section avatar>
-                    <q-avatar color="primary" text-color="white" size="sm">
+                    <q-avatar
+                      v-if="!member.avatar"
+                      color="orange-7"
+                      text-color="white"
+                      size="md"
+                    >
                       {{
                         (member.username || member.email?.split('@')[0] || 'U')
                           .charAt(0)
                           .toUpperCase()
                       }}
+                      <q-badge
+                        floating
+                        rounded
+                        color="accent"
+                        style="padding: 2px; min-height: 14px; min-width: 14px"
+                      >
+                        <q-icon name="verified" size="12px" />
+                      </q-badge>
+                    </q-avatar>
+                    <q-avatar v-else size="md">
+                      <img
+                        :src="member.avatar"
+                        :alt="member.username || 'Unknown'"
+                        @error="
+                          (e: Event) =>
+                            ((e.target as HTMLImageElement).style.display =
+                              'none')
+                        "
+                      />
+                      <q-badge
+                        floating
+                        rounded
+                        color="accent"
+                        style="padding: 2px; min-height: 14px; min-width: 14px"
+                      >
+                        <q-icon name="verified" size="12px" />
+                      </q-badge>
                     </q-avatar>
                   </q-item-section>
                   <q-item-section>
@@ -933,7 +965,7 @@
                   </q-item-section>
                   <q-item-section side>
                     <div class="row items-center q-gutter-sm">
-                      <q-chip size="sm" color="primary" text-color="white">
+                      <q-chip size="sm" color="accent" text-color="white">
                         R: {{ member.rating || 1500 }}
                       </q-chip>
                       <q-checkbox
