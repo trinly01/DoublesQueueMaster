@@ -10,6 +10,8 @@ import { LocalStorage } from 'quasar';
 export interface Player {
   username: string; // Unique identifier
   name?: string; // Optional alias for UI compatibility
+  firstName?: string; // First name from Directus
+  lastName?: string; // Last name from Directus
   level: 1 | 2 | 3; // Added for manual matchmaking and UI labels
   rating: number; // Defaults to 1500
   matchesPlayed: number; // Defaults to 0
@@ -18,6 +20,7 @@ export interface Player {
   priority?: string;
   userId?: string; // Directus user ID — present only for registered club members
   ratingUpdatedAt?: number; // Epoch ms of the last rating change (LWW token vs directus_users.rating_updated_at)
+  updatedAt?: number; // Epoch ms of the last any field change (for per-field LWW)
   avatar?: string; // Avatar URL from Directus
   history?: {
     playedWith: Record<string, number>;
@@ -29,6 +32,7 @@ export interface QueueEntry {
   username: string;
   queueType: 'GENERAL' | 'WINNERS' | 'LOSERS';
   enteredAt: number; // Timestamp for FIFO ordering
+  updatedAt?: number; // Epoch ms of last change (for per-field LWW)
 }
 
 export interface ActiveMatch {
@@ -40,6 +44,7 @@ export interface ActiveMatch {
   status: 'waiting' | 'in-progress' | 'completed';
   court?: number;
   createdAt?: number;
+  updatedAt?: number; // Epoch ms of last change (for per-field LWW)
   originalQueueTypes?: Record<string, 'GENERAL' | 'WINNERS' | 'LOSERS'>;
 }
 
@@ -58,11 +63,28 @@ export interface AppState {
   sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
   matchType?: 'singles' | 'doubles';
   matchesFilterBy?: 'all' | number;
+  settingsUpdatedAt?: number; // Epoch ms of last settings change (for per-field LWW)
   lastModified?: number;
   clubId?: string; // Which club this local state belongs to
 }
 
 const STORAGE_KEY = 'quasar_matchmaking_state';
+
+/**
+ * Calculate K-factor based on rating distance from default (1500)
+ * This provides stability across per-event resets of matchesPlayed/wins/losses
+ */
+const calculateKFactor = (rating: number): number => {
+  const distanceFromStart = Math.abs(rating - 1500);
+
+  if (distanceFromStart >= 100) {
+    return 20; // Well-established skill (stable)
+  } else if (distanceFromStart >= 50) {
+    return 30; // Some skill established (medium volatility)
+  } else {
+    return 40; // Still establishing skill (higher volatility)
+  }
+};
 
 /**
  * ==========================================
@@ -101,8 +123,8 @@ export const RatingEngine = {
       isWinner: boolean,
       team: Player[],
     ): Player => {
-      // Fast-Track Accuracy: baseK drops from 80 -> 60 -> 40 -> 20 over first 3 games
-      const baseK = Math.max(20, 80 - player.matchesPlayed * 20);
+      // Rating-distance-based K-factor for stability across per-event resets
+      const baseK = calculateKFactor(player.rating);
       // Inverse Stakes Scaling: Halve the volatility in Doubles because you are only 50% responsible for the match
       const K = baseK / team.length;
 
@@ -126,6 +148,7 @@ export const RatingEngine = {
         wins: (player.wins || 0) + (isWinner ? 1 : 0),
         losses: (player.losses || 0) + (isWinner ? 0 : 1),
         ratingUpdatedAt: Date.now(),
+        updatedAt: Date.now(),
       };
     };
 
@@ -378,6 +401,7 @@ export class LocalMatchmakingSystem {
         username: normalizedUsername,
         queueType: 'GENERAL',
         enteredAt: Date.now(),
+        updatedAt: Date.now(),
       });
     }
   }
@@ -492,6 +516,7 @@ export class LocalMatchmakingSystem {
         expectedDifference: match.expectedDifference,
         status: 'waiting',
         createdAt: Date.now(),
+        updatedAt: Date.now(),
         originalQueueTypes,
       });
     }
@@ -572,6 +597,7 @@ export class LocalMatchmakingSystem {
           username: p.username,
           queueType: 'WINNERS',
           enteredAt: winnerEnteredAt,
+          updatedAt: Date.now(),
         });
       }
     });
@@ -583,6 +609,7 @@ export class LocalMatchmakingSystem {
           username: p.username,
           queueType: 'LOSERS',
           enteredAt: loserEnteredAt,
+          updatedAt: Date.now(),
         });
       }
     });
@@ -604,17 +631,19 @@ export class LocalMatchmakingSystem {
 
 /**
  * Smart-merge two AppStates when concurrent admin edits collide.
- * - players: union by username; the record with more matchesPlayed wins
- *   (more games = more recent accumulated stats). Ties go to the newer writer.
- * - queues / activeMatches / settings: ephemeral session data — the most
- *   recently modified writer wins as a whole.
+ * Uses per-entity Last-Write-Wins (LWW) with timestamps:
+ * - players: per-player updatedAt wins (or matchesPlayed as fallback)
+ * - queues: per-queue updatedAt wins
+ * - matches: per-match updatedAt wins
+ * - settings: settingsUpdatedAt wins
  */
 export function mergeAppState(local: AppState, server: AppState): AppState {
   const localTime = local.lastModified ?? 0;
   const serverTime = server.lastModified ?? 0;
-  const localIsNewer = localTime >= serverTime;
+  const localSettingsTime = local.settingsUpdatedAt ?? 0;
+  const serverSettingsTime = server.settingsUpdatedAt ?? 0;
 
-  // Merge accumulated player stats so neither admin's games are lost.
+  // Merge players using per-player updatedAt (or matchesPlayed as fallback)
   const mergedPlayers: Record<string, Player> = { ...(server.players || {}) };
   for (const [username, lp] of Object.entries(local.players || {})) {
     const sp = mergedPlayers[username];
@@ -622,15 +651,24 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       mergedPlayers[username] = lp;
       continue;
     }
-    const lpGames = lp.matchesPlayed ?? 0;
-    const spGames = sp.matchesPlayed ?? 0;
-    if (lpGames > spGames) mergedPlayers[username] = lp;
-    else if (lpGames < spGames) mergedPlayers[username] = sp;
-    else mergedPlayers[username] = localIsNewer ? lp : sp;
+    // Use updatedAt if available, otherwise fall back to matchesPlayed
+    const lpTime = lp.updatedAt ?? 0;
+    const spTime = sp.updatedAt ?? 0;
+    if (lpTime > 0 || spTime > 0) {
+      // Both have updatedAt - use LWW
+      mergedPlayers[username] = lpTime > spTime ? lp : sp;
+    } else {
+      // Fallback to matchesPlayed for backward compatibility
+      const lpGames = lp.matchesPlayed ?? 0;
+      const spGames = sp.matchesPlayed ?? 0;
+      if (lpGames > spGames) mergedPlayers[username] = lp;
+      else if (lpGames < spGames) mergedPlayers[username] = sp;
+      else mergedPlayers[username] = localTime > serverTime ? lp : sp;
+    }
   }
 
-  // Handle deletions: if a player exists on one side but not the other,
-  // the newer side's version wins (deletion wins over creation)
+  // Handle player deletions using top-level lastModified
+  const localIsNewer = localTime > serverTime;
   if (localIsNewer) {
     // Local is newer: delete players that exist on server but not locally
     for (const username of Object.keys(server.players || {})) {
@@ -647,15 +685,75 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     }
   }
 
-  // Latest writer owns the ephemeral session state + settings.
-  const session = localIsNewer ? local : server;
+  // Merge queues using per-queue updatedAt (or enteredAt as fallback)
+  const mergedQueues: typeof local.queues = [];
+  const allQueues = new Map<
+    string,
+    { entry: QueueEntry; source: 'local' | 'server' }
+  >();
+
+  (local.queues || []).forEach((q) =>
+    allQueues.set(`${q.username}-${q.queueType}`, {
+      entry: q,
+      source: 'local',
+    }),
+  );
+  (server.queues || []).forEach((q) => {
+    const key = `${q.username}-${q.queueType}`;
+    const existing = allQueues.get(key);
+    if (!existing) {
+      allQueues.set(key, { entry: q, source: 'server' });
+    } else {
+      // Both have this queue entry - use updatedAt LWW
+      const localTime =
+        existing.entry.updatedAt ?? existing.entry.enteredAt ?? 0;
+      const serverTime = q.updatedAt ?? q.enteredAt ?? 0;
+      if (serverTime > localTime) {
+        allQueues.set(key, { entry: q, source: 'server' });
+      }
+    }
+  });
+
+  allQueues.forEach(({ entry }) => mergedQueues.push(entry));
+
+  // Merge matches using per-match updatedAt (or createdAt as fallback)
+  const mergedMatches: typeof local.activeMatches = [];
+  const allMatches = new Map<
+    string,
+    { match: ActiveMatch; source: 'local' | 'server' }
+  >();
+
+  (local.activeMatches || []).forEach((m) =>
+    allMatches.set(m.matchId, { match: m, source: 'local' }),
+  );
+  (server.activeMatches || []).forEach((m) => {
+    const existing = allMatches.get(m.matchId);
+    if (!existing) {
+      allMatches.set(m.matchId, { match: m, source: 'server' });
+    } else {
+      // Both have this match - use updatedAt LWW
+      const localTime =
+        existing.match.updatedAt ?? existing.match.createdAt ?? 0;
+      const serverTime = m.updatedAt ?? m.createdAt ?? 0;
+      if (serverTime > localTime) {
+        allMatches.set(m.matchId, { match: m, source: 'server' });
+      }
+    }
+  });
+
+  allMatches.forEach(({ match }) => mergedMatches.push(match));
+
+  // Merge settings using settingsUpdatedAt
+  const settingsSource =
+    localSettingsTime > serverSettingsTime ? local : server;
 
   return {
-    ...session,
+    ...settingsSource,
     players: mergedPlayers,
-    queues: [...(session.queues || [])],
-    activeMatches: [...(session.activeMatches || [])],
+    queues: mergedQueues,
+    activeMatches: mergedMatches,
     lastModified: Math.max(localTime, serverTime),
+    settingsUpdatedAt: Math.max(localSettingsTime, serverSettingsTime),
   };
 }
 

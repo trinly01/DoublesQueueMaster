@@ -921,7 +921,12 @@
                       size="md"
                     >
                       {{
-                        (member.username || member.email?.split('@')[0] || 'U')
+                        (
+                          member.firstName ||
+                          member.username ||
+                          member.email?.split('@')[0] ||
+                          'U'
+                        )
                           .charAt(0)
                           .toUpperCase()
                       }}
@@ -957,17 +962,30 @@
                   <q-item-section>
                     <q-item-label class="text-weight-medium">
                       {{
+                        member.firstName ||
                         member.username ||
                         member.email?.split('@')[0] ||
                         'Unknown'
                       }}
                     </q-item-label>
+                    <q-item-label
+                      caption
+                      class="text-grey-6"
+                      style="font-size: 10px"
+                      v-if="member.username && member.firstName"
+                    >
+                      @{{ member.username }}
+                    </q-item-label>
                   </q-item-section>
                   <q-item-section side>
                     <div class="row items-center q-gutter-sm">
-                      <q-chip size="sm" color="accent" text-color="white">
-                        R: {{ member.rating || 1500 }}
-                      </q-chip>
+                      <q-chip
+                        :label="`R: ${member.rating || 1500}`"
+                        color="accent"
+                        text-color="white"
+                        size="sm"
+                        dense
+                      />
                       <q-checkbox
                         :model-value="isClubMemberSelected(member.id)"
                         color="accent"
@@ -2184,6 +2202,27 @@ import { computeWinProbability } from '../services/matchmaking';
 // Quasar instance for notifications
 const $q = useQuasar();
 
+// Handle 401 Unauthorized errors by clearing token and redirecting to login
+const handleAuthError = (
+  err: unknown,
+  router: ReturnType<typeof useRouter>,
+) => {
+  const error = err as { response?: { status?: number } };
+  if (error?.response?.status === 401) {
+    likhaToken.value = '';
+    localStorage.removeItem('likhaToken');
+    $q.notify({
+      type: 'warning',
+      message: 'Session expired. Please log in again.',
+      position: 'top',
+      timeout: 3000,
+    });
+    router.push('/login');
+    return true;
+  }
+  return false;
+};
+
 // State: Players, Queue, and Matches
 const players = computed(() =>
   Object.values(MatchmakingApp.state.players).map((p) => ({
@@ -2319,6 +2358,7 @@ const availableCourts = computed<number | CourtOption>({
   set: (val) => {
     MatchmakingApp.state.availableCourts =
       typeof val === 'object' ? (val as CourtOption).value : val;
+    MatchmakingApp.state.settingsUpdatedAt = Date.now();
     MatchmakingApp.persist();
   },
 });
@@ -2326,6 +2366,7 @@ const autoAdvanceMatches = computed<boolean>({
   get: () => MatchmakingApp.state.autoAdvanceMatches ?? true,
   set: (val) => {
     MatchmakingApp.state.autoAdvanceMatches = val;
+    MatchmakingApp.state.settingsUpdatedAt = Date.now();
     MatchmakingApp.persist();
   },
 });
@@ -2351,26 +2392,44 @@ const clubMembers = ref<
   Array<{
     id: string;
     username?: string;
+    firstName?: string;
     email?: string;
     rating?: number;
+    level?: 1 | 2 | 3;
     isAdmin?: boolean;
     avatar?: string;
   }>
 >([]);
 
 const availableClubMembers = computed(() => {
-  const search = clubMemberSearch.value.toLowerCase();
+  const search = clubMemberSearch.value.trim();
+  if (!search) {
+    return clubMembers.value
+      .filter(
+        (m) =>
+          m.id &&
+          !Object.values(MatchmakingApp.state.players).some(
+            (p) => p.userId === m.id,
+          ),
+      )
+      .sort((a, b) => (a.username || '').localeCompare(b.username || ''));
+  }
+
+  // Simple includes search across firstName, username, and email
+  const searchTerm = search.toLowerCase();
   return clubMembers.value
     .filter(
       (m) =>
         m.id &&
         !Object.values(MatchmakingApp.state.players).some(
           (p) => p.userId === m.id,
-        ) &&
-        (!search ||
-          (m.username || '').toLowerCase().includes(search) ||
-          (m.email || '').toLowerCase().includes(search)),
+        ),
     )
+    .filter((m) => {
+      const searchString =
+        `${m.firstName || ''} ${m.username || ''} ${m.email || ''}`.toLowerCase();
+      return searchString.includes(searchTerm);
+    })
     .sort((a, b) => (a.username || '').localeCompare(b.username || ''));
 });
 
@@ -2435,6 +2494,8 @@ const hasPendingCloudSync = ref(false);
 // Used as an optimistic-concurrency token: if the live server value differs from
 // this at sync time, another admin wrote in the meantime → smart-merge before pushing.
 const lastSyncedServerTimestamp = ref(0);
+// Track when we went offline to detect sleep/long offline periods
+const offlineSince = ref<number | null>(null);
 
 // Initialize Likha client from environment or localStorage
 const likhaUrl = ref(
@@ -2474,11 +2535,10 @@ const loadClubData = async (clubId: string) => {
           'appState',
           'players.directus_users_id.id',
           'players.directus_users_id.username',
-          'players.directus_users_id.email',
+          'players.directus_users_id.first_name',
           'players.directus_users_id.rating',
           'players.directus_users_id.avatar',
           'admins.directus_users_id.id',
-          'admins.directus_users_id.email',
         ] as unknown as string[],
       }),
     );
@@ -2729,6 +2789,8 @@ const loadClubData = async (clubId: string) => {
               id: userId,
               username:
                 typeof u?.username === 'string' ? u.username : undefined,
+              firstName:
+                typeof u?.first_name === 'string' ? u.first_name : undefined,
               email: typeof u?.email === 'string' ? u.email : undefined,
               rating: typeof u?.rating === 'number' ? u.rating : undefined,
               isAdmin: clubAdminIds.value.has(userId),
@@ -2773,6 +2835,7 @@ const loadClubData = async (clubId: string) => {
                 existingPlayer.rating =
                   userRating || existingPlayer.rating || 1500;
                 if (dbTs > 0) existingPlayer.ratingUpdatedAt = dbTs;
+                existingPlayer.updatedAt = Date.now();
               }
 
               // Update avatar if present
@@ -2780,6 +2843,17 @@ const loadClubData = async (clubId: string) => {
                 typeof user.avatar === 'string' ? user.avatar : undefined;
               if (avatarId) {
                 existingPlayer.avatar = `${likhaUrl.value}/assets/${avatarId}`;
+                existingPlayer.updatedAt = Date.now();
+              }
+
+              // Update firstName if present
+              const firstName =
+                typeof user.first_name === 'string'
+                  ? user.first_name
+                  : undefined;
+              if (firstName) {
+                existingPlayer.firstName = firstName;
+                existingPlayer.updatedAt = Date.now();
               }
             }
             // Note: We do NOT add new club members automatically - that should be done via the "Add Club Members" UI
@@ -2795,6 +2869,9 @@ const loadClubData = async (clubId: string) => {
       clubErrorMessage.value = `Club "${clubId}" not found or not yet activated. Please pay 499 Php monthly subscription. Contact <a href="mailto:contact@zyberlab.com">contact@zyberlab.com</a> for activation.`;
     }
   } catch (err) {
+    // Handle 401 Unauthorized errors
+    if (handleAuthError(err, router)) return;
+
     // Check if the error is due to an unpublished club
     const error = err as { response?: { status?: number }; message?: string };
     if (
@@ -2902,6 +2979,7 @@ const refreshPlayerRatings = async () => {
           'players.directus_users_id.rating',
           'players.directus_users_id.rating_updated_at',
           'players.directus_users_id.avatar',
+          'players.directus_users_id.first_name',
         ] as unknown as string[],
       }),
     );
@@ -2914,6 +2992,8 @@ const refreshPlayerRatings = async () => {
               rating?: number;
               rating_updated_at?: number;
               avatar?: string;
+              first_name?: string;
+              email?: string;
             };
           }>;
         }
@@ -2935,6 +3015,16 @@ const refreshPlayerRatings = async () => {
         const avatarUrl = `${likhaUrl.value}/assets/${u.avatar}`;
         if (local.avatar !== avatarUrl) {
           local.avatar = avatarUrl;
+          local.updatedAt = Date.now();
+          changed = true;
+        }
+      }
+
+      // Update firstName if present
+      if (typeof u.first_name === 'string') {
+        if (local.firstName !== u.first_name) {
+          local.firstName = u.first_name;
+          local.updatedAt = Date.now();
           changed = true;
         }
       }
@@ -2953,6 +3043,7 @@ const refreshPlayerRatings = async () => {
         if (shouldAdopt && local.rating !== u.rating) {
           local.rating = u.rating;
           if (hasTs) local.ratingUpdatedAt = incomingTs;
+          local.updatedAt = Date.now();
           changed = true;
 
           // Keep the members list in sync with the adopted value.
@@ -2964,6 +3055,8 @@ const refreshPlayerRatings = async () => {
 
     if (changed) MatchmakingApp.persistSilently();
   } catch (err) {
+    // Handle 401 Unauthorized errors
+    if (handleAuthError(err, router)) return;
     console.warn('Failed to refresh player ratings:', err);
   }
 };
@@ -3031,7 +3124,7 @@ const performCloudSync = async (skipServerMerge = false) => {
       });
     }
 
-    // 4. Stamp, push to cloud, persist locally, and advance our base version.
+    // 5. Stamp, push to cloud, persist locally, and advance our base version.
     const stamp = Date.now();
     MatchmakingApp.state.lastModified = stamp;
 
@@ -3050,6 +3143,8 @@ const performCloudSync = async (skipServerMerge = false) => {
     hasPendingCloudSync.value = false;
     console.log('Successfully synced to cloud');
   } catch (err) {
+    // Handle 401 Unauthorized errors
+    if (handleAuthError(err, router)) return;
     console.error('Failed to sync to cloud:', err);
     hasPendingCloudSync.value = true;
   }
@@ -3059,14 +3154,35 @@ const updateOnlineStatus = () => {
   const wasOffline = !isOnline.value;
   isOnline.value = navigator.onLine;
 
+  // Track when we went offline
+  if (!isOnline.value && wasOffline) {
+    offlineSince.value = Date.now();
+  }
+
   // If we just came back online and have pending sync, sync now with retry
   if (isOnline.value && wasOffline && hasPendingCloudSync.value) {
     const attemptSync = async (retries = 3, delay = 1000) => {
       try {
-        // Perform normal sync with server merge to handle concurrent admin changes
+        // Check if we were offline for a long time (e.g., sleep)
+        const offlineDuration = offlineSince.value
+          ? Date.now() - offlineSince.value
+          : 0;
+        const wasSleeping = offlineDuration > 5 * 60 * 1000; // 5 minutes
+
+        // When coming back online after sleep/offline, prioritize server state
+        // to avoid overwriting newer changes from other devices (e.g., phone)
         await performCloudSync(false);
         // After successful sync, refresh ratings to pull the updated values from cloud
         void refreshPlayerRatings();
+
+        if (wasSleeping) {
+          $q.notify({
+            type: 'info',
+            message: 'Back online. Synced with server data.',
+            position: 'top',
+            timeout: 3000,
+          });
+        }
       } catch {
         if (retries > 0) {
           setTimeout(() => attemptSync(retries - 1, delay * 2), delay);
@@ -3094,7 +3210,10 @@ const updateOnlineStatus = () => {
   // Skip refreshPlayerRatings if we have pending sync (offline changes to push)
   // to avoid stale DB ratings overwriting our local offline changes before they sync.
   if (isOnline.value && wasOffline) {
+    offlineSince.value = null; // Reset offline tracking
     if (!realtimeActive) void startRealtime();
+    // If we have pending sync, don't refresh ratings yet - let the sync complete first
+    // Otherwise, refresh to get latest data from server
     if (!hasPendingCloudSync.value) void refreshPlayerRatings();
   }
 };
@@ -3313,6 +3432,7 @@ const sortBy = computed<
       | 'name',
   set: (val) => {
     MatchmakingApp.state.sortBy = val;
+    MatchmakingApp.state.settingsUpdatedAt = Date.now();
     MatchmakingApp.persist();
   },
 });
@@ -3325,6 +3445,7 @@ const matchesFilterBy = computed<'all' | number>({
   get: () => (MatchmakingApp.state.matchesFilterBy ?? 'all') as 'all' | number,
   set: (val) => {
     MatchmakingApp.state.matchesFilterBy = val;
+    MatchmakingApp.state.settingsUpdatedAt = Date.now();
     MatchmakingApp.persist();
   },
 });
@@ -3334,6 +3455,7 @@ const matchType = computed<'singles' | 'doubles'>({
   get: () => MatchmakingApp.state.matchType || 'doubles',
   set: (val) => {
     MatchmakingApp.state.matchType = val;
+    MatchmakingApp.state.settingsUpdatedAt = Date.now();
     MatchmakingApp.persist();
   },
 });
@@ -3345,6 +3467,7 @@ const queueReturnMethod = computed<
   get: () => MatchmakingApp.state.queueReturnMethod || 'fairness_first',
   set: (val) => {
     MatchmakingApp.state.queueReturnMethod = val;
+    MatchmakingApp.state.settingsUpdatedAt = Date.now();
     MatchmakingApp.persist();
   },
 });
@@ -3358,6 +3481,7 @@ const autoSortQueue = computed<boolean>({
   get: () => MatchmakingApp.state.autoSortQueue ?? true,
   set: (val) => {
     MatchmakingApp.state.autoSortQueue = val;
+    MatchmakingApp.state.settingsUpdatedAt = Date.now();
     MatchmakingApp.persist();
   },
 });
@@ -3365,6 +3489,7 @@ const queuePriorityMode = computed<'timestamp' | 'gamesPlayed'>({
   get: () => MatchmakingApp.state.queuePriorityMode || 'timestamp',
   set: (val) => {
     MatchmakingApp.state.queuePriorityMode = val;
+    MatchmakingApp.state.settingsUpdatedAt = Date.now();
     MatchmakingApp.persist();
   },
 });
@@ -3463,8 +3588,14 @@ const displayPlayers = computed(() => {
   if (!searchPlayers.value?.trim()) {
     return players.value;
   }
-  const query = searchPlayers.value.toLowerCase().trim();
-  return players.value.filter((p) => p.username.toLowerCase().includes(query));
+
+  // Simple includes search across firstName, lastName, username
+  const searchTerm = searchPlayers.value.toLowerCase().trim();
+  return players.value.filter((p) => {
+    const searchString =
+      `${p.firstName || ''} ${p.lastName || ''} ${p.username || ''}`.toLowerCase();
+    return searchString.includes(searchTerm);
+  });
 });
 
 const queueStats = computed(() => {
@@ -3792,6 +3923,7 @@ const addClubMembers = () => {
 
     MatchmakingApp.state.players[username] = {
       username,
+      firstName: member.firstName,
       userId: member.id,
       rating: member.rating || 1500,
       level: 2,
@@ -3799,6 +3931,7 @@ const addClubMembers = () => {
       wins: 0,
       losses: 0,
       avatar: member.avatar,
+      updatedAt: Date.now(),
     };
     added.push(username);
   });
@@ -4011,6 +4144,7 @@ const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
         actualMatch.court = courtNumber;
         actualMatch.status = 'in-progress';
         actualMatch.createdAt = Date.now();
+        actualMatch.updatedAt = Date.now();
       }
 
       // Notify user about auto-advance
@@ -4488,6 +4622,7 @@ const createManualMatchWithCourt = () => {
     status: isCourtEmpty ? 'in-progress' : 'waiting',
     court: isCourtEmpty ? assignedCourt : undefined,
     createdAt: Date.now(),
+    updatedAt: Date.now(),
     originalQueueTypes,
   });
 
@@ -4624,6 +4759,7 @@ const cancelMatch = (filteredIndex: number) => {
               : actualMatch.queueSource) ||
             'GENERAL',
           enteredAt: enteredAt,
+          updatedAt: Date.now(),
         });
       }
 
@@ -4674,6 +4810,7 @@ const assignCourtAutomatically = () => {
     );
     if (actualMatch) {
       actualMatch.court = court;
+      actualMatch.updatedAt = Date.now();
     }
 
     // Count matches for this court to show load balancing info
@@ -4732,6 +4869,7 @@ const startMatch = (filteredIndex: number) => {
   if (!actualMatch.court) {
     const assignedCourt = assignCourt();
     actualMatch.court = assignedCourt;
+    actualMatch.updatedAt = Date.now();
   }
 
   // Check if court is available
@@ -4747,6 +4885,7 @@ const startMatch = (filteredIndex: number) => {
   // Start the match
   actualMatch.status = 'in-progress';
   actualMatch.createdAt = Date.now();
+  actualMatch.updatedAt = Date.now();
 
   // Save data
   MatchmakingApp.persist();
@@ -4789,6 +4928,7 @@ const assignSpecificCourt = (courtNumber: number) => {
         actualExisting.court = originalCourt;
         actualExisting.status = 'waiting';
         actualExisting.createdAt = Date.now();
+        actualExisting.updatedAt = Date.now();
       }
 
       const actualMatch = MatchmakingApp.state.activeMatches.find(
@@ -4800,6 +4940,7 @@ const assignSpecificCourt = (courtNumber: number) => {
         if (actualMatch.status !== 'in-progress') {
           actualMatch.status = 'in-progress';
           actualMatch.createdAt = Date.now();
+          actualMatch.updatedAt = Date.now();
         }
       }
 
@@ -4820,6 +4961,7 @@ const assignSpecificCourt = (courtNumber: number) => {
     );
     if (actualMatch) {
       actualMatch.court = courtNumber;
+      actualMatch.updatedAt = Date.now();
     }
 
     // Don't auto-start the match; it will start via auto-advance or manual start button
@@ -4933,6 +5075,7 @@ const saveMatchEdit = () => {
         username: p.username,
         queueType: 'GENERAL',
         enteredAt: Date.now(),
+        updatedAt: Date.now(),
       });
     }
   });
@@ -4940,6 +5083,7 @@ const saveMatchEdit = () => {
   // Update the match teams in MatchmakingApp state
   actualMatch.teamA = newTeamA;
   actualMatch.teamB = newTeamB;
+  actualMatch.updatedAt = Date.now();
 
   // Save data
   MatchmakingApp.persist();
@@ -5100,6 +5244,7 @@ const savePlayerEdit = () => {
       ...playerState,
       username: trimmedName,
       level: newLevel,
+      updatedAt: Date.now(),
     };
     delete MatchmakingApp.state.players[originalName];
 
@@ -5136,6 +5281,7 @@ const savePlayerEdit = () => {
     });
   } else {
     playerState.level = newLevel;
+    playerState.updatedAt = Date.now();
   }
 
   MatchmakingApp.persist();

@@ -37,9 +37,7 @@
             {{ firstName }} {{ lastName }}
           </div>
 
-          <div class="text-subtitle1 text-grey-7 q-mb-md">
-            {{ username }}
-          </div>
+          <div class="text-subtitle1 text-grey-7 q-mb-md">@{{ username }}</div>
 
           <q-chip
             class="rating-chip text-weight-bold"
