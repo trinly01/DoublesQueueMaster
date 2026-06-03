@@ -2322,6 +2322,7 @@ const clubMembers = ref<
     email?: string;
     rating?: number;
     isAdmin?: boolean;
+    avatar?: string;
   }>
 >([]);
 
@@ -2443,6 +2444,7 @@ const loadClubData = async (clubId: string) => {
           'players.directus_users_id.username',
           'players.directus_users_id.email',
           'players.directus_users_id.rating',
+          'players.directus_users_id.avatar',
           'admins.directus_users_id.id',
           'admins.directus_users_id.email',
         ] as unknown as string[],
@@ -2687,13 +2689,20 @@ const loadClubData = async (clubId: string) => {
       clubMembers.value =
         (club.players || [])
           .map((p) => {
-            const u = p.directus_users_id;
+            const u = p.directus_users_id as Record<string, unknown> | null;
+            const userId = typeof u?.id === 'string' ? u.id : '';
+            const avatarId =
+              typeof u?.avatar === 'string' ? u.avatar : undefined;
             return {
-              id: u?.id || '',
-              username: u?.username,
-              email: u?.email,
-              rating: u?.rating,
-              isAdmin: clubAdminIds.value.has(u?.id || ''),
+              id: userId,
+              username:
+                typeof u?.username === 'string' ? u.username : undefined,
+              email: typeof u?.email === 'string' ? u.email : undefined,
+              rating: typeof u?.rating === 'number' ? u.rating : undefined,
+              isAdmin: clubAdminIds.value.has(userId),
+              avatar: avatarId
+                ? `${likhaUrl.value}/assets/${avatarId}`
+                : undefined,
             };
           })
           .filter((m) => m.id) || [];
@@ -2709,7 +2718,7 @@ const loadClubData = async (clubId: string) => {
       // Merge club players into local state
       if (club.players && Array.isArray(club.players)) {
         club.players.forEach((p) => {
-          const user = p.directus_users_id;
+          const user = p.directus_users_id as Record<string, unknown> | null;
           if (user && user.id) {
             // Check if we already have a player with this userId (they might have been renamed locally)
             const existingPlayer = Object.values(
@@ -2727,35 +2736,55 @@ const loadClubData = async (clubId: string) => {
               const shouldAdopt = dbTs > 0 ? dbIsNewer : !localHasTs; // if DB has no timestamp, only overwrite if local also has none
 
               if (shouldAdopt) {
+                const userRating =
+                  typeof user.rating === 'number' ? user.rating : undefined;
                 existingPlayer.rating =
-                  user.rating || existingPlayer.rating || 1500;
+                  userRating || existingPlayer.rating || 1500;
                 if (dbTs > 0) existingPlayer.ratingUpdatedAt = dbTs;
               }
             } else {
               // First time checking in / joining club player
               const username =
-                user.username || user.email?.split('@')[0] || 'Unknown';
+                (typeof user.username === 'string'
+                  ? user.username
+                  : undefined) ||
+                (typeof user.email === 'string'
+                  ? user.email.split('@')[0]
+                  : undefined) ||
+                'Unknown';
 
               // Only add if username is not already taken by another local player
               if (!MatchmakingApp.state.players[username]) {
+                const avatarId =
+                  typeof user.avatar === 'string' ? user.avatar : undefined;
                 MatchmakingApp.state.players[username] = {
                   username,
-                  userId: user.id,
-                  rating: user.rating || 1500,
+                  userId: typeof user.id === 'string' ? user.id : undefined,
+                  rating: typeof user.rating === 'number' ? user.rating : 1500,
                   level: 2,
                   matchesPlayed: 0,
                   wins: 0,
                   losses: 0,
-                  ratingUpdatedAt: user.rating_updated_at || undefined,
+                  ratingUpdatedAt:
+                    typeof user.rating_updated_at === 'number'
+                      ? user.rating_updated_at
+                      : undefined,
+                  avatar: avatarId
+                    ? `${likhaUrl.value}/assets/${avatarId}`
+                    : undefined,
                 };
               } else {
                 // If username is taken, update their userId
                 const local = MatchmakingApp.state.players[username];
-                local.userId = user.id;
+                if (typeof user.id === 'string') local.userId = user.id;
+                const avatarId =
+                  typeof user.avatar === 'string' ? user.avatar : undefined;
+                if (avatarId)
+                  local.avatar = `${likhaUrl.value}/assets/${avatarId}`;
                 const dbTs = Number(user.rating_updated_at || 0);
                 const localTs = Number(local.ratingUpdatedAt || 0);
                 const shouldAdopt = dbTs > 0 ? dbTs > localTs : localTs === 0;
-                if (user.rating && shouldAdopt) {
+                if (typeof user.rating === 'number' && shouldAdopt) {
                   local.rating = user.rating;
                   if (dbTs > 0) local.ratingUpdatedAt = dbTs;
                 }
@@ -2879,6 +2908,7 @@ const refreshPlayerRatings = async () => {
           'players.directus_users_id.id',
           'players.directus_users_id.rating',
           'players.directus_users_id.rating_updated_at',
+          'players.directus_users_id.avatar',
         ] as unknown as string[],
       }),
     );
@@ -2890,6 +2920,7 @@ const refreshPlayerRatings = async () => {
               id: string;
               rating?: number;
               rating_updated_at?: number;
+              avatar?: string;
             };
           }>;
         }
@@ -2899,30 +2930,42 @@ const refreshPlayerRatings = async () => {
     let changed = false;
     club.players.forEach((p) => {
       const u = p.directus_users_id;
-      if (!u?.id || typeof u.rating !== 'number') return;
+      if (!u?.id) return;
 
       const local = Object.values(MatchmakingApp.state.players).find(
         (pl) => pl.userId === u.id,
       );
       if (!local) return;
 
-      // LWW token: only adopt the cloud rating when it's a NEWER change than ours.
-      // This stops the Flow's appState→users projection from looping back over a
-      // local rating, while letting a genuinely newer manual edit win.
-      const hasTs = typeof u.rating_updated_at === 'number';
-      const incomingTs = hasTs ? (u.rating_updated_at as number) : 0;
-      const shouldAdopt = hasTs
-        ? incomingTs > (local.ratingUpdatedAt ?? 0)
-        : local.rating !== u.rating; // legacy fallback until field exists
+      // Update avatar if present
+      if (typeof u.avatar === 'string') {
+        const avatarUrl = `${likhaUrl.value}/assets/${u.avatar}`;
+        if (local.avatar !== avatarUrl) {
+          local.avatar = avatarUrl;
+          changed = true;
+        }
+      }
 
-      if (shouldAdopt && local.rating !== u.rating) {
-        local.rating = u.rating;
-        if (hasTs) local.ratingUpdatedAt = incomingTs;
-        changed = true;
+      // Update rating if present
+      if (typeof u.rating === 'number') {
+        // LWW token: only adopt the cloud rating when it's a NEWER change than ours.
+        // This stops the Flow's appState→users projection from looping back over a
+        // local rating, while letting a genuinely newer manual edit win.
+        const hasTs = typeof u.rating_updated_at === 'number';
+        const incomingTs = hasTs ? (u.rating_updated_at as number) : 0;
+        const shouldAdopt = hasTs
+          ? incomingTs > (local.ratingUpdatedAt ?? 0)
+          : local.rating !== u.rating; // legacy fallback until field exists
 
-        // Keep the members list in sync with the adopted value.
-        const member = clubMembers.value.find((m) => m.id === u.id);
-        if (member) member.rating = u.rating;
+        if (shouldAdopt && local.rating !== u.rating) {
+          local.rating = u.rating;
+          if (hasTs) local.ratingUpdatedAt = incomingTs;
+          changed = true;
+
+          // Keep the members list in sync with the adopted value.
+          const member = clubMembers.value.find((m) => m.id === u.id);
+          if (member) member.rating = u.rating;
+        }
       }
     });
 

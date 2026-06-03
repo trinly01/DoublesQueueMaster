@@ -18,6 +18,7 @@ export interface Player {
   priority?: string;
   userId?: string; // Directus user ID — present only for registered club members
   ratingUpdatedAt?: number; // Epoch ms of the last rating change (LWW token vs directus_users.rating_updated_at)
+  avatar?: string; // Avatar URL from Directus
   history?: {
     playedWith: Record<string, number>;
     playedAgainst: Record<string, number>;
