@@ -17,6 +17,7 @@ export interface Player {
   losses: number;
   priority?: string;
   userId?: string; // Directus user ID — present only for registered club members
+  ratingUpdatedAt?: number; // Epoch ms of the last rating change (LWW token vs directus_users.rating_updated_at)
   history?: {
     playedWith: Record<string, number>;
     playedAgainst: Record<string, number>;
@@ -123,6 +124,7 @@ export const RatingEngine = {
         matchesPlayed: player.matchesPlayed + 1,
         wins: (player.wins || 0) + (isWinner ? 1 : 0),
         losses: (player.losses || 0) + (isWinner ? 0 : 1),
+        ratingUpdatedAt: Date.now(),
       };
     };
 
@@ -591,6 +593,51 @@ export class LocalMatchmakingSystem {
   public persist() {
     this.saveState();
   }
+
+  // Save to LocalStorage WITHOUT firing onStateChange (used after a programmatic
+  // merge so we don't recursively trigger another cloud sync).
+  public persistSilently() {
+    LocalStorage.set(STORAGE_KEY, this.state);
+  }
+}
+
+/**
+ * Smart-merge two AppStates when concurrent admin edits collide.
+ * - players: union by username; the record with more matchesPlayed wins
+ *   (more games = more recent accumulated stats). Ties go to the newer writer.
+ * - queues / activeMatches / settings: ephemeral session data — the most
+ *   recently modified writer wins as a whole.
+ */
+export function mergeAppState(local: AppState, server: AppState): AppState {
+  const localTime = local.lastModified ?? 0;
+  const serverTime = server.lastModified ?? 0;
+  const localIsNewer = localTime >= serverTime;
+
+  // Merge accumulated player stats so neither admin's games are lost.
+  const mergedPlayers: Record<string, Player> = { ...(server.players || {}) };
+  for (const [username, lp] of Object.entries(local.players || {})) {
+    const sp = mergedPlayers[username];
+    if (!sp) {
+      mergedPlayers[username] = lp;
+      continue;
+    }
+    const lpGames = lp.matchesPlayed ?? 0;
+    const spGames = sp.matchesPlayed ?? 0;
+    if (lpGames > spGames) mergedPlayers[username] = lp;
+    else if (lpGames < spGames) mergedPlayers[username] = sp;
+    else mergedPlayers[username] = localIsNewer ? lp : sp;
+  }
+
+  // Latest writer owns the ephemeral session state + settings.
+  const session = localIsNewer ? local : server;
+
+  return {
+    ...session,
+    players: mergedPlayers,
+    queues: [...(session.queues || [])],
+    activeMatches: [...(session.activeMatches || [])],
+    lastModified: Math.max(localTime, serverTime),
+  };
 }
 
 // Export a singleton instance so it can be easily imported into any Vue Component
