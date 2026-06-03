@@ -10,9 +10,31 @@
             :key="player.username"
             class="column items-center q-mb-xs"
           >
-            <span class="text-weight-medium text-center">{{
-              player.username
-            }}</span>
+            <span
+              class="text-weight-medium text-center"
+              style="
+                max-width: 80px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: block;
+              "
+              >{{ player.firstName || player.username }}</span
+            >
+            <span
+              v-if="player.username && player.firstName"
+              class="text-grey-6"
+              style="
+                font-size: 10px;
+                max-width: 80px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: block;
+              "
+            >
+              @{{ player.username }}
+            </span>
             <q-chip
               :label="`L${player.level}`"
               :color="getLevelColor(player.level)"
@@ -73,9 +95,31 @@
             :key="player.username"
             class="column items-center q-mb-xs"
           >
-            <span class="text-weight-medium text-center">{{
-              player.username
-            }}</span>
+            <span
+              class="text-weight-medium text-center"
+              style="
+                max-width: 80px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: block;
+              "
+              >{{ player.firstName || player.username }}</span
+            >
+            <span
+              v-if="player.username && player.firstName"
+              class="text-grey-6"
+              style="
+                font-size: 10px;
+                max-width: 80px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: block;
+              "
+            >
+              @{{ player.username }}
+            </span>
             <q-chip
               :label="`L${player.level}`"
               :color="getLevelColor(player.level)"
@@ -206,6 +250,7 @@ const isReadOnlyMode = inject('isReadOnlyMode', false);
 interface Player {
   username: string;
   name?: string;
+  firstName?: string;
   level: 1 | 2 | 3;
   rating: number;
   matchesPlayed: number;

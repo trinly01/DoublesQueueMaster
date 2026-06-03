@@ -12,7 +12,7 @@
         text-color="white"
         size="md"
       >
-        {{ getPlayerInitials(player.username) }}
+        {{ getPlayerInitials(player.firstName || player.username) }}
         <q-badge
           v-if="player.userId"
           floating
@@ -35,17 +35,42 @@
           floating
           rounded
           color="accent"
-          style="padding: 2px; min-height: 14px; min-width: 14px"
+          style="
+            padding: 2px;
+            min-height: 14px;
+            min-width: 14px;
+            bottom: -6px;
+            left: -2px;
+            top: auto;
+            right: auto;
+          "
         >
           <q-icon name="verified" size="12px" />
           <q-tooltip>Registered member</q-tooltip>
+        </q-badge>
+        <!-- Level indicator badge when avatar is available -->
+        <q-badge
+          floating
+          rounded
+          :color="getLevelColor(player.level)"
+          style="
+            padding: 2px;
+            min-height: 8px;
+            min-width: 8px;
+            bottom: -2px;
+            right: -2px;
+            top: auto;
+            left: auto;
+          "
+        >
+          <q-tooltip>Level {{ player.level }}</q-tooltip>
         </q-badge>
       </q-avatar>
     </q-item-section>
 
     <q-item-section>
       <q-item-label class="text-weight-medium">
-        {{ player.username }}
+        {{ player.firstName || player.username }}
         <q-chip
           v-if="player.queueType && player.queueType !== 'GENERAL'"
           :label="player.queueType"
@@ -54,6 +79,14 @@
           size="xs"
           dense
         />
+      </q-item-label>
+      <q-item-label
+        caption
+        class="text-grey-6"
+        style="font-size: 10px"
+        v-if="player.username && player.firstName"
+      >
+        @{{ player.username }}
       </q-item-label>
       <q-item-label caption class="player-stats">
         <span class="text-grey-7">G:{{ player.matchesPlayed }}</span>
