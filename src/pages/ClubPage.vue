@@ -2120,7 +2120,7 @@
 </template>
 
 <script setup lang="ts">
-import { MatchmakingApp } from '../services/matchmaking';
+import { MatchmakingApp, mergeAppState } from '../services/matchmaking';
 import type { Player, AppState } from '../services/matchmaking';
 import { readItems, updateItem, readMe } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/boot/likha';
@@ -2301,6 +2301,7 @@ const clubLoadingState = ref<'loading' | 'loaded' | 'not-found' | 'error'>(
 );
 const clubErrorMessage = ref<string>('');
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
+let ratingsRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
 // Current user and club membership
 const currentUserId = ref<string>('');
@@ -2384,6 +2385,10 @@ const goHome = () => {
 // Cloud sync state
 const isOnline = ref(navigator.onLine);
 const hasPendingCloudSync = ref(false);
+// The server's matchmaking.lastModified that our local state was last derived from.
+// Used as an optimistic-concurrency token: if the live server value differs from
+// this at sync time, another admin wrote in the meantime → smart-merge before pushing.
+const lastSyncedServerTimestamp = ref(0);
 
 // Initialize Likha client from environment or localStorage
 const likhaUrl = ref(
@@ -2486,6 +2491,8 @@ const loadClubData = async (clubId: string) => {
       const serverMatchmaking = club.appState?.matchmaking as
         | AppState
         | undefined;
+      // Record the server version our local state is now based on (concurrency token).
+      lastSyncedServerTimestamp.value = serverMatchmaking?.lastModified ?? 0;
       if (serverMatchmaking) {
         // Only merge settings that are missing locally — never overwrite queues/matches/players
         if (
@@ -2552,30 +2559,15 @@ const loadClubData = async (clubId: string) => {
       );
 
       // Seed / sync player roster, queue, and matches from appState
-      // Admins: local is source of truth — only seed if empty.
+      // Admins: smart-merge so a refresh picks up other admins' newly created
+      //   queues/matches (latest-writer-wins) while preserving player stats.
       // Non-admins: server is source of truth — always overwrite.
       if (serverMatchmaking) {
         if (isAdminFromData) {
-          if (
-            Object.keys(MatchmakingApp.state.players).length === 0 &&
-            serverMatchmaking.players
-          ) {
-            MatchmakingApp.state.players = { ...serverMatchmaking.players };
-          }
-          if (
-            MatchmakingApp.state.queues.length === 0 &&
-            serverMatchmaking.queues
-          ) {
-            MatchmakingApp.state.queues = [...serverMatchmaking.queues];
-          }
-          if (
-            MatchmakingApp.state.activeMatches.length === 0 &&
-            serverMatchmaking.activeMatches
-          ) {
-            MatchmakingApp.state.activeMatches = [
-              ...serverMatchmaking.activeMatches,
-            ];
-          }
+          const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
+          MatchmakingApp.state.players = merged.players;
+          MatchmakingApp.state.queues = merged.queues;
+          MatchmakingApp.state.activeMatches = merged.activeMatches;
         } else {
           if (serverMatchmaking.players) {
             MatchmakingApp.state.players = { ...serverMatchmaking.players };
@@ -2746,6 +2738,72 @@ const loadClubData = async (clubId: string) => {
   }
 };
 
+// Pull the latest player ratings from the club's M2M (club.players → directus_users).
+// A manual change to directus_users.rating doesn't touch the club item, so the
+// realtime appState subscription never sees it — we refresh ratings explicitly here.
+const refreshPlayerRatings = async () => {
+  if (!isOnline.value || !currentClubUUID.value) return;
+  try {
+    const result = await likhaClient.request(
+      readItems('club', {
+        filter: { id: { _eq: currentClubUUID.value } },
+        fields: [
+          'players.directus_users_id.id',
+          'players.directus_users_id.rating',
+          'players.directus_users_id.rating_updated_at',
+        ] as unknown as string[],
+      }),
+    );
+
+    const club = result?.[0] as unknown as
+      | {
+          players?: Array<{
+            directus_users_id?: {
+              id: string;
+              rating?: number;
+              rating_updated_at?: number;
+            };
+          }>;
+        }
+      | undefined;
+    if (!club?.players) return;
+
+    let changed = false;
+    club.players.forEach((p) => {
+      const u = p.directus_users_id;
+      if (!u?.id || typeof u.rating !== 'number') return;
+
+      const local = Object.values(MatchmakingApp.state.players).find(
+        (pl) => pl.userId === u.id,
+      );
+      if (!local) return;
+
+      // LWW token: only adopt the cloud rating when it's a NEWER change than ours.
+      // This stops the Flow's appState→users projection from looping back over a
+      // local rating, while letting a genuinely newer manual edit win.
+      const hasTs = typeof u.rating_updated_at === 'number';
+      const incomingTs = hasTs ? (u.rating_updated_at as number) : 0;
+      const shouldAdopt = hasTs
+        ? incomingTs > (local.ratingUpdatedAt ?? 0)
+        : local.rating !== u.rating; // legacy fallback until field exists
+
+      if (shouldAdopt && local.rating !== u.rating) {
+        local.rating = u.rating;
+        if (hasTs) local.ratingUpdatedAt = incomingTs;
+        changed = true;
+
+        // Keep the members list in sync with the adopted value.
+        const member = clubMembers.value.find((m) => m.id === u.id);
+        if (member) member.rating = u.rating;
+      }
+    });
+
+    if (changed) MatchmakingApp.persistSilently();
+  } catch (err) {
+    console.warn('Failed to refresh player ratings:', err);
+  }
+};
+
 // Immediate sync to cloud (read-before-write for multi-admin conflict detection)
 const performCloudSync = async () => {
   hasPendingCloudSync.value = true;
@@ -2765,39 +2823,22 @@ const performCloudSync = async () => {
 
     const serverAppState = (
       serverResult?.[0] as unknown as {
-        appState?: { matchmaking?: { lastModified?: number } };
+        appState?: { matchmaking?: AppState };
       }
     )?.appState;
-    const serverTimestamp = serverAppState?.matchmaking?.lastModified ?? 0;
-    const localTimestamp = MatchmakingApp.state.lastModified ?? 0;
+    const serverMatchmaking = serverAppState?.matchmaking;
+    const serverTimestamp = serverMatchmaking?.lastModified ?? 0;
 
-    // 2. Conflict detection: server has newer data from another admin
-    if (serverTimestamp > localTimestamp) {
-      $q.notify({
-        type: 'warning',
-        message: 'Another admin made changes. Refresh to see latest state.',
-        position: 'top',
-        timeout: 5000,
-        actions: [
-          {
-            label: 'Refresh',
-            color: 'white',
-            handler: () => window.location.reload(),
-          },
-        ],
-      });
-      hasPendingCloudSync.value = true;
-      return;
-    }
-
-    // 3. Only allow admins to write to the cloud
+    // 2. Only allow admins to write to the cloud
     if (!currentUserId.value || !clubAdminIds.value.has(currentUserId.value)) {
+      // Non-admins still advance their base version so they don't false-conflict later.
+      lastSyncedServerTimestamp.value = serverTimestamp;
       hasPendingCloudSync.value = false;
       console.log('Skipped cloud sync: not an admin');
       return;
     }
 
-    // 3b. Only sync if local state belongs to this club
+    // 2b. Only sync if local state belongs to this club
     if (MatchmakingApp.state.clubId !== currentClubId.value) {
       hasPendingCloudSync.value = false;
       console.log(
@@ -2806,8 +2847,25 @@ const performCloudSync = async () => {
       return;
     }
 
-    // 4. Update our timestamp and push
-    MatchmakingApp.state.lastModified = Date.now();
+    // 3. Optimistic concurrency: if the server moved since the version our local
+    // state was based on, another admin wrote concurrently → smart-merge before pushing.
+    if (
+      serverMatchmaking &&
+      serverTimestamp !== lastSyncedServerTimestamp.value
+    ) {
+      const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
+      Object.assign(MatchmakingApp.state, merged);
+      $q.notify({
+        type: 'info',
+        message: 'Merged concurrent changes from another admin.',
+        position: 'top',
+        timeout: 3000,
+      });
+    }
+
+    // 4. Stamp, push to cloud, persist locally, and advance our base version.
+    const stamp = Date.now();
+    MatchmakingApp.state.lastModified = stamp;
 
     const payload = {
       matchmaking: MatchmakingApp.state,
@@ -2819,6 +2877,8 @@ const performCloudSync = async () => {
       }),
     );
 
+    MatchmakingApp.persistSilently();
+    lastSyncedServerTimestamp.value = stamp;
     hasPendingCloudSync.value = false;
     console.log('Successfully synced to cloud');
   } catch (err) {
@@ -2857,6 +2917,104 @@ const updateOnlineStatus = () => {
       timeout: 2000,
     });
   }
+
+  // Re-establish live updates after a reconnect if the socket dropped, and
+  // refresh ratings that may have changed while we were offline.
+  if (isOnline.value && wasOffline) {
+    if (!realtimeActive) void startRealtime();
+    void refreshPlayerRatings();
+  }
+};
+
+// ---- Real-time sync (WebSocket subscription) ----
+// Pushes other admins' changes to this client instantly, then smart-merges them.
+let realtimeUnsub: (() => void) | null = null;
+let realtimeStarting = false;
+// True only while a live WebSocket subscription is established. Polling acts as a
+// fallback and runs only when this is false (server has no WS, or socket dropped).
+let realtimeActive = false;
+
+type ClubRealtimeMessage = {
+  type?: string;
+  event?: 'init' | 'create' | 'update' | 'delete';
+  data?: Array<{ id?: string; appState?: { matchmaking?: AppState } }>;
+};
+
+const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
+  if (!serverMatchmaking) return;
+  const incomingTs = serverMatchmaking.lastModified ?? 0;
+  // Ignore the echo of our own last write.
+  if (incomingTs === lastSyncedServerTimestamp.value) return;
+
+  const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
+  MatchmakingApp.state.players = merged.players;
+  MatchmakingApp.state.queues = merged.queues;
+  MatchmakingApp.state.activeMatches = merged.activeMatches;
+  MatchmakingApp.persistSilently();
+  lastSyncedServerTimestamp.value = incomingTs;
+};
+
+const startRealtime = async () => {
+  if (realtimeUnsub || realtimeStarting) return;
+  if (!isOnline.value || !currentClubUUID.value) return;
+
+  realtimeStarting = true;
+  try {
+    await likhaClient.connect();
+    const { subscription, unsubscribe } = await likhaClient.subscribe('club', {
+      event: 'update',
+      query: {
+        filter: { id: { _eq: currentClubUUID.value } },
+        fields: ['id', 'appState'],
+      },
+    });
+
+    realtimeUnsub = unsubscribe;
+    realtimeActive = true;
+
+    void (async () => {
+      try {
+        for await (const message of subscription) {
+          const msg = message as ClubRealtimeMessage;
+          if (msg.type && msg.type !== 'subscription') continue;
+          applyServerMatchmaking(msg.data?.[0]?.appState?.matchmaking);
+        }
+      } catch (err) {
+        console.warn('Realtime stream ended:', err);
+      } finally {
+        // Stream closed (drop or unsubscribe) → let polling take over and
+        // allow a fresh subscribe on the next reconnect.
+        realtimeActive = false;
+        realtimeUnsub = null;
+      }
+    })();
+
+    console.log('Realtime subscription active for club', currentClubUUID.value);
+  } catch (err) {
+    console.warn(
+      'Realtime subscribe failed; falling back to polling/manual refresh',
+      err,
+    );
+  } finally {
+    realtimeStarting = false;
+  }
+};
+
+const stopRealtime = () => {
+  if (realtimeUnsub) {
+    try {
+      realtimeUnsub();
+    } catch {
+      /* noop */
+    }
+    realtimeUnsub = null;
+  }
+  realtimeActive = false;
+  try {
+    likhaClient.disconnect();
+  } catch {
+    /* noop */
+  }
 };
 
 onMounted(async () => {
@@ -2883,24 +3041,39 @@ onMounted(async () => {
   const clubId = route.params['clubId'] as string;
   if (clubId) {
     await loadClubData(clubId);
+    // Subscribe to live updates so other admins' changes arrive without refresh.
+    void startRealtime();
   } else {
     clubLoadingState.value = 'loaded';
   }
 
-  // Non-admins: poll server every 2 minutes to stay in sync with admin changes
+  // Fallback polling: runs only when realtime isn't active (no WS / dropped socket).
   refreshInterval = setInterval(() => {
-    if (!isCurrentUserAdmin.value && isOnline.value && currentClubId.value) {
+    if (!realtimeActive && isOnline.value && currentClubId.value) {
       loadClubData(currentClubId.value);
     }
   }, 120000);
+
+  // Player ratings live in directus_users (not in club.appState), so realtime
+  // can't observe them. Poll the club.players M2M periodically to keep ratings fresh.
+  ratingsRefreshInterval = setInterval(() => {
+    if (isOnline.value && currentClubUUID.value) {
+      void refreshPlayerRatings();
+    }
+  }, 60000);
 });
 
 onUnmounted(() => {
   window.removeEventListener('online', updateOnlineStatus);
   window.removeEventListener('offline', updateOnlineStatus);
+  stopRealtime();
   if (refreshInterval) {
     clearInterval(refreshInterval);
     refreshInterval = null;
+  }
+  if (ratingsRefreshInterval) {
+    clearInterval(ratingsRefreshInterval);
+    ratingsRefreshInterval = null;
   }
 });
 
