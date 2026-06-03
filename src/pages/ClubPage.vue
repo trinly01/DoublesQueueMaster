@@ -2472,6 +2472,7 @@ const loadClubData = async (clubId: string) => {
             username?: string;
             email?: string;
             rating?: number;
+            rating_updated_at?: number;
           };
         }>;
         admins?: Array<{
@@ -2563,12 +2564,40 @@ const loadClubData = async (clubId: string) => {
       //   queues/matches (latest-writer-wins) while preserving player stats.
       // Non-admins: server is source of truth — always overwrite.
       if (serverMatchmaking) {
+        // Check if local state is "fresh" (no meaningful data) - e.g., incognito/private mode
+        // In this case, directly adopt server state instead of merging to prevent
+        // timestamp-based logic from keeping empty local data.
+        const isFreshState =
+          Object.keys(MatchmakingApp.state.players).length === 0 &&
+          MatchmakingApp.state.queues.length === 0 &&
+          MatchmakingApp.state.activeMatches.length === 0;
+
         if (isAdminFromData) {
-          const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
-          MatchmakingApp.state.players = merged.players;
-          MatchmakingApp.state.queues = merged.queues;
-          MatchmakingApp.state.activeMatches = merged.activeMatches;
+          if (isFreshState) {
+            // Fresh state: directly adopt server data
+            if (serverMatchmaking.players) {
+              MatchmakingApp.state.players = { ...serverMatchmaking.players };
+            }
+            if (serverMatchmaking.queues) {
+              MatchmakingApp.state.queues = [...serverMatchmaking.queues];
+            }
+            if (serverMatchmaking.activeMatches) {
+              MatchmakingApp.state.activeMatches = [
+                ...serverMatchmaking.activeMatches,
+              ];
+            }
+          } else {
+            // Existing local state: smart-merge with server
+            const merged = mergeAppState(
+              MatchmakingApp.state,
+              serverMatchmaking,
+            );
+            MatchmakingApp.state.players = merged.players;
+            MatchmakingApp.state.queues = merged.queues;
+            MatchmakingApp.state.activeMatches = merged.activeMatches;
+          }
         } else {
+          // Non-admins: server is source of truth — always overwrite
           if (serverMatchmaking.players) {
             MatchmakingApp.state.players = { ...serverMatchmaking.players };
           }
@@ -2661,9 +2690,20 @@ const loadClubData = async (clubId: string) => {
             ).find((player) => player.userId === user.id);
 
             if (existingPlayer) {
-              // Update rating/ID under their current (possibly renamed) local username
-              existingPlayer.rating =
-                user.rating || existingPlayer.rating || 1500;
+              // LWW: only adopt the DB rating when it's newer than our local one.
+              // If we have a local ratingUpdatedAt (from the rating engine or a
+              // prior manual edit) and the DB timestamp is missing/older, keep local.
+              const dbTs = Number(user.rating_updated_at || 0);
+              const localTs = Number(existingPlayer.ratingUpdatedAt || 0);
+              const dbIsNewer = dbTs > localTs;
+              const localHasTs = localTs > 0;
+              const shouldAdopt = dbTs > 0 ? dbIsNewer : !localHasTs; // if DB has no timestamp, only overwrite if local also has none
+
+              if (shouldAdopt) {
+                existingPlayer.rating =
+                  user.rating || existingPlayer.rating || 1500;
+                if (dbTs > 0) existingPlayer.ratingUpdatedAt = dbTs;
+              }
             } else {
               // First time checking in / joining club player
               const username =
@@ -2679,12 +2719,18 @@ const loadClubData = async (clubId: string) => {
                   matchesPlayed: 0,
                   wins: 0,
                   losses: 0,
+                  ratingUpdatedAt: user.rating_updated_at || undefined,
                 };
               } else {
                 // If username is taken, update their userId
-                MatchmakingApp.state.players[username].userId = user.id;
-                if (user.rating) {
-                  MatchmakingApp.state.players[username].rating = user.rating;
+                const local = MatchmakingApp.state.players[username];
+                local.userId = user.id;
+                const dbTs = Number(user.rating_updated_at || 0);
+                const localTs = Number(local.ratingUpdatedAt || 0);
+                const shouldAdopt = dbTs > 0 ? dbTs > localTs : localTs === 0;
+                if (user.rating && shouldAdopt) {
+                  local.rating = user.rating;
+                  if (dbTs > 0) local.ratingUpdatedAt = dbTs;
                 }
               }
             }
@@ -2805,7 +2851,7 @@ const refreshPlayerRatings = async () => {
 };
 
 // Immediate sync to cloud (read-before-write for multi-admin conflict detection)
-const performCloudSync = async () => {
+const performCloudSync = async (skipServerMerge = false) => {
   hasPendingCloudSync.value = true;
 
   if (!isOnline.value || !likhaUrl.value || !currentClubUUID.value) {
@@ -2813,21 +2859,25 @@ const performCloudSync = async () => {
   }
 
   try {
-    // 1. Read current server state first
-    const serverResult = await likhaClient.request(
-      readItems('club', {
-        filter: { id: { _eq: currentClubUUID.value } },
-        fields: ['appState'],
-      }),
-    );
+    // 1. Read current server state first (skip if we're coming back online with offline changes)
+    let serverMatchmaking: AppState | undefined;
+    let serverTimestamp = 0;
+    if (!skipServerMerge) {
+      const serverResult = await likhaClient.request(
+        readItems('club', {
+          filter: { id: { _eq: currentClubUUID.value } },
+          fields: ['appState'],
+        }),
+      );
 
-    const serverAppState = (
-      serverResult?.[0] as unknown as {
-        appState?: { matchmaking?: AppState };
-      }
-    )?.appState;
-    const serverMatchmaking = serverAppState?.matchmaking;
-    const serverTimestamp = serverMatchmaking?.lastModified ?? 0;
+      const serverAppState = (
+        serverResult?.[0] as unknown as {
+          appState?: { matchmaking?: AppState };
+        }
+      )?.appState;
+      serverMatchmaking = serverAppState?.matchmaking;
+      serverTimestamp = serverMatchmaking?.lastModified ?? 0;
+    }
 
     // 2. Only allow admins to write to the cloud
     if (!currentUserId.value || !clubAdminIds.value.has(currentUserId.value)) {
@@ -2895,7 +2945,10 @@ const updateOnlineStatus = () => {
   if (isOnline.value && wasOffline && hasPendingCloudSync.value) {
     const attemptSync = async (retries = 3, delay = 1000) => {
       try {
-        await performCloudSync();
+        // Skip server merge when coming back online to preserve offline changes
+        await performCloudSync(true);
+        // After successful sync, refresh ratings to pull the updated values from cloud
+        void refreshPlayerRatings();
       } catch {
         if (retries > 0) {
           setTimeout(() => attemptSync(retries - 1, delay * 2), delay);
@@ -2920,9 +2973,11 @@ const updateOnlineStatus = () => {
 
   // Re-establish live updates after a reconnect if the socket dropped, and
   // refresh ratings that may have changed while we were offline.
+  // Skip refreshPlayerRatings if we have pending sync (offline changes to push)
+  // to avoid stale DB ratings overwriting our local offline changes before they sync.
   if (isOnline.value && wasOffline) {
     if (!realtimeActive) void startRealtime();
-    void refreshPlayerRatings();
+    if (!hasPendingCloudSync.value) void refreshPlayerRatings();
   }
 };
 
@@ -2950,6 +3005,7 @@ const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
   MatchmakingApp.state.players = merged.players;
   MatchmakingApp.state.queues = merged.queues;
   MatchmakingApp.state.activeMatches = merged.activeMatches;
+  MatchmakingApp.state.lastModified = merged.lastModified;
   MatchmakingApp.persistSilently();
   lastSyncedServerTimestamp.value = incomingTs;
 };
@@ -3041,6 +3097,8 @@ onMounted(async () => {
   const clubId = route.params['clubId'] as string;
   if (clubId) {
     await loadClubData(clubId);
+    // Pull any manual directus_users rating edits on first load.
+    void refreshPlayerRatings();
     // Subscribe to live updates so other admins' changes arrive without refresh.
     void startRealtime();
   } else {
