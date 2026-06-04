@@ -9,7 +9,7 @@
       <q-spinner-gears size="60px" color="primary" />
     </div>
 
-    <!-- Club Not Found State (separate full page) -->
+    <!-- Club Not Found State -->
     <div
       v-else-if="clubLoadingState === 'not-found'"
       class="flex flex-center column q-pa-lg"
@@ -17,6 +17,32 @@
     >
       <q-icon name="search_off" size="120px" color="grey-5" />
       <div class="text-h4 text-weight-bold q-mt-md">Club Not Found</div>
+      <div
+        class="text-body1 text-grey-9 q-mt-sm text-center"
+        style="max-width: 420px"
+        v-html="clubErrorMessage"
+      ></div>
+      <div class="row q-gutter-sm q-mt-lg justify-center">
+        <q-btn
+          color="primary"
+          label="Back to Home"
+          icon="arrow_back"
+          size="md"
+          @click="goHome"
+          unelevated
+          rounded
+        />
+      </div>
+    </div>
+
+    <!-- Club Not Activated State -->
+    <div
+      v-else-if="clubLoadingState === 'unpublished'"
+      class="flex flex-center column q-pa-lg"
+      style="min-height: 90vh"
+    >
+      <q-icon name="lock_clock" size="120px" color="grey-5" />
+      <div class="text-h4 text-weight-bold q-mt-md">Not Yet Activated</div>
       <div
         class="text-body1 text-grey-9 q-mt-sm text-center"
         style="max-width: 420px"
@@ -2379,9 +2405,9 @@ const router = useRouter();
 const currentClubId = ref<string>('');
 const currentClubUUID = ref<string>('');
 const clubName = ref<string>('');
-const clubLoadingState = ref<'loading' | 'loaded' | 'not-found' | 'error'>(
-  'loading',
-);
+const clubLoadingState = ref<
+  'loading' | 'loaded' | 'not-found' | 'unpublished' | 'error'
+>('loading');
 const clubErrorMessage = ref<string>('');
 const paymentLink = ref<string>('');
 const paymentLoading = ref<boolean>(false);
@@ -2653,7 +2679,7 @@ const loadClubData = async (clubId: string) => {
           (a) => a.directus_users_id?.id === currentUserId.value,
         );
         if (isAdmin) {
-          clubLoadingState.value = 'not-found';
+          clubLoadingState.value = 'unpublished';
           clubErrorMessage.value = `Club "${club.name || clubId}" is not yet activated. Please click the Pay button below to activate.`;
           return;
         }
@@ -2915,9 +2941,9 @@ const loadClubData = async (clubId: string) => {
 
       clubLoadingState.value = 'loaded';
     } else {
-      // Club not found or unpublished
+      // Club truly not found
       clubLoadingState.value = 'not-found';
-      clubErrorMessage.value = `Club "${clubId}" not found or not yet activated. Please click the Pay button below to activate.`;
+      clubErrorMessage.value = `Club "${clubId}" not found.`;
     }
   } catch (err) {
     // Handle 401 Unauthorized errors
@@ -2968,7 +2994,7 @@ const loadClubData = async (clubId: string) => {
           );
 
           if (isAdmin) {
-            clubLoadingState.value = 'not-found';
+            clubLoadingState.value = 'unpublished';
             clubErrorMessage.value = `Club "${unpublishedClub.name || clubId}" is not yet activated. Please click the Pay button below to activate.`;
             return;
           }
