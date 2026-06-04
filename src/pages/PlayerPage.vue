@@ -59,14 +59,35 @@
           </div>
           <div class="row q-col-gutter-sm items-center justify-center">
             <div class="col-8">
-              <q-input
+              <q-select
                 filled
                 v-model="clubId"
+                :options="clubOptions"
+                option-value="clubId"
+                option-label="name"
+                emit-value
+                map-options
+                use-input
+                hide-selected
+                fill-input
+                input-debounce="300"
                 label="Enter Club ID"
                 dense
                 color="primary"
+                @filter="filterClubs"
                 @keyup.enter="joinClub"
-              />
+              >
+                <template #option="scope">
+                  <q-item v-bind="scope.itemProps">
+                    <q-item-section>
+                      <q-item-label>{{ scope.opt.name }}</q-item-label>
+                      <q-item-label caption>{{
+                        scope.opt.clubId
+                      }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
             </div>
             <div class="col-4">
               <q-btn
@@ -307,6 +328,7 @@ const avatarUrl = computed(() => {
 
 const LAST_CLUB_KEY = 'lastClubId';
 const clubId = ref((LocalStorage.getItem(LAST_CLUB_KEY) as string) || '');
+const clubOptions = ref<{ clubId: string; name: string }[]>([]);
 const joinLoading = ref(false);
 const loading = computed(() => PlayerProfile.loading.value);
 const avatarInput = ref<HTMLInputElement | null>(null);
@@ -515,6 +537,40 @@ const createClub = async () => {
     $q.notify({ color: 'negative', message: msg });
   } finally {
     createClubLoading.value = false;
+  }
+};
+
+const filterClubs = async (
+  val: string,
+  update: (callback: () => void) => void,
+) => {
+  if (!val || val.length < 2) {
+    update(() => {
+      clubOptions.value = [];
+    });
+    return;
+  }
+  try {
+    const clubs = await likhaClient.request(
+      readItems('club', {
+        filter: {
+          _or: [{ clubId: { _icontains: val } }, { name: { _icontains: val } }],
+        },
+        fields: ['clubId', 'name'],
+        limit: 10,
+      }),
+    );
+    update(() => {
+      clubOptions.value = (clubs || []).map((c: unknown) => {
+        const club = c as { clubId: string; name?: string };
+        return { clubId: club.clubId, name: club.name || club.clubId };
+      });
+    });
+  } catch (err) {
+    console.error('Club search failed:', err);
+    update(() => {
+      clubOptions.value = [];
+    });
   }
 };
 
