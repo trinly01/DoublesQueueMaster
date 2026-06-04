@@ -33,12 +33,13 @@
           rounded
         />
         <q-btn
-          color="grey-9"
-          label="Call for Activation"
-          icon="phone"
+          color="accent"
+          label="Pay"
+          icon="payment"
           size="md"
           @click="callForActivation"
-          outline
+          :loading="paymentLoading"
+          unelevated
           rounded
         />
       </div>
@@ -2382,6 +2383,8 @@ const clubLoadingState = ref<'loading' | 'loaded' | 'not-found' | 'error'>(
   'loading',
 );
 const clubErrorMessage = ref<string>('');
+const paymentLink = ref<string>('');
+const paymentLoading = ref<boolean>(false);
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
 let ratingsRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -2483,8 +2486,56 @@ const goHome = () => {
   router.push('/');
 };
 
-const callForActivation = () => {
-  window.location.href = 'tel:+639762298311';
+const callForActivation = async () => {
+  if (paymentLink.value && !paymentLoading.value) {
+    paymentLoading.value = true;
+    try {
+      const url = new URL(paymentLink.value);
+      const path = url.pathname + url.search;
+      console.log('POST path:', path);
+
+      const token = await likhaClient.getToken();
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          clubId: currentClubId.value,
+        }),
+      });
+      const result = (await response.json()).data;
+      console.log('POST result:', result);
+
+      if (result && typeof result.invoice_url === 'string') {
+        window.open(result.invoice_url, '_blank');
+      }
+    } catch (err) {
+      console.error('POST request failed:', err);
+    } finally {
+      paymentLoading.value = false;
+    }
+  }
+};
+
+const fetchPaymentSettings = async () => {
+  try {
+    const result = await likhaClient.request(
+      readItems('payment_settings', {
+        fields: ['club_activation_payment_link'] as string[],
+        limit: 1,
+      }),
+    );
+
+    const settings = result as unknown as Record<string, unknown>;
+    paymentLink.value =
+      typeof settings.club_activation_payment_link === 'string'
+        ? settings.club_activation_payment_link
+        : '';
+  } catch (err) {
+    console.warn('Failed to fetch payment settings:', err);
+  }
 };
 
 // Cloud sync state
@@ -2603,7 +2654,7 @@ const loadClubData = async (clubId: string) => {
         );
         if (isAdmin) {
           clubLoadingState.value = 'not-found';
-          clubErrorMessage.value = `Club "${club.name || clubId}" is not yet activated. Please pay 499 Php monthly subscription. Contact <a href="mailto:contact@zyberlab.com">contact@zyberlab.com</a> for activation.`;
+          clubErrorMessage.value = `Club "${club.name || clubId}" is not yet activated. Please click the Pay button below to activate.`;
           return;
         }
       }
@@ -2866,7 +2917,7 @@ const loadClubData = async (clubId: string) => {
     } else {
       // Club not found or unpublished
       clubLoadingState.value = 'not-found';
-      clubErrorMessage.value = `Club "${clubId}" not found or not yet activated. Please pay 499 Php monthly subscription. Contact <a href="mailto:contact@zyberlab.com">contact@zyberlab.com</a> for activation.`;
+      clubErrorMessage.value = `Club "${clubId}" not found or not yet activated. Please click the Pay button below to activate.`;
     }
   } catch (err) {
     // Handle 401 Unauthorized errors
@@ -2918,7 +2969,7 @@ const loadClubData = async (clubId: string) => {
 
           if (isAdmin) {
             clubLoadingState.value = 'not-found';
-            clubErrorMessage.value = `Club "${unpublishedClub.name || clubId}" is not yet activated. Please pay 499 Php monthly subscription. Contact <a href="mailto:contact@zyberlab.com">contact@zyberlab.com</a> for activation.`;
+            clubErrorMessage.value = `Club "${unpublishedClub.name || clubId}" is not yet activated. Please click the Pay button below to activate.`;
             return;
           }
         }
@@ -3310,6 +3361,10 @@ const stopRealtime = () => {
 onMounted(async () => {
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
+
+  // Fetch payment settings
+  console.log('fetching settings');
+  void fetchPaymentSettings();
 
   // Fetch current user (or restore from cache if offline)
   try {

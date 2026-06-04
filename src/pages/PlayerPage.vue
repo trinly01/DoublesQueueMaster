@@ -502,17 +502,12 @@ const createClub = async () => {
       }),
     );
 
-    const createdName = newClubName.value;
+    const createdId = newClubId.value;
     showCreateClubDialog.value = false;
     newClubId.value = '';
     newClubName.value = '';
 
-    $q.dialog({
-      title: 'Request Submitted',
-      message: `Your club request for "${createdName}" has been submitted. It is now pending approval. You will be notified once an admin approves your request.`,
-      ok: 'OK',
-      persistent: true,
-    });
+    router.push(`/club/${createdId}`);
   } catch (err) {
     console.error('Create club failed:', err);
     const error = err as { errors?: { message?: string }[] };
