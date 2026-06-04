@@ -2402,6 +2402,7 @@ const maxCourts = ref<number>(8);
 // Route and Club state
 const route = useRoute();
 const router = useRouter();
+const isOpenPlay = computed(() => route.path === '/openplay');
 const currentClubId = ref<string>('');
 const currentClubUUID = ref<string>('');
 const clubName = ref<string>('');
@@ -2475,6 +2476,7 @@ const isClubMemberSelected = (memberId: string): boolean => {
   return selectedClubMembers.value.includes(memberId);
 };
 const isCurrentUserAdmin = computed(() => {
+  if (isOpenPlay.value) return true;
   const isAdmin = clubMembers.value.some(
     (m) => m.id === currentUserId.value && m.isAdmin,
   );
@@ -3140,6 +3142,7 @@ const refreshPlayerRatings = async () => {
 
 // Immediate sync to cloud (read-before-write for multi-admin conflict detection)
 const performCloudSync = async (skipServerMerge = false) => {
+  if (isOpenPlay.value) return;
   hasPendingCloudSync.value = true;
 
   if (!isOnline.value || !likhaUrl.value || !currentClubUUID.value) {
@@ -3388,23 +3391,26 @@ onMounted(async () => {
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
 
-  // Fetch payment settings
-  console.log('fetching settings');
-  void fetchPaymentSettings();
+  if (!isOpenPlay.value) {
+    // Fetch payment settings
+    console.log('fetching settings');
+    void fetchPaymentSettings();
 
-  // Fetch current user (or restore from cache if offline)
-  try {
-    const me = await likhaClient.request(readMe());
-    currentUserId.value = ((me as Record<string, unknown>).id as string) || '';
-    if (currentUserId.value) {
-      LocalStorage.set('quasar_current_user_id', currentUserId.value);
-    }
-  } catch {
-    const cachedUserId = LocalStorage.getItem('quasar_current_user_id') as
-      | string
-      | null;
-    if (cachedUserId) {
-      currentUserId.value = cachedUserId;
+    // Fetch current user (or restore from cache if offline)
+    try {
+      const me = await likhaClient.request(readMe());
+      currentUserId.value =
+        ((me as Record<string, unknown>).id as string) || '';
+      if (currentUserId.value) {
+        LocalStorage.set('quasar_current_user_id', currentUserId.value);
+      }
+    } catch {
+      const cachedUserId = LocalStorage.getItem('quasar_current_user_id') as
+        | string
+        | null;
+      if (cachedUserId) {
+        currentUserId.value = cachedUserId;
+      }
     }
   }
 
@@ -3418,6 +3424,9 @@ onMounted(async () => {
     void startRealtime();
   } else {
     clubLoadingState.value = 'loaded';
+    if (isOpenPlay.value) {
+      clubName.value = 'Open Play';
+    }
   }
 
   // Fallback polling: runs only when realtime isn't active (no WS / dropped socket).

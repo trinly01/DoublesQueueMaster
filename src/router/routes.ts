@@ -38,6 +38,10 @@ const routes: RouteRecordRaw[] = [
         component: ClubPage,
         meta: { requiresAuth: true },
       },
+      {
+        path: 'openplay',
+        component: ClubPage,
+      },
     ],
   },
 

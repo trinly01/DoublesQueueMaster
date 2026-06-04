@@ -149,6 +149,14 @@
               >Sign Up</router-link
             >
           </div>
+
+          <div class="text-center q-mt-sm">
+            <router-link
+              to="/openplay"
+              class="text-primary text-weight-medium text-decoration-none"
+              >Start without account</router-link
+            >
+          </div>
         </q-form>
       </q-card-section>
     </q-card>
