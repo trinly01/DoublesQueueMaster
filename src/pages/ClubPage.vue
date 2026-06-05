@@ -2252,16 +2252,18 @@ const handleAuthError = (
 
 // State: Players, Queue, and Matches
 const players = computed(() =>
-  Object.values(MatchmakingApp.state.players).map((p) => ({
-    ...p,
-    name: p.username,
-  })),
+  Object.values(MatchmakingApp.state.players)
+    .filter((p) => !p.deletedAt)
+    .map((p) => ({
+      ...p,
+      name: p.username,
+    })),
 );
 const queue = computed(() => {
   const mapped = MatchmakingApp.state.queues
     .map((q) => {
       const p = MatchmakingApp.state.players[q.username];
-      if (!p) return null;
+      if (!p || p.deletedAt) return null;
       return {
         ...p,
         username: p.username,
@@ -2569,12 +2571,23 @@ const fetchPaymentSettings = async () => {
 // Cloud sync state
 const isOnline = ref(navigator.onLine);
 const hasPendingCloudSync = ref(false);
-// The server's matchmaking.lastModified that our local state was last derived from.
-// Used as an optimistic-concurrency token: if the live server value differs from
-// this at sync time, another admin wrote in the meantime → smart-merge before pushing.
+// The server's matchmaking.lastModified that our local state was last PUSHED to.
+// Used as an optimistic-concurrency token: set ONLY after a successful write.
 const lastSyncedServerTimestamp = ref(0);
+// The server's timestamp last seen by polling / loadClubData (NOT a write token).
+const lastPolledServerTimestamp = ref(0);
 // Track when we went offline to detect sleep/long offline periods
 const offlineSince = ref<number | null>(null);
+
+// Sync mutex: prevent overlapping performCloudSync calls
+let syncInProgress = false;
+let syncRetryPending = false;
+
+// Debounce timer for batching rapid local mutations into one sync
+let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Page visibility tracking
+let isTabVisible = true;
 
 // Initialize Likha client from environment or localStorage
 const likhaUrl = ref(
@@ -2596,6 +2609,9 @@ const loadClubData = async (clubId: string) => {
   ) {
     MatchmakingApp.resetState();
   }
+
+  // Capture expected club so we can abort if the user switched clubs while the API was in-flight
+  const expectedClubId = clubId;
 
   clubLoadingState.value = 'loading';
   try {
@@ -2621,6 +2637,15 @@ const loadClubData = async (clubId: string) => {
         ] as unknown as string[],
       }),
     );
+
+    // Guard: if the user switched clubs while the API was in-flight, discard this response
+    if (
+      MatchmakingApp.state.clubId &&
+      MatchmakingApp.state.clubId !== expectedClubId
+    ) {
+      clubLoadingState.value = 'loaded';
+      return;
+    }
 
     if (result && result.length > 0) {
       const club = result[0] as unknown as {
@@ -2692,8 +2717,8 @@ const loadClubData = async (clubId: string) => {
       const serverMatchmaking = club.appState?.matchmaking as
         | AppState
         | undefined;
-      // Record the server version our local state is now based on (concurrency token).
-      lastSyncedServerTimestamp.value = serverMatchmaking?.lastModified ?? 0;
+      // Record the server version seen by polling (NOT a write token).
+      lastPolledServerTimestamp.value = serverMatchmaking?.lastModified ?? 0;
       if (serverMatchmaking) {
         // Only merge settings that are missing locally — never overwrite queues/matches/players
         if (
@@ -3143,9 +3168,17 @@ const refreshPlayerRatings = async () => {
 // Immediate sync to cloud (read-before-write for multi-admin conflict detection)
 const performCloudSync = async (skipServerMerge = false) => {
   if (isOpenPlay.value) return;
+
+  // Mutex: if another sync is in-flight, mark pending and bail.
+  if (syncInProgress) {
+    syncRetryPending = true;
+    return;
+  }
+  syncInProgress = true;
   hasPendingCloudSync.value = true;
 
   if (!isOnline.value || !likhaUrl.value || !currentClubUUID.value) {
+    syncInProgress = false;
     return;
   }
 
@@ -3175,6 +3208,7 @@ const performCloudSync = async (skipServerMerge = false) => {
       // Non-admins still advance their base version so they don't false-conflict later.
       lastSyncedServerTimestamp.value = serverTimestamp;
       hasPendingCloudSync.value = false;
+      syncInProgress = false;
       console.log('Skipped cloud sync: not an admin');
       return;
     }
@@ -3182,6 +3216,7 @@ const performCloudSync = async (skipServerMerge = false) => {
     // 2b. Only sync if local state belongs to this club
     if (MatchmakingApp.state.clubId !== currentClubId.value) {
       hasPendingCloudSync.value = false;
+      syncInProgress = false;
       console.log(
         'Skipped cloud sync: local state belongs to a different club',
       );
@@ -3221,12 +3256,23 @@ const performCloudSync = async (skipServerMerge = false) => {
     MatchmakingApp.persistSilently();
     lastSyncedServerTimestamp.value = stamp;
     hasPendingCloudSync.value = false;
+    syncRetryPending = false;
     console.log('Successfully synced to cloud');
   } catch (err) {
     // Handle 401 Unauthorized errors
-    if (handleAuthError(err, router)) return;
+    if (handleAuthError(err, router)) {
+      syncInProgress = false;
+      return;
+    }
     console.error('Failed to sync to cloud:', err);
     hasPendingCloudSync.value = true;
+  } finally {
+    syncInProgress = false;
+    // If another sync was requested while we were busy, run one follow-up.
+    if (syncRetryPending) {
+      syncRetryPending = false;
+      performCloudSync();
+    }
   }
 };
 
@@ -3387,9 +3433,25 @@ const stopRealtime = () => {
   }
 };
 
+const handleVisibilityChange = () => {
+  const wasHidden = !isTabVisible;
+  isTabVisible = !document.hidden;
+  // When tab becomes visible and realtime isn't active, do one catch-up poll
+  if (
+    isTabVisible &&
+    wasHidden &&
+    !realtimeActive &&
+    isOnline.value &&
+    currentClubId.value
+  ) {
+    void loadClubData(currentClubId.value);
+  }
+};
+
 onMounted(async () => {
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 
   if (!isOpenPlay.value) {
     // Fetch payment settings
@@ -3430,7 +3492,9 @@ onMounted(async () => {
   }
 
   // Fallback polling: runs only when realtime isn't active (no WS / dropped socket).
+  // Also gated by tab visibility to avoid background-tab burst-sync on return.
   refreshInterval = setInterval(() => {
+    if (!isTabVisible) return; // skip while hidden
     if (!realtimeActive && isOnline.value && currentClubId.value) {
       loadClubData(currentClubId.value);
     }
@@ -3448,6 +3512,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('online', updateOnlineStatus);
   window.removeEventListener('offline', updateOnlineStatus);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
   stopRealtime();
   if (refreshInterval) {
     clearInterval(refreshInterval);
@@ -3847,8 +3912,16 @@ const getWaitingPlayersInfo = (): string => {
 };
 
 // Watch for matchmaking state changes and sync to cloud
-// Set up matchmaking state change handler for explicit sync calls
-MatchmakingApp.onStateChange = performCloudSync;
+// Debounced wrapper: batch rapid mutations into a single sync attempt.
+const debouncedCloudSync = () => {
+  hasPendingCloudSync.value = true;
+  if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = setTimeout(() => {
+    performCloudSync();
+  }, 500);
+};
+
+MatchmakingApp.onStateChange = debouncedCloudSync;
 
 // Watch for cloud config changes and save to localStorage
 watch([likhaUrl, likhaToken], () => {
@@ -4262,7 +4335,11 @@ const removePlayer = (username: string) => {
     ok: { label: 'Remove', color: 'negative', icon: 'delete' },
     persistent: true,
   }).onOk(() => {
-    delete MatchmakingApp.state.players[username];
+    const player = MatchmakingApp.state.players[username];
+    if (player) {
+      player.deletedAt = Date.now();
+      player.updatedAt = Date.now();
+    }
     MatchmakingApp.removeFromQueue(username);
     MatchmakingApp.state.lastModified = Date.now();
     MatchmakingApp.persist();
