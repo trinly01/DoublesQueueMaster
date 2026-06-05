@@ -1232,59 +1232,168 @@
                 Enter match scores
               </div>
 
-              <div class="row q-col-gutter-md">
-                <!-- Team A -->
-                <div class="col-6">
-                  <q-card class="team-card" flat bordered>
-                    <q-card-section class="text-center">
-                      <div class="text-weight-medium q-mb-sm">Team 1</div>
-                      <q-chip
-                        v-for="p in currentMatch.teamA"
-                        :key="p.username"
-                        :label="p.username"
-                        :color="getLevelColor(p.level)"
-                        text-color="white"
-                        size="sm"
-                        dense
-                      />
-                    </q-card-section>
-                    <q-card-section>
-                      <q-input
-                        v-model.number="teamAScore"
-                        type="number"
-                        label="Score"
-                        outlined
-                        dense
-                      />
-                    </q-card-section>
-                  </q-card>
+              <!-- Match Layout: same structure as MatchCard -->
+              <div class="row items-center q-pa-sm no-wrap">
+                <!-- Left: Team A -->
+                <div class="col text-center">
+                  <div
+                    v-for="player in currentMatch.teamA"
+                    :key="player.username"
+                    class="column items-center q-mb-xs"
+                  >
+                    <span
+                      class="text-weight-medium text-center"
+                      style="
+                        max-width: 80px;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                        display: block;
+                      "
+                      >{{ player.firstName || player.username }}</span
+                    >
+                    <span
+                      v-if="player.username && player.firstName"
+                      class="text-grey-6"
+                      style="
+                        font-size: 10px;
+                        max-width: 80px;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                        display: block;
+                      "
+                    >
+                      @{{ player.username }}
+                    </span>
+                    <q-chip
+                      :label="`L${player.level}`"
+                      :color="getLevelColor(player.level)"
+                      text-color="white"
+                      size="xs"
+                      dense
+                    />
+                  </div>
+                  <q-input
+                    v-model.number="teamAScore"
+                    type="number"
+                    label="Score"
+                    outlined
+                    class="q-mt-sm"
+                    input-class="text-h4 text-center"
+                    style="
+                      max-width: 120px;
+                      margin-left: auto;
+                      margin-right: auto;
+                    "
+                  />
                 </div>
 
-                <!-- Team B -->
-                <div class="col-6">
-                  <q-card class="team-card" flat bordered>
-                    <q-card-section class="text-center">
-                      <div class="text-weight-medium q-mb-sm">Team 2</div>
-                      <q-chip
-                        v-for="p in currentMatch.teamB"
-                        :key="p.username"
-                        :label="p.username"
-                        :color="getLevelColor(p.level)"
-                        text-color="white"
-                        size="sm"
-                        dense
-                      />
-                    </q-card-section>
-                    <q-card-section>
-                      <q-input
-                        v-model.number="teamBScore"
-                        type="number"
-                        label="Score"
-                        outlined
-                        dense
-                      />
-                    </q-card-section>
-                  </q-card>
+                <!-- Center: Court + Win Probability + VS -->
+                <div
+                  class="col-auto q-mx-md text-center"
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 4px;
+                  "
+                >
+                  <q-chip
+                    v-if="currentMatch.court"
+                    color="blue-grey-7"
+                    text-color="white"
+                    size="sm"
+                    dense
+                  >
+                    Court
+                    <q-avatar
+                      color="blue-grey-9"
+                      style="left: 10px"
+                      dense
+                      size="xs"
+                      rounded
+                      text-color="white"
+                      >{{ currentMatch.court }}</q-avatar
+                    >
+                  </q-chip>
+                  <span class="text-caption text-grey-6">
+                    {{
+                      currentMatch.winProbability !== undefined
+                        ? (currentMatch.winProbability * 100).toFixed(0)
+                        : ''
+                    }}%
+                    <q-icon name="sports_tennis" color="grey-6" size="sm" />
+                    {{
+                      currentMatch.winProbability !== undefined
+                        ? ((1 - currentMatch.winProbability) * 100).toFixed(0)
+                        : ''
+                    }}%
+                  </span>
+                  <q-chip
+                    :color="getMatchStatusColor(currentMatch.status)"
+                    text-color="white"
+                    size="sm"
+                    dense
+                  >
+                    {{ getMatchStatusLabel(currentMatch.status) }}
+                  </q-chip>
+                  <div class="text-h6 text-weight-bold text-grey-8">VS</div>
+                </div>
+
+                <!-- Right: Team B -->
+                <div class="col text-center">
+                  <div
+                    v-for="player in currentMatch.teamB"
+                    :key="player.username"
+                    class="column items-center q-mb-xs"
+                  >
+                    <span
+                      class="text-weight-medium text-center"
+                      style="
+                        max-width: 80px;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                        display: block;
+                      "
+                      >{{ player.firstName || player.username }}</span
+                    >
+                    <span
+                      v-if="player.username && player.firstName"
+                      class="text-grey-6"
+                      style="
+                        font-size: 10px;
+                        max-width: 80px;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                        display: block;
+                      "
+                    >
+                      @{{ player.username }}
+                    </span>
+                    <q-chip
+                      :label="`L${player.level}`"
+                      :color="getLevelColor(player.level)"
+                      text-color="white"
+                      size="xs"
+                      dense
+                    />
+                  </div>
+                  <q-input
+                    v-model.number="teamBScore"
+                    type="number"
+                    label="Score"
+                    outlined
+                    class="q-mt-sm"
+                    input-class="text-h4 text-center"
+                    style="
+                      max-width: 120px;
+                      margin-left: auto;
+                      margin-right: auto;
+                    "
+                  />
                 </div>
               </div>
             </div>
@@ -2221,7 +2330,12 @@ import PlayerCard from '../components/PlayerCard.vue';
 import EmptyState from '../components/EmptyState.vue';
 import DialogHeader from '../components/DialogHeader.vue';
 import MatchCard from '../components/MatchCard.vue';
-import { getLevelColor, getLevelIcon } from '../utils/playerHelpers';
+import {
+  getLevelColor,
+  getLevelIcon,
+  getMatchStatusColor,
+  getMatchStatusLabel,
+} from '../utils/playerHelpers';
 import { computeWinProbability } from '../services/matchmaking';
 
 // Player type
@@ -2416,6 +2530,9 @@ const paymentLink = ref<string>('');
 const paymentLoading = ref<boolean>(false);
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
 let ratingsRefreshInterval: ReturnType<typeof setInterval> | null = null;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+// Last time we received a realtime subscription message (used to detect stale WS)
+let lastRealtimeMessageAt = 0;
 
 // Current user and club membership
 const currentUserId = ref<string>('');
@@ -3387,10 +3504,12 @@ const startRealtime = async () => {
 
     realtimeUnsub = unsubscribe;
     realtimeActive = true;
+    lastRealtimeMessageAt = Date.now(); // reset on fresh connect
 
     void (async () => {
       try {
         for await (const message of subscription) {
+          lastRealtimeMessageAt = Date.now();
           const msg = message as ClubRealtimeMessage;
           if (msg.type && msg.type !== 'subscription') continue;
           applyServerMatchmaking(msg.data?.[0]?.appState?.matchmaking);
@@ -3507,6 +3626,17 @@ onMounted(async () => {
       void refreshPlayerRatings();
     }
   }, 60000);
+
+  // Heartbeat: if no realtime message in 60s, force reconnect
+  heartbeatTimer = setInterval(() => {
+    if (!realtimeActive || !isOnline.value) return;
+    const elapsed = Date.now() - lastRealtimeMessageAt;
+    if (elapsed > 60000) {
+      console.warn('Realtime stale (>60s), forcing reconnect');
+      stopRealtime();
+      void startRealtime();
+    }
+  }, 10000);
 });
 
 onUnmounted(() => {
@@ -3521,6 +3651,10 @@ onUnmounted(() => {
   if (ratingsRefreshInterval) {
     clearInterval(ratingsRefreshInterval);
     ratingsRefreshInterval = null;
+  }
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
   }
 });
 
