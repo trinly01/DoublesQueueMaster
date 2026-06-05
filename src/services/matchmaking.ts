@@ -22,6 +22,7 @@ export interface Player {
   ratingUpdatedAt?: number; // Epoch ms of the last rating change (LWW token vs directus_users.rating_updated_at)
   updatedAt?: number; // Epoch ms of the last any field change (for per-field LWW)
   avatar?: string; // Avatar URL from Directus
+  deletedAt?: number; // Epoch ms of deletion (tombstone). If present, player is logically deleted.
   history?: {
     playedWith: Record<string, number>;
     playedAgainst: Record<string, number>;
@@ -667,21 +668,17 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     }
   }
 
-  // Handle player deletions using top-level lastModified
-  const localIsNewer = localTime > serverTime;
-  if (localIsNewer) {
-    // Local is newer: delete players that exist on server but not locally
-    for (const username of Object.keys(server.players || {})) {
-      if (!local.players || !local.players[username]) {
-        delete mergedPlayers[username];
-      }
-    }
-  } else {
-    // Server is newer: delete players that exist locally but not on server
-    for (const username of Object.keys(local.players || {})) {
-      if (!server.players || !server.players[username]) {
-        delete mergedPlayers[username];
-      }
+  // Handle player deletions using tombstone (deletedAt) instead of top-level lastModified.
+  // A player missing on one side but present on the other is NOT auto-deleted;
+  // only an explicit tombstone (deletedAt) propagates the deletion.
+  for (const username of Object.keys(mergedPlayers)) {
+    const lp = local.players?.[username];
+    const sp = server.players?.[username];
+    const localDeleted = lp?.deletedAt ?? 0;
+    const serverDeleted = sp?.deletedAt ?? 0;
+    if (localDeleted > 0 || serverDeleted > 0) {
+      // At least one side deleted: the later deletion wins
+      mergedPlayers[username] = localDeleted > serverDeleted ? lp! : sp!;
     }
   }
 
@@ -714,7 +711,22 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     }
   });
 
-  allQueues.forEach(({ entry }) => mergedQueues.push(entry));
+  // Deduplicate: a player should only appear in one queue at a time.
+  // Keep the entry with the latest updatedAt (or enteredAt) per username.
+  const latestPerPlayer = new Map<string, QueueEntry>();
+  allQueues.forEach(({ entry }) => {
+    const existing = latestPerPlayer.get(entry.username);
+    if (!existing) {
+      latestPerPlayer.set(entry.username, entry);
+    } else {
+      const existingTime = existing.updatedAt ?? existing.enteredAt ?? 0;
+      const entryTime = entry.updatedAt ?? entry.enteredAt ?? 0;
+      if (entryTime > existingTime) {
+        latestPerPlayer.set(entry.username, entry);
+      }
+    }
+  });
+  latestPerPlayer.forEach((entry) => mergedQueues.push(entry));
 
   // Merge matches using per-match updatedAt (or createdAt as fallback)
   const mergedMatches: typeof local.activeMatches = [];
