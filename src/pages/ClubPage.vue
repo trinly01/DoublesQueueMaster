@@ -2585,10 +2585,6 @@ const clubErrorMessage = ref<string>('');
 const paymentLink = ref<string>('');
 const paymentLoading = ref<boolean>(false);
 let ratingsRefreshInterval: ReturnType<typeof setInterval> | null = null;
-let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-// Last time we received a realtime subscription message (used to detect stale WS)
-let lastRealtimeMessageAt = 0;
-let lastRealtimeAttemptAt = 0;
 
 // Current user and club membership
 const currentUserId = ref<string>('');
@@ -3562,7 +3558,7 @@ const updateOnlineStatus = () => {
   // to avoid stale DB ratings overwriting our local offline changes before they sync.
   if (isOnline.value && wasOffline) {
     offlineSince.value = null; // Reset offline tracking
-    if (!realtimeActive) void startRealtime();
+    restartRealtime(); // Force clean reconnect
     // If we have pending sync, don't refresh ratings yet - let the sync complete first
     // Otherwise, refresh to get latest data from server
     if (!hasPendingCloudSync.value) void refreshPlayerRatings();
@@ -3573,9 +3569,6 @@ const updateOnlineStatus = () => {
 // Pushes other admins' changes to this client instantly, then smart-merges them.
 let realtimeUnsub: (() => void) | null = null;
 let realtimeStarting = false;
-// True only while a live WebSocket subscription is established. Polling acts as a
-// fallback and runs only when this is false (server has no WS, or socket dropped).
-let realtimeActive = false;
 
 type ClubRealtimeMessage = {
   type?: string;
@@ -3622,7 +3615,6 @@ const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
 const startRealtime = async () => {
   if (realtimeUnsub || realtimeStarting) return;
   if (!isOnline.value || !currentClubUUID.value) return;
-  lastRealtimeAttemptAt = Date.now();
 
   realtimeStarting = true;
   try {
@@ -3636,13 +3628,10 @@ const startRealtime = async () => {
     });
 
     realtimeUnsub = unsubscribe;
-    realtimeActive = true;
-    lastRealtimeMessageAt = Date.now(); // reset on fresh connect
 
     void (async () => {
       try {
         for await (const message of subscription) {
-          lastRealtimeMessageAt = Date.now();
           const msg = message as ClubRealtimeMessage;
           console.log('[realtime] received message:', msg);
           if (msg.type && msg.type !== 'subscription') {
@@ -3659,7 +3648,6 @@ const startRealtime = async () => {
       } finally {
         // Stream closed (drop or unsubscribe) → let polling take over and
         // allow a fresh subscribe on the next reconnect.
-        realtimeActive = false;
         realtimeUnsub = null;
       }
     })();
@@ -3684,15 +3672,15 @@ const stopRealtime = () => {
     }
     realtimeUnsub = null;
   }
-  realtimeActive = false;
-  try {
-    likhaClient.disconnect();
-  } catch {
-    /* noop */
-  }
 };
 
 let lastResumeSyncAt = 0;
+
+const restartRealtime = () => {
+  if (!isOnline.value || !currentClubUUID.value) return;
+  stopRealtime();
+  void startRealtime();
+};
 
 const doResumeSync = () => {
   // Throttle: ignore if we synced < 3s ago
@@ -3704,11 +3692,7 @@ const doResumeSync = () => {
     void refreshPlayerRatings();
   }
   // Always reconnect realtime when app comes back to foreground.
-  // The socket may have died in the background while realtimeActive stayed true.
-  if (isOnline.value && currentClubUUID.value) {
-    stopRealtime();
-    void startRealtime();
-  }
+  restartRealtime();
 };
 
 const handleVisibilityChange = () => {
@@ -3780,27 +3764,6 @@ onMounted(async () => {
       void refreshPlayerRatings();
     }
   }, 60000);
-
-  // Heartbeat: if no realtime message in 60s, force reconnect.
-  // Also retry if we're online but realtime died and hasn't been restarted.
-  heartbeatTimer = setInterval(() => {
-    if (!isOnline.value) return;
-
-    if (!realtimeActive) {
-      if (Date.now() - lastRealtimeAttemptAt > 30000) {
-        stopRealtime();
-        void startRealtime();
-      }
-      return;
-    }
-
-    const elapsed = Date.now() - lastRealtimeMessageAt;
-    if (elapsed > 60000) {
-      console.warn('Realtime stale (>60s), forcing reconnect');
-      stopRealtime();
-      void startRealtime();
-    }
-  }, 10000);
 });
 
 onUnmounted(() => {
@@ -3814,10 +3777,6 @@ onUnmounted(() => {
   if (ratingsRefreshInterval) {
     clearInterval(ratingsRefreshInterval);
     ratingsRefreshInterval = null;
-  }
-  if (heartbeatTimer) {
-    clearInterval(heartbeatTimer);
-    heartbeatTimer = null;
   }
 });
 
