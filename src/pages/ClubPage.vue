@@ -97,7 +97,11 @@
                 Smart matchmaking for singles & doubles
               </p>
             </div>
-            <div v-if="isCurrentUserAdmin" class="col-auto">
+            <div
+              v-if="isCurrentUserAdmin"
+              class="col-auto row items-center q-gutter-sm"
+            >
+              <q-spinner v-if="hasPendingCloudSync" color="white" size="20px" />
               <q-btn
                 color="white"
                 icon="settings"
@@ -3686,21 +3690,42 @@ const stopRealtime = () => {
   }
 };
 
-const handleVisibilityChange = () => {
-  const wasHidden = !isTabVisible;
-  isTabVisible = !document.hidden;
-  // When tab/app becomes visible again, do a catch-up sync to fetch latest changes
-  if (isTabVisible && wasHidden && isOnline.value && currentClubId.value) {
+let lastResumeSyncAt = 0;
+
+const doResumeSync = () => {
+  // Throttle: ignore if we synced < 3s ago
+  if (Date.now() - lastResumeSyncAt < 3000) return;
+  lastResumeSyncAt = Date.now();
+  if (isOnline.value && currentClubId.value) {
     void loadClubData(currentClubId.value);
     void performCloudSync();
     void refreshPlayerRatings();
   }
 };
 
+const handleVisibilityChange = () => {
+  const wasHidden = !isTabVisible;
+  isTabVisible = !document.hidden;
+  if (isTabVisible && wasHidden) {
+    doResumeSync();
+  }
+};
+
+const handleFocus = () => {
+  doResumeSync();
+};
+
+const handlePageShow = () => {
+  doResumeSync();
+};
+
 onMounted(async () => {
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
   document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('focus', handleFocus);
+  window.addEventListener('pageshow', handlePageShow);
+  document.addEventListener('resume', handlePageShow);
 
   if (!isOpenPlay.value) {
     // Fetch payment settings
@@ -3764,6 +3789,9 @@ onUnmounted(() => {
   window.removeEventListener('online', updateOnlineStatus);
   window.removeEventListener('offline', updateOnlineStatus);
   document.removeEventListener('visibilitychange', handleVisibilityChange);
+  window.removeEventListener('focus', handleFocus);
+  window.removeEventListener('pageshow', handlePageShow);
+  document.removeEventListener('resume', handlePageShow);
   stopRealtime();
   if (ratingsRefreshInterval) {
     clearInterval(ratingsRefreshInterval);
