@@ -703,6 +703,38 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   const localSettingsTime = local.settingsUpdatedAt ?? 0;
   const serverSettingsTime = server.settingsUpdatedAt ?? 0;
 
+  // Detect hard reset: if local state is completely empty (no players, no queues,
+  // no matches) and has a newer timestamp than server, this is an intentional
+  // reset operation and should overwrite server state entirely.
+  const localHasNoPlayers = Object.keys(local.players || {}).length === 0;
+  const localHasNoQueues = (local.queues || []).length === 0;
+  const localHasNoMatches =
+    (local.activeMatches || []).filter((m) => !m.deletedAt).length === 0;
+  if (
+    localHasNoPlayers &&
+    localHasNoQueues &&
+    localHasNoMatches &&
+    localTime > serverTime
+  ) {
+    return { ...local };
+  }
+
+  // Detect remote reset: if server state is completely empty (no players, no
+  // queues, no matches) and has a newer timestamp than local, another admin
+  // performed a reset and we should adopt the empty server state.
+  const serverHasNoPlayers = Object.keys(server.players || {}).length === 0;
+  const serverHasNoQueues = (server.queues || []).length === 0;
+  const serverHasNoMatches =
+    (server.activeMatches || []).filter((m) => !m.deletedAt).length === 0;
+  if (
+    serverHasNoPlayers &&
+    serverHasNoQueues &&
+    serverHasNoMatches &&
+    serverTime > localTime
+  ) {
+    return { ...server };
+  }
+
   // Merge players using per-player updatedAt (or matchesPlayed as fallback)
   const mergedPlayers: Record<string, Player> = { ...(server.players || {}) };
   for (const [username, lp] of Object.entries(local.players || {})) {
