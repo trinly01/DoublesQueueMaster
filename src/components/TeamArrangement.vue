@@ -92,14 +92,14 @@
                   >
                     {{ index + 1 }}
                     <q-tooltip
-                      >{{ player.username }} - Level {{ player.level }} -
-                      Position {{ index + 1 }}</q-tooltip
+                      >{{ player.firstName || player.username }} - Level
+                      {{ player.level }} - Position {{ index + 1 }}</q-tooltip
                     >
                   </q-avatar>
                 </q-item-section>
                 <q-item-section>
                   <q-item-label class="text-weight-medium">
-                    {{ player.username }}
+                    {{ player.firstName || player.username }}
                     <q-icon
                       v-if="selectedForSwap?.username === player.username"
                       name="check_circle"
@@ -107,6 +107,14 @@
                       size="sm"
                       class="q-ml-xs swap-icon-pulse"
                     />
+                  </q-item-label>
+                  <q-item-label
+                    caption
+                    class="text-grey-6"
+                    style="font-size: 10px"
+                    v-if="player.username && player.firstName"
+                  >
+                    @{{ player.username }}
                   </q-item-label>
                   <q-item-label caption>Level {{ player.level }}</q-item-label>
                 </q-item-section>
@@ -169,14 +177,14 @@
                   >
                     {{ index + 1 }}
                     <q-tooltip
-                      >{{ player.username }} - Level {{ player.level }} -
-                      Position {{ index + 1 }}</q-tooltip
+                      >{{ player.firstName || player.username }} - Level
+                      {{ player.level }} - Position {{ index + 1 }}</q-tooltip
                     >
                   </q-avatar>
                 </q-item-section>
                 <q-item-section>
                   <q-item-label class="text-weight-medium">
-                    {{ player.username }}
+                    {{ player.firstName || player.username }}
                     <q-icon
                       v-if="selectedForSwap?.username === player.username"
                       name="check_circle"
@@ -184,6 +192,14 @@
                       size="sm"
                       class="q-ml-xs swap-icon-pulse"
                     />
+                  </q-item-label>
+                  <q-item-label
+                    caption
+                    class="text-grey-6"
+                    style="font-size: 10px"
+                    v-if="player.username && player.firstName"
+                  >
+                    @{{ player.username }}
                   </q-item-label>
                   <q-item-label caption>Level {{ player.level }}</q-item-label>
                 </q-item-section>

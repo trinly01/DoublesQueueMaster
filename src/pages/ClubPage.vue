@@ -662,8 +662,8 @@
                       >
                         {{
                           matchType === 'singles'
-                            ? 'Need at least 2 players for manual singles selection'
-                            : 'Need at least 4 players for manual doubles selection'
+                            ? 'Need 2+ players'
+                            : 'Need 4+ players'
                         }}
                       </q-tooltip>
                     </q-btn>
@@ -2603,7 +2603,7 @@ const availableClubMembers = computed(() => {
         (m) =>
           m.id &&
           !Object.values(MatchmakingApp.state.players).some(
-            (p) => p.userId === m.id,
+            (p) => p.userId === m.id && !p.deletedAt,
           ),
       )
       .sort((a, b) => (a.username || '').localeCompare(b.username || ''));
@@ -2616,7 +2616,7 @@ const availableClubMembers = computed(() => {
       (m) =>
         m.id &&
         !Object.values(MatchmakingApp.state.players).some(
-          (p) => p.userId === m.id,
+          (p) => p.userId === m.id && !p.deletedAt,
         ),
     )
     .filter((m) => {
@@ -4357,8 +4357,12 @@ const addClubMembers = () => {
     const username =
       member.username || member.email?.split('@')[0] || 'Unknown';
 
-    // Use checkInPlayer to auto-add to queue (consistent with add by username)
-    const result = MatchmakingApp.checkInPlayer(username, 2);
+    // Pass profile extras so firstName, avatar, userId are preserved
+    const result = MatchmakingApp.checkInPlayer(username, 2, {
+      firstName: member.firstName,
+      avatar: member.avatar,
+      userId: member.id,
+    });
 
     if (result === 'added') {
       added.push(username);
