@@ -1,11 +1,11 @@
 <template>
-  <q-page class="flex flex-center player-page">
+  <q-page class="player-page flex flex-center">
     <div v-if="loading" class="flex flex-center" style="min-height: 90vh">
       <q-spinner-gears size="60px" color="primary" />
     </div>
     <q-card
       v-else
-      class="player-card shadow-4 q-pa-xl relative-position"
+      class="player-card shadow-4 q-pa-md q-pa-lg-md relative-position flex column"
       bordered
     >
       <template v-if="!loading">
@@ -34,7 +34,7 @@
           <div
             class="text-h4 text-weight-bolder text-primary brand-title q-mb-xs"
           >
-            {{ firstName }} {{ lastName }}
+            {{ firstName }}
           </div>
 
           <div class="text-subtitle1 text-grey-7 q-mb-md">@{{ username }}</div>
@@ -58,13 +58,13 @@
             Join a Club
           </div>
           <div class="row q-col-gutter-sm items-center justify-center">
-            <div class="col-8">
+            <div class="col-8 col-md-9">
               <q-select
                 filled
                 v-model="clubId"
                 :options="clubOptions"
                 option-value="clubId"
-                option-label="name"
+                option-label="clubId"
                 emit-value
                 map-options
                 use-input
@@ -74,6 +74,8 @@
                 label="Enter Club ID"
                 dense
                 color="primary"
+                behavior="menu"
+                hide-bottom-space
                 @filter="filterClubs"
                 @keyup.enter="joinClub"
               >
@@ -81,7 +83,7 @@
                   <q-item v-bind="scope.itemProps">
                     <q-item-section>
                       <q-item-label>{{ scope.opt.name }}</q-item-label>
-                      <q-item-label caption>{{
+                      <q-item-label caption class="text-grey-7">{{
                         scope.opt.clubId
                       }}</q-item-label>
                     </q-item-section>
@@ -89,7 +91,7 @@
                 </template>
               </q-select>
             </div>
-            <div class="col-4">
+            <div class="col-4 col-md-3">
               <q-btn
                 color="primary"
                 label="Join"
@@ -113,13 +115,37 @@
           </div>
         </q-card-section>
 
+        <div style="flex-grow: 1"></div>
+
+        <q-card-actions align="center" class="q-mt-lg q-gutter-sm">
+          <q-btn
+            outline
+            color="primary"
+            label="Edit Profile"
+            icon="edit"
+            rounded
+            class="edit-btn"
+            @click="showEditProfileDialog = true"
+          />
+          <q-btn
+            unelevated
+            color="negative"
+            label="Logout"
+            icon="logout"
+            rounded
+            @click="onLogout"
+          />
+        </q-card-actions>
+
         <!-- Create Club Dialog -->
         <q-dialog v-model="showCreateClubDialog" persistent>
           <q-card style="min-width: 320px; max-width: 90vw">
             <q-card-section class="row items-center q-pb-none">
               <div class="text-h6">Create Club</div>
               <q-space />
-              <q-btn icon="close" flat round dense v-close-popup />
+              <q-btn icon="close" flat round dense v-close-popup>
+                <q-tooltip>Close</q-tooltip>
+              </q-btn>
             </q-card-section>
 
             <q-card-section class="q-pt-md">
@@ -155,33 +181,15 @@
           </q-card>
         </q-dialog>
 
-        <q-card-actions align="center" class="q-mt-lg q-gutter-sm">
-          <q-btn
-            outline
-            color="primary"
-            label="Change Password"
-            icon="lock_reset"
-            rounded
-            class="edit-btn"
-            @click="showChangePasswordDialog = true"
-          />
-          <q-btn
-            unelevated
-            color="negative"
-            label="Logout"
-            icon="logout"
-            rounded
-            @click="onLogout"
-          />
-        </q-card-actions>
-
         <!-- Rating History Dialog -->
         <q-dialog v-model="showHistoryDialog" maximized>
           <q-card style="min-width: 320px; max-width: 90vw; max-height: 70vh">
             <q-card-section class="row items-center q-pb-none">
               <div class="text-h6">Rating History</div>
               <q-space />
-              <q-btn icon="close" flat round dense v-close-popup />
+              <q-btn icon="close" flat round dense v-close-popup>
+                <q-tooltip>Close</q-tooltip>
+              </q-btn>
             </q-card-section>
 
             <q-card-section
@@ -227,16 +235,26 @@
           </q-card>
         </q-dialog>
 
-        <!-- Change Password Dialog -->
-        <q-dialog v-model="showChangePasswordDialog" persistent>
+        <!-- Edit Profile Dialog -->
+        <q-dialog v-model="showEditProfileDialog" persistent>
           <q-card style="min-width: 320px; max-width: 90vw">
             <q-card-section class="row items-center q-pb-none">
-              <div class="text-h6">Change Password</div>
+              <div class="text-h6">Edit Profile</div>
               <q-space />
-              <q-btn icon="close" flat round dense v-close-popup />
+              <q-btn icon="close" flat round dense v-close-popup>
+                <q-tooltip>Close</q-tooltip>
+              </q-btn>
             </q-card-section>
 
             <q-card-section class="q-pt-md">
+              <q-input
+                v-model="editFirstName"
+                filled
+                label="First Name"
+                dense
+                class="q-mb-sm"
+                :rules="[(val) => !!val?.trim() || 'First name is required']"
+              />
               <q-input
                 v-model="currentPassword"
                 filled
@@ -249,16 +267,13 @@
                 v-model="newPassword"
                 filled
                 type="password"
-                label="New Password"
+                label="New Password (optional)"
                 dense
                 class="q-mb-sm"
-                :rules="[
-                  (val) =>
-                    (val && val.length >= 8) ||
-                    'Password must be at least 8 characters',
-                ]"
+                hint="Leave blank to keep current password"
               />
               <q-input
+                v-if="newPassword"
                 v-model="confirmNewPassword"
                 filled
                 type="password"
@@ -276,14 +291,9 @@
                 flat
                 label="Update"
                 color="primary"
-                :loading="changePasswordLoading"
-                :disable="
-                  !currentPassword ||
-                  !newPassword ||
-                  newPassword.length < 8 ||
-                  newPassword !== confirmNewPassword
-                "
-                @click="changePassword"
+                :loading="editProfileLoading"
+                :disable="isEditProfileDisabled"
+                @click="editProfile"
               />
             </q-card-actions>
           </q-card>
@@ -313,7 +323,6 @@ const router = useRouter();
 const $q = useQuasar();
 
 const firstName = computed(() => PlayerProfile.state.firstName);
-const lastName = computed(() => PlayerProfile.state.lastName);
 const playerRating = computed(() => PlayerProfile.state.rating);
 const username = computed(() => PlayerProfile.state.username);
 const currentUserId = computed(() => PlayerProfile.state.id);
@@ -327,17 +336,38 @@ const avatarUrl = computed(() => {
 });
 
 const LAST_CLUB_KEY = 'lastClubId';
-const clubId = ref((LocalStorage.getItem(LAST_CLUB_KEY) as string) || '');
+const clubId = ref<string | { clubId: string; name: string }>(
+  (LocalStorage.getItem(LAST_CLUB_KEY) as string) || '',
+);
 const clubOptions = ref<{ clubId: string; name: string }[]>([]);
 const joinLoading = ref(false);
 const loading = computed(() => PlayerProfile.loading.value);
 const avatarInput = ref<HTMLInputElement | null>(null);
 
-const showChangePasswordDialog = ref(false);
+const showEditProfileDialog = ref(false);
+const editFirstName = ref(firstName.value);
 const currentPassword = ref('');
 const newPassword = ref('');
 const confirmNewPassword = ref('');
-const changePasswordLoading = ref(false);
+const editProfileLoading = ref(false);
+
+watch(firstName, (newVal) => {
+  editFirstName.value = newVal;
+});
+
+const isEditProfileDisabled = computed(() => {
+  const hasNoFirstName = !editFirstName.value?.trim();
+  const hasNoCurrentPassword = !currentPassword.value;
+  const passwordTooShort = !!newPassword.value && newPassword.value.length < 8;
+  const passwordMismatch =
+    !!newPassword.value && newPassword.value !== confirmNewPassword.value;
+  return (
+    hasNoFirstName ||
+    hasNoCurrentPassword ||
+    passwordTooShort ||
+    passwordMismatch
+  );
+});
 
 const showCreateClubDialog = ref(false);
 const newClubId = ref('');
@@ -467,9 +497,9 @@ const onAvatarSelected = async (event: Event) => {
   }
 };
 
-const changePassword = async () => {
-  if (!currentUserId.value || !newPassword.value) return;
-  changePasswordLoading.value = true;
+const editProfile = async () => {
+  if (!currentUserId.value || !editFirstName.value.trim()) return;
+  editProfileLoading.value = true;
   try {
     // 1. Verify current password by attempting login
     await likhaClient.login({
@@ -477,11 +507,23 @@ const changePassword = async () => {
       password: currentPassword.value,
     });
 
-    // 2. Update to new password
-    await likhaClient.request(updateMe({ password: newPassword.value }));
+    // 2. Update first name
+    await likhaClient.request(
+      updateUser(currentUserId.value, {
+        first_name: editFirstName.value.trim(),
+      }),
+    );
+    PlayerProfile.state.firstName = editFirstName.value.trim();
+    PlayerProfile.saveState();
 
-    $q.notify({ color: 'positive', message: 'Password updated successfully!' });
-    showChangePasswordDialog.value = false;
+    // 3. Update password if provided
+    if (newPassword.value) {
+      await likhaClient.request(updateMe({ password: newPassword.value }));
+    }
+
+    $q.notify({ color: 'positive', message: 'Profile updated successfully!' });
+    showEditProfileDialog.value = false;
+    editFirstName.value = '';
     currentPassword.value = '';
     newPassword.value = '';
     confirmNewPassword.value = '';
@@ -498,11 +540,11 @@ const changePassword = async () => {
         message: 'Current password is incorrect',
       });
     } else {
-      $q.notify({ color: 'negative', message: 'Failed to update password' });
+      $q.notify({ color: 'negative', message: 'Failed to update profile' });
     }
-    console.error('Password change failed:', err);
+    console.error('Profile update failed:', err);
   } finally {
-    changePasswordLoading.value = false;
+    editProfileLoading.value = false;
   }
 };
 
@@ -655,6 +697,28 @@ onMounted(async () => {
       message: PlayerProfile.error.value,
     });
   }
+
+  // Fetch club details if there's a cached clubId to display it in the select
+  if (clubId.value) {
+    try {
+      const clubs = await likhaClient.request(
+        readItems('club', {
+          filter: { clubId: { _eq: clubId.value } },
+          fields: ['clubId', 'name'],
+          limit: 1,
+        }),
+      );
+      if (clubs && clubs.length > 0) {
+        const club = clubs[0] as { clubId: string; name?: string };
+        clubOptions.value = [
+          { clubId: club.clubId, name: club.name || club.clubId },
+        ];
+      }
+    } catch (err) {
+      // Silently fail - club might not exist or offline
+      console.warn('Failed to fetch cached club details:', err);
+    }
+  }
 });
 
 const onLogout = () => {
@@ -696,6 +760,7 @@ const onLogout = () => {
 .player-card {
   width: 100%;
   max-width: 450px;
+  min-height: 80vh;
   border-radius: 16px;
   background-color: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
@@ -706,6 +771,13 @@ const onLogout = () => {
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .player-card {
+    min-height: 100vh;
+    border-radius: 0;
+  }
 }
 .player-card:hover {
   transform: translateY(-2px);
@@ -732,5 +804,26 @@ const onLogout = () => {
 }
 .history-rating {
   background: linear-gradient(135deg, #764ba2 0%, #9f7aea 100%) !important;
+}
+
+@media (max-width: 768px) {
+  .player-page {
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+  }
+
+  .player-card {
+    padding: 16px !important;
+    margin: 16px;
+  }
+
+  .player-card > .q-card-section {
+    padding: 20px 0 !important;
+  }
+
+  .player-card > .q-card-actions {
+    margin-top: 24px !important;
+  }
 }
 </style>
