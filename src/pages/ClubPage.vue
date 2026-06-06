@@ -1532,6 +1532,8 @@
                     icon="refresh"
                     label="Reset Stats"
                     class="full-width"
+                    stack
+                    style="min-height: 72px"
                   />
                 </div>
                 <div class="col">
@@ -1541,6 +1543,8 @@
                     icon="delete"
                     label="Clear Matches"
                     class="full-width"
+                    stack
+                    style="min-height: 72px"
                   />
                 </div>
                 <div class="col">
@@ -1550,18 +1554,35 @@
                     icon="delete_outline"
                     label="Clear Queue"
                     class="full-width"
+                    stack
+                    style="min-height: 72px"
                   />
                 </div>
               </div>
 
-              <div v-if="isCurrentUserAdmin" class="q-mt-sm">
-                <q-btn
-                  color="negative"
-                  @click="resetAllData"
-                  icon="delete_forever"
-                  label="Reset Everything (Incl. Players)"
-                  class="full-width"
-                />
+              <div v-if="isCurrentUserAdmin" class="q-mt-sm row q-gutter-sm">
+                <div class="col">
+                  <q-btn
+                    color="negative"
+                    @click="resetSessionData"
+                    icon="restart_alt"
+                    label="Reset Session"
+                    class="full-width"
+                    stack
+                    style="min-height: 72px"
+                  />
+                </div>
+                <div class="col">
+                  <q-btn
+                    color="negative"
+                    @click="resetAllData"
+                    icon="delete_forever"
+                    label="Reset All"
+                    class="full-width"
+                    stack
+                    style="min-height: 72px"
+                  />
+                </div>
               </div>
             </div>
           </q-card-section>
@@ -2939,19 +2960,74 @@ const loadClubData = async (clubId: string) => {
       //   queues/matches (latest-writer-wins) while preserving player stats.
       // Non-admins: server is source of truth — always overwrite.
       if (serverMatchmaking) {
-        // Check if local state is "fresh" (no meaningful data) - e.g., incognito/private mode
-        // In this case, directly adopt server state instead of merging to prevent
-        // timestamp-based logic from keeping empty local data.
-        const isFreshState =
-          Object.keys(MatchmakingApp.state.players).length === 0 &&
-          MatchmakingApp.state.queues.length === 0 &&
-          MatchmakingApp.state.activeMatches.length === 0;
+        // Detect remote reset: another admin cleared all data
+        const serverHasNoPlayers =
+          Object.keys(serverMatchmaking.players || {}).length === 0;
+        const serverHasNoQueues = (serverMatchmaking.queues || []).length === 0;
+        const serverHasNoMatches =
+          (serverMatchmaking.activeMatches || []).filter((m) => !m.deletedAt)
+            .length === 0;
+        const serverTime = serverMatchmaking.lastModified ?? 0;
+        const localTime = MatchmakingApp.state.lastModified ?? 0;
+        const isRemoteReset =
+          serverHasNoPlayers &&
+          serverHasNoQueues &&
+          serverHasNoMatches &&
+          serverTime > localTime;
 
-        if (isAdminFromData) {
-          if (isFreshState) {
-            // Fresh state: directly adopt server data
+        if (isRemoteReset) {
+          // Another admin performed a reset — adopt empty server state
+          MatchmakingApp.state.players = {};
+          MatchmakingApp.state.queues = [];
+          MatchmakingApp.state.activeMatches = [];
+          MatchmakingApp.state.lastModified = serverTime;
+          $q.notify({
+            type: 'info',
+            message: 'Club data was reset by another admin',
+            position: 'top',
+            timeout: 3000,
+          });
+        } else {
+          // Check if local state is "fresh" (no meaningful data) - e.g., incognito/private mode
+          // In this case, directly adopt server state instead of merging to prevent
+          // timestamp-based logic from keeping empty local data.
+          const isFreshState =
+            Object.keys(MatchmakingApp.state.players).length === 0 &&
+            MatchmakingApp.state.queues.length === 0 &&
+            MatchmakingApp.state.activeMatches.length === 0;
+
+          if (isAdminFromData) {
+            if (isFreshState) {
+              // Fresh state: directly adopt server data
+              if (serverMatchmaking.players) {
+                MatchmakingApp.state.players = {
+                  ...serverMatchmaking.players,
+                };
+              }
+              if (serverMatchmaking.queues) {
+                MatchmakingApp.state.queues = [...serverMatchmaking.queues];
+              }
+              if (serverMatchmaking.activeMatches) {
+                MatchmakingApp.state.activeMatches = [
+                  ...serverMatchmaking.activeMatches,
+                ];
+              }
+            } else {
+              // Existing local state: smart-merge with server
+              const merged = mergeAppState(
+                MatchmakingApp.state,
+                serverMatchmaking,
+              );
+              MatchmakingApp.state.players = merged.players;
+              MatchmakingApp.state.queues = merged.queues;
+              MatchmakingApp.state.activeMatches = merged.activeMatches;
+            }
+          } else {
+            // Non-admins: server is source of truth — always overwrite
             if (serverMatchmaking.players) {
-              MatchmakingApp.state.players = { ...serverMatchmaking.players };
+              MatchmakingApp.state.players = {
+                ...serverMatchmaking.players,
+              };
             }
             if (serverMatchmaking.queues) {
               MatchmakingApp.state.queues = [...serverMatchmaking.queues];
@@ -2961,28 +3037,6 @@ const loadClubData = async (clubId: string) => {
                 ...serverMatchmaking.activeMatches,
               ];
             }
-          } else {
-            // Existing local state: smart-merge with server
-            const merged = mergeAppState(
-              MatchmakingApp.state,
-              serverMatchmaking,
-            );
-            MatchmakingApp.state.players = merged.players;
-            MatchmakingApp.state.queues = merged.queues;
-            MatchmakingApp.state.activeMatches = merged.activeMatches;
-          }
-        } else {
-          // Non-admins: server is source of truth — always overwrite
-          if (serverMatchmaking.players) {
-            MatchmakingApp.state.players = { ...serverMatchmaking.players };
-          }
-          if (serverMatchmaking.queues) {
-            MatchmakingApp.state.queues = [...serverMatchmaking.queues];
-          }
-          if (serverMatchmaking.activeMatches) {
-            MatchmakingApp.state.activeMatches = [
-              ...serverMatchmaking.activeMatches,
-            ];
           }
         }
       }
@@ -4837,6 +4891,46 @@ const addAllPlayersToQueue = () => {
 };
 
 // Enhanced queue return functions
+
+const resetSessionData = () => {
+  $q.dialog({
+    title: 'Reset Session',
+    message:
+      'This will reset all player stats, clear all matches, and clear the queue. Players will be kept. Are you sure?',
+    cancel: {
+      label: 'Cancel',
+      color: 'grey',
+      flat: true,
+    },
+    ok: {
+      label: 'Reset Session',
+      color: 'negative',
+      icon: 'restart_alt',
+    },
+    persistent: true,
+  }).onOk(() => {
+    // Reset player stats
+    Object.values(MatchmakingApp.state.players).forEach((player) => {
+      player.matchesPlayed = 0;
+      player.wins = 0;
+      player.losses = 0;
+    });
+
+    // Clear matches
+    MatchmakingApp.state.activeMatches = [];
+
+    // Clear queue
+    MatchmakingApp.state.queues = [];
+
+    MatchmakingApp.persist();
+
+    $q.notify({
+      type: 'positive',
+      message: 'Session reset complete',
+      position: 'top',
+    });
+  });
+};
 
 const resetAllData = () => {
   $q.dialog({
