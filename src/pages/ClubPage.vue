@@ -780,6 +780,8 @@
                 type="text"
                 @keyup.enter="addNewPlayer"
                 :rules="[(val) => !!val?.trim() || 'Player name is required']"
+                :error="isNewPlayerNameTaken"
+                error-message="Player already exists"
                 outlined
                 dense
                 autofocus
@@ -1048,7 +1050,11 @@
               color="accent"
               @click="addNewPlayer"
               label="Add Player"
-              :disable="!newPlayerName?.trim() || newPlayerLevel === null"
+              :disable="
+                !newPlayerName?.trim() ||
+                newPlayerLevel === null ||
+                isNewPlayerNameTaken
+              "
               icon="add"
             >
               <q-tooltip>Add</q-tooltip>
@@ -4085,6 +4091,14 @@ const hasNameConflict = computed(() => {
     (player) =>
       player.username.toLowerCase() === trimmedName.toLowerCase() &&
       player.username !== editingPlayer.value?.username,
+  );
+});
+
+const isNewPlayerNameTaken = computed(() => {
+  if (!newPlayerName.value?.trim()) return false;
+  const trimmed = newPlayerName.value.trim().toLowerCase();
+  return players.value.some(
+    (p) => p.username.toLowerCase() === trimmed && !p.deletedAt,
   );
 });
 
