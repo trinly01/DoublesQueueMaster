@@ -22,7 +22,7 @@ export interface UserProfile {
   events?: RatingEvent[];
 }
 
-const STORAGE_KEY = 'quasar_player_profile';
+const STORAGE_KEY = 'player_profile';
 
 export class PlayerProfileService {
   public state: UserProfile;
