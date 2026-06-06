@@ -346,8 +346,8 @@
                     >
                       {{
                         matchType === 'singles'
-                          ? 'Need at least 2 players for manual singles selection'
-                          : 'Need at least 4 players for manual doubles selection'
+                          ? 'Need 2+ players'
+                          : 'Need 4+ players'
                       }}
                     </q-tooltip>
                   </q-btn>
@@ -1039,7 +1039,7 @@
               color="grey"
               @click="showAddPlayerDialog = false"
             >
-              <q-tooltip>Cancel adding new player</q-tooltip>
+              <q-tooltip>Cancel</q-tooltip>
             </q-btn>
 
             <!-- Single Player Mode Button -->
@@ -1051,7 +1051,7 @@
               :disable="!newPlayerName?.trim() || newPlayerLevel === null"
               icon="add"
             >
-              <q-tooltip>Add this player to the system</q-tooltip>
+              <q-tooltip>Add</q-tooltip>
             </q-btn>
 
             <!-- Bulk Import Mode Button -->
@@ -1063,10 +1063,7 @@
               :disable="bulkPlayers.length === 0"
               icon="group_add"
             >
-              <q-tooltip
-                >Import all {{ bulkPlayers.length }} players to the
-                system</q-tooltip
-              >
+              <q-tooltip>Import all</q-tooltip>
             </q-btn>
 
             <!-- Club Members Mode Button -->
@@ -1078,10 +1075,7 @@
               :disable="selectedClubMembers.length === 0"
               icon="groups"
             >
-              <q-tooltip
-                >Add {{ selectedClubMembers.length }} member(s) to the
-                system</q-tooltip
-              >
+              <q-tooltip>Add members</q-tooltip>
             </q-btn>
           </q-card-actions>
         </q-card>
@@ -1113,7 +1107,7 @@
                   class="q-ml-sm"
                 >
                   <q-icon name="verified" size="12px" />
-                  <q-tooltip>Linked account — name is read-only</q-tooltip>
+                  <q-tooltip>Read-only</q-tooltip>
                 </q-badge>
               </div>
 
@@ -1959,9 +1953,7 @@
                           >L:{{ player.losses || 0 }}</span
                         >
                         <span class="q-ml-xs text-primary"
-                          >R:{{
-                            player.rating === 1500 ? 'NR' : player.rating
-                          }}</span
+                          >R:{{ player.rating }}</span
                         >
                       </q-item-label>
                     </q-item-section>
@@ -1987,7 +1979,7 @@
                           @click="replacePlayerInEdit(player)"
                           :disable="availableQueuePlayers.length === 0"
                         >
-                          <q-tooltip>Swap with queue</q-tooltip>
+                          <q-tooltip>Swap</q-tooltip>
                         </q-btn>
                       </div>
                     </q-item-section>
@@ -2053,9 +2045,7 @@
                           >L:{{ player.losses || 0 }}</span
                         >
                         <span class="q-ml-xs text-primary"
-                          >R:{{
-                            player.rating === 1500 ? 'NR' : player.rating
-                          }}</span
+                          >R:{{ player.rating }}</span
                         >
                       </q-item-label>
                     </q-item-section>
@@ -2110,7 +2100,7 @@
                 icon-right="arrow_forward"
                 @click="proceedToTeamArrangement"
               >
-                <q-tooltip>Proceed to team arrangement</q-tooltip>
+                <q-tooltip>Next</q-tooltip>
               </q-btn>
 
               <!-- For singles and other matches, show save button -->
@@ -2123,9 +2113,9 @@
                 :disable="selectedPlayers.length < 2"
               >
                 <q-tooltip v-if="selectedPlayers.length < 2">
-                  Need at least 2 players to save match
+                  Need 2+ players
                 </q-tooltip>
-                <q-tooltip v-else> Save match changes </q-tooltip>
+                <q-tooltip v-else>Save</q-tooltip>
               </q-btn>
             </template>
 
@@ -2160,12 +2150,12 @@
                 "
               >
                 <q-tooltip v-if="selectedPlayers.length < 2">
-                  Need at least 2 players to save match
+                  Need 2+ players
                 </q-tooltip>
                 <q-tooltip v-else-if="selectedPlayers.length > 4">
-                  Maximum 4 players allowed for tennis matches
+                  Max 4 players
                 </q-tooltip>
-                <q-tooltip v-else> Save match changes </q-tooltip>
+                <q-tooltip v-else>Save</q-tooltip>
               </q-btn>
             </template>
           </q-card-actions>
@@ -2241,9 +2231,7 @@
                       >L:{{ player.losses || 0 }}</span
                     >
                     <span class="q-ml-xs text-primary"
-                      >R:{{
-                        player.rating === 1500 ? 'NR' : player.rating
-                      }}</span
+                      >R:{{ player.rating }}</span
                     >
                   </q-item-label>
                 </q-item-section>
@@ -2265,7 +2253,7 @@
               color="grey"
               @click="showReplacePlayerDialog = false"
             >
-              <q-tooltip>Cancel player replacement</q-tooltip>
+              <q-tooltip>Cancel</q-tooltip>
             </q-btn>
           </q-card-actions>
         </q-card>
@@ -2354,7 +2342,7 @@
               color="grey"
               @click="showCourtSelectionDialog = false"
             >
-              <q-tooltip>Cancel court assignment</q-tooltip>
+              <q-tooltip>Cancel</q-tooltip>
             </q-btn>
           </q-card-actions>
         </q-card>
@@ -2363,7 +2351,7 @@
 
     <q-page-sticky position="bottom-left" :offset="[18, 18]">
       <q-btn round icon="person" color="accent" @click="goHome">
-        <q-tooltip>Back to profile</q-tooltip>
+        <q-tooltip>Profile</q-tooltip>
       </q-btn>
     </q-page-sticky>
   </q-page>
