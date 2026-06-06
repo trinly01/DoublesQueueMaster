@@ -46,6 +46,7 @@ export interface ActiveMatch {
   court?: number;
   createdAt?: number;
   updatedAt?: number; // Epoch ms of last change (for per-field LWW)
+  deletedAt?: number; // Epoch ms of deletion (tombstone). If present, match is logically deleted.
   originalQueueTypes?: Record<string, 'GENERAL' | 'WINNERS' | 'LOSERS'>;
 }
 
@@ -316,10 +317,35 @@ export class LocalMatchmakingSystem {
 
   // --- INTERNAL STORAGE METHODS ---
   private saveState() {
+    // Enforce constraint: no player can be in both queue and active matches
+    this.enforceQueueMatchConstraint();
     this.state.lastModified = Date.now();
     LocalStorage.set(STORAGE_KEY, this.state);
     if (this.onStateChange) {
       this.onStateChange();
+    }
+  }
+
+  private enforceQueueMatchConstraint() {
+    // Collect all players in active matches
+    const playersInMatches = new Set<string>();
+    this.state.activeMatches.forEach((m) => {
+      if (!m.deletedAt) {
+        m.teamA.forEach((username) => playersInMatches.add(username));
+        m.teamB.forEach((username) => playersInMatches.add(username));
+      }
+    });
+
+    // Remove queue entries for players who are in matches
+    const originalQueueLength = this.state.queues.length;
+    this.state.queues = this.state.queues.filter(
+      (q) => !playersInMatches.has(q.username),
+    );
+
+    if (this.state.queues.length !== originalQueueLength) {
+      console.log(
+        `[enforceQueueMatchConstraint] Removed ${originalQueueLength - this.state.queues.length} queue entries for players in matches`,
+      );
     }
   }
 
@@ -340,6 +366,7 @@ export class LocalMatchmakingSystem {
   public clearSession() {
     this.state.queues = [];
     this.state.activeMatches = [];
+    this.saveState();
   }
 
   public hardResetEverything() {
@@ -347,6 +374,7 @@ export class LocalMatchmakingSystem {
     this.state.players = {};
     this.state.queues = [];
     this.state.activeMatches = [];
+    this.saveState();
   }
 
   public resetState() {
@@ -369,7 +397,11 @@ export class LocalMatchmakingSystem {
   // --- PUBLIC API FOR UI (VUE COMPONENTS) ---
 
   // 1. Register or Check-In a Player to the court
-  public checkInPlayer(username: string, level: 1 | 2 | 3 = 1) {
+  // Returns: 'added' if added to queue, 'already_in_queue' if in queue, 'already_in_match' if in match
+  public checkInPlayer(
+    username: string,
+    level: 1 | 2 | 3 = 1,
+  ): 'added' | 'already_in_queue' | 'already_in_match' {
     const normalizedUsername = username.trim();
 
     // Create player profile if they don't exist in the local database
@@ -393,24 +425,35 @@ export class LocalMatchmakingSystem {
     );
     const inMatch = this.state.activeMatches.some(
       (m) =>
-        m.teamA.includes(normalizedUsername) ||
-        m.teamB.includes(normalizedUsername),
+        !m.deletedAt &&
+        (m.teamA.includes(normalizedUsername) ||
+          m.teamB.includes(normalizedUsername)),
     );
 
-    if (!inQueue && !inMatch) {
-      this.state.queues.push({
-        username: normalizedUsername,
-        queueType: 'GENERAL',
-        enteredAt: Date.now(),
-        updatedAt: Date.now(),
-      });
+    if (inMatch) {
+      return 'already_in_match';
     }
+
+    if (inQueue) {
+      return 'already_in_queue';
+    }
+
+    this.state.queues.push({
+      username: normalizedUsername,
+      queueType: 'GENERAL',
+      enteredAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    this.saveState();
+    return 'added';
   }
 
   public removeFromQueue(username: string) {
     this.state.queues = this.state.queues.filter(
       (q) => q.username !== username,
     );
+    this.saveState();
   }
 
   // 2. Draft the next round of matches from waiting players
@@ -492,6 +535,17 @@ export class LocalMatchmakingSystem {
         this.state.teamSize,
       );
 
+      // Validate no duplicate players in the match
+      const allMatchPlayers = [...match.teamA, ...match.teamB];
+      const uniquePlayers = new Set(allMatchPlayers.map((p) => p.username));
+      if (allMatchPlayers.length !== uniquePlayers.size) {
+        console.error(
+          'MatchmakerEngine returned match with duplicate players:',
+          match,
+        );
+        continue; // Skip this match and try the next round
+      }
+
       // Determine the dominant queue source for the UI tag (just use the first player's type)
       const dominantSource = draftedEntries[0].queueType || 'GENERAL';
 
@@ -521,6 +575,8 @@ export class LocalMatchmakingSystem {
         originalQueueTypes,
       });
     }
+
+    this.saveState();
   }
 
   // 3. Report a score for an active match
@@ -531,7 +587,7 @@ export class LocalMatchmakingSystem {
     returnMethod: string = 'end_of_queue',
   ) {
     const matchIndex = this.state.activeMatches.findIndex(
-      (m) => m.matchId === matchId,
+      (m) => !m.deletedAt && m.matchId === matchId,
     );
     if (matchIndex === -1) return;
 
@@ -615,8 +671,11 @@ export class LocalMatchmakingSystem {
       }
     });
 
-    // Remove match from active list
-    this.state.activeMatches.splice(matchIndex, 1);
+    // Tombstone match instead of removing (for cross-admin sync)
+    this.state.activeMatches[matchIndex].deletedAt = Date.now();
+    this.state.activeMatches[matchIndex].updatedAt = Date.now();
+
+    this.saveState();
   }
 
   public persist() {
@@ -689,27 +748,66 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     { entry: QueueEntry; source: 'local' | 'server' }
   >();
 
-  (local.queues || []).forEach((q) =>
-    allQueues.set(`${q.username}-${q.queueType}`, {
-      entry: q,
-      source: 'local',
-    }),
-  );
-  (server.queues || []).forEach((q) => {
-    const key = `${q.username}-${q.queueType}`;
-    const existing = allQueues.get(key);
-    if (!existing) {
-      allQueues.set(key, { entry: q, source: 'server' });
-    } else {
-      // Both have this queue entry - use updatedAt LWW
-      const localTime =
-        existing.entry.updatedAt ?? existing.entry.enteredAt ?? 0;
-      const serverTime = q.updatedAt ?? q.enteredAt ?? 0;
-      if (serverTime > localTime) {
-        allQueues.set(key, { entry: q, source: 'server' });
+  // If server state is newer overall, start with server queue entries
+  // This ensures queue deletions (when players are drafted into matches) propagate
+  if (serverTime > localTime) {
+    (server.queues || []).forEach((q) =>
+      allQueues.set(`${q.username}-${q.queueType}`, {
+        entry: q,
+        source: 'server',
+      }),
+    );
+    (local.queues || []).forEach((q) => {
+      const key = `${q.username}-${q.queueType}`;
+      const existing = allQueues.get(key);
+      if (!existing) {
+        // Entry exists locally but not on server
+        // If server state is newer, this entry was likely deleted on server
+        // Only add it if local entry is newer than server's lastModified
+        const localEntryTime = q.updatedAt ?? q.enteredAt ?? 0;
+        if (localEntryTime > serverTime) {
+          allQueues.set(key, { entry: q, source: 'local' });
+        }
+      } else {
+        // Both have this queue entry - use updatedAt LWW
+        const localTime = q.updatedAt ?? q.enteredAt ?? 0;
+        const serverEntryTime =
+          existing.entry.updatedAt ?? existing.entry.enteredAt ?? 0;
+        if (localTime > serverEntryTime) {
+          allQueues.set(key, { entry: q, source: 'local' });
+        }
       }
-    }
-  });
+    });
+  } else {
+    // Local state is newer or equal - start with local queue entries
+    (local.queues || []).forEach((q) =>
+      allQueues.set(`${q.username}-${q.queueType}`, {
+        entry: q,
+        source: 'local',
+      }),
+    );
+    (server.queues || []).forEach((q) => {
+      const key = `${q.username}-${q.queueType}`;
+      const existing = allQueues.get(key);
+      if (!existing) {
+        // Entry exists on server but not locally
+        // If local state is newer, this entry was likely deleted locally
+        // Only add it if server entry is newer than local's lastModified
+        const serverEntryTime = q.updatedAt ?? q.enteredAt ?? 0;
+        if (serverEntryTime > localTime) {
+          allQueues.set(key, { entry: q, source: 'server' });
+        }
+      } else {
+        // Both have this queue entry - use updatedAt LWW
+        const localEntryTime =
+          existing.entry.updatedAt ?? existing.entry.enteredAt ?? 0;
+        const serverEntryTime = q.updatedAt ?? q.enteredAt ?? 0;
+        if (serverEntryTime > localEntryTime) {
+          allQueues.set(key, { entry: q, source: 'server' });
+        }
+      }
+    });
+  }
 
   // Deduplicate: a player should only appear in one queue at a time.
   // Keep the entry with the latest updatedAt (or enteredAt) per username.
@@ -727,6 +825,39 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     }
   });
   latestPerPlayer.forEach((entry) => mergedQueues.push(entry));
+
+  // Enforce constraint: no player can be in both queue and active matches
+  // Only consider matches from the winning side (newer state) to avoid
+  // removing queue entries that were added by the newer state
+  const playersInMatches = new Set<string>();
+  const winningMatches =
+    serverTime > localTime
+      ? server.activeMatches || []
+      : local.activeMatches || [];
+
+  winningMatches.forEach((m) => {
+    if (!m.deletedAt) {
+      m.teamA.forEach((username) => playersInMatches.add(username));
+      m.teamB.forEach((username) => playersInMatches.add(username));
+    }
+  });
+
+  const filteredQueues = mergedQueues.filter(
+    (q) => !playersInMatches.has(q.username),
+  );
+
+  console.log(
+    '[mergeAppState] local queues:',
+    local.queues?.length,
+    'server queues:',
+    server.queues?.length,
+    'merged queues:',
+    mergedQueues.length,
+    'after removing players in matches:',
+    filteredQueues.length,
+    'winning side:',
+    serverTime > localTime ? 'server' : 'local',
+  );
 
   // Merge matches using per-match updatedAt (or createdAt as fallback)
   const mergedMatches: typeof local.activeMatches = [];
@@ -753,7 +884,31 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     }
   });
 
-  allMatches.forEach(({ match }) => mergedMatches.push(match));
+  // Handle match deletions using tombstone (deletedAt).
+  // A match missing on one side but present on the other is NOT auto-deleted;
+  // only an explicit tombstone (deletedAt) propagates the deletion.
+  for (const matchId of allMatches.keys()) {
+    const lm = local.activeMatches?.find((m) => m.matchId === matchId);
+    const sm = server.activeMatches?.find((m) => m.matchId === matchId);
+    const localDeleted = lm?.deletedAt ?? 0;
+    const serverDeleted = sm?.deletedAt ?? 0;
+    if (localDeleted > 0 || serverDeleted > 0) {
+      // At least one side deleted: the later deletion wins
+      allMatches.set(
+        matchId,
+        localDeleted > serverDeleted
+          ? { match: lm!, source: 'local' }
+          : { match: sm!, source: 'server' },
+      );
+    }
+  }
+
+  // Only keep non-deleted matches in the merged result
+  allMatches.forEach(({ match }) => {
+    if (!match.deletedAt) {
+      mergedMatches.push(match);
+    }
+  });
 
   // Merge settings using settingsUpdatedAt
   const settingsSource =
@@ -762,7 +917,7 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   return {
     ...settingsSource,
     players: mergedPlayers,
-    queues: mergedQueues,
+    queues: filteredQueues,
     activeMatches: mergedMatches,
     lastModified: Math.max(localTime, serverTime),
     settingsUpdatedAt: Math.max(localSettingsTime, serverSettingsTime),

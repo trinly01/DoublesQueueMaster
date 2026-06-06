@@ -9,7 +9,8 @@
         :show-actions="showActions"
         :show-queue-time="showQueueTime"
         :is-selected="isPlayerSelected(player)"
-        :is-in-queue="isInQueue"
+        :is-in-queue="player.isInQueue"
+        :is-in-match="player.isInMatch"
         :sort-by="sortBy"
         @click="$emit('playerClick', player)"
         @edit="$emit('playerEdit', $event)"
@@ -33,7 +34,9 @@
               @click.stop="$emit('playerRemove', playerItem.username)"
               icon="delete"
               size="sm"
-            />
+            >
+              <q-tooltip>Remove</q-tooltip>
+            </q-btn>
             <q-btn
               v-if="showRequeueButton"
               flat
@@ -41,8 +44,11 @@
               @click.stop="$emit('playerRequeue', playerItem.username)"
               icon="input"
               size="sm"
-              :disable="isInQueue"
-            />
+              :disable="isInQueue || isInMatch"
+            >
+              <q-tooltip v-if="isInQueue"> Already in queue </q-tooltip>
+              <q-tooltip v-else-if="isInMatch"> In match </q-tooltip>
+            </q-btn>
           </template>
         </template>
       </PlayerCard>
@@ -75,6 +81,8 @@ import type { Player as BasePlayer } from '../services/matchmaking';
 type Player = BasePlayer & {
   enteredAt?: number;
   queueType?: 'GENERAL' | 'WINNERS' | 'LOSERS';
+  isInMatch?: boolean;
+  isInQueue?: boolean;
 };
 
 interface Props {
@@ -84,6 +92,7 @@ interface Props {
   showQueueTime?: boolean;
   showPosition?: boolean;
   isInQueue?: boolean;
+  isInMatch?: boolean;
   showRequeueButton?: boolean;
   emptyIcon?: string;
   emptyTitle?: string;
@@ -102,6 +111,7 @@ const props = withDefaults(defineProps<Props>(), {
   showQueueTime: false,
   showPosition: false,
   isInQueue: false,
+  isInMatch: false,
   showRequeueButton: true,
   emptyIcon: 'people',
   emptyTitle: 'No players found',

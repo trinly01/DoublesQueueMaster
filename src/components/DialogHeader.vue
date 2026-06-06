@@ -5,7 +5,9 @@
         <q-icon v-if="icon" :name="icon" class="q-mr-sm" />
         {{ title }}
       </q-toolbar-title>
-      <q-btn icon="close" flat round dense v-close-popup />
+      <q-btn icon="close" flat round dense v-close-popup>
+        <q-tooltip>Close</q-tooltip>
+      </q-btn>
     </q-toolbar>
   </q-card-section>
 </template>

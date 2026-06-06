@@ -166,6 +166,7 @@
 
     <q-item-section side v-if="showActions && !isReadOnlyMode">
       <q-btn color="grey-7" icon="more_vert" flat round size="sm">
+        <q-tooltip>Options</q-tooltip>
         <q-menu>
           <q-list style="min-width: 150px">
             <q-item

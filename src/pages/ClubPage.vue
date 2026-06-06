@@ -1901,36 +1901,46 @@
                     :key="player.username"
                     class="player-edit-item"
                   >
+                    <q-item-section avatar>
+                      <q-avatar
+                        :color="getLevelColor(player.level)"
+                        text-color="white"
+                        size="md"
+                      >
+                        {{
+                          getPlayerInitials(player.firstName || player.username)
+                        }}
+                      </q-avatar>
+                    </q-item-section>
                     <q-item-section>
                       <q-item-label class="text-weight-medium">{{
-                        player.username
+                        player.firstName || player.username
                       }}</q-item-label>
-                      <q-item-label caption class="q-pl-xs">
-                        <q-chip
-                          :label="`Level ${player.level}`"
-                          :color="getLevelColor(player.level)"
-                          text-color="white"
-                          size="xs"
-                          dense
-                        />
-                        <span class="q-ml-xs text-grey-7"
+                      <q-item-label
+                        caption
+                        class="text-grey-6"
+                        v-if="player.username && player.firstName"
+                      >
+                        @{{ player.username }}
+                      </q-item-label>
+                      <q-item-label caption class="player-stats">
+                        <span class="text-grey-7"
                           >G:{{ player.matchesPlayed }}</span
                         >
-                        <span class="q-ml-xs text-positive"
+                        <span
+                          class="q-ml-xs text-positive"
+                          v-if="player.wins !== undefined"
                           >W:{{ player.wins || 0 }}</span
                         >
-                        <span class="q-ml-xs text-negative"
+                        <span
+                          class="q-ml-xs text-negative"
+                          v-if="player.losses !== undefined"
                           >L:{{ player.losses || 0 }}</span
                         >
-                        <span class="q-ml-xs text-info"
-                          >WR:{{
-                            player.matchesPlayed
-                              ? Math.round(
-                                  ((player.wins || 0) / player.matchesPlayed) *
-                                    100,
-                                )
-                              : 0
-                          }}%</span
+                        <span class="q-ml-xs text-primary"
+                          >R:{{
+                            player.rating === 1500 ? 'NR' : player.rating
+                          }}</span
                         >
                       </q-item-label>
                     </q-item-section>
@@ -1956,7 +1966,7 @@
                           @click="replacePlayerInEdit(player)"
                           :disable="availableQueuePlayers.length === 0"
                         >
-                          <q-tooltip>Replace with another player</q-tooltip>
+                          <q-tooltip>Swap with queue</q-tooltip>
                         </q-btn>
                       </div>
                     </q-item-section>
@@ -1985,41 +1995,46 @@
                     @click="addPlayerToEdit(player)"
                     :disable="selectedPlayers.length >= 4"
                   >
+                    <q-item-section avatar>
+                      <q-avatar
+                        :color="getLevelColor(player.level)"
+                        text-color="white"
+                        size="md"
+                      >
+                        {{
+                          getPlayerInitials(player.firstName || player.username)
+                        }}
+                      </q-avatar>
+                    </q-item-section>
                     <q-item-section>
                       <q-item-label class="text-weight-medium">{{
-                        player.username
+                        player.firstName || player.username
                       }}</q-item-label>
-                      <q-item-label caption class="q-pl-xs">
-                        <q-chip
-                          :label="`Level ${player.level}`"
-                          :color="getLevelColor(player.level)"
-                          text-color="white"
-                          size="xs"
-                          dense
-                        />
-                        <span class="q-ml-sm text-grey-7"
-                          >G: {{ player.matchesPlayed }}</span
-                        >
-                        <span class="q-ml-xs text-positive"
-                          >W:{{ player.wins || 0 }}</span
-                        >
-                        <span class="q-ml-xs text-negative"
-                          >L:{{ player.losses || 0 }}</span
-                        >
-                        <span class="q-ml-xs text-info"
-                          >WR:{{
-                            player.matchesPlayed
-                              ? Math.round(
-                                  ((player.wins || 0) / player.matchesPlayed) *
-                                    100,
-                                )
-                              : 0
-                          }}%</span
+                      <q-item-label
+                        caption
+                        class="text-grey-6"
+                        v-if="player.username && player.firstName"
+                      >
+                        @{{ player.username }}
+                      </q-item-label>
+                      <q-item-label caption class="player-stats">
+                        <span class="text-grey-7"
+                          >G:{{ player.matchesPlayed }}</span
                         >
                         <span
-                          v-if="player.priority === 'returned'"
-                          class="q-ml-sm text-orange"
-                          >(Returned)</span
+                          class="q-ml-xs text-positive"
+                          v-if="player.wins !== undefined"
+                          >W:{{ player.wins || 0 }}</span
+                        >
+                        <span
+                          class="q-ml-xs text-negative"
+                          v-if="player.losses !== undefined"
+                          >L:{{ player.losses || 0 }}</span
+                        >
+                        <span class="q-ml-xs text-primary"
+                          >R:{{
+                            player.rating === 1500 ? 'NR' : player.rating
+                          }}</span
                         >
                       </q-item-label>
                     </q-item-section>
@@ -2383,6 +2398,7 @@ const queue = computed(() => {
         username: p.username,
         enteredAt: q.enteredAt,
         queueType: q.queueType,
+        isInMatch: false, // Players in queue are not in matches (enforced by constraint)
       };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null);
@@ -2422,30 +2438,32 @@ const queue = computed(() => {
   return mapped;
 });
 const matches = computed(() => {
-  return MatchmakingApp.state.activeMatches.map((m, index) => {
-    const teamA = m.teamA.map((u) => ({
-      ...MatchmakingApp.state.players[u],
-      username: u,
-    }));
-    const teamB = m.teamB.map((u) => ({
-      ...MatchmakingApp.state.players[u],
-      username: u,
-    }));
-    const stats = computeWinProbability(teamA, teamB);
-    return {
-      id: m.matchId,
-      teamA,
-      teamB,
-      players: [...teamA, ...teamB],
-      expectedDifference: stats.expectedDifference,
-      winProbability: stats.teamA,
-      status: m.status || 'in-progress',
-      court: m.court,
-      order: index + 1,
-      createdAt: new Date(m.createdAt || Date.now()),
-      queueSource: m.queueSource,
-    };
-  });
+  return MatchmakingApp.state.activeMatches
+    .filter((m) => !m.deletedAt)
+    .map((m, index) => {
+      const teamA = m.teamA.map((u) => ({
+        ...MatchmakingApp.state.players[u],
+        username: u,
+      }));
+      const teamB = m.teamB.map((u) => ({
+        ...MatchmakingApp.state.players[u],
+        username: u,
+      }));
+      const stats = computeWinProbability(teamA, teamB);
+      return {
+        id: m.matchId,
+        teamA,
+        teamB,
+        players: [...teamA, ...teamB],
+        expectedDifference: stats.expectedDifference,
+        winProbability: stats.teamA,
+        status: m.status || 'in-progress',
+        court: m.court,
+        order: index + 1,
+        createdAt: new Date(m.createdAt || Date.now()),
+        queueSource: m.queueSource,
+      };
+    });
 });
 const teamAScore = ref<number>(0);
 const teamBScore = ref<number>(0);
@@ -2528,7 +2546,6 @@ const clubLoadingState = ref<
 const clubErrorMessage = ref<string>('');
 const paymentLink = ref<string>('');
 const paymentLoading = ref<boolean>(false);
-let refreshInterval: ReturnType<typeof setInterval> | null = null;
 let ratingsRefreshInterval: ReturnType<typeof setInterval> | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 // Last time we received a realtime subscription message (used to detect stale WS)
@@ -2691,8 +2708,6 @@ const hasPendingCloudSync = ref(false);
 // The server's matchmaking.lastModified that our local state was last PUSHED to.
 // Used as an optimistic-concurrency token: set ONLY after a successful write.
 const lastSyncedServerTimestamp = ref(0);
-// The server's timestamp last seen by polling / loadClubData (NOT a write token).
-const lastPolledServerTimestamp = ref(0);
 // Track when we went offline to detect sleep/long offline periods
 const offlineSince = ref<number | null>(null);
 
@@ -2834,8 +2849,6 @@ const loadClubData = async (clubId: string) => {
       const serverMatchmaking = club.appState?.matchmaking as
         | AppState
         | undefined;
-      // Record the server version seen by polling (NOT a write token).
-      lastPolledServerTimestamp.value = serverMatchmaking?.lastModified ?? 0;
       if (serverMatchmaking) {
         // Only merge settings that are missing locally — never overwrite queues/matches/players
         if (
@@ -3360,6 +3373,15 @@ const performCloudSync = async (skipServerMerge = false) => {
     const stamp = Date.now();
     MatchmakingApp.state.lastModified = stamp;
 
+    console.log(
+      '[cloudSync] pushing — queues:',
+      MatchmakingApp.state.queues.length,
+      'matches:',
+      MatchmakingApp.state.activeMatches.filter((m) => !m.deletedAt).length,
+      'ts:',
+      stamp,
+    );
+
     const payload = {
       matchmaking: MatchmakingApp.state,
     };
@@ -3479,12 +3501,36 @@ const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
   if (!serverMatchmaking) return;
   const incomingTs = serverMatchmaking.lastModified ?? 0;
   // Ignore the echo of our own last write.
-  if (incomingTs === lastSyncedServerTimestamp.value) return;
+  if (incomingTs === lastSyncedServerTimestamp.value) {
+    console.log(
+      '[applyServer] ignoring echo of our own write, ts:',
+      incomingTs,
+    );
+    return;
+  }
+
+  console.log(
+    '[applyServer] incoming — queues:',
+    serverMatchmaking.queues?.length,
+    'matches:',
+    serverMatchmaking.activeMatches?.filter((m) => !m.deletedAt).length,
+    'ts:',
+    incomingTs,
+    'our last synced:',
+    lastSyncedServerTimestamp.value,
+  );
 
   const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
   Object.assign(MatchmakingApp.state, merged);
   MatchmakingApp.persistSilently();
   lastSyncedServerTimestamp.value = incomingTs;
+
+  console.log(
+    '[applyServer] merged — queues:',
+    MatchmakingApp.state.queues.length,
+    'matches:',
+    MatchmakingApp.state.activeMatches.filter((m) => !m.deletedAt).length,
+  );
 };
 
 const startRealtime = async () => {
@@ -3511,7 +3557,14 @@ const startRealtime = async () => {
         for await (const message of subscription) {
           lastRealtimeMessageAt = Date.now();
           const msg = message as ClubRealtimeMessage;
-          if (msg.type && msg.type !== 'subscription') continue;
+          console.log('[realtime] received message:', msg);
+          if (msg.type && msg.type !== 'subscription') {
+            console.log(
+              '[realtime] skipping non-subscription message, type:',
+              msg.type,
+            );
+            continue;
+          }
           applyServerMatchmaking(msg.data?.[0]?.appState?.matchmaking);
         }
       } catch (err) {
@@ -3555,7 +3608,7 @@ const stopRealtime = () => {
 const handleVisibilityChange = () => {
   const wasHidden = !isTabVisible;
   isTabVisible = !document.hidden;
-  // When tab becomes visible and realtime isn't active, do one catch-up poll
+  // When tab becomes visible and realtime isn't active, do one catch-up load
   if (
     isTabVisible &&
     wasHidden &&
@@ -3610,15 +3663,6 @@ onMounted(async () => {
     }
   }
 
-  // Fallback polling: runs only when realtime isn't active (no WS / dropped socket).
-  // Also gated by tab visibility to avoid background-tab burst-sync on return.
-  refreshInterval = setInterval(() => {
-    if (!isTabVisible) return; // skip while hidden
-    if (!realtimeActive && isOnline.value && currentClubId.value) {
-      loadClubData(currentClubId.value);
-    }
-  }, 120000);
-
   // Player ratings live in directus_users (not in club.appState), so realtime
   // can't observe them. Poll the club.players M2M periodically to keep ratings fresh.
   ratingsRefreshInterval = setInterval(() => {
@@ -3644,10 +3688,6 @@ onUnmounted(() => {
   window.removeEventListener('offline', updateOnlineStatus);
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   stopRealtime();
-  if (refreshInterval) {
-    clearInterval(refreshInterval);
-    refreshInterval = null;
-  }
   if (ratingsRefreshInterval) {
     clearInterval(ratingsRefreshInterval);
     ratingsRefreshInterval = null;
@@ -3874,17 +3914,31 @@ const courtSelectionOptions = computed(() => {
 
 // Computed properties
 const displayPlayers = computed(() => {
+  let result = players.value;
+
   if (!searchPlayers.value?.trim()) {
-    return players.value;
+    result = players.value;
+  } else {
+    // Simple includes search across firstName, lastName, username
+    const searchTerm = searchPlayers.value.toLowerCase().trim();
+    result = players.value.filter((p) => {
+      const searchString =
+        `${p.firstName || ''} ${p.lastName || ''} ${p.username || ''}`.toLowerCase();
+      return searchString.includes(searchTerm);
+    });
   }
 
-  // Simple includes search across firstName, lastName, username
-  const searchTerm = searchPlayers.value.toLowerCase().trim();
-  return players.value.filter((p) => {
-    const searchString =
-      `${p.firstName || ''} ${p.lastName || ''} ${p.username || ''}`.toLowerCase();
-    return searchString.includes(searchTerm);
-  });
+  // Add isInMatch and isInQueue properties to each player
+  const queueUsernames = new Set(
+    MatchmakingApp.state.queues.map((q) => q.username),
+  );
+  const withStatus = result.map((p) => ({
+    ...p,
+    isInMatch: isPlayerInMatch(p.username),
+    isInQueue: queueUsernames.has(p.username),
+  }));
+
+  return withStatus;
 });
 
 const queueStats = computed(() => {
@@ -3901,6 +3955,20 @@ const allPlayersInQueue = computed(() => {
   const queuePlayerNames = new Set(queue.value.map((p) => p.username));
   return players.value.every((p) => queuePlayerNames.has(p.username));
 });
+
+// Helper function to check if a player is in a match
+const isPlayerInMatch = (username: string): boolean => {
+  return MatchmakingApp.state.activeMatches.some(
+    (m) =>
+      !m.deletedAt &&
+      (m.teamA.includes(username) || m.teamB.includes(username)),
+  );
+};
+
+// Helper function to get player initials
+const getPlayerInitials = (name: string): string => {
+  return name.charAt(0).toUpperCase();
+};
 
 const filteredMatches = computed(() => {
   let filtered =
@@ -4204,7 +4272,8 @@ const addClubMembers = () => {
   if (selectedClubMembers.value.length === 0) return;
 
   const added: string[] = [];
-  const skipped: string[] = [];
+  const alreadyInQueue: string[] = [];
+  const alreadyInMatch: string[] = [];
 
   selectedClubMembers.value.forEach((memberId) => {
     const member = clubMembers.value.find((m) => m.id === memberId);
@@ -4213,38 +4282,38 @@ const addClubMembers = () => {
     const username =
       member.username || member.email?.split('@')[0] || 'Unknown';
 
-    if (MatchmakingApp.state.players[username]) {
-      skipped.push(username);
-      return;
-    }
+    // Use checkInPlayer to auto-add to queue (consistent with add by username)
+    const result = MatchmakingApp.checkInPlayer(username, 2);
 
-    MatchmakingApp.state.players[username] = {
-      username,
-      firstName: member.firstName,
-      userId: member.id,
-      rating: member.rating || 1500,
-      level: 2,
-      matchesPlayed: 0,
-      wins: 0,
-      losses: 0,
-      avatar: member.avatar,
-      updatedAt: Date.now(),
-    };
-    added.push(username);
+    if (result === 'added') {
+      added.push(username);
+    } else if (result === 'already_in_queue') {
+      alreadyInQueue.push(username);
+    } else if (result === 'already_in_match') {
+      alreadyInMatch.push(username);
+    }
   });
 
   if (added.length > 0) {
     $q.notify({
       type: 'positive',
-      message: `Added ${added.length} member(s): ${added.join(', ')}`,
+      message: `Added ${added.length} member(s) to queue: ${added.join(', ')}`,
       position: 'top',
       timeout: 3000,
     });
   }
-  if (skipped.length > 0) {
+  if (alreadyInQueue.length > 0) {
     $q.notify({
       type: 'warning',
-      message: `Skipped ${skipped.length} existing player(s): ${skipped.join(', ')}`,
+      message: `Skipped ${alreadyInQueue.length} already in queue: ${alreadyInQueue.join(', ')}`,
+      position: 'top',
+      timeout: 3000,
+    });
+  }
+  if (alreadyInMatch.length > 0) {
+    $q.notify({
+      type: 'warning',
+      message: `Skipped ${alreadyInMatch.length} already in match: ${alreadyInMatch.join(', ')}`,
       position: 'top',
       timeout: 3000,
     });
@@ -4254,17 +4323,37 @@ const addClubMembers = () => {
   selectedClubMembers.value = [];
   clubMemberSearch.value = '';
   showAddPlayerDialog.value = false;
-  MatchmakingApp.persist();
 };
 
 const addNewPlayer = () => {
   if (!newPlayerName.value?.trim() || newPlayerLevel.value === null) return;
   const trimmedName = newPlayerName.value.trim();
-  MatchmakingApp.checkInPlayer(trimmedName, newPlayerLevel.value);
+  const result = MatchmakingApp.checkInPlayer(
+    trimmedName,
+    newPlayerLevel.value,
+  );
+
+  if (result === 'already_in_match') {
+    $q.notify({
+      type: 'warning',
+      message: `Player "${trimmedName}" is already in a match`,
+      position: 'top',
+    });
+    return;
+  }
+
+  if (result === 'already_in_queue') {
+    $q.notify({
+      type: 'warning',
+      message: `Player "${trimmedName}" is already in the queue`,
+      position: 'top',
+    });
+    return;
+  }
+
   newPlayerName.value = null;
   newPlayerLevel.value = null;
   showAddPlayerDialog.value = false;
-  MatchmakingApp.persist();
   $q.notify({
     type: 'positive',
     message: `Player "${trimmedName}" added successfully`,
@@ -4275,6 +4364,8 @@ const addBulkPlayers = () => {
   const newPlayers: Player[] = [];
   const duplicateNames: string[] = [];
   const invalidNames: string[] = [];
+  const alreadyInQueue: string[] = [];
+  const alreadyInMatch: string[] = [];
 
   // Validate each player
   for (const bulkPlayer of bulkPlayers.value) {
@@ -4294,7 +4385,15 @@ const addBulkPlayers = () => {
       continue;
     }
 
-    MatchmakingApp.checkInPlayer(trimmedName, bulkPlayer.level as 1 | 2 | 3);
+    const result = MatchmakingApp.checkInPlayer(
+      trimmedName,
+      bulkPlayer.level as 1 | 2 | 3,
+    );
+    if (result === 'already_in_queue') {
+      alreadyInQueue.push(trimmedName);
+    } else if (result === 'already_in_match') {
+      alreadyInMatch.push(trimmedName);
+    }
   }
 
   // Add valid players
@@ -4306,7 +4405,7 @@ const addBulkPlayers = () => {
     });
   }
 
-  // Show warnings for duplicates and invalid names
+  // Show warnings for duplicates, invalid names, and players already in queue/match
   if (duplicateNames.length > 0) {
     $q.notify({
       type: 'warning',
@@ -4325,6 +4424,24 @@ const addBulkPlayers = () => {
     });
   }
 
+  if (alreadyInQueue.length > 0) {
+    $q.notify({
+      type: 'warning',
+      message: `Skipped ${alreadyInQueue.length} player${alreadyInQueue.length > 1 ? 's' : ''} already in queue: ${alreadyInQueue.join(', ')}`,
+      position: 'top',
+      timeout: 5000,
+    });
+  }
+
+  if (alreadyInMatch.length > 0) {
+    $q.notify({
+      type: 'warning',
+      message: `Skipped ${alreadyInMatch.length} player${alreadyInMatch.length > 1 ? 's' : ''} already in match: ${alreadyInMatch.join(', ')}`,
+      position: 'top',
+      timeout: 5000,
+    });
+  }
+
   // Reset form and close dialog
   addPlayerMode.value = 'single';
   selectedClubMembers.value = [];
@@ -4332,11 +4449,12 @@ const addBulkPlayers = () => {
   bulkPlayers.value = [];
   bulkDefaultLevel.value = 2;
   showAddPlayerDialog.value = false;
-  MatchmakingApp.persist();
 };
 
 const generateNewMatches = () => {
   MatchmakingApp.state.teamSize = matchType.value === 'singles' ? 1 : 2;
+  MatchmakingApp.state.settingsUpdatedAt = Date.now();
+  MatchmakingApp.persist();
   MatchmakingApp.draftNextMatches(queuePriorityMode.value);
 
   if (autoAdvanceMatches.value) {
@@ -4347,8 +4465,6 @@ const generateNewMatches = () => {
       }
     }
   }
-
-  MatchmakingApp.persist();
 
   $q.notify({
     type: 'positive',
@@ -4400,8 +4516,6 @@ const completeMatch = () => {
     }
   }
 
-  MatchmakingApp.persist();
-
   showMatchResultDialog.value = false;
   currentMatchIndex.value = -1;
   teamAScore.value = 0;
@@ -4443,6 +4557,9 @@ const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
         actualMatch.createdAt = Date.now();
         actualMatch.updatedAt = Date.now();
       }
+
+      // Persist the auto-advance changes
+      MatchmakingApp.persist();
 
       // Notify user about auto-advance
       $q.notify({
@@ -4494,7 +4611,6 @@ const removeFromQueue = (username: string) => {
     persistent: true,
   }).onOk(() => {
     MatchmakingApp.removeFromQueue(username);
-    MatchmakingApp.persist();
     $q.notify({
       type: 'info',
       message: `Player "${username}" removed from queue`,
@@ -4527,7 +4643,6 @@ const resetGamesPlayed = () => {
       player.losses = 0;
     });
 
-    // Save data
     MatchmakingApp.persist();
 
     $q.notify({
@@ -4555,8 +4670,11 @@ const clearMatches = () => {
     },
     persistent: true,
   }).onOk(() => {
-    // Clear all matches
-    MatchmakingApp.state.activeMatches = [];
+    // Tombstone all matches instead of wiping (for cross-admin sync)
+    MatchmakingApp.state.activeMatches.forEach((m) => {
+      m.deletedAt = Date.now();
+      m.updatedAt = Date.now();
+    });
     MatchmakingApp.persist();
 
     $q.notify({
@@ -4598,9 +4716,32 @@ const clearQueue = () => {
 
 const requeuePlayer = (username: string) => {
   const p = players.value.find((p) => p.username === username);
-  if (p) MatchmakingApp.checkInPlayer(p.username, p.level);
-  MatchmakingApp.persist();
+  if (!p) return;
+
+  const result = MatchmakingApp.checkInPlayer(p.username, p.level);
+
+  if (result === 'already_in_match') {
+    $q.notify({
+      group: 'notifications',
+      type: 'warning',
+      message: `Player "${username}" is already in a match`,
+      position: 'top',
+    });
+    return;
+  }
+
+  if (result === 'already_in_queue') {
+    $q.notify({
+      group: 'notifications',
+      type: 'warning',
+      message: `Player "${username}" is already in the queue`,
+      position: 'top',
+    });
+    return;
+  }
+
   $q.notify({
+    group: 'notifications',
     type: 'positive',
     message: `Player "${username}" added to queue`,
     position: 'top',
@@ -4608,14 +4749,57 @@ const requeuePlayer = (username: string) => {
 };
 
 const addAllPlayersToQueue = () => {
-  players.value.forEach((p) =>
-    MatchmakingApp.checkInPlayer(p.username, p.level),
-  );
-  MatchmakingApp.persist();
-  $q.notify({
-    type: 'positive',
-    message: 'Added all players to queue',
-    position: 'top',
+  $q.dialog({
+    title: 'Add All Players to Queue',
+    message: `Add all ${players.value.length} players to the queue?`,
+    cancel: {
+      label: 'Cancel',
+      color: 'grey',
+      flat: true,
+    },
+    ok: {
+      label: 'Add All',
+      color: 'accent',
+      icon: 'group_add',
+    },
+    persistent: true,
+  }).onOk(() => {
+    let addedCount = 0;
+    let alreadyInQueueCount = 0;
+    let alreadyInMatchCount = 0;
+
+    players.value.forEach((p) => {
+      const result = MatchmakingApp.checkInPlayer(p.username, p.level);
+      if (result === 'added') addedCount++;
+      else if (result === 'already_in_queue') alreadyInQueueCount++;
+      else if (result === 'already_in_match') alreadyInMatchCount++;
+    });
+
+    if (addedCount > 0) {
+      $q.notify({
+        type: 'positive',
+        message: `Added ${addedCount} player${addedCount > 1 ? 's' : ''} to queue`,
+        position: 'top',
+      });
+    }
+
+    if (alreadyInQueueCount > 0) {
+      $q.notify({
+        type: 'warning',
+        message: `Skipped ${alreadyInQueueCount} player${alreadyInQueueCount > 1 ? 's' : ''} already in queue`,
+        position: 'top',
+        timeout: 3000,
+      });
+    }
+
+    if (alreadyInMatchCount > 0) {
+      $q.notify({
+        type: 'warning',
+        message: `Skipped ${alreadyInMatchCount} player${alreadyInMatchCount > 1 ? 's' : ''} already in match`,
+        position: 'top',
+        timeout: 3000,
+      });
+    }
   });
 };
 
@@ -4634,7 +4818,6 @@ const resetAllData = () => {
     },
   }).onOk(() => {
     MatchmakingApp.hardResetEverything();
-    MatchmakingApp.persist();
     showSettingsDialog.value = false;
     $q.notify({
       type: 'warning',
@@ -4891,6 +5074,37 @@ const createManualMatchWithCourt = () => {
     matchPlayers = [...selectedPlayers.value];
   }
 
+  // Check for duplicate players in the selection
+  const usernames = matchPlayers.map((p) => p.username);
+  const uniqueUsernames = new Set(usernames);
+  if (usernames.length !== uniqueUsernames.size) {
+    $q.notify({
+      type: 'negative',
+      message: 'Cannot create match with duplicate players',
+      position: 'top',
+    });
+    return;
+  }
+
+  // Check if any selected players are already in other matches
+  const playersInMatches = matchPlayers.filter((p) =>
+    MatchmakingApp.state.activeMatches.some(
+      (m) =>
+        !m.deletedAt &&
+        (m.teamA.includes(p.username) || m.teamB.includes(p.username)),
+    ),
+  );
+
+  if (playersInMatches.length > 0) {
+    const names = playersInMatches.map((p) => p.username).join(', ');
+    $q.notify({
+      type: 'negative',
+      message: `Cannot create match: ${names} already in another match`,
+      position: 'top',
+    });
+    return;
+  }
+
   const assignedCourt = selectedCourt.value || undefined;
   const isCourtEmpty =
     !assignedCourt ||
@@ -5048,30 +5262,34 @@ const cancelMatch = (filteredIndex: number) => {
         enteredAt = Date.now() - 3600000; // 1 hour old
       }
 
-      // Return players to queue
+      // Return players to queue (prevent duplicates)
       const playerUsernames = [...actualMatch.teamA, ...actualMatch.teamB];
       for (const username of playerUsernames) {
-        MatchmakingApp.state.queues.push({
-          username,
-          queueType:
-            actualMatch.originalQueueTypes?.[username] ||
-            (actualMatch.queueSource === 'MANUAL'
-              ? 'GENERAL'
-              : actualMatch.queueSource) ||
-            'GENERAL',
-          enteredAt: enteredAt,
-          updatedAt: Date.now(),
-        });
+        // Check if player is already in queue
+        const alreadyInQueue = MatchmakingApp.state.queues.some(
+          (q) => q.username === username,
+        );
+        if (!alreadyInQueue) {
+          MatchmakingApp.state.queues.push({
+            username,
+            queueType:
+              actualMatch.originalQueueTypes?.[username] ||
+              (actualMatch.queueSource === 'MANUAL'
+                ? 'GENERAL'
+                : actualMatch.queueSource) ||
+              'GENERAL',
+            enteredAt: enteredAt,
+            updatedAt: Date.now(),
+          });
+        }
       }
 
-      // Store court number before removing match
+      // Store court number before tombstoning match
       const courtNumber = actualMatch.court;
 
-      // Remove match FROM REAL STATE
-      MatchmakingApp.state.activeMatches =
-        MatchmakingApp.state.activeMatches.filter(
-          (am) => am.matchId !== actualMatch.matchId,
-        );
+      // Tombstone match instead of removing (for cross-admin sync)
+      actualMatch.deletedAt = Date.now();
+      actualMatch.updatedAt = Date.now();
 
       // Auto-advance next match for this specific court
       if (courtNumber) {
@@ -5355,6 +5573,41 @@ const saveMatchEdit = () => {
 
   // Find players added and removed from the match
   const originalUsernames = originalMatch.players.map((p) => p.username);
+
+  // Check for duplicate players in the selection
+  const usernames = updatedPlayers.map((p) => p.username);
+  const uniqueUsernames = new Set(usernames);
+  if (usernames.length !== uniqueUsernames.size) {
+    $q.notify({
+      type: 'negative',
+      message: 'Cannot save match with duplicate players',
+      position: 'top',
+    });
+    return;
+  }
+
+  // Check if any added players are already in other matches (excluding current match)
+  const addedPlayers = updatedPlayers.filter(
+    (p) => !originalUsernames.includes(p.username),
+  );
+  const playersInOtherMatches = addedPlayers.filter((p) =>
+    MatchmakingApp.state.activeMatches.some(
+      (m) =>
+        !m.deletedAt &&
+        m.matchId !== actualMatch.matchId &&
+        (m.teamA.includes(p.username) || m.teamB.includes(p.username)),
+    ),
+  );
+
+  if (playersInOtherMatches.length > 0) {
+    const names = playersInOtherMatches.map((p) => p.username).join(', ');
+    $q.notify({
+      type: 'negative',
+      message: `Cannot save match: ${names} already in another match`,
+      position: 'top',
+    });
+    return;
+  }
   const updatedUsernames = updatedPlayers.map((p) => p.username);
 
   const removedFromMatch = originalMatch.players.filter(
@@ -5386,7 +5639,7 @@ const saveMatchEdit = () => {
   actualMatch.teamB = newTeamB;
   actualMatch.updatedAt = Date.now();
 
-  // Save data
+  // Save data (direct state mutation requires explicit persist)
   MatchmakingApp.persist();
 
   // Close dialog and reset

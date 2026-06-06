@@ -127,7 +127,7 @@
             icon="edit"
             size="xs"
           >
-            <q-tooltip>Edit player</q-tooltip>
+            <q-tooltip>Edit</q-tooltip>
           </q-btn>
           <q-btn
             flat
@@ -136,7 +136,9 @@
             @click.stop="$emit('remove', player.username)"
             icon="delete"
             size="xs"
-          />
+          >
+            <q-tooltip>Remove</q-tooltip>
+          </q-btn>
           <q-btn
             flat
             round
@@ -144,8 +146,11 @@
             @click.stop="$emit('requeue', player.username)"
             icon="input"
             size="xs"
-            :disable="isInQueue"
-          />
+            :disable="isInQueue || isInMatch"
+          >
+            <q-tooltip v-if="isInQueue"> Already in queue </q-tooltip>
+            <q-tooltip v-else-if="isInMatch"> In match </q-tooltip>
+          </q-btn>
         </slot>
       </div>
     </q-item-section>
@@ -168,6 +173,7 @@ interface Props {
   showQueueTime?: boolean;
   isSelected?: boolean;
   isInQueue?: boolean;
+  isInMatch?: boolean;
   sortBy?: string;
 }
 
@@ -177,6 +183,7 @@ const props = withDefaults(defineProps<Props>(), {
   showQueueTime: false,
   isSelected: false,
   isInQueue: false,
+  isInMatch: false,
 });
 
 defineEmits<{
