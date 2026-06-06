@@ -319,10 +319,25 @@ export class LocalMatchmakingSystem {
   private saveState() {
     // Enforce constraint: no player can be in both queue and active matches
     this.enforceQueueMatchConstraint();
+    // Remove orphaned queue entries (entries without a matching player profile)
+    this.cleanupOrphanedQueueEntries();
     this.state.lastModified = Date.now();
     LocalStorage.set(STORAGE_KEY, this.state);
     if (this.onStateChange) {
       this.onStateChange();
+    }
+  }
+
+  private cleanupOrphanedQueueEntries() {
+    const originalLength = this.state.queues.length;
+    this.state.queues = this.state.queues.filter((q) => {
+      const p = this.state.players[q.username];
+      return p !== undefined && !p.deletedAt;
+    });
+    if (this.state.queues.length !== originalLength) {
+      console.log(
+        `[cleanupOrphanedQueueEntries] Removed ${originalLength - this.state.queues.length} orphaned queue entries`,
+      );
     }
   }
 
@@ -413,11 +428,19 @@ export class LocalMatchmakingSystem {
         matchesPlayed: 0,
         wins: 0,
         losses: 0,
+        updatedAt: Date.now(),
       };
     } else {
-      // if they do exist, just update the level
+      // if they do exist, just update the level and clear any tombstone
       this.state.players[normalizedUsername].level = level;
+      delete this.state.players[normalizedUsername].deletedAt;
     }
+
+    // Clean up orphaned queue entries before checking
+    this.state.queues = this.state.queues.filter((q) => {
+      const p = this.state.players[q.username];
+      return p !== undefined && !p.deletedAt;
+    });
 
     // Prevent adding if already in queue or currently playing
     const inQueue = this.state.queues.some(
@@ -768,8 +791,11 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     const localDeleted = lp?.deletedAt ?? 0;
     const serverDeleted = sp?.deletedAt ?? 0;
     if (localDeleted > 0 || serverDeleted > 0) {
-      // At least one side deleted: the later deletion wins
-      mergedPlayers[username] = localDeleted > serverDeleted ? lp! : sp!;
+      // Use the latest effective timestamp (updatedAt or deletedAt) so a
+      // newer live copy can win over an older tombstone (LWW).
+      const localTime = Math.max(lp?.updatedAt ?? 0, localDeleted);
+      const serverTime = Math.max(sp?.updatedAt ?? 0, serverDeleted);
+      mergedPlayers[username] = localTime > serverTime ? lp! : sp!;
     }
   }
 

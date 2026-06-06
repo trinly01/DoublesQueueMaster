@@ -47,7 +47,7 @@
             clickable
             @click="showHistoryDialog = true"
           >
-            Rating: {{ playerRating === 1500 ? 'NR' : playerRating }}
+            Rating: {{ playerRating }}
           </q-chip>
         </q-card-section>
 

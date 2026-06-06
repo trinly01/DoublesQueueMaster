@@ -108,7 +108,7 @@
         <span
           class="q-ml-xs text-primary"
           v-if="!sortBy || sortBy !== 'winRate'"
-          >R:{{ player.rating === 1500 ? 'NR' : player.rating }}</span
+          >R:{{ player.rating }}</span
         >
         <!-- <span v-if="showQueueTime && player.enteredAt" class="q-ml-sm text-grey-6">
           {{ getQueueTimeInfo(player.enteredAt) }}
