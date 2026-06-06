@@ -2588,6 +2588,7 @@ let ratingsRefreshInterval: ReturnType<typeof setInterval> | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 // Last time we received a realtime subscription message (used to detect stale WS)
 let lastRealtimeMessageAt = 0;
+let lastRealtimeAttemptAt = 0;
 
 // Current user and club membership
 const currentUserId = ref<string>('');
@@ -3621,6 +3622,7 @@ const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
 const startRealtime = async () => {
   if (realtimeUnsub || realtimeStarting) return;
   if (!isOnline.value || !currentClubUUID.value) return;
+  lastRealtimeAttemptAt = Date.now();
 
   realtimeStarting = true;
   try {
@@ -3701,6 +3703,12 @@ const doResumeSync = () => {
     void performCloudSync();
     void refreshPlayerRatings();
   }
+  // Always reconnect realtime when app comes back to foreground.
+  // The socket may have died in the background while realtimeActive stayed true.
+  if (isOnline.value && currentClubUUID.value) {
+    stopRealtime();
+    void startRealtime();
+  }
 };
 
 const handleVisibilityChange = () => {
@@ -3773,9 +3781,19 @@ onMounted(async () => {
     }
   }, 60000);
 
-  // Heartbeat: if no realtime message in 60s, force reconnect
+  // Heartbeat: if no realtime message in 60s, force reconnect.
+  // Also retry if we're online but realtime died and hasn't been restarted.
   heartbeatTimer = setInterval(() => {
-    if (!realtimeActive || !isOnline.value) return;
+    if (!isOnline.value) return;
+
+    if (!realtimeActive) {
+      if (Date.now() - lastRealtimeAttemptAt > 30000) {
+        stopRealtime();
+        void startRealtime();
+      }
+      return;
+    }
+
     const elapsed = Date.now() - lastRealtimeMessageAt;
     if (elapsed > 60000) {
       console.warn('Realtime stale (>60s), forcing reconnect');
