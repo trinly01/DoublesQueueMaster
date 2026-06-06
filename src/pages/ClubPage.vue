@@ -4385,11 +4385,16 @@ const addClubMembers = () => {
     const username =
       member.username || member.email?.split('@')[0] || 'Unknown';
 
-    // Pass profile extras so firstName, avatar, userId are preserved
-    const result = MatchmakingApp.checkInPlayer(username, 2, {
+    // Pass profile extras so firstName, avatar, userId, and real rating are preserved
+    const memberLevel = member.level ?? 2;
+    const memberRating =
+      member.rating ??
+      (memberLevel === 1 ? 1450 : memberLevel === 2 ? 1500 : 1550);
+    const result = MatchmakingApp.checkInPlayer(username, memberLevel, {
       firstName: member.firstName,
       avatar: member.avatar,
       userId: member.id,
+      rating: memberRating,
     });
 
     if (result === 'added') {
@@ -4435,9 +4440,16 @@ const addClubMembers = () => {
 const addNewPlayer = () => {
   if (!newPlayerName.value?.trim() || newPlayerLevel.value === null) return;
   const trimmedName = newPlayerName.value.trim();
+  const initialRating =
+    newPlayerLevel.value === 1
+      ? 1450
+      : newPlayerLevel.value === 2
+        ? 1500
+        : 1550;
   const result = MatchmakingApp.checkInPlayer(
     trimmedName,
     newPlayerLevel.value,
+    { rating: initialRating },
   );
 
   if (result === 'already_in_match') {
