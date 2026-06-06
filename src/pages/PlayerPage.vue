@@ -658,7 +658,7 @@ const joinClub = async () => {
     console.warn('Join club failed (offline?), using cached data:', err);
 
     // Offline fallback: proceed if cached matchmaking data exists
-    const cached = LocalStorage.getItem('quasar_matchmaking_state') as Record<
+    const cached = LocalStorage.getItem('matchmaking_state') as Record<
       string,
       unknown
     > | null;

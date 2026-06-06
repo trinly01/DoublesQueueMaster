@@ -70,7 +70,7 @@ export interface AppState {
   clubId?: string; // Which club this local state belongs to
 }
 
-const STORAGE_KEY = 'quasar_matchmaking_state';
+const STORAGE_KEY = 'matchmaking_state';
 
 /**
  * Calculate K-factor based on rating distance from default (1500)

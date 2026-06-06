@@ -3110,7 +3110,7 @@ const loadClubData = async (clubId: string) => {
           .filter((m) => m.id) || [];
 
       // Persist club metadata for offline admin detection
-      LocalStorage.set(`quasar_club_meta_${clubId}`, {
+      LocalStorage.set(`club_meta_${clubId}`, {
         clubUUID: club.id,
         adminIds: Array.from(clubAdminIds.value),
         members: clubMembers.value,
@@ -3241,7 +3241,7 @@ const loadClubData = async (clubId: string) => {
     );
 
     // Offline fallback: use cached matchmaking state if available
-    const cached = LocalStorage.getItem('quasar_matchmaking_state') as Record<
+    const cached = LocalStorage.getItem('matchmaking_state') as Record<
       string,
       unknown
     > | null;
@@ -3249,7 +3249,7 @@ const loadClubData = async (clubId: string) => {
       currentClubId.value = clubId;
 
       // Restore club metadata for admin detection
-      const meta = LocalStorage.getItem(`quasar_club_meta_${clubId}`) as {
+      const meta = LocalStorage.getItem(`club_meta_${clubId}`) as {
         clubUUID?: string;
         adminIds?: string[];
         members?: typeof clubMembers.value;
@@ -3738,10 +3738,10 @@ onMounted(async () => {
       currentUserId.value =
         ((me as Record<string, unknown>).id as string) || '';
       if (currentUserId.value) {
-        LocalStorage.set('quasar_current_user_id', currentUserId.value);
+        LocalStorage.set('current_user_id', currentUserId.value);
       }
     } catch {
-      const cachedUserId = LocalStorage.getItem('quasar_current_user_id') as
+      const cachedUserId = LocalStorage.getItem('current_user_id') as
         | string
         | null;
       if (cachedUserId) {
@@ -3851,6 +3851,19 @@ const selectedForSwap = ref<Player | null>(null);
 const selectedForSwapTeam = ref<'team1' | 'team2' | null>(null);
 // Mobile tabs state
 const activeMobileTab = ref<'players' | 'queue' | 'matches'>('players');
+
+// Restore saved tab
+const savedTab = LocalStorage.getItem('active_tab') as
+  | 'players'
+  | 'queue'
+  | 'matches'
+  | null;
+if (savedTab) activeMobileTab.value = savedTab;
+
+// Persist tab changes
+watch(activeMobileTab, (tab) => {
+  LocalStorage.set('active_tab', tab);
+});
 
 // Sort state
 const sortBy = computed<
