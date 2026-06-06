@@ -106,7 +106,7 @@
                 round
                 dense
               >
-                <q-tooltip>Open settings and preferences</q-tooltip>
+                <q-tooltip>Settings</q-tooltip>
               </q-btn>
             </div>
           </div>
@@ -180,7 +180,7 @@
                     round
                     dense
                   >
-                    <q-tooltip>Add new player to the system</q-tooltip>
+                    <q-tooltip>Add player</q-tooltip>
                   </q-btn>
                   <q-btn
                     v-if="isCurrentUserAdmin"
@@ -192,7 +192,7 @@
                     round
                     dense
                   >
-                    <q-tooltip>Add all players to queue</q-tooltip>
+                    <q-tooltip>Add all</q-tooltip>
                   </q-btn>
                 </q-toolbar>
               </q-card-section>
@@ -497,7 +497,7 @@
                           round
                           dense
                         >
-                          <q-tooltip>Add new player</q-tooltip>
+                          <q-tooltip>Add player</q-tooltip>
                         </q-btn>
                         <q-btn
                           v-if="isCurrentUserAdmin"
@@ -509,7 +509,7 @@
                           round
                           dense
                         >
-                          <q-tooltip>Add all players to queue</q-tooltip>
+                          <q-tooltip>Add all</q-tooltip>
                         </q-btn>
                       </div>
                     </div>
@@ -1955,7 +1955,7 @@
                           @click="removePlayerFromEdit(player)"
                           :disable="selectedPlayers.length <= 1"
                         >
-                          <q-tooltip>Remove from match</q-tooltip>
+                          <q-tooltip>Remove</q-tooltip>
                         </q-btn>
                         <q-btn
                           flat
@@ -2047,7 +2047,7 @@
                         size="sm"
                         :disable="selectedPlayers.length >= 4"
                       >
-                        <q-tooltip>Add to match</q-tooltip>
+                        <q-tooltip>Add</q-tooltip>
                       </q-btn>
                     </q-item-section>
                   </q-item>
@@ -2170,7 +2170,11 @@
           <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
             <div class="text-subtitle2 q-mb-md">
               Choose a player to replace
-              <strong>{{ playerToReplaceInEdit?.username }}</strong> with:
+              <strong>{{
+                playerToReplaceInEdit?.firstName ||
+                playerToReplaceInEdit?.username
+              }}</strong>
+              with:
             </div>
 
             <q-list bordered separator>
@@ -2181,35 +2185,50 @@
                 class="player-edit-item"
                 @click="selectReplacementPlayer(player)"
               >
+                <q-item-section avatar>
+                  <q-avatar
+                    :color="getLevelColor(player.level)"
+                    text-color="white"
+                    size="md"
+                  >
+                    {{ getPlayerInitials(player.firstName || player.username) }}
+                  </q-avatar>
+                </q-item-section>
                 <q-item-section>
                   <q-item-label class="text-weight-medium">{{
-                    player.username
+                    player.firstName || player.username
                   }}</q-item-label>
-                  <q-item-label caption class="q-pl-xs">
-                    <q-chip
-                      :label="`Level ${player.level}`"
-                      :color="getLevelColor(player.level)"
-                      text-color="white"
-                      size="xs"
-                      dense
-                    />
-                    <span class="q-ml-sm text-grey-7"
-                      >Games: {{ player.matchesPlayed }}</span
+                  <q-item-label
+                    caption
+                    class="text-grey-6"
+                    v-if="player.username && player.firstName"
+                  >
+                    @{{ player.username }}
+                  </q-item-label>
+                  <q-item-label caption class="player-stats">
+                    <span class="text-grey-7"
+                      >G:{{ player.matchesPlayed }}</span
                     >
                     <span
-                      v-if="player.priority === 'returned'"
-                      class="q-ml-sm text-orange"
-                      >(Returned)</span
+                      class="q-ml-xs text-positive"
+                      v-if="player.wins !== undefined"
+                      >W:{{ player.wins || 0 }}</span
+                    >
+                    <span
+                      class="q-ml-xs text-negative"
+                      v-if="player.losses !== undefined"
+                      >L:{{ player.losses || 0 }}</span
+                    >
+                    <span class="q-ml-xs text-primary"
+                      >R:{{
+                        player.rating === 1500 ? 'NR' : player.rating
+                      }}</span
                     >
                   </q-item-label>
                 </q-item-section>
                 <q-item-section side>
                   <q-btn flat round color="accent" icon="swap_horiz" size="sm">
-                    <q-tooltip
-                      >Click to replace
-                      {{ playerToReplaceInEdit?.username }} with
-                      {{ player.username }}</q-tooltip
-                    >
+                    <q-tooltip>Swap</q-tooltip>
                   </q-btn>
                 </q-item-section>
               </q-item>
@@ -2763,6 +2782,7 @@ const loadClubData = async (clubId: string) => {
           'players.directus_users_id.id',
           'players.directus_users_id.username',
           'players.directus_users_id.first_name',
+          'players.directus_users_id.last_name',
           'players.directus_users_id.rating',
           'players.directus_users_id.avatar',
           'admins.directus_users_id.id',
@@ -3025,6 +3045,8 @@ const loadClubData = async (clubId: string) => {
                 typeof u?.username === 'string' ? u.username : undefined,
               firstName:
                 typeof u?.first_name === 'string' ? u.first_name : undefined,
+              lastName:
+                typeof u?.last_name === 'string' ? u.last_name : undefined,
               email: typeof u?.email === 'string' ? u.email : undefined,
               rating: typeof u?.rating === 'number' ? u.rating : undefined,
               isAdmin: clubAdminIds.value.has(userId),
@@ -3214,6 +3236,7 @@ const refreshPlayerRatings = async () => {
           'players.directus_users_id.rating_updated_at',
           'players.directus_users_id.avatar',
           'players.directus_users_id.first_name',
+          'players.directus_users_id.last_name',
         ] as unknown as string[],
       }),
     );
@@ -3227,6 +3250,7 @@ const refreshPlayerRatings = async () => {
               rating_updated_at?: number;
               avatar?: string;
               first_name?: string;
+              last_name?: string;
               email?: string;
             };
           }>;
@@ -3258,6 +3282,15 @@ const refreshPlayerRatings = async () => {
       if (typeof u.first_name === 'string') {
         if (local.firstName !== u.first_name) {
           local.firstName = u.first_name;
+          local.updatedAt = Date.now();
+          changed = true;
+        }
+      }
+
+      // Update lastName if present
+      if (typeof u.last_name === 'string') {
+        if (local.lastName !== u.last_name) {
+          local.lastName = u.last_name;
           local.updatedAt = Date.now();
           changed = true;
         }

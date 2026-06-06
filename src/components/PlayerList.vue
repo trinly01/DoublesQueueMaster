@@ -153,8 +153,11 @@ const displayPlayers = computed(() => {
         }
         return rateB - rateA;
       }
-      case 'name':
-        return a.username.localeCompare(b.username);
+      case 'name': {
+        const nameA = (a.firstName || a.username).toLowerCase();
+        const nameB = (b.firstName || b.username).toLowerCase();
+        return nameA.localeCompare(nameB);
+      }
       default:
         return a.username.localeCompare(b.username);
     }
