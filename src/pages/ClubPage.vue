@@ -3689,15 +3689,11 @@ const stopRealtime = () => {
 const handleVisibilityChange = () => {
   const wasHidden = !isTabVisible;
   isTabVisible = !document.hidden;
-  // When tab becomes visible and realtime isn't active, do one catch-up load
-  if (
-    isTabVisible &&
-    wasHidden &&
-    !realtimeActive &&
-    isOnline.value &&
-    currentClubId.value
-  ) {
+  // When tab/app becomes visible again, do a catch-up sync to fetch latest changes
+  if (isTabVisible && wasHidden && isOnline.value && currentClubId.value) {
     void loadClubData(currentClubId.value);
+    void performCloudSync();
+    void refreshPlayerRatings();
   }
 };
 
