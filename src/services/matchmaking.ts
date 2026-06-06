@@ -416,6 +416,7 @@ export class LocalMatchmakingSystem {
   public checkInPlayer(
     username: string,
     level: 1 | 2 | 3 = 1,
+    extra?: Partial<Player>,
   ): 'added' | 'already_in_queue' | 'already_in_match' {
     const normalizedUsername = username.trim();
 
@@ -429,11 +430,18 @@ export class LocalMatchmakingSystem {
         wins: 0,
         losses: 0,
         updatedAt: Date.now(),
+        ...extra,
       };
     } else {
       // if they do exist, just update the level and clear any tombstone
       this.state.players[normalizedUsername].level = level;
       delete this.state.players[normalizedUsername].deletedAt;
+      this.state.players[normalizedUsername].updatedAt = Date.now();
+      this.state.lastModified = Date.now();
+      // merge any new profile fields (e.g. firstName, avatar, userId)
+      if (extra) {
+        Object.assign(this.state.players[normalizedUsername], extra);
+      }
     }
 
     // Clean up orphaned queue entries before checking
