@@ -6,66 +6,26 @@
     clickable
   >
     <q-item-section avatar v-if="showAvatar">
-      <q-avatar
+      <PlayerAvatar
         v-if="!player.avatar || avatarLoadError"
-        :color="getLevelColor(player.level)"
-        text-color="white"
+        :name="player.firstName"
+        :username="player.username"
+        :level="player.level"
+        :user-id="player.userId"
+        :dupr-id="player.duprId"
         size="md"
-      >
-        {{ getPlayerInitials(player.firstName || player.username) }}
-        <q-badge
-          v-if="player.userId"
-          floating
-          rounded
-          color="accent"
-          style="padding: 2px; min-height: 14px; min-width: 14px"
-        >
-          <q-icon name="verified" size="12px" />
-          <q-tooltip>Registered member</q-tooltip>
-        </q-badge>
-      </q-avatar>
-      <q-avatar v-else size="md">
-        <img
-          :src="player.avatar"
-          :alt="player.username"
-          @error="handleAvatarError"
-        />
-        <q-badge
-          v-if="player.userId"
-          floating
-          rounded
-          color="accent"
-          style="
-            padding: 2px;
-            min-height: 14px;
-            min-width: 14px;
-            bottom: -6px;
-            left: -2px;
-            top: auto;
-            right: auto;
-          "
-        >
-          <q-icon name="verified" size="12px" />
-          <q-tooltip>Registered member</q-tooltip>
-        </q-badge>
-        <!-- Level indicator badge when avatar is available -->
-        <q-badge
-          floating
-          rounded
-          :color="getLevelColor(player.level)"
-          style="
-            padding: 2px;
-            min-height: 8px;
-            min-width: 8px;
-            bottom: -2px;
-            right: -2px;
-            top: auto;
-            left: auto;
-          "
-        >
-          <q-tooltip>Level {{ player.level }}</q-tooltip>
-        </q-badge>
-      </q-avatar>
+      />
+      <PlayerAvatar
+        v-else
+        :name="player.firstName"
+        :username="player.username"
+        :level="player.level"
+        :user-id="player.userId"
+        :dupr-id="player.duprId"
+        :image-url="player.avatar"
+        size="md"
+        @image-error="handleAvatarError"
+      />
     </q-item-section>
 
     <q-item-section>
@@ -159,6 +119,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import PlayerAvatar from './PlayerAvatar.vue';
 import type { Player as BasePlayer } from '../services/matchmaking';
 type Player = BasePlayer & {
   enteredAt?: number;
@@ -202,24 +163,6 @@ watch(
     avatarLoadError.value = false;
   },
 );
-
-// Helper functions
-const getLevelColor = (level: 1 | 2 | 3): string => {
-  switch (level) {
-    case 1:
-      return 'green-6';
-    case 2:
-      return 'orange-7';
-    case 3:
-      return 'red-8';
-    default:
-      return 'grey-5';
-  }
-};
-
-const getPlayerInitials = (name: string): string => {
-  return name.charAt(0).toUpperCase();
-};
 
 const handleAvatarError = () => {
   avatarLoadError.value = true;

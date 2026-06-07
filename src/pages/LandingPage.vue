@@ -94,11 +94,11 @@
           Built for clubs, organizers, and players who just want fair games.
         </p>
       </div>
-      <div class="row q-col-gutter-lg">
+      <div class="row q-col-gutter-lg justify-center">
         <div
           v-for="feature in features"
           :key="feature.title"
-          class="col-12 col-sm-6 col-md-3"
+          class="col-12 col-sm-6 col-md-4"
         >
           <q-card flat bordered class="feature-card">
             <div class="feature-icon">
@@ -159,9 +159,7 @@
 
     <!-- Footer -->
     <footer class="landing-footer">
-      <div
-        class="container row items-center justify-between q-gutter-sm wrap"
-      >
+      <div class="container row items-center justify-between q-gutter-sm wrap">
         <div class="row items-center no-wrap">
           <img :src="logoUrl" alt="DinkMatch logo" class="footer-logo" />
           <span class="text-weight-bold q-ml-sm">DinkMatch</span>
@@ -211,6 +209,11 @@ const features = [
     icon: 'emoji_events',
     title: 'Live Player Ratings',
     desc: 'Track wins and ratings over time with built-in player profiles.',
+  },
+  {
+    icon: 'download',
+    title: 'DUPR Export',
+    desc: 'Export completed matches to a DUPR-ready CSV for bulk upload — no manual data entry.',
   },
 ];
 
@@ -392,7 +395,7 @@ $brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 .feature-icon {
   width: 56px;
   height: 56px;
-  border-radius: 14px;
+  border-radius: 14px !important;
   background: $brand-gradient;
   display: flex;
   align-items: center;

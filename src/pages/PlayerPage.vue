@@ -49,6 +49,18 @@
           >
             Rating: {{ playerRating }}
           </q-chip>
+
+          <div v-if="PlayerProfile.state.duprId" class="q-mt-xs">
+            <q-chip
+              icon="verified"
+              color="blue-6"
+              text-color="white"
+              size="sm"
+              dense
+            >
+              DUPR ID: {{ PlayerProfile.state.duprId }}
+            </q-chip>
+          </div>
         </q-card-section>
 
         <q-card-section class="q-px-lg q-mt-md">
@@ -255,6 +267,41 @@
                 class="q-mb-sm"
                 :rules="[(val) => !!val?.trim() || 'First name is required']"
               />
+              <q-banner
+                dense
+                class="bg-blue-1 text-blue-8 q-mb-sm rounded-borders"
+              >
+                <div class="text-caption q-mb-xs">
+                  DUPR ID is optional — to find it, navigate to
+                </div>
+                <q-breadcrumbs class="text-caption text-blue-9 no-wrap" dense>
+                  <template v-slot:separator>
+                    <q-icon size="0.9em" name="chevron_right" color="blue-9" />
+                  </template>
+                  <q-breadcrumbs-el
+                    class="text-blue-6"
+                    label="My DUPR"
+                    icon="person"
+                  />
+                  <q-breadcrumbs-el
+                    class="text-blue-6"
+                    label="Share"
+                    icon="share"
+                  />
+                  <q-breadcrumbs-el
+                    class="text-blue-6"
+                    label="Copy DUPR ID"
+                    icon="content_copy"
+                  />
+                </q-breadcrumbs>
+              </q-banner>
+              <q-input
+                v-model="editDuprId"
+                filled
+                label="DUPR ID"
+                dense
+                class="q-mb-sm"
+              />
               <q-input
                 v-model="currentPassword"
                 filled
@@ -348,6 +395,7 @@ const avatarInput = ref<HTMLInputElement | null>(null);
 
 const showEditProfileDialog = ref(false);
 const editFirstName = ref(firstName.value);
+const editDuprId = ref(PlayerProfile.state.duprId || '');
 const currentPassword = ref('');
 const newPassword = ref('');
 const confirmNewPassword = ref('');
@@ -356,6 +404,13 @@ const editProfileLoading = ref(false);
 watch(firstName, (newVal) => {
   editFirstName.value = newVal;
 });
+
+watch(
+  () => PlayerProfile.state.duprId,
+  (newVal) => {
+    editDuprId.value = newVal || '';
+  },
+);
 
 const isEditProfileDisabled = computed(() => {
   const hasNoFirstName = !editFirstName.value?.trim();
@@ -509,13 +564,15 @@ const editProfile = async () => {
       password: currentPassword.value,
     });
 
-    // 2. Update first name
+    // 2. Update first name and DUPR ID
     await likhaClient.request(
       updateUser(currentUserId.value, {
         first_name: editFirstName.value.trim(),
-      }),
+        dupr_id: editDuprId.value?.trim() || null,
+      } as Record<string, unknown>),
     );
     PlayerProfile.state.firstName = editFirstName.value.trim();
+    PlayerProfile.state.duprId = editDuprId.value?.trim() || '';
     PlayerProfile.saveState();
 
     // 3. Update password if provided

@@ -17,6 +17,7 @@ export interface UserProfile {
   email: string;
   username: string;
   rating: number;
+  duprId?: string;
   avatar?: string;
   lastModified?: number;
   events?: RatingEvent[];
@@ -38,6 +39,7 @@ export class PlayerProfileService {
       email: saved?.email || '',
       username: saved?.username || '',
       rating: saved?.rating ?? 1500,
+      duprId: saved?.duprId || '',
       avatar: saved?.avatar || '',
       lastModified: saved?.lastModified || 0,
       events: saved?.events || [],
@@ -94,6 +96,7 @@ export class PlayerProfileService {
         this.state.email = (userObj.email ?? '') as string;
         this.state.username = (userObj.username ?? '') as string;
         this.state.avatar = (userObj.avatar ?? '') as string;
+        this.state.duprId = (userObj.dupr_id as string | undefined) ?? '';
         this.state.rating = rating;
 
         try {
@@ -136,6 +139,7 @@ export class PlayerProfileService {
     this.state.email = '';
     this.state.username = '';
     this.state.rating = 1500;
+    this.state.duprId = '';
     this.state.avatar = '';
     this.state.lastModified = 0;
     this.state.events = [];

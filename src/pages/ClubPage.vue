@@ -904,13 +904,12 @@
                     class="q-pa-sm"
                   >
                     <q-item-section avatar>
-                      <q-avatar
-                        :color="getLevelColor(player.level)"
-                        text-color="white"
+                      <PlayerAvatar
+                        :name="player.username"
+                        :level="player.level"
                         size="sm"
-                      >
-                        {{ player.username.charAt(0).toUpperCase() }}
-                      </q-avatar>
+                        :show-level-badge="false"
+                      />
                     </q-item-section>
                     <q-item-section>
                       <q-item-label class="text-weight-medium">{{
@@ -946,18 +945,38 @@
 
             <!-- Club Members Mode -->
             <div v-else-if="addPlayerMode === 'club'" class="q-gutter-y-md">
-              <!-- Search -->
-              <q-input
-                v-model="clubMemberSearch"
-                label="Search club members"
-                outlined
-                dense
-                clearable
-              >
-                <template v-slot:prepend>
-                  <q-icon name="search" />
-                </template>
-              </q-input>
+              <!-- Search & Sort -->
+              <div class="row q-col-gutter-sm">
+                <div class="col-12 col-sm-7">
+                  <q-input
+                    v-model="clubMemberSearch"
+                    label="Search club members"
+                    outlined
+                    dense
+                    clearable
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="search" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-12 col-sm-5">
+                  <q-select
+                    v-model="clubMemberSort"
+                    :options="[
+                      { label: 'Name A-Z', value: 'nameAsc' },
+                      { label: 'Name Z-A', value: 'nameDesc' },
+                      { label: 'Rating High-Low', value: 'ratingDesc' },
+                      { label: 'Rating Low-High', value: 'ratingAsc' },
+                    ]"
+                    label="Sort by"
+                    outlined
+                    dense
+                    emit-value
+                    map-options
+                  />
+                </div>
+              </div>
 
               <!-- Selected count -->
               <div class="text-caption text-grey-7">
@@ -974,50 +993,21 @@
                   :class="{ 'bg-purple-1': isClubMemberSelected(member.id) }"
                 >
                   <q-item-section avatar>
-                    <q-avatar
-                      v-if="!member.avatar"
-                      color="orange-7"
-                      text-color="white"
+                    <PlayerAvatar
+                      :name="member.firstName"
+                      :username="member.username"
+                      :email="member.email"
+                      :user-id="member.id"
+                      :dupr-id="member.duprId"
+                      :image-url="
+                        !clubMemberAvatarErrors.has(member.id)
+                          ? member.avatar
+                          : undefined
+                      "
                       size="md"
-                    >
-                      {{
-                        (
-                          member.firstName ||
-                          member.username ||
-                          member.email?.split('@')[0] ||
-                          'U'
-                        )
-                          .charAt(0)
-                          .toUpperCase()
-                      }}
-                      <q-badge
-                        floating
-                        rounded
-                        color="accent"
-                        style="padding: 2px; min-height: 14px; min-width: 14px"
-                      >
-                        <q-icon name="verified" size="12px" />
-                      </q-badge>
-                    </q-avatar>
-                    <q-avatar v-else size="md">
-                      <img
-                        :src="member.avatar"
-                        :alt="member.username || 'Unknown'"
-                        @error="
-                          (e: Event) =>
-                            ((e.target as HTMLImageElement).style.display =
-                              'none')
-                        "
-                      />
-                      <q-badge
-                        floating
-                        rounded
-                        color="accent"
-                        style="padding: 2px; min-height: 14px; min-width: 14px"
-                      >
-                        <q-icon name="verified" size="12px" />
-                      </q-badge>
-                    </q-avatar>
+                      :show-level-badge="false"
+                      @image-error="clubMemberAvatarErrors.add(member.id)"
+                    />
                   </q-item-section>
                   <q-item-section>
                     <q-item-label class="text-weight-medium">
@@ -1568,6 +1558,37 @@
 
               <q-separator />
 
+              <div>
+                <div class="text-subtitle2 q-mb-sm">DUPR Export Settings</div>
+                <q-select
+                  v-model="scoreType"
+                  :options="scoreTypeOptions"
+                  label="Score Type"
+                  outlined
+                  dense
+                  emit-value
+                  map-options
+                  class="q-mb-sm"
+                >
+                  <template v-slot:option="scope">
+                    <q-item v-bind="scope.itemProps">
+                      <q-item-section>
+                        <q-item-label>{{ scope.opt.label }}</q-item-label>
+                        <q-item-label
+                          v-if="scope.opt.description"
+                          caption
+                          class="text-grey-7"
+                        >
+                          {{ scope.opt.description }}
+                        </q-item-label>
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                </q-select>
+              </div>
+
+              <q-separator />
+
               <div v-if="isCurrentUserAdmin" class="text-subtitle2 q-mb-sm">
                 Data Management
               </div>
@@ -1618,6 +1639,18 @@
                     class="full-width"
                     stack
                     style="min-height: 72px"
+                  />
+                </div>
+                <div class="col">
+                  <q-btn
+                    color="positive"
+                    @click="exportDuprCsv"
+                    icon="download"
+                    label="Export DUPR CSV"
+                    class="full-width"
+                    stack
+                    style="min-height: 72px"
+                    :disable="duprExportableMatches.length === 0"
                   />
                 </div>
                 <div class="col">
@@ -2149,15 +2182,16 @@
                     class="player-edit-item"
                   >
                     <q-item-section avatar>
-                      <q-avatar
-                        :color="getLevelColor(player.level)"
-                        text-color="white"
+                      <PlayerAvatar
+                        :name="player.firstName"
+                        :username="player.username"
+                        :level="player.level"
+                        :user-id="player.userId"
+                        :dupr-id="player.duprId"
+                        :image-url="player.avatar"
                         size="md"
-                      >
-                        {{
-                          getPlayerInitials(player.firstName || player.username)
-                        }}
-                      </q-avatar>
+                        :show-level-badge="false"
+                      />
                     </q-item-section>
                     <q-item-section>
                       <q-item-label class="text-weight-medium">{{
@@ -2241,15 +2275,16 @@
                     :disable="selectedPlayers.length >= 4"
                   >
                     <q-item-section avatar>
-                      <q-avatar
-                        :color="getLevelColor(player.level)"
-                        text-color="white"
+                      <PlayerAvatar
+                        :name="player.firstName"
+                        :username="player.username"
+                        :level="player.level"
+                        :user-id="player.userId"
+                        :dupr-id="player.duprId"
+                        :image-url="player.avatar"
                         size="md"
-                      >
-                        {{
-                          getPlayerInitials(player.firstName || player.username)
-                        }}
-                      </q-avatar>
+                        :show-level-badge="false"
+                      />
                     </q-item-section>
                     <q-item-section>
                       <q-item-label class="text-weight-medium">{{
@@ -2429,13 +2464,16 @@
                 @click="selectReplacementPlayer(player)"
               >
                 <q-item-section avatar>
-                  <q-avatar
-                    :color="getLevelColor(player.level)"
-                    text-color="white"
+                  <PlayerAvatar
+                    :name="player.firstName"
+                    :username="player.username"
+                    :level="player.level"
+                    :user-id="player.userId"
+                    :dupr-id="player.duprId"
+                    :image-url="player.avatar"
                     size="md"
-                  >
-                    {{ getPlayerInitials(player.firstName || player.username) }}
-                  </q-avatar>
+                    :show-level-badge="false"
+                  />
                 </q-item-section>
                 <q-item-section>
                   <q-item-label class="text-weight-medium">{{
@@ -2604,6 +2642,7 @@ import { useNotify } from 'src/composables/useNotify';
 import TeamArrangement from '../components/TeamArrangement.vue';
 import PlayerList from '../components/PlayerList.vue';
 import PlayerCard from '../components/PlayerCard.vue';
+import PlayerAvatar from '../components/PlayerAvatar.vue';
 import EmptyState from '../components/EmptyState.vue';
 import DialogHeader from '../components/DialogHeader.vue';
 import MatchCard from '../components/MatchCard.vue';
@@ -2614,6 +2653,7 @@ import {
   getMatchStatusLabel,
 } from '../utils/playerHelpers';
 import { computeWinProbability } from '../services/matchmaking';
+import { buildDuprCsv, downloadDuprCsv } from '../utils/duprExport';
 
 // Player type
 
@@ -2727,6 +2767,14 @@ const matches = computed(() => {
       };
     });
 });
+
+const duprExportableMatches = computed(() => {
+  const resetAt = MatchmakingApp.state.completedMatchesResetAt ?? 0;
+  return MatchmakingApp.state.completedMatches.filter(
+    (m) => m.completedAt > resetAt,
+  );
+});
+
 const teamAScore = ref<number>(0);
 const teamBScore = ref<number>(0);
 
@@ -2736,6 +2784,10 @@ const newPlayerLevel = ref<1 | 2 | 3 | null>(null);
 const addPlayerMode = ref<'single' | 'bulk' | 'club'>('single');
 const selectedClubMembers = ref<string[]>([]);
 const clubMemberSearch = ref('');
+const clubMemberSort = ref<'nameAsc' | 'nameDesc' | 'ratingDesc' | 'ratingAsc'>(
+  'nameAsc',
+);
+const clubMemberAvatarErrors = ref<Set<string>>(new Set());
 const bulkPlayerText = ref<string>('');
 const bulkPlayers = ref<
   Array<{ username: string; level: 1 | 2 | 3; original: string }>
@@ -2824,41 +2876,51 @@ const clubMembers = ref<
     level?: 1 | 2 | 3;
     isAdmin?: boolean;
     avatar?: string;
+    duprId?: string;
     playerJunctionId?: string;
     adminJunctionId?: string;
   }>
 >([]);
 
 const availableClubMembers = computed(() => {
-  const search = (clubMemberSearch.value || '').trim();
-  if (!search) {
-    return clubMembers.value
-      .filter(
-        (m) =>
-          m.id &&
-          !Object.values(MatchmakingApp.state.players).some(
-            (p) => p.userId === m.id && !p.deletedAt,
-          ),
-      )
-      .sort((a, b) => (a.username || '').localeCompare(b.username || ''));
-  }
+  const search = (clubMemberSearch.value || '').trim().toLowerCase();
 
-  // Simple includes search across firstName, username, and email
-  const searchTerm = search.toLowerCase();
-  return clubMembers.value
-    .filter(
-      (m) =>
-        m.id &&
-        !Object.values(MatchmakingApp.state.players).some(
-          (p) => p.userId === m.id && !p.deletedAt,
-        ),
-    )
-    .filter((m) => {
+  let list = clubMembers.value.filter(
+    (m) =>
+      m.id &&
+      !Object.values(MatchmakingApp.state.players).some(
+        (p) => p.userId === m.id && !p.deletedAt,
+      ),
+  );
+
+  if (search) {
+    list = list.filter((m) => {
       const searchString =
         `${m.firstName || ''} ${m.username || ''} ${m.email || ''}`.toLowerCase();
-      return searchString.includes(searchTerm);
-    })
-    .sort((a, b) => (a.username || '').localeCompare(b.username || ''));
+      return searchString.includes(search);
+    });
+  }
+
+  list = [...list].sort((a, b) => {
+    switch (clubMemberSort.value) {
+      case 'nameAsc':
+        return (a.firstName || a.username || '').localeCompare(
+          b.firstName || b.username || '',
+        );
+      case 'nameDesc':
+        return (b.firstName || b.username || '').localeCompare(
+          a.firstName || a.username || '',
+        );
+      case 'ratingDesc':
+        return (b.rating || 0) - (a.rating || 0);
+      case 'ratingAsc':
+        return (a.rating || 0) - (b.rating || 0);
+      default:
+        return 0;
+    }
+  });
+
+  return list;
 });
 
 const clubSettingsSearch = ref('');
@@ -3073,6 +3135,7 @@ const loadClubData = async (clubId: string) => {
           'players.directus_users_id.last_name',
           'players.directus_users_id.email',
           'players.directus_users_id.rating',
+          'players.directus_users_id.dupr_id',
           'players.directus_users_id.avatar',
           'admins.id',
           'admins.directus_users_id.id',
@@ -3255,6 +3318,7 @@ const loadClubData = async (clubId: string) => {
           MatchmakingApp.state.players = {};
           MatchmakingApp.state.queues = [];
           MatchmakingApp.state.activeMatches = [];
+          MatchmakingApp.state.completedMatches = [];
           MatchmakingApp.state.lastModified = serverTime;
           notify({
             type: 'info',
@@ -3286,6 +3350,11 @@ const loadClubData = async (clubId: string) => {
                   ...serverMatchmaking.activeMatches,
                 ];
               }
+              if (serverMatchmaking.completedMatches) {
+                MatchmakingApp.state.completedMatches = [
+                  ...serverMatchmaking.completedMatches,
+                ];
+              }
             } else {
               // Existing local state: smart-merge with server
               const merged = mergeAppState(
@@ -3295,6 +3364,7 @@ const loadClubData = async (clubId: string) => {
               MatchmakingApp.state.players = merged.players;
               MatchmakingApp.state.queues = merged.queues;
               MatchmakingApp.state.activeMatches = merged.activeMatches;
+              MatchmakingApp.state.completedMatches = merged.completedMatches;
             }
           } else {
             // Non-admins: server is source of truth — always overwrite
@@ -3309,6 +3379,11 @@ const loadClubData = async (clubId: string) => {
             if (serverMatchmaking.activeMatches) {
               MatchmakingApp.state.activeMatches = [
                 ...serverMatchmaking.activeMatches,
+              ];
+            }
+            if (serverMatchmaking.completedMatches) {
+              MatchmakingApp.state.completedMatches = [
+                ...serverMatchmaking.completedMatches,
               ];
             }
           }
@@ -3386,6 +3461,7 @@ const loadClubData = async (clubId: string) => {
                 typeof u?.last_name === 'string' ? u.last_name : undefined,
               email: typeof u?.email === 'string' ? u.email : undefined,
               rating: typeof u?.rating === 'number' ? u.rating : undefined,
+              duprId: typeof u?.dupr_id === 'string' ? u.dupr_id : undefined,
               isAdmin: clubAdminIds.value.has(userId),
               avatar: avatarId
                 ? `${likhaUrl.value}/assets/${avatarId}`
@@ -4249,6 +4325,28 @@ const matchTypeOptions = [
   { label: 'Doubles (2v2)', value: 'doubles' },
 ];
 
+// Score type for DUPR CSV export
+const scoreType = computed<'RALLY' | 'SIDEOUT'>({
+  get: () => MatchmakingApp.state.scoreType || 'RALLY',
+  set: (val) => {
+    MatchmakingApp.state.scoreType = val;
+    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    MatchmakingApp.persist();
+  },
+});
+const scoreTypeOptions = [
+  {
+    label: 'Rally',
+    value: 'RALLY',
+    description: 'Point on every serve (modern)',
+  },
+  {
+    label: 'Sideout',
+    value: 'SIDEOUT',
+    description: 'Point only on own serve (traditional)',
+  },
+];
+
 // Sort options
 const sortOptions = [
   { label: 'Rating', value: 'rating' },
@@ -4374,11 +4472,6 @@ const isPlayerInMatch = (username: string): boolean => {
       !m.deletedAt &&
       (m.teamA.includes(username) || m.teamB.includes(username)),
   );
-};
-
-// Helper function to get player initials
-const getPlayerInitials = (name: string): string => {
-  return name.charAt(0).toUpperCase();
 };
 
 const filteredMatches = computed(() => {
@@ -4710,6 +4803,7 @@ const addClubMembers = () => {
       firstName: member.firstName,
       avatar: member.avatar,
       userId: member.id,
+      duprId: member.duprId,
       rating: memberRating,
     });
 
@@ -5218,6 +5312,76 @@ const addAllPlayersToQueue = () => {
 // Enhanced queue return functions
 
 const resetSessionData = () => {
+  const resetAt = MatchmakingApp.state.completedMatchesResetAt ?? 0;
+  const lastExported = MatchmakingApp.state.lastExportedAt ?? 0;
+  const unexported = MatchmakingApp.state.completedMatches.filter(
+    (m) => m.completedAt > resetAt && m.completedAt > lastExported,
+  );
+
+  const doReset = () => {
+    // Reset player stats
+    Object.values(MatchmakingApp.state.players).forEach((player) => {
+      player.matchesPlayed = 0;
+      player.wins = 0;
+      player.losses = 0;
+    });
+
+    // Clear matches
+    MatchmakingApp.state.activeMatches = [];
+
+    // Clear queue
+    MatchmakingApp.state.queues = [];
+
+    // Epoch-based clear for completedMatches (multi-admin safe)
+    MatchmakingApp.clearCompletedMatches();
+
+    notify({
+      type: 'positive',
+      message: 'Session reset complete',
+    });
+  };
+
+  if (unexported.length > 0) {
+    $q.dialog({
+      title: 'Unexported Matches',
+      message: `You have ${unexported.length} completed match(es) that have not been exported to DUPR.`,
+      ok: {
+        label: 'Export & Reset',
+        color: 'positive',
+        icon: 'download',
+        noCaps: true,
+      },
+      cancel: {
+        label: 'Reset Anyway',
+        color: 'negative',
+        flat: true,
+        noCaps: true,
+      },
+      persistent: true,
+    })
+      .onOk(() => {
+        exportDuprCsv();
+        doReset();
+      })
+      .onCancel(() => {
+        $q.dialog({
+          title: 'Confirm Reset Without Export',
+          message: 'Are you sure? Unexported match data will be lost.',
+          ok: {
+            label: 'Reset Anyway',
+            color: 'negative',
+          },
+          cancel: {
+            label: 'Cancel',
+            color: 'grey',
+            flat: true,
+          },
+          persistent: true,
+        }).onOk(doReset);
+      });
+    return;
+  }
+
   $q.dialog({
     title: 'Reset Session',
     message:
@@ -5233,26 +5397,29 @@ const resetSessionData = () => {
       icon: 'restart_alt',
     },
     persistent: true,
-  }).onOk(() => {
-    // Reset player stats
-    Object.values(MatchmakingApp.state.players).forEach((player) => {
-      player.matchesPlayed = 0;
-      player.wins = 0;
-      player.losses = 0;
-    });
+  }).onOk(doReset);
+};
 
-    // Clear matches
-    MatchmakingApp.state.activeMatches = [];
-
-    // Clear queue
-    MatchmakingApp.state.queues = [];
-
-    MatchmakingApp.persist();
-
+const exportDuprCsv = () => {
+  const matches = duprExportableMatches.value;
+  if (matches.length === 0) {
     notify({
-      type: 'positive',
-      message: 'Session reset complete',
+      type: 'warning',
+      message: 'No completed matches to export',
     });
+    return;
+  }
+
+  const eventName = `${clubName.value || 'Club'} - ${new Date().toISOString().split('T')[0]}`;
+  const scoreTypeVal = MatchmakingApp.state.scoreType || 'RALLY';
+
+  const csv = buildDuprCsv(matches, { eventName, scoreType: scoreTypeVal });
+  const filename = `dupr_matches_${route.params.id}_${new Date().toISOString().split('T')[0]}.csv`;
+  downloadDuprCsv(csv, filename);
+  MatchmakingApp.markExported();
+  notify({
+    type: 'positive',
+    message: `Exported ${matches.length} match(es) to DUPR CSV`,
   });
 };
 
