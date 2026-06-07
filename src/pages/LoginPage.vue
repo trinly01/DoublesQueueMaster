@@ -167,7 +167,7 @@
 import logoUrl from 'src/assets/queue master logo.png';
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useQuasar } from 'quasar';
+import { useNotify } from 'src/composables/useNotify';
 import { likhaClient } from 'src/boot/likha';
 import { registerUserVerify } from '@likha-erp/likha-sdk';
 
@@ -183,7 +183,7 @@ const verifyError = ref('');
 
 const router = useRouter();
 const route = useRoute();
-const $q = useQuasar();
+const { notify } = useNotify();
 
 onMounted(async () => {
   // In hash mode, Directus may append ?token= BEFORE the # (e.g. /?token=xxx#/login)
@@ -215,7 +215,7 @@ const onSubmit = async () => {
   try {
     await likhaClient.login({ email: email.value, password: password.value });
 
-    $q.notify({
+    notify({
       color: 'positive',
       textColor: 'white',
       icon: 'check_circle',
@@ -230,7 +230,7 @@ const onSubmit = async () => {
       errorMessage = error.errors[0].message;
     }
 
-    $q.notify({
+    notify({
       color: 'negative',
       textColor: 'white',
       icon: 'warning',

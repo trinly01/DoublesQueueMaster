@@ -307,6 +307,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar, LocalStorage } from 'quasar';
+import { useNotify } from 'src/composables/useNotify';
 import { likhaClient } from 'src/boot/likha';
 import {
   readItems,
@@ -321,6 +322,7 @@ import * as echarts from 'echarts';
 
 const router = useRouter();
 const $q = useQuasar();
+const { notify } = useNotify();
 
 const firstName = computed(() => PlayerProfile.state.firstName);
 const playerRating = computed(() => PlayerProfile.state.rating);
@@ -487,11 +489,11 @@ const onAvatarSelected = async (event: Event) => {
       );
       PlayerProfile.state.avatar = avatarId;
       PlayerProfile.saveState();
-      $q.notify({ color: 'positive', message: 'Avatar updated!' });
+      notify({ color: 'positive', message: 'Avatar updated!' });
     }
   } catch (err) {
     console.error('Avatar upload failed:', err);
-    $q.notify({ color: 'negative', message: 'Failed to upload avatar' });
+    notify({ color: 'negative', message: 'Failed to upload avatar' });
   } finally {
     input.value = '';
   }
@@ -521,7 +523,7 @@ const editProfile = async () => {
       await likhaClient.request(updateMe({ password: newPassword.value }));
     }
 
-    $q.notify({ color: 'positive', message: 'Profile updated successfully!' });
+    notify({ color: 'positive', message: 'Profile updated successfully!' });
     showEditProfileDialog.value = false;
     editFirstName.value = '';
     currentPassword.value = '';
@@ -535,12 +537,12 @@ const editProfile = async () => {
       msg.includes('password') ||
       msg.includes('invalid')
     ) {
-      $q.notify({
+      notify({
         color: 'negative',
         message: 'Current password is incorrect',
       });
     } else {
-      $q.notify({ color: 'negative', message: 'Failed to update profile' });
+      notify({ color: 'negative', message: 'Failed to update profile' });
     }
     console.error('Profile update failed:', err);
   } finally {
@@ -576,7 +578,7 @@ const createClub = async () => {
     console.error('Create club failed:', err);
     const error = err as { errors?: { message?: string }[] };
     const msg = error?.errors?.[0]?.message || 'Failed to create club';
-    $q.notify({ color: 'negative', message: msg });
+    notify({ color: 'negative', message: msg });
   } finally {
     createClubLoading.value = false;
   }
@@ -627,12 +629,12 @@ const joinClub = async () => {
     );
 
     if (!result.success) {
-      $q.notify({ color: 'negative', message: result.error });
+      notify({ color: 'negative', message: result.error });
       return;
     }
 
     if (!result.alreadyMember) {
-      $q.notify({ color: 'positive', message: 'Joined club successfully!' });
+      notify({ color: 'positive', message: 'Joined club successfully!' });
     }
 
     LocalStorage.set(LAST_CLUB_KEY, clubId.value);
@@ -647,13 +649,13 @@ const joinClub = async () => {
     > | null;
     if (cached && Object.keys(cached).length > 0) {
       LocalStorage.set(LAST_CLUB_KEY, clubId.value);
-      $q.notify({
+      notify({
         color: 'warning',
         message: 'Offline — using cached club data',
       });
       router.push(`/club/${clubId.value}`);
     } else {
-      $q.notify({ color: 'negative', message: 'Failed to join club' });
+      notify({ color: 'negative', message: 'Failed to join club' });
     }
   } finally {
     joinLoading.value = false;
@@ -670,12 +672,12 @@ onMounted(async () => {
   const fetched = await PlayerProfile.fetchProfile();
 
   if (!fetched && !PlayerProfile.hasCachedProfile()) {
-    $q.notify({
+    notify({
       color: 'negative',
       message: 'No cached profile available',
     });
   } else if (!fetched && PlayerProfile.error.value) {
-    $q.notify({
+    notify({
       color: 'warning',
       message: PlayerProfile.error.value,
     });
@@ -719,7 +721,7 @@ const onLogout = () => {
     } finally {
       LocalStorage.remove('likha-data');
       PlayerProfile.clearProfile();
-      $q.notify({
+      notify({
         color: 'info',
         message: 'Logged out successfully',
       });
