@@ -4634,8 +4634,14 @@ const generateNewMatches = () => {
   });
 };
 
-const openMatchResultDialog = (index: number) => {
-  currentMatchIndex.value = index;
+const openMatchResultDialog = (filteredIndex: number) => {
+  // Find the actual match in the global matches array
+  const filteredMatch = filteredMatches.value[filteredIndex];
+  const globalIndex = matches.value.findIndex(
+    (match) => match.id === filteredMatch.id,
+  );
+
+  currentMatchIndex.value = globalIndex;
   teamAScore.value = 0;
   teamBScore.value = 0;
   showMatchResultDialog.value = true;
