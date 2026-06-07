@@ -311,12 +311,12 @@ import { likhaClient } from 'src/boot/likha';
 import {
   readItems,
   createItem,
-  updateItem,
   uploadFiles,
   updateUser,
   updateMe,
 } from '@likha-erp/likha-sdk';
 import { PlayerProfile, RatingEvent } from 'src/services/playerProfile';
+import { joinClub as joinClubService } from 'src/services/clubMembership';
 import * as echarts from 'echarts';
 
 const router = useRouter();
@@ -621,34 +621,17 @@ const joinClub = async () => {
   joinLoading.value = true;
 
   try {
-    // Fetch club to check membership
-    const clubs = await likhaClient.request(
-      readItems('club', {
-        filter: { clubId: { _eq: clubId.value } },
-        fields: ['id', 'players.directus_users_id.id'],
-      }),
+    const result = await joinClubService(
+      clubId.value as string,
+      currentUserId.value,
     );
 
-    if (!clubs || clubs.length === 0) {
-      $q.notify({ color: 'negative', message: 'Club not found' });
+    if (!result.success) {
+      $q.notify({ color: 'negative', message: result.error });
       return;
     }
 
-    const club = clubs[0] as unknown as {
-      id: string;
-      players?: Array<{ directus_users_id?: { id: string } }>;
-    };
-
-    const isMember = club.players?.some(
-      (p) => p.directus_users_id?.id === currentUserId.value,
-    );
-
-    if (!isMember) {
-      await likhaClient.request(
-        updateItem('club', club.id, {
-          players: { create: [{ directus_users_id: currentUserId.value }] },
-        }),
-      );
+    if (!result.alreadyMember) {
       $q.notify({ color: 'positive', message: 'Joined club successfully!' });
     }
 
