@@ -151,6 +151,18 @@
           </div>
 
           <div class="text-center q-mt-sm">
+            <q-btn
+              flat
+              dense
+              no-caps
+              color="grey-6"
+              icon="arrow_back"
+              label="Back to home"
+              to="/"
+            />
+          </div>
+
+          <div class="text-center q-mt-sm">
             <router-link
               to="/openplay"
               class="text-primary text-weight-medium text-decoration-none"
@@ -222,7 +234,8 @@ const onSubmit = async () => {
       message: 'Login successful',
     });
 
-    router.push('/');
+    const redirect = route.query.redirect;
+    router.push(typeof redirect === 'string' ? redirect : '/profile');
   } catch (err) {
     const error = err as { errors?: { message?: string }[] };
     let errorMessage = 'An error occurred during login.';
