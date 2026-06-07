@@ -2830,7 +2830,7 @@ const clubMembers = ref<
 >([]);
 
 const availableClubMembers = computed(() => {
-  const search = clubMemberSearch.value.trim();
+  const search = (clubMemberSearch.value || '').trim();
   if (!search) {
     return clubMembers.value
       .filter(
