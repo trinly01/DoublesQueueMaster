@@ -156,7 +156,7 @@
               <div class="text-h6">Create Club</div>
               <q-space />
               <q-btn icon="close" flat round dense v-close-popup>
-                <q-tooltip>Close</q-tooltip>
+                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Close</q-tooltip>
               </q-btn>
             </q-card-section>
 
@@ -200,7 +200,7 @@
               <div class="text-h6">Rating History</div>
               <q-space />
               <q-btn icon="close" flat round dense v-close-popup>
-                <q-tooltip>Close</q-tooltip>
+                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Close</q-tooltip>
               </q-btn>
             </q-card-section>
 
@@ -254,7 +254,7 @@
               <div class="text-h6">Edit Profile</div>
               <q-space />
               <q-btn icon="close" flat round dense v-close-popup>
-                <q-tooltip>Close</q-tooltip>
+                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Close</q-tooltip>
               </q-btn>
             </q-card-section>
 

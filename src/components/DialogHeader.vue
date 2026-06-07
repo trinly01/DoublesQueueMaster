@@ -6,7 +6,7 @@
         {{ title }}
       </q-toolbar-title>
       <q-btn icon="close" flat round dense v-close-popup>
-        <q-tooltip>Close</q-tooltip>
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Close</q-tooltip>
       </q-btn>
     </q-toolbar>
   </q-card-section>

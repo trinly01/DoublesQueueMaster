@@ -14,7 +14,7 @@
       style="padding: 2px; min-height: 14px; min-width: 14px"
     >
       <q-icon name="verified" size="12px" />
-      <q-tooltip>{{ statusTooltip }}</q-tooltip>
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">{{ statusTooltip }}</q-tooltip>
     </q-badge>
   </q-avatar>
 
@@ -40,7 +40,7 @@
       "
     >
       <q-icon name="verified" size="12px" />
-      <q-tooltip>{{ statusTooltip }}</q-tooltip>
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">{{ statusTooltip }}</q-tooltip>
     </q-badge>
     <q-badge
       v-if="showLevelBadge && level"
@@ -57,7 +57,7 @@
         left: auto;
       "
     >
-      <q-tooltip>Level {{ level }}</q-tooltip>
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Level {{ level }}</q-tooltip>
     </q-badge>
   </q-avatar>
 </template>

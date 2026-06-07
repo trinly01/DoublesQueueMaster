@@ -110,7 +110,7 @@
                 round
                 dense
               >
-                <q-tooltip>Settings</q-tooltip>
+                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Settings</q-tooltip>
               </q-btn>
             </div>
           </div>
@@ -211,7 +211,7 @@
                     round
                     dense
                   >
-                    <q-tooltip>Add player</q-tooltip>
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add player</q-tooltip>
                   </q-btn>
                   <q-btn
                     v-if="isCurrentUserAdmin"
@@ -223,7 +223,7 @@
                     round
                     dense
                   >
-                    <q-tooltip>Add all</q-tooltip>
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add all</q-tooltip>
                   </q-btn>
                 </q-toolbar>
               </q-card-section>
@@ -351,7 +351,7 @@
                   >
                     <span class="gt-xs">Auto</span>
                     <span class="lt-sm">Auto</span>
-                    <q-tooltip v-if="!canGenerateMatches()">
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-if="!canGenerateMatches()">
                       {{
                         matchType === 'singles'
                           ? 'Need at least 2 players'
@@ -372,7 +372,7 @@
                   >
                     <span class="gt-xs">Manual</span>
                     <span class="lt-sm">Manual</span>
-                    <q-tooltip
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
                       v-if="queue.length < (matchType === 'singles' ? 2 : 4)"
                     >
                       {{
@@ -528,7 +528,7 @@
                           round
                           dense
                         >
-                          <q-tooltip>Add player</q-tooltip>
+                          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add player</q-tooltip>
                         </q-btn>
                         <q-btn
                           v-if="isCurrentUserAdmin"
@@ -540,7 +540,7 @@
                           round
                           dense
                         >
-                          <q-tooltip>Add all</q-tooltip>
+                          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add all</q-tooltip>
                         </q-btn>
                       </div>
                     </div>
@@ -665,7 +665,7 @@
                     >
                       <span class="gt-xs">Auto</span>
                       <span class="lt-sm">Auto</span>
-                      <q-tooltip v-if="!canGenerateMatches()">
+                      <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-if="!canGenerateMatches()">
                         {{
                           matchType === 'singles'
                             ? 'Need at least 2 players'
@@ -688,7 +688,7 @@
                     >
                       <span class="gt-xs">Manual</span>
                       <span class="lt-sm">Manual</span>
-                      <q-tooltip
+                      <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
                         v-if="queue.length < (matchType === 'singles' ? 2 : 4)"
                       >
                         {{
@@ -1062,7 +1062,7 @@
               color="grey"
               @click="showAddPlayerDialog = false"
             >
-              <q-tooltip>Cancel</q-tooltip>
+              <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Cancel</q-tooltip>
             </q-btn>
 
             <!-- Single Player Mode Button -->
@@ -1078,7 +1078,7 @@
               "
               icon="add"
             >
-              <q-tooltip>Add</q-tooltip>
+              <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add</q-tooltip>
             </q-btn>
 
             <!-- Bulk Import Mode Button -->
@@ -1090,7 +1090,7 @@
               :disable="bulkPlayers.length === 0"
               icon="group_add"
             >
-              <q-tooltip>Import all</q-tooltip>
+              <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Import all</q-tooltip>
             </q-btn>
 
             <!-- Club Members Mode Button -->
@@ -1102,7 +1102,7 @@
               :disable="selectedClubMembers.length === 0"
               icon="groups"
             >
-              <q-tooltip>Add members</q-tooltip>
+              <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add members</q-tooltip>
             </q-btn>
           </q-card-actions>
         </q-card>
@@ -1134,7 +1134,7 @@
                   class="q-ml-sm"
                 >
                   <q-icon name="verified" size="12px" />
-                  <q-tooltip>Read-only</q-tooltip>
+                  <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Read-only</q-tooltip>
                 </q-badge>
               </div>
 
@@ -1751,10 +1751,10 @@
                           )
                         "
                       >
-                        <q-tooltip v-if="adminMembers.length <= 1">
+                        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-if="adminMembers.length <= 1">
                           Club must have at least one admin
                         </q-tooltip>
-                        <q-tooltip v-else>Demote to member</q-tooltip>
+                        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-else>Demote to member</q-tooltip>
                       </q-btn>
                     </q-item-section>
                   </q-item>
@@ -1812,7 +1812,7 @@
                             )
                           "
                         >
-                          <q-tooltip>Make admin</q-tooltip>
+                          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Make admin</q-tooltip>
                         </q-btn>
                         <q-btn
                           flat
@@ -1831,7 +1831,7 @@
                             )
                           "
                         >
-                          <q-tooltip>Remove from club</q-tooltip>
+                          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Remove from club</q-tooltip>
                         </q-btn>
                       </div>
                     </q-item-section>
@@ -2234,7 +2234,7 @@
                           @click="removePlayerFromEdit(player)"
                           :disable="selectedPlayers.length <= 1"
                         >
-                          <q-tooltip>Remove</q-tooltip>
+                          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Remove</q-tooltip>
                         </q-btn>
                         <q-btn
                           flat
@@ -2245,7 +2245,7 @@
                           @click="replacePlayerInEdit(player)"
                           :disable="availableQueuePlayers.length === 0"
                         >
-                          <q-tooltip>Swap</q-tooltip>
+                          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Swap</q-tooltip>
                         </q-btn>
                       </div>
                     </q-item-section>
@@ -2325,7 +2325,7 @@
                         size="sm"
                         :disable="selectedPlayers.length >= 4"
                       >
-                        <q-tooltip>Add</q-tooltip>
+                        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add</q-tooltip>
                       </q-btn>
                     </q-item-section>
                   </q-item>
@@ -2367,7 +2367,7 @@
                 icon-right="arrow_forward"
                 @click="proceedToTeamArrangement"
               >
-                <q-tooltip>Next</q-tooltip>
+                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Next</q-tooltip>
               </q-btn>
 
               <!-- For singles and other matches, show save button -->
@@ -2379,10 +2379,10 @@
                 @click="saveMatchEdit"
                 :disable="selectedPlayers.length < 2"
               >
-                <q-tooltip v-if="selectedPlayers.length < 2">
+                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-if="selectedPlayers.length < 2">
                   Need 2+ players
                 </q-tooltip>
-                <q-tooltip v-else>Save</q-tooltip>
+                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-else>Save</q-tooltip>
               </q-btn>
             </template>
 
@@ -2416,13 +2416,13 @@
                   selectedPlayers.length < 2 || selectedPlayers.length > 4
                 "
               >
-                <q-tooltip v-if="selectedPlayers.length < 2">
+                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-if="selectedPlayers.length < 2">
                   Need 2+ players
                 </q-tooltip>
-                <q-tooltip v-else-if="selectedPlayers.length > 4">
+                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-else-if="selectedPlayers.length > 4">
                   Max 4 players
                 </q-tooltip>
-                <q-tooltip v-else>Save</q-tooltip>
+                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-else>Save</q-tooltip>
               </q-btn>
             </template>
           </q-card-actions>
@@ -2507,7 +2507,7 @@
                 </q-item-section>
                 <q-item-section side>
                   <q-btn flat round color="accent" icon="swap_horiz" size="sm">
-                    <q-tooltip>Swap</q-tooltip>
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Swap</q-tooltip>
                   </q-btn>
                 </q-item-section>
               </q-item>
@@ -2523,7 +2523,7 @@
               color="grey"
               @click="showReplacePlayerDialog = false"
             >
-              <q-tooltip>Cancel</q-tooltip>
+              <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Cancel</q-tooltip>
             </q-btn>
           </q-card-actions>
         </q-card>
@@ -2612,7 +2612,7 @@
               color="grey"
               @click="showCourtSelectionDialog = false"
             >
-              <q-tooltip>Cancel</q-tooltip>
+              <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Cancel</q-tooltip>
             </q-btn>
           </q-card-actions>
         </q-card>
@@ -2621,7 +2621,7 @@
 
     <q-page-sticky position="bottom-left" :offset="[18, 18]">
       <q-btn round icon="person" color="accent" @click="goHome">
-        <q-tooltip>Profile</q-tooltip>
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Profile</q-tooltip>
       </q-btn>
     </q-page-sticky>
   </q-page>
