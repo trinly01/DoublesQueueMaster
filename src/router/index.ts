@@ -20,7 +20,9 @@ import { LocalStorage } from 'quasar';
 export default route(function (/* { store, ssrContext } */) {
   const createHistory = process.env.SERVER
     ? createMemoryHistory
-    : (process.env.VUE_ROUTER_MODE === 'history' ? createWebHistory : createWebHashHistory);
+    : process.env.VUE_ROUTER_MODE === 'history'
+      ? createWebHistory
+      : createWebHashHistory;
 
   const Router = createRouter({
     scrollBehavior: () => ({ left: 0, top: 0 }),
@@ -35,18 +37,20 @@ export default route(function (/* { store, ssrContext } */) {
   Router.beforeEach((to, from, next) => {
     const hasSession = LocalStorage.has('likha-data');
 
-    if (to.matched.some(record => record.meta.requiresAuth)) {
+    if (to.matched.some((record) => record.meta.requiresAuth)) {
       if (!hasSession) {
         next({ path: '/login', query: { redirect: to.fullPath } });
       } else {
         next();
       }
-    } else if (to.matched.some(record => record.meta.requiresUnauth)) {
+    } else if (to.matched.some((record) => record.meta.requiresUnauth)) {
       if (hasSession) {
-        next({ path: '/' });
+        next({ path: '/profile' });
       } else {
         next();
       }
+    } else if (to.path === '/' && hasSession) {
+      next({ path: '/profile' });
     } else {
       next();
     }

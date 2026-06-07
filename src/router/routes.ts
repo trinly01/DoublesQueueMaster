@@ -10,6 +10,10 @@ const routes: RouteRecordRaw[] = [
     children: [
       {
         path: '',
+        component: () => import('pages/LandingPage.vue'),
+      },
+      {
+        path: 'profile',
         component: PlayerPage,
         meta: { requiresAuth: true },
       },

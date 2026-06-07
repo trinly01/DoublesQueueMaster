@@ -148,6 +148,18 @@
                 >Sign In</router-link
               >
             </div>
+
+            <div class="text-center q-mt-sm">
+              <q-btn
+                flat
+                dense
+                no-caps
+                color="grey-6"
+                icon="arrow_back"
+                label="Back to home"
+                to="/"
+              />
+            </div>
           </q-form>
         </q-card-section>
       </template>
