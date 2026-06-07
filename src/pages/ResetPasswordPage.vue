@@ -154,12 +154,12 @@
 import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { useQuasar } from 'quasar';
+import { useNotify } from 'src/composables/useNotify';
 import { likhaClient } from 'src/boot/likha';
 import { passwordReset } from '@likha-erp/likha-sdk';
 
 const route = useRoute();
-const $q = useQuasar();
+const { notify } = useNotify();
 
 const token = ref<string | null>(null);
 const password = ref('');
@@ -196,7 +196,7 @@ const onSubmit = async () => {
     const errorMessage =
       error?.errors?.[0]?.message ??
       'Password reset failed. The link may have expired.';
-    $q.notify({
+    notify({
       color: 'negative',
       textColor: 'white',
       icon: 'warning',

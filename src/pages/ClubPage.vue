@@ -2405,6 +2405,7 @@ import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar, LocalStorage } from 'quasar';
+import { useNotify } from 'src/composables/useNotify';
 import TeamArrangement from '../components/TeamArrangement.vue';
 import PlayerList from '../components/PlayerList.vue';
 import PlayerCard from '../components/PlayerCard.vue';
@@ -2423,6 +2424,7 @@ import { computeWinProbability } from '../services/matchmaking';
 
 // Quasar instance for notifications
 const $q = useQuasar();
+const { notify } = useNotify();
 
 // Handle 401 Unauthorized errors by clearing token and redirecting to login
 const handleAuthError = (
@@ -2433,10 +2435,9 @@ const handleAuthError = (
   if (error?.response?.status === 401) {
     likhaToken.value = '';
     localStorage.removeItem('likhaToken');
-    $q.notify({
+    notify({
       type: 'warning',
       message: 'Session expired. Please log in again.',
-      position: 'top',
       timeout: 3000,
     });
     router.push('/login');
@@ -3005,10 +3006,9 @@ const loadClubData = async (clubId: string) => {
           MatchmakingApp.state.queues = [];
           MatchmakingApp.state.activeMatches = [];
           MatchmakingApp.state.lastModified = serverTime;
-          $q.notify({
+          notify({
             type: 'info',
             message: 'Club data was reset by another admin',
-            position: 'top',
             timeout: 3000,
           });
         } else {
@@ -3295,7 +3295,7 @@ const loadClubData = async (clubId: string) => {
       }
 
       clubLoadingState.value = 'loaded';
-      $q.notify({
+      notify({
         color: 'warning',
         message: 'Offline — showing cached club data',
       });
@@ -3480,10 +3480,9 @@ const performCloudSync = async (skipServerMerge = false) => {
     ) {
       const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
       Object.assign(MatchmakingApp.state, merged);
-      $q.notify({
+      notify({
         type: 'info',
         message: 'Merged concurrent changes from another admin.',
-        position: 'top',
         timeout: 3000,
       });
     }
@@ -3560,10 +3559,9 @@ const updateOnlineStatus = () => {
         void refreshPlayerRatings();
 
         if (wasSleeping) {
-          $q.notify({
+          notify({
             type: 'info',
             message: 'Back online. Synced with server data.',
-            position: 'top',
             timeout: 3000,
           });
         }
@@ -3571,20 +3569,18 @@ const updateOnlineStatus = () => {
         if (retries > 0) {
           setTimeout(() => attemptSync(retries - 1, delay * 2), delay);
         } else {
-          $q.notify({
+          notify({
             type: 'negative',
             message: 'Cloud sync failed after reconnect. Will retry.',
-            position: 'top',
             timeout: 3000,
           });
         }
       }
     };
     attemptSync();
-    $q.notify({
+    notify({
       type: 'positive',
       message: 'Back online. Syncing to cloud...',
-      position: 'top',
       timeout: 2000,
     });
   }
@@ -3727,16 +3723,16 @@ const handleJoinClub = async () => {
       currentUserId.value,
     );
     if (!result.success) {
-      $q.notify({ color: 'negative', message: result.error });
+      notify({ color: 'negative', message: result.error });
       return;
     }
     if (!result.alreadyMember) {
-      $q.notify({ type: 'positive', message: 'Joined club successfully!' });
+      notify({ type: 'positive', message: 'Joined club successfully!' });
     }
     // Reload club data to reflect membership
     void loadClubData(currentClubId.value);
   } catch (err) {
-    $q.notify({ color: 'negative', message: 'Failed to join club' });
+    notify({ color: 'negative', message: 'Failed to join club' });
   }
 };
 
@@ -4465,26 +4461,23 @@ const addClubMembers = () => {
   });
 
   if (added.length > 0) {
-    $q.notify({
+    notify({
       type: 'positive',
       message: `Added ${added.length} member(s) to queue: ${added.join(', ')}`,
-      position: 'top',
       timeout: 3000,
     });
   }
   if (alreadyInQueue.length > 0) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: `Skipped ${alreadyInQueue.length} already in queue: ${alreadyInQueue.join(', ')}`,
-      position: 'top',
       timeout: 3000,
     });
   }
   if (alreadyInMatch.length > 0) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: `Skipped ${alreadyInMatch.length} already in match: ${alreadyInMatch.join(', ')}`,
-      position: 'top',
       timeout: 3000,
     });
   }
@@ -4511,19 +4504,17 @@ const addNewPlayer = () => {
   );
 
   if (result === 'already_in_match') {
-    $q.notify({
+    notify({
       type: 'warning',
       message: `Player "${trimmedName}" is already in a match`,
-      position: 'top',
     });
     return;
   }
 
   if (result === 'already_in_queue') {
-    $q.notify({
+    notify({
       type: 'warning',
       message: `Player "${trimmedName}" is already in the queue`,
-      position: 'top',
     });
     return;
   }
@@ -4531,10 +4522,9 @@ const addNewPlayer = () => {
   newPlayerName.value = null;
   newPlayerLevel.value = null;
   showAddPlayerDialog.value = false;
-  $q.notify({
+  notify({
     type: 'positive',
     message: `Player "${trimmedName}" added successfully`,
-    position: 'top',
   });
 };
 const addBulkPlayers = () => {
@@ -4575,46 +4565,41 @@ const addBulkPlayers = () => {
 
   // Add valid players
   if (bulkPlayers.value.length > 0) {
-    $q.notify({
+    notify({
       type: 'positive',
       message: `Successfully imported ${newPlayers.length} player${newPlayers.length > 1 ? 's' : ''}`,
-      position: 'top',
     });
   }
 
   // Show warnings for duplicates, invalid names, and players already in queue/match
   if (duplicateNames.length > 0) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: `Skipped ${duplicateNames.length} duplicate player${duplicateNames.length > 1 ? 's' : ''}: ${duplicateNames.join(', ')}`,
-      position: 'top',
       timeout: 5000,
     });
   }
 
   if (invalidNames.length > 0) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: `Skipped ${invalidNames.length} invalid name${invalidNames.length > 1 ? 's' : ''}: ${invalidNames.join(', ')}`,
-      position: 'top',
       timeout: 5000,
     });
   }
 
   if (alreadyInQueue.length > 0) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: `Skipped ${alreadyInQueue.length} player${alreadyInQueue.length > 1 ? 's' : ''} already in queue: ${alreadyInQueue.join(', ')}`,
-      position: 'top',
       timeout: 5000,
     });
   }
 
   if (alreadyInMatch.length > 0) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: `Skipped ${alreadyInMatch.length} player${alreadyInMatch.length > 1 ? 's' : ''} already in match: ${alreadyInMatch.join(', ')}`,
-      position: 'top',
       timeout: 5000,
     });
   }
@@ -4643,10 +4628,9 @@ const generateNewMatches = () => {
     }
   }
 
-  $q.notify({
+  notify({
     type: 'positive',
     message: 'Matches generated!',
-    position: 'top',
   });
 };
 
@@ -4665,10 +4649,9 @@ const completeMatch = () => {
   const scoreB = Number(teamBScore.value) || 0;
 
   if (scoreA === scoreB) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: 'Ties are not allowed.',
-      position: 'top',
     });
     return;
   }
@@ -4698,10 +4681,9 @@ const completeMatch = () => {
   teamAScore.value = 0;
   teamBScore.value = 0;
 
-  $q.notify({
+  notify({
     type: 'positive',
     message: 'Match completed! Stats updated.',
-    position: 'top',
   });
 };
 
@@ -4739,10 +4721,9 @@ const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
       MatchmakingApp.persist();
 
       // Notify user about auto-advance
-      $q.notify({
+      notify({
         type: 'info',
         message: `Match started on Court ${courtNumber}`,
-        position: 'top',
         timeout: 3000,
       });
     } else {
@@ -4771,10 +4752,9 @@ const removePlayer = (username: string) => {
     MatchmakingApp.removeFromQueue(username);
     MatchmakingApp.state.lastModified = Date.now();
     MatchmakingApp.persist();
-    $q.notify({
+    notify({
       type: 'info',
       message: `Player "${username}" removed`,
-      position: 'top',
     });
   });
 };
@@ -4788,10 +4768,9 @@ const removeFromQueue = (username: string) => {
     persistent: true,
   }).onOk(() => {
     MatchmakingApp.removeFromQueue(username);
-    $q.notify({
+    notify({
       type: 'info',
       message: `Player "${username}" removed from queue`,
-      position: 'top',
     });
   });
 };
@@ -4822,10 +4801,9 @@ const resetGamesPlayed = () => {
 
     MatchmakingApp.persist();
 
-    $q.notify({
+    notify({
       type: 'positive',
       message: 'All player stats have been reset',
-      position: 'top',
     });
   });
 };
@@ -4854,10 +4832,9 @@ const clearMatches = () => {
     });
     MatchmakingApp.persist();
 
-    $q.notify({
+    notify({
       type: 'positive',
       message: 'All matches have been cleared',
-      position: 'top',
     });
   });
 };
@@ -4883,10 +4860,9 @@ const clearQueue = () => {
     MatchmakingApp.state.queues = [];
     MatchmakingApp.persist();
 
-    $q.notify({
+    notify({
       type: 'positive',
       message: 'Queue has been cleared',
-      position: 'top',
     });
   });
 };
@@ -4898,30 +4874,24 @@ const requeuePlayer = (username: string) => {
   const result = MatchmakingApp.checkInPlayer(p.username, p.level);
 
   if (result === 'already_in_match') {
-    $q.notify({
-      group: 'notifications',
+    notify({
       type: 'warning',
       message: `Player "${username}" is already in a match`,
-      position: 'top',
     });
     return;
   }
 
   if (result === 'already_in_queue') {
-    $q.notify({
-      group: 'notifications',
+    notify({
       type: 'warning',
       message: `Player "${username}" is already in the queue`,
-      position: 'top',
     });
     return;
   }
 
-  $q.notify({
-    group: 'notifications',
+  notify({
     type: 'positive',
     message: `Player "${username}" added to queue`,
-    position: 'top',
   });
 };
 
@@ -4953,27 +4923,24 @@ const addAllPlayersToQueue = () => {
     });
 
     if (addedCount > 0) {
-      $q.notify({
+      notify({
         type: 'positive',
         message: `Added ${addedCount} player${addedCount > 1 ? 's' : ''} to queue`,
-        position: 'top',
       });
     }
 
     if (alreadyInQueueCount > 0) {
-      $q.notify({
+      notify({
         type: 'warning',
         message: `Skipped ${alreadyInQueueCount} player${alreadyInQueueCount > 1 ? 's' : ''} already in queue`,
-        position: 'top',
         timeout: 3000,
       });
     }
 
     if (alreadyInMatchCount > 0) {
-      $q.notify({
+      notify({
         type: 'warning',
         message: `Skipped ${alreadyInMatchCount} player${alreadyInMatchCount > 1 ? 's' : ''} already in match`,
-        position: 'top',
         timeout: 3000,
       });
     }
@@ -5014,10 +4981,9 @@ const resetSessionData = () => {
 
     MatchmakingApp.persist();
 
-    $q.notify({
+    notify({
       type: 'positive',
       message: 'Session reset complete',
-      position: 'top',
     });
   });
 };
@@ -5036,10 +5002,9 @@ const resetAllData = () => {
   }).onOk(() => {
     MatchmakingApp.hardResetEverything();
     showSettingsDialog.value = false;
-    $q.notify({
+    notify({
       type: 'warning',
       message: 'All data has been reset',
-      position: 'top',
     });
   });
 };
@@ -5079,10 +5044,9 @@ const togglePlayerSelection = (player: Player) => {
     if (selectedPlayers.value.length < maxPlayers) {
       selectedPlayers.value.push(player);
     } else {
-      $q.notify({
+      notify({
         type: 'warning',
         message: `You can only select ${maxPlayers} players`,
-        position: 'top',
       });
     }
   }
@@ -5096,19 +5060,17 @@ const proceedToTeamArrangement = () => {
   const playerCount = selectedPlayers.value.length;
 
   if (playerCount < 2) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: 'Please select at least 2 players',
-      position: 'top',
     });
     return;
   }
 
   if (playerCount > 4) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: 'Maximum 4 players allowed for tennis matches',
-      position: 'top',
     });
     return;
   }
@@ -5139,10 +5101,9 @@ const proceedToTeamArrangement = () => {
 /*
 const createManualMatch = () => {
   if (manualTeam1.value.length !== 2 || manualTeam2.value.length !== 2) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: 'Each team must have exactly 2 players',
-      position: 'top'
     });
     return;
   }
@@ -5198,20 +5159,18 @@ const finalizeManualMatch = () => {
   selectedForSwap.value = null;
   selectedForSwapTeam.value = null;
 
-  $q.notify({
+  notify({
     type: 'positive',
     message: 'Manual match created successfully!',
-    position: 'top'
   });
 };
 */
 
 const proceedToCourtSelection = () => {
   if (selectedPlayers.value.length !== 2) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: 'Please select exactly 2 players',
-      position: 'top',
     });
     return;
   }
@@ -5220,10 +5179,9 @@ const proceedToCourtSelection = () => {
 
 const proceedToCourtSelectionFromTeams = () => {
   if (manualTeam1.value.length !== 2 || manualTeam2.value.length !== 2) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: 'Please arrange both teams properly',
-      position: 'top',
     });
     return;
   }
@@ -5295,10 +5253,9 @@ const createManualMatchWithCourt = () => {
   const usernames = matchPlayers.map((p) => p.username);
   const uniqueUsernames = new Set(usernames);
   if (usernames.length !== uniqueUsernames.size) {
-    $q.notify({
+    notify({
       type: 'negative',
       message: 'Cannot create match with duplicate players',
-      position: 'top',
     });
     return;
   }
@@ -5314,10 +5271,9 @@ const createManualMatchWithCourt = () => {
 
   if (playersInMatches.length > 0) {
     const names = playersInMatches.map((p) => p.username).join(', ');
-    $q.notify({
+    notify({
       type: 'negative',
       message: `Cannot create match: ${names} already in another match`,
-      position: 'top',
     });
     return;
   }
@@ -5368,20 +5324,18 @@ const createManualMatchWithCourt = () => {
   selectedCourt.value = null;
   manualSelectionStep.value = 1;
 
-  $q.notify({
+  notify({
     type: 'positive',
     message: `Manual match created successfully${isCourtEmpty && assignedCourt ? ` on Court ${assignedCourt}` : ''}!`,
-    position: 'top',
   });
 };
 
 /*
 const createSinglesManualMatch = () => {
   if (selectedPlayers.value.length !== 2) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: 'Please select exactly 2 players',
-      position: 'top'
     });
     return;
   }
@@ -5407,10 +5361,9 @@ const matchedPlayerNames = newMatch.players.map(p => p.username);
   showManualSelectionDialog.value = false;
   selectedPlayers.value = [];
 
-  $q.notify({
+  notify({
     type: 'positive',
     message: 'Singles match created successfully!',
-    position: 'top'
   });
 };
 */
@@ -5429,10 +5382,9 @@ const cancelMatch = (filteredIndex: number) => {
   );
 
   if (!actualMatch) {
-    $q.notify({
+    notify({
       type: 'negative',
       message: 'Match not found',
-      position: 'top',
     });
     return;
   }
@@ -5515,10 +5467,9 @@ const cancelMatch = (filteredIndex: number) => {
 
       MatchmakingApp.persist();
 
-      $q.notify({
+      notify({
         type: 'positive',
         message: 'Match cancelled and players returned to queue',
-        position: 'top',
       });
     });
   });
@@ -5554,16 +5505,14 @@ const assignCourtAutomatically = () => {
       (m) => m.court === court,
     ).length;
 
-    $q.notify({
+    notify({
       type: 'positive',
       message: `Assigned to Court ${court} (${courtMatchCount} total matches)`,
-      position: 'top',
     });
   } else {
-    $q.notify({
+    notify({
       type: 'negative',
       message: 'No available courts',
-      position: 'top',
     });
   }
 
@@ -5588,10 +5537,9 @@ const startMatch = (filteredIndex: number) => {
   const match = matches.value[globalIndex];
 
   if (match.status !== 'waiting') {
-    $q.notify({
+    notify({
       type: 'negative',
       message: 'Cannot start this match',
-      position: 'top',
     });
     return;
   }
@@ -5610,10 +5558,9 @@ const startMatch = (filteredIndex: number) => {
 
   // Check if court is available
   if (!isCourtAvailable(actualMatch.court)) {
-    $q.notify({
+    notify({
       type: 'negative',
       message: `Court ${actualMatch.court} is currently in use`,
-      position: 'top',
     });
     return;
   }
@@ -5626,10 +5573,9 @@ const startMatch = (filteredIndex: number) => {
   // Save data
   MatchmakingApp.persist();
 
-  $q.notify({
+  notify({
     type: 'positive',
     message: `Match started on Court ${match.court}`,
-    position: 'top',
   });
 };
 
@@ -5680,10 +5626,9 @@ const assignSpecificCourt = (courtNumber: number) => {
         }
       }
 
-      $q.notify({
+      notify({
         type: 'positive',
         message: `Matches swapped! Match moved to Court ${courtNumber}`,
-        position: 'top',
       });
 
       MatchmakingApp.persist();
@@ -5704,10 +5649,9 @@ const assignSpecificCourt = (courtNumber: number) => {
     // Just assign the court and leave status as is
     MatchmakingApp.persist();
 
-    $q.notify({
+    notify({
       type: 'positive',
       message: `Assigned to Court ${courtNumber}`,
-      position: 'top',
     });
 
     showCourtSelectionDialog.value = false;
@@ -5751,10 +5695,9 @@ const saveMatchEdit = () => {
   );
 
   if (!actualMatch) {
-    $q.notify({
+    notify({
       type: 'negative',
       message: 'Match not found',
-      position: 'top',
     });
     return;
   }
@@ -5795,10 +5738,9 @@ const saveMatchEdit = () => {
   const usernames = updatedPlayers.map((p) => p.username);
   const uniqueUsernames = new Set(usernames);
   if (usernames.length !== uniqueUsernames.size) {
-    $q.notify({
+    notify({
       type: 'negative',
       message: 'Cannot save match with duplicate players',
-      position: 'top',
     });
     return;
   }
@@ -5818,10 +5760,9 @@ const saveMatchEdit = () => {
 
   if (playersInOtherMatches.length > 0) {
     const names = playersInOtherMatches.map((p) => p.username).join(', ');
-    $q.notify({
+    notify({
       type: 'negative',
       message: `Cannot save match: ${names} already in another match`,
-      position: 'top',
     });
     return;
   }
@@ -5881,10 +5822,9 @@ const saveMatchEdit = () => {
     message += ` (${changes.join(', ')})`;
   }
 
-  $q.notify({
+  notify({
     type: 'positive',
     message: message,
-    position: 'top',
     timeout: 4000,
   });
 };
@@ -5907,10 +5847,9 @@ const removePlayerFromEdit = (player: Player) => {
   if (index >= 0) {
     selectedPlayers.value.splice(index, 1);
 
-    $q.notify({
+    notify({
       type: 'info',
       message: `Removed ${player.username} from match`,
-      position: 'top',
       timeout: 2000,
     });
   }
@@ -5922,10 +5861,9 @@ const addPlayerToEdit = (player: Player) => {
   if (selectedPlayers.value.length < maxPlayers) {
     selectedPlayers.value.push(player);
 
-    $q.notify({
+    notify({
       type: 'positive',
       message: `Added ${player.username} to match`,
-      position: 'top',
       timeout: 2000,
     });
   }
@@ -5933,10 +5871,9 @@ const addPlayerToEdit = (player: Player) => {
 
 const replacePlayerInEdit = (playerToReplace: Player) => {
   if (availableQueuePlayers.value.length === 0) {
-    $q.notify({
+    notify({
       type: 'warning',
       message: 'No players available in queue to replace with',
-      position: 'top',
     });
     return;
   }
@@ -5956,10 +5893,9 @@ const selectReplacementPlayer = (replacementPlayer: Player) => {
   if (index >= 0) {
     selectedPlayers.value[index] = replacementPlayer;
 
-    $q.notify({
+    notify({
       type: 'positive',
       message: `Replaced ${playerToReplaceInEdit.value.username} with ${replacementPlayer.username}`,
-      position: 'top',
     });
   }
 
@@ -5991,10 +5927,9 @@ const savePlayerEdit = () => {
 
   // Double check for name conflicts
   if (hasNameConflict.value) {
-    $q.notify({
+    notify({
       type: 'negative',
       message: `Player "${trimmedName}" already exists`,
-      position: 'top',
     });
     return;
   }
@@ -6002,10 +5937,9 @@ const savePlayerEdit = () => {
   // Update in MatchmakingApp state directly
   const playerState = MatchmakingApp.state.players[originalName];
   if (!playerState) {
-    $q.notify({
+    notify({
       type: 'negative',
       message: 'Player not found',
-      position: 'top',
     });
     return;
   }
@@ -6057,10 +5991,9 @@ const savePlayerEdit = () => {
 
   MatchmakingApp.persist();
 
-  $q.notify({
+  notify({
     type: 'positive',
     message: `Player updated to "${trimmedName}" (Level ${newLevel})`,
-    position: 'top',
   });
 
   // Reset and close dialog

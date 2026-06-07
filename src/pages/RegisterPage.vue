@@ -199,7 +199,7 @@
 <script setup lang="ts">
 import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed } from 'vue';
-import { useQuasar } from 'quasar';
+import { useNotify } from 'src/composables/useNotify';
 import { likhaClient } from 'src/boot/likha';
 import { registerUser } from '@likha-erp/likha-sdk';
 
@@ -222,7 +222,7 @@ const isFormValid = computed(
     password.value.length >= 8 &&
     password.value === confirmPassword.value,
 );
-const $q = useQuasar();
+const { notify } = useNotify();
 
 const onSubmit = async () => {
   loading.value = true;
@@ -237,7 +237,7 @@ const onSubmit = async () => {
       }),
     );
 
-    $q.notify({
+    notify({
       color: 'positive',
       textColor: 'white',
       icon: 'check_circle',
@@ -252,7 +252,7 @@ const onSubmit = async () => {
       errorMessage = error.errors[0].message;
     }
 
-    $q.notify({
+    notify({
       color: 'negative',
       textColor: 'white',
       icon: 'warning',
