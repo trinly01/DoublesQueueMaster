@@ -1464,8 +1464,25 @@
           <!-- Header -->
           <DialogHeader title="Settings" icon="settings" />
 
-          <!-- Content -->
-          <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
+          <div class="q-px-md q-pt-md">
+            <q-btn-toggle
+              v-model="settingsTab"
+              :options="[
+                { label: 'Matchmaking', value: 'matchmaking' },
+                { label: 'Club', value: 'club' },
+              ]"
+              color="grey-5"
+              toggle-color="accent"
+              spread
+              class="full-width"
+            />
+          </div>
+
+          <div
+            v-if="settingsTab === 'matchmaking'"
+            class="q-pa-md"
+            style="flex: 1; overflow-y: auto"
+          >
             <div class="q-gutter-y-md">
               <div>
                 <div class="text-subtitle2 q-mb-sm">Queue Management</div>
@@ -1616,7 +1633,185 @@
                 </div>
               </div>
             </div>
-          </q-card-section>
+          </div>
+
+          <div
+            v-else-if="settingsTab === 'club'"
+            class="q-pa-md"
+            style="flex: 1; overflow-y: auto"
+          >
+            <div class="q-gutter-y-md">
+              <div class="row q-col-gutter-sm items-center">
+                <div class="col-12 col-sm-7">
+                  <q-input
+                    v-model="clubSettingsSearch"
+                    label="Search members"
+                    outlined
+                    dense
+                    clearable
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="search" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-12 col-sm-5">
+                  <q-select
+                    v-model="clubSettingsSort"
+                    :options="[
+                      { label: 'Name A-Z', value: 'nameAsc' },
+                      { label: 'Name Z-A', value: 'nameDesc' },
+                      { label: 'Rating High-Low', value: 'ratingDesc' },
+                      { label: 'Rating Low-High', value: 'ratingAsc' },
+                    ]"
+                    label="Sort by"
+                    outlined
+                    dense
+                    emit-value
+                    map-options
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div class="text-subtitle2 q-mb-sm">Admins</div>
+                <q-list separator dense class="rounded-borders">
+                  <q-item v-for="member in adminMembers" :key="member.id">
+                    <q-item-section avatar>
+                      <q-avatar size="32px">
+                        <img v-if="member.avatar" :src="member.avatar" />
+                        <q-icon v-else name="person" color="grey-5" />
+                      </q-avatar>
+                    </q-item-section>
+                    <q-item-section style="min-width: 0">
+                      <q-item-label class="ellipsis">{{
+                        member.firstName || member.username || 'Unknown'
+                      }}</q-item-label>
+                      <q-item-label
+                        caption
+                        v-if="member.username"
+                        class="ellipsis"
+                        >@{{ member.username }}</q-item-label
+                      >
+                      <q-item-label
+                        caption
+                        class="ellipsis text-info"
+                        v-if="member.rating"
+                        >R: {{ member.rating }}</q-item-label
+                      >
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-btn
+                        flat
+                        dense
+                        color="warning"
+                        size="sm"
+                        icon="arrow_downward"
+                        :disable="adminMembers.length <= 1"
+                        @click="
+                          confirmDemoteAdmin(
+                            member.id,
+                            member.adminJunctionId!,
+                            member.firstName ||
+                              member.username ||
+                              'this member',
+                          )
+                        "
+                      >
+                        <q-tooltip v-if="adminMembers.length <= 1">
+                          Club must have at least one admin
+                        </q-tooltip>
+                        <q-tooltip v-else>Demote to member</q-tooltip>
+                      </q-btn>
+                    </q-item-section>
+                  </q-item>
+                  <q-item v-if="adminMembers.length === 0">
+                    <q-item-section class="text-grey">
+                      No admins found
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </div>
+
+              <q-separator />
+
+              <div>
+                <div class="text-subtitle2 q-mb-sm">Members</div>
+                <q-list separator dense class="rounded-borders">
+                  <q-item v-for="member in regularMembers" :key="member.id">
+                    <q-item-section avatar>
+                      <q-avatar size="32px">
+                        <img v-if="member.avatar" :src="member.avatar" />
+                        <q-icon v-else name="person" color="grey-5" />
+                      </q-avatar>
+                    </q-item-section>
+                    <q-item-section style="min-width: 0">
+                      <q-item-label class="ellipsis">{{
+                        member.firstName || member.username || 'Unknown'
+                      }}</q-item-label>
+                      <q-item-label
+                        caption
+                        v-if="member.username"
+                        class="ellipsis"
+                        >@{{ member.username }}</q-item-label
+                      >
+                      <q-item-label
+                        caption
+                        class="ellipsis text-info"
+                        v-if="member.rating"
+                        >R: {{ member.rating }}</q-item-label
+                      >
+                    </q-item-section>
+                    <q-item-section side>
+                      <div class="row q-gutter-xs">
+                        <q-btn
+                          flat
+                          dense
+                          color="primary"
+                          size="sm"
+                          icon="arrow_upward"
+                          @click="
+                            confirmPromoteToAdmin(
+                              member.id,
+                              member.firstName ||
+                                member.username ||
+                                'this member',
+                            )
+                          "
+                        >
+                          <q-tooltip>Make admin</q-tooltip>
+                        </q-btn>
+                        <q-btn
+                          flat
+                          dense
+                          color="negative"
+                          size="sm"
+                          icon="remove_circle"
+                          @click="
+                            confirmRemoveMember(
+                              member.id,
+                              member.playerJunctionId!,
+                              member.firstName ||
+                                member.username ||
+                                'this member',
+                              member.rating,
+                            )
+                          "
+                        >
+                          <q-tooltip>Remove from club</q-tooltip>
+                        </q-btn>
+                      </div>
+                    </q-item-section>
+                  </q-item>
+                  <q-item v-if="regularMembers.length === 0">
+                    <q-item-section class="text-grey">
+                      No members found
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </div>
+            </div>
+          </div>
 
           <!-- Footer Actions -->
           <q-separator />
@@ -2629,6 +2824,8 @@ const clubMembers = ref<
     level?: 1 | 2 | 3;
     isAdmin?: boolean;
     avatar?: string;
+    playerJunctionId?: string;
+    adminJunctionId?: string;
   }>
 >([]);
 
@@ -2663,6 +2860,50 @@ const availableClubMembers = computed(() => {
     })
     .sort((a, b) => (a.username || '').localeCompare(b.username || ''));
 });
+
+const clubSettingsSearch = ref('');
+const clubSettingsSort = ref<
+  'nameAsc' | 'nameDesc' | 'ratingDesc' | 'ratingAsc'
+>('nameAsc');
+
+const filteredSortedMembers = computed(() => {
+  let list = clubMembers.value;
+  const search = clubSettingsSearch.value.trim().toLowerCase();
+  if (search) {
+    list = list.filter(
+      (m) =>
+        (m.firstName || '').toLowerCase().includes(search) ||
+        (m.username || '').toLowerCase().includes(search) ||
+        (m.email || '').toLowerCase().includes(search),
+    );
+  }
+  list = [...list].sort((a, b) => {
+    switch (clubSettingsSort.value) {
+      case 'nameAsc':
+        return (a.firstName || a.username || '').localeCompare(
+          b.firstName || b.username || '',
+        );
+      case 'nameDesc':
+        return (b.firstName || b.username || '').localeCompare(
+          a.firstName || a.username || '',
+        );
+      case 'ratingDesc':
+        return (b.rating || 0) - (a.rating || 0);
+      case 'ratingAsc':
+        return (a.rating || 0) - (b.rating || 0);
+      default:
+        return 0;
+    }
+  });
+  return list;
+});
+
+const adminMembers = computed(() =>
+  filteredSortedMembers.value.filter((m) => m.isAdmin),
+);
+const regularMembers = computed(() =>
+  filteredSortedMembers.value.filter((m) => !m.isAdmin),
+);
 
 const toggleClubMember = (memberId: string) => {
   const idx = selectedClubMembers.value.indexOf(memberId);
@@ -2825,13 +3066,17 @@ const loadClubData = async (clubId: string) => {
           'name',
           'status',
           'appState',
+          'players.id',
           'players.directus_users_id.id',
           'players.directus_users_id.username',
           'players.directus_users_id.first_name',
           'players.directus_users_id.last_name',
+          'players.directus_users_id.email',
           'players.directus_users_id.rating',
           'players.directus_users_id.avatar',
+          'admins.id',
           'admins.directus_users_id.id',
+          'admins.directus_users_id.email',
         ] as unknown as string[],
       }),
     );
@@ -2878,15 +3123,20 @@ const loadClubData = async (clubId: string) => {
           };
         };
         players?: Array<{
+          id: string;
           directus_users_id?: {
             id: string;
             username?: string;
+            first_name?: string;
+            last_name?: string;
             email?: string;
             rating?: number;
             rating_updated_at?: number;
+            avatar?: string;
           };
         }>;
         admins?: Array<{
+          id: string;
           directus_users_id?: {
             id: string;
             email?: string;
@@ -3110,6 +3360,15 @@ const loadClubData = async (clubId: string) => {
           .map((a) => a.directus_users_id?.id)
           .filter((id): id is string => !!id),
       );
+      // Build admin junction ID lookup for member management
+      const adminJunctionMap = new Map<string, string>();
+      (club.admins || []).forEach((a) => {
+        const adminUserId = a.directus_users_id?.id;
+        if (adminUserId && a.id) {
+          adminJunctionMap.set(adminUserId, a.id);
+        }
+      });
+
       clubMembers.value =
         (club.players || [])
           .map((p) => {
@@ -3131,6 +3390,8 @@ const loadClubData = async (clubId: string) => {
               avatar: avatarId
                 ? `${likhaUrl.value}/assets/${avatarId}`
                 : undefined,
+              playerJunctionId: p.id || undefined,
+              adminJunctionId: adminJunctionMap.get(userId) || undefined,
             };
           })
           .filter((m) => m.id) || [];
@@ -3860,6 +4121,7 @@ watch(showAddPlayerDialog, (open) => {
   }
 });
 const showSettingsDialog = ref(false);
+const settingsTab = ref<'matchmaking' | 'club'>('matchmaking');
 const showMatchResultDialog = ref(false);
 const showMatchEditDialog = ref(false);
 const showReplacePlayerDialog = ref(false);
@@ -5013,6 +5275,182 @@ const resetAllData = () => {
       message: 'All data has been reset',
     });
   });
+};
+
+// Club Member Management
+const removeClubMember = async (memberId: string, playerJunctionId: string) => {
+  if (!currentClubUUID.value) return;
+  try {
+    await likhaClient.request(
+      updateItem('club', currentClubUUID.value, {
+        players: { delete: [playerJunctionId] },
+      }),
+    );
+    await refreshClubMembers();
+    notify({ type: 'positive', message: 'Member removed from club' });
+  } catch (err) {
+    console.error('Failed to remove club member:', err);
+    notify({ type: 'negative', message: 'Failed to remove member' });
+  }
+};
+
+const promoteToAdmin = async (memberId: string) => {
+  if (!currentClubUUID.value) return;
+  try {
+    await likhaClient.request(
+      updateItem('club', currentClubUUID.value, {
+        admins: { create: [{ directus_users_id: memberId }] },
+      }),
+    );
+    await refreshClubMembers();
+    notify({ type: 'positive', message: 'Member promoted to admin' });
+  } catch (err) {
+    console.error('Failed to promote member:', err);
+    notify({ type: 'negative', message: 'Failed to promote member' });
+  }
+};
+
+const demoteAdmin = async (memberId: string, adminJunctionId: string) => {
+  if (!currentClubUUID.value) return;
+  try {
+    await likhaClient.request(
+      updateItem('club', currentClubUUID.value, {
+        admins: { delete: [adminJunctionId] },
+      }),
+    );
+    await refreshClubMembers();
+    notify({ type: 'positive', message: 'Admin demoted to member' });
+  } catch (err) {
+    console.error('Failed to demote admin:', err);
+    notify({ type: 'negative', message: 'Failed to demote admin' });
+  }
+};
+
+const confirmDemoteAdmin = (
+  memberId: string,
+  adminJunctionId: string,
+  name: string,
+) => {
+  const adminCount = clubMembers.value.filter((m) => m.isAdmin).length;
+  if (adminCount <= 1) {
+    notify({ type: 'warning', message: 'Club must have at least one admin' });
+    return;
+  }
+  $q.dialog({
+    title: 'Demote Admin',
+    message: `Demote ${name} to regular member?`,
+    cancel: true,
+    persistent: true,
+  }).onOk(() => demoteAdmin(memberId, adminJunctionId));
+};
+
+const confirmPromoteToAdmin = (memberId: string, name: string) => {
+  $q.dialog({
+    title: 'Make Admin',
+    message: `Promote ${name} to admin?`,
+    cancel: true,
+    persistent: true,
+  }).onOk(() => promoteToAdmin(memberId));
+};
+
+const confirmRemoveMember = (
+  memberId: string,
+  playerJunctionId: string,
+  name: string,
+  rating?: number,
+) => {
+  const player = MatchmakingApp.state.players[name];
+  const isActive = !!player && !player.deletedAt;
+  const activeStats = isActive
+    ? `Games: ${player.matchesPlayed || 0} | Rating: ${player.rating || 1500}`
+    : '';
+  const ratingLine = rating ? `Rating: ${rating}` : '';
+  const message = [
+    `Remove ${name} from the club?`,
+    ratingLine,
+    activeStats,
+    isActive ? 'This player is currently active in the session.' : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  $q.dialog({
+    title: 'Remove Member',
+    message,
+    cancel: true,
+    persistent: true,
+  }).onOk(() => removeClubMember(memberId, playerJunctionId));
+};
+
+const refreshClubMembers = async () => {
+  if (!currentClubId.value) return;
+  try {
+    const result = await likhaClient.request(
+      readItems('club', {
+        filter: { clubId: { _eq: currentClubId.value } },
+        fields: [
+          'players.id',
+          'players.directus_users_id.id',
+          'players.directus_users_id.username',
+          'players.directus_users_id.first_name',
+          'players.directus_users_id.last_name',
+          'players.directus_users_id.email',
+          'players.directus_users_id.rating',
+          'players.directus_users_id.avatar',
+          'admins.id',
+          'admins.directus_users_id.id',
+          'admins.directus_users_id.email',
+        ] as unknown as string[],
+      }),
+    );
+    if (!result || result.length === 0) return;
+    const club = result[0] as unknown as {
+      players?: Array<{
+        id: string;
+        directus_users_id?: Record<string, unknown> | null;
+      }>;
+      admins?: Array<{
+        id: string;
+        directus_users_id?: { id?: string } | null;
+      }>;
+    };
+    clubAdminIds.value = new Set(
+      (club.admins || [])
+        .map((a) => a.directus_users_id?.id)
+        .filter((id): id is string => !!id),
+    );
+    const adminJunctionMap = new Map<string, string>();
+    (club.admins || []).forEach((a) => {
+      const uid = a.directus_users_id?.id;
+      if (uid && a.id) adminJunctionMap.set(uid, a.id);
+    });
+    clubMembers.value =
+      (club.players || [])
+        .map((p) => {
+          const u = p.directus_users_id as Record<string, unknown> | null;
+          const userId = typeof u?.id === 'string' ? u.id : '';
+          const avatarId = typeof u?.avatar === 'string' ? u.avatar : undefined;
+          return {
+            id: userId,
+            username: typeof u?.username === 'string' ? u.username : undefined,
+            firstName:
+              typeof u?.first_name === 'string' ? u.first_name : undefined,
+            lastName:
+              typeof u?.last_name === 'string' ? u.last_name : undefined,
+            email: typeof u?.email === 'string' ? u.email : undefined,
+            rating: typeof u?.rating === 'number' ? u.rating : undefined,
+            isAdmin: clubAdminIds.value.has(userId),
+            avatar: avatarId
+              ? `${likhaUrl.value}/assets/${avatarId}`
+              : undefined,
+            playerJunctionId: p.id || undefined,
+            adminJunctionId: adminJunctionMap.get(userId) || undefined,
+          };
+        })
+        .filter((m) => m.id) || [];
+  } catch (err) {
+    console.warn('Failed to refresh club members:', err);
+  }
 };
 
 // Manual Selection Functions
