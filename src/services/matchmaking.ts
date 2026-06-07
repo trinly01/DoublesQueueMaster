@@ -19,6 +19,7 @@ export interface Player {
   losses: number;
   priority?: string;
   userId?: string; // Directus user ID — present only for registered club members
+  duprId?: string; // DUPR player ID for CSV export
   ratingUpdatedAt?: number; // Epoch ms of the last rating change (LWW token vs directus_users.rating_updated_at)
   updatedAt?: number; // Epoch ms of the last any field change (for per-field LWW)
   avatar?: string; // Avatar URL from Directus
@@ -50,11 +51,29 @@ export interface ActiveMatch {
   originalQueueTypes?: Record<string, 'GENERAL' | 'WINNERS' | 'LOSERS'>;
 }
 
+export interface CompletedMatchPlayer {
+  username: string;
+  name?: string; // firstName + lastName, for display in CSV
+  duprId?: string;
+}
+
+export interface CompletedMatch {
+  matchId: string; // Same as the original ActiveMatch.matchId
+  matchType: 'singles' | 'doubles';
+  teamA: CompletedMatchPlayer[];
+  teamB: CompletedMatchPlayer[];
+  teamAScore: number;
+  teamBScore: number;
+  completedAt: number; // Epoch ms
+  updatedAt: number; // Epoch ms (LWW)
+}
+
 export interface AppState {
   teamSize: number;
   players: Record<string, Player>; // Dictionary of all players ever registered
   queues: QueueEntry[]; // Players currently waiting to play
   activeMatches: ActiveMatch[]; // Matches currently happening on the court
+  completedMatches: CompletedMatch[]; // Persisted completed matches for DUPR export
 
   // Settings managed by the system
   availableCourts?: number;
@@ -65,6 +84,9 @@ export interface AppState {
   sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
   matchType?: 'singles' | 'doubles';
   matchesFilterBy?: 'all' | number;
+  scoreType?: 'RALLY' | 'SIDEOUT'; // For DUPR CSV export
+  completedMatchesResetAt?: number; // Epoch ms — drops completedMatches older than this
+  lastExportedAt?: number; // Epoch ms of last export
   settingsUpdatedAt?: number; // Epoch ms of last settings change (for per-field LWW)
   lastModified?: number;
   clubId?: string; // Which club this local state belongs to
@@ -288,6 +310,7 @@ export class LocalMatchmakingSystem {
         players: {},
         queues: [],
         activeMatches: [],
+        completedMatches: [],
       };
     }
 
@@ -308,6 +331,11 @@ export class LocalMatchmakingSystem {
       initialState.matchType = 'doubles';
     if (initialState.matchesFilterBy === undefined)
       initialState.matchesFilterBy = 'all';
+    if (initialState.scoreType === undefined) initialState.scoreType = 'RALLY';
+    if (initialState.completedMatchesResetAt === undefined)
+      initialState.completedMatchesResetAt = 0;
+    if (initialState.lastExportedAt === undefined)
+      initialState.lastExportedAt = 0;
     if (initialState.lastModified === undefined)
       initialState.lastModified = Date.now();
     if (initialState.clubId === undefined) initialState.clubId = '';
@@ -389,6 +417,9 @@ export class LocalMatchmakingSystem {
     this.state.players = {};
     this.state.queues = [];
     this.state.activeMatches = [];
+    this.state.completedMatches = [];
+    this.state.completedMatchesResetAt = 0;
+    this.state.lastExportedAt = 0;
     this.saveState();
   }
 
@@ -396,6 +427,9 @@ export class LocalMatchmakingSystem {
     this.state.players = {};
     this.state.queues = [];
     this.state.activeMatches = [];
+    this.state.completedMatches = [];
+    this.state.completedMatchesResetAt = 0;
+    this.state.lastExportedAt = 0;
     this.state.availableCourts = 1;
     this.state.autoAdvanceMatches = true;
     this.state.queueReturnMethod = 'fairness_first';
@@ -404,8 +438,27 @@ export class LocalMatchmakingSystem {
     this.state.sortBy = 'matchesPlayed';
     this.state.matchType = 'doubles';
     this.state.matchesFilterBy = 'all';
+    this.state.scoreType = 'RALLY';
     this.state.lastModified = Date.now();
     this.state.clubId = '';
+    this.saveState();
+  }
+
+  // Epoch-based clear for completed matches (multi-admin safe)
+  public clearCompletedMatches() {
+    this.state.completedMatchesResetAt = Date.now();
+    this.state.settingsUpdatedAt = Date.now();
+    // Locally filter; remote side will also filter on sync
+    const resetAt = this.state.completedMatchesResetAt;
+    this.state.completedMatches = this.state.completedMatches.filter(
+      (m) => m.completedAt > resetAt,
+    );
+    this.saveState();
+  }
+
+  public markExported() {
+    this.state.lastExportedAt = Date.now();
+    this.state.settingsUpdatedAt = Date.now();
     this.saveState();
   }
 
@@ -669,6 +722,32 @@ export class LocalMatchmakingSystem {
     // Save new ratings to dictionary
     updatedWinners.forEach((p) => (this.state.players[p.username] = p));
     updatedLosers.forEach((p) => (this.state.players[p.username] = p));
+
+    // Persist completed match for DUPR export
+    const now = Date.now();
+    const getFullName = (p: Player) =>
+      [p.firstName, p.lastName].filter(Boolean).join(' ') || undefined;
+    const matchType: 'singles' | 'doubles' =
+      match.teamA.length === 1 ? 'singles' : 'doubles';
+    const completedMatch: CompletedMatch = {
+      matchId: match.matchId,
+      matchType,
+      teamA: teamA.map((p) => ({
+        username: p.username,
+        name: getFullName(p),
+        duprId: p.duprId,
+      })),
+      teamB: teamB.map((p) => ({
+        username: p.username,
+        name: getFullName(p),
+        duprId: p.duprId,
+      })),
+      teamAScore,
+      teamBScore,
+      completedAt: now,
+      updatedAt: now,
+    };
+    this.state.completedMatches.push(completedMatch);
 
     let winnerEnteredAt = Date.now();
     let loserEnteredAt = Date.now();
@@ -976,15 +1055,42 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     }
   });
 
-  // Merge settings using settingsUpdatedAt
+  // Merge completedMatches by matchId using updatedAt LWW
+  const mergedCompletedMatches: CompletedMatch[] = [];
+  const allCompleted = new Map<
+    string,
+    { match: CompletedMatch; source: 'local' | 'server' }
+  >();
+
+  (local.completedMatches || []).forEach((m) =>
+    allCompleted.set(m.matchId, { match: m, source: 'local' }),
+  );
+  (server.completedMatches || []).forEach((m) => {
+    const existing = allCompleted.get(m.matchId);
+    if (!existing) {
+      allCompleted.set(m.matchId, { match: m, source: 'server' });
+    } else if (m.updatedAt > existing.match.updatedAt) {
+      allCompleted.set(m.matchId, { match: m, source: 'server' });
+    }
+  });
+
+  // Determine winning settings side for completedMatchesResetAt / lastExportedAt
   const settingsSource =
     localSettingsTime > serverSettingsTime ? local : server;
+  const winningResetAt = settingsSource.completedMatchesResetAt ?? 0;
+
+  allCompleted.forEach(({ match }) => {
+    if (match.completedAt > winningResetAt) {
+      mergedCompletedMatches.push(match);
+    }
+  });
 
   return {
     ...settingsSource,
     players: mergedPlayers,
     queues: filteredQueues,
     activeMatches: mergedMatches,
+    completedMatches: mergedCompletedMatches,
     lastModified: Math.max(localTime, serverTime),
     settingsUpdatedAt: Math.max(localSettingsTime, serverSettingsTime),
   };
