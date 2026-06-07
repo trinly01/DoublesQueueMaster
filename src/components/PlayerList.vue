@@ -35,7 +35,12 @@
               icon="delete"
               size="sm"
             >
-              <q-tooltip>Remove</q-tooltip>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Remove</q-tooltip
+              >
             </q-btn>
             <q-btn
               v-if="showRequeueButton"
@@ -46,8 +51,29 @@
               size="sm"
               :disable="isInQueue || isInMatch"
             >
-              <q-tooltip v-if="isInQueue"> Already in queue </q-tooltip>
-              <q-tooltip v-else-if="isInMatch"> In match </q-tooltip>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                v-if="isInQueue"
+              >
+                Already in queue
+              </q-tooltip>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                v-else-if="isInMatch"
+              >
+                In match
+              </q-tooltip>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                v-else
+                >Add to queue</q-tooltip
+              >
             </q-btn>
           </template>
         </template>

@@ -14,7 +14,7 @@
             {{ getBalanceText() }}
           </q-chip>
           <q-icon v-if="!isBalanced()" name="warning" color="orange" size="sm">
-            <q-tooltip>Unbalanced</q-tooltip>
+            <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Unbalanced</q-tooltip>
           </q-icon>
         </div>
       </div>
@@ -91,7 +91,7 @@
                     }"
                   >
                     {{ index + 1 }}
-                    <q-tooltip
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
                       >{{ player.firstName || player.username }} - Level
                       {{ player.level }} - Position {{ index + 1 }}</q-tooltip
                     >
@@ -176,7 +176,7 @@
                     }"
                   >
                     {{ index + 1 }}
-                    <q-tooltip
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
                       >{{ player.firstName || player.username }} - Level
                       {{ player.level }} - Position {{ index + 1 }}</q-tooltip
                     >
