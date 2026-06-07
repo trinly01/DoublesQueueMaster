@@ -120,7 +120,9 @@
       <div class="container q-pa-md">
         <q-banner
           v-if="!isOnline"
-          :class="$q.dark.isActive ? 'bg-grey-9' : 'bg-grey-3'"
+          :class="
+            $q.dark.isActive ? 'bg-grey-8 text-white' : 'bg-grey-2 text-grey-9'
+          "
           class="q-mb-md rounded-borders"
         >
           <template v-slot:avatar>
@@ -133,18 +135,43 @@
 
         <q-banner
           v-if="clubLoadingState === 'error'"
-          class="bg-warning text-dark q-mb-md rounded-borders"
+          class="bg-red-1 text-red-9 q-mb-md rounded-borders"
+          inline-actions
         >
           <template v-slot:avatar>
-            <q-icon name="error_outline" />
+            <q-icon name="error_outline" color="red" />
           </template>
           {{ clubErrorMessage }}
           <template v-slot:action>
             <q-btn
               flat
-              color="dark"
+              color="red"
               label="Dismiss"
               @click="clubLoadingState = 'loaded'"
+            />
+          </template>
+        </q-banner>
+
+        <q-banner
+          v-if="
+            clubLoadingState === 'loaded' && !isCurrentUserMember && !isOpenPlay
+          "
+          :class="
+            $q.dark.isActive ? 'bg-blue-8 text-white' : 'bg-blue-1 text-blue-9'
+          "
+          class="q-mb-md rounded-borders"
+          inline-actions
+        >
+          <template v-slot:avatar>
+            <q-icon name="groups" color="blue" />
+          </template>
+          You are not a member of this club yet.
+          <template v-slot:action>
+            <q-btn
+              flat
+              color="blue"
+              label="Join Club"
+              @click="handleJoinClub"
             />
           </template>
         </q-banner>
@@ -2372,6 +2399,7 @@ import { MatchmakingApp, mergeAppState } from '../services/matchmaking';
 import type { Player, AppState } from '../services/matchmaking';
 import { readItems, updateItem, readMe } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/boot/likha';
+import { joinClub as joinClubService } from 'src/services/clubMembership';
 
 import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -2588,6 +2616,7 @@ let ratingsRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
 // Current user and club membership
 const currentUserId = ref<string>('');
+const isCurrentUserMember = ref(true); // default true; checked after load
 const clubAdminIds = ref<Set<string>>(new Set());
 const clubMembers = ref<
   Array<{
@@ -3106,6 +3135,11 @@ const loadClubData = async (clubId: string) => {
           })
           .filter((m) => m.id) || [];
 
+      // Check if current user is a club member (skip for open play)
+      isCurrentUserMember.value =
+        isOpenPlay.value ||
+        clubMembers.value.some((m) => m.id === currentUserId.value);
+
       // Persist club metadata for offline admin detection
       LocalStorage.set(`club_meta_${clubId}`, {
         clubUUID: club.id,
@@ -3255,6 +3289,9 @@ const loadClubData = async (clubId: string) => {
         currentClubUUID.value = meta.clubUUID || '';
         clubAdminIds.value = new Set(meta.adminIds || []);
         clubMembers.value = meta.members || [];
+        isCurrentUserMember.value =
+          isOpenPlay.value ||
+          clubMembers.value.some((m) => m.id === currentUserId.value);
       }
 
       clubLoadingState.value = 'loaded';
@@ -3680,6 +3717,27 @@ const restartRealtime = () => {
   if (!isOnline.value || !currentClubUUID.value) return;
   stopRealtime();
   void startRealtime();
+};
+
+const handleJoinClub = async () => {
+  if (!currentClubId.value || !currentUserId.value) return;
+  try {
+    const result = await joinClubService(
+      currentClubId.value,
+      currentUserId.value,
+    );
+    if (!result.success) {
+      $q.notify({ color: 'negative', message: result.error });
+      return;
+    }
+    if (!result.alreadyMember) {
+      $q.notify({ type: 'positive', message: 'Joined club successfully!' });
+    }
+    // Reload club data to reflect membership
+    void loadClubData(currentClubId.value);
+  } catch (err) {
+    $q.notify({ color: 'negative', message: 'Failed to join club' });
+  }
 };
 
 const doResumeSync = () => {
