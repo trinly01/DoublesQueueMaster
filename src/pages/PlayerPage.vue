@@ -288,7 +288,7 @@
                 <q-item
                   v-for="match in sortedMatches"
                   :key="match.match_key"
-                  class="q-px-sm"
+                  :class="['q-px-sm', getMatchRowClass(match)]"
                 >
                   <q-item-section>
                     <MatchResult
@@ -429,7 +429,11 @@ import {
   updateUser,
   updateMe,
 } from '@likha-erp/likha-sdk';
-import { PlayerProfile, RatingEvent } from 'src/services/playerProfile';
+import {
+  PlayerProfile,
+  RatingEvent,
+  type DirectusCompletedMatch,
+} from 'src/services/playerProfile';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
 import MatchResult from 'src/components/MatchResult.vue';
 import * as echarts from 'echarts';
@@ -522,6 +526,23 @@ const sortedMatches = computed(() => {
   return sorted;
 });
 
+const getMatchRowClass = (match: DirectusCompletedMatch): string => {
+  const username = PlayerProfile.state.username;
+  const inTeamA = match.team_a?.some(
+    (p: { username?: string }) => p.username === username,
+  );
+  const inTeamB = match.team_b?.some(
+    (p: { username?: string }) => p.username === username,
+  );
+  if (inTeamA) {
+    return match.team_a_score >= match.team_b_score ? 'bg-green-1' : 'bg-red-1';
+  }
+  if (inTeamB) {
+    return match.team_b_score >= match.team_a_score ? 'bg-green-1' : 'bg-red-1';
+  }
+  return '';
+};
+
 const matchChartData = computed(() => {
   const username = PlayerProfile.state.username;
   return sortedMatches.value.map((match) => {
@@ -540,7 +561,19 @@ const matchChartData = computed(() => {
       diff = match.team_b_score - match.team_a_score;
       opponents = match.team_a || [];
     }
-    return { diff, opponents, match };
+    const teamALabel = (match.team_a || [])
+      .map(
+        (p: { firstName?: string; username?: string }) =>
+          p.firstName || p.username || '?',
+      )
+      .join(' & ');
+    const teamBLabel = (match.team_b || [])
+      .map(
+        (p: { firstName?: string; username?: string }) =>
+          p.firstName || p.username || '?',
+      )
+      .join(' & ');
+    return { diff, opponents, match, teamALabel, teamBLabel };
   });
 });
 
@@ -558,8 +591,26 @@ const initChart = () => {
     chartInstance = null;
   }
 
+  const fmtDate = (iso: string): string => {
+    const d = new Date(iso);
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return `${months[d.getMonth()]} ${d.getDate()}`;
+  };
   const chronological = [...sortedEvents.value].reverse();
-  const days = chronological.map((e) => e.day);
+  const days = chronological.map((e) => fmtDate(e.day));
   const wins = chronological.map((e) => e.wins);
   const losses = chronological.map((e) => e.losses);
   const ratings = chronological.map((e) => e.rating);
@@ -655,39 +706,26 @@ const initMatchesChart = () => {
         const p = (params as Array<{ dataIndex: number; value: number }>)[0];
         const idx = p.dataIndex;
         const d = data[idx];
-        const oppNames = d.opponents
-          .map(
-            (o: { firstName?: string; username?: string }) =>
-              o.firstName || o.username || '?',
-          )
-          .join(' & ');
-        const result = p.value > 0 ? 'Win' : 'Loss';
-        const myScore =
-          p.value > 0
-            ? d.match.team_a_score > d.match.team_b_score
-              ? d.match.team_a_score
-              : d.match.team_b_score
-            : d.match.team_a_score > d.match.team_b_score
-              ? d.match.team_b_score
-              : d.match.team_a_score;
-        const theirScore =
-          p.value > 0
-            ? d.match.team_a_score > d.match.team_b_score
-              ? d.match.team_b_score
-              : d.match.team_a_score
-            : d.match.team_a_score > d.match.team_b_score
-              ? d.match.team_a_score
-              : d.match.team_b_score;
-        const dateStr = new Date(d.match.completed_at).toLocaleString(
-          undefined,
-          {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          },
-        );
-        return `${dateStr}<br/>${result} vs ${oppNames}<br/>${myScore}-${theirScore} (${Math.abs(p.value)} pts)`;
+        const date = new Date(d.match.completed_at);
+        const months = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
+        let h = date.getHours();
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12;
+        const dateStr = `${months[date.getMonth()]} ${date.getDate()} ${h}:${String(date.getMinutes()).padStart(2, '0')} ${ampm}`;
+        return `${dateStr}<br/>${d.match.team_a_score} - ${d.teamALabel}<br/>${d.match.team_b_score} - ${d.teamBLabel}`;
       },
     },
     xAxis: {
