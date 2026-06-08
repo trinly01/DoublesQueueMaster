@@ -1637,7 +1637,9 @@
               </div>
 
               <div>
-                <div class="text-subtitle2 q-mb-sm">Admins</div>
+                <div class="text-subtitle2 q-mb-sm">
+                  Admins ({{ adminMembers.length }})
+                </div>
                 <q-list separator dense class="rounded-borders">
                   <q-item v-for="member in adminMembers" :key="member.id">
                     <q-item-section avatar>
@@ -1710,7 +1712,9 @@
               <q-separator />
 
               <div>
-                <div class="text-subtitle2 q-mb-sm">Members</div>
+                <div class="text-subtitle2 q-mb-sm">
+                  Members ({{ regularMembers.length + adminMembers.length }})
+                </div>
                 <q-list separator dense class="rounded-borders">
                   <q-item v-for="member in regularMembers" :key="member.id">
                     <q-item-section avatar>
@@ -4310,6 +4314,20 @@ if (savedTab) activeMobileTab.value = savedTab;
 // Persist tab changes
 watch(activeMobileTab, (tab) => {
   LocalStorage.set('active_tab', tab);
+});
+
+// Fetch latest members/admins when opening the Club settings tab
+watch(settingsTab, (tab) => {
+  if (tab === 'club') {
+    void refreshClubMembers();
+  }
+});
+
+// Fetch latest members when selecting Club Members mode in Add Player dialog
+watch(addPlayerMode, (mode) => {
+  if (mode === 'club') {
+    void refreshClubMembers();
+  }
 });
 
 // Sort state
