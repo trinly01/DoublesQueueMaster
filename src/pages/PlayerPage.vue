@@ -32,25 +32,16 @@
           </q-avatar>
 
           <div
-            class="text-h4 text-weight-bolder text-primary brand-title q-mb-xs"
+            class="text-h4 text-weight-bolder text-primary brand-title q-mb-none"
           >
             {{ firstName }}
           </div>
 
-          <div class="text-subtitle1 text-grey-7 q-mb-md">@{{ username }}</div>
+          <div class="text-subtitle1 text-grey-7 q-mb-none">
+            @{{ username }}
+          </div>
 
-          <q-chip
-            class="rating-chip text-weight-bold"
-            text-color="white"
-            icon="star"
-            size="lg"
-            clickable
-            @click="showHistoryDialog = true"
-          >
-            Rating: {{ playerRating }}
-          </q-chip>
-
-          <div v-if="PlayerProfile.state.duprId" class="q-mt-xs">
+          <div v-if="PlayerProfile.state.duprId" class="q-mb-none">
             <q-chip
               icon="verified"
               color="blue-6"
@@ -61,9 +52,20 @@
               DUPR ID: {{ PlayerProfile.state.duprId }}
             </q-chip>
           </div>
+
+          <q-chip
+            class="rating-chip text-weight-bold q-mt-sm"
+            text-color="white"
+            icon="star"
+            size="lg"
+            clickable
+            @click="showHistoryDialog = true"
+          >
+            Rating: {{ playerRating }}
+          </q-chip>
         </q-card-section>
 
-        <q-card-section class="q-px-lg q-mt-md">
+        <q-card-section class="q-px-lg q-mt-sm">
           <div
             class="text-subtitle1 text-weight-medium q-mb-sm text-center text-grey-8"
           >
@@ -87,6 +89,8 @@
                 dense
                 color="primary"
                 behavior="menu"
+                menu-anchor="top middle"
+                menu-self="bottom middle"
                 hide-bottom-space
                 @filter="filterClubs"
                 @keyup.enter="joinClub"
@@ -129,7 +133,7 @@
 
         <div style="flex-grow: 1"></div>
 
-        <q-card-actions align="center" class="q-mt-lg q-gutter-sm">
+        <q-card-actions align="center" class="q-mt-sm q-gutter-sm">
           <q-btn
             outline
             color="primary"
@@ -1133,7 +1137,6 @@ const onLogout = () => {
 
   .player-card {
     padding: 16px !important;
-    margin: 16px;
   }
 
   .player-card > .q-card-section {
