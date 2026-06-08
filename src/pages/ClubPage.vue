@@ -2941,7 +2941,7 @@ const clubSettingsSort = ref<
 
 const filteredSortedMembers = computed(() => {
   let list = clubMembers.value;
-  const search = clubSettingsSearch.value.trim().toLowerCase();
+  const search = (clubSettingsSearch.value || '').trim().toLowerCase();
   if (search) {
     list = list.filter(
       (m) =>
