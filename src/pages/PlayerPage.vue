@@ -219,7 +219,7 @@
                 v-model="activeTab"
                 :options="[
                   {
-                    label: 'Rating History',
+                    label: 'Rating',
                     value: 'history',
                     icon: 'trending_up',
                   },
