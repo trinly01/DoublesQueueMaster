@@ -97,12 +97,29 @@
                 Smart matchmaking for singles & doubles
               </p>
             </div>
-            <div
-              v-if="isCurrentUserAdmin"
-              class="col-auto row items-center q-gutter-sm"
-            >
-              <q-spinner v-if="hasPendingCloudSync" color="white" size="20px" />
+            <div class="col-auto row items-center q-gutter-sm">
               <q-btn
+                color="white"
+                icon="share"
+                @click="copyClubLink"
+                flat
+                round
+                dense
+              >
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  >Copy club link</q-tooltip
+                >
+              </q-btn>
+              <q-spinner
+                v-if="isCurrentUserAdmin && hasPendingCloudSync"
+                color="white"
+                size="20px"
+              />
+              <q-btn
+                v-if="isCurrentUserAdmin"
                 color="white"
                 icon="settings"
                 @click="showSettingsDialog = true"
@@ -2635,7 +2652,7 @@ import { joinClub as joinClubService } from 'src/services/clubMembership';
 import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useQuasar, LocalStorage } from 'quasar';
+import { useQuasar, LocalStorage, copyToClipboard } from 'quasar';
 import { useNotify } from 'src/composables/useNotify';
 import TeamArrangement from '../components/TeamArrangement.vue';
 import PlayerList from '../components/PlayerList.vue';
@@ -3010,6 +3027,41 @@ const addPlayerModeOptions = computed(() => {
 
 const goHome = () => {
   router.push('/');
+};
+
+const copyClubLink = async () => {
+  const shareUrl = `https://dink.zyberlab.com/?r=${encodeURIComponent(route.path)}`;
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: clubName.value || 'DinkMatch Club',
+        text: `Join ${clubName.value || 'our club'} on DinkMatch!`,
+        url: shareUrl,
+      });
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        console.warn('Share failed:', err);
+      }
+    }
+    return;
+  }
+  copyToClipboard(shareUrl)
+    .then(() => {
+      $q.notify({
+        color: 'positive',
+        message: 'Club link copied!',
+        icon: 'check_circle',
+        timeout: 1500,
+      });
+    })
+    .catch(() => {
+      $q.notify({
+        color: 'negative',
+        message: 'Failed to copy link',
+        icon: 'error',
+        timeout: 1500,
+      });
+    });
 };
 
 const callForActivation = async () => {
