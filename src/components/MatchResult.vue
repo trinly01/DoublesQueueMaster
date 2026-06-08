@@ -18,7 +18,8 @@
               white-space: nowrap;
               display: block;
             "
-          >{{ player.firstName || player.name || player.username }}</span>
+            >{{ player.firstName || player.name || player.username }}</span
+          >
           <span
             v-if="player.username && (player.firstName || player.name)"
             class="text-grey-6"
@@ -54,19 +55,10 @@
           input-class="text-h4 text-center"
           style="max-width: 120px; margin-left: auto; margin-right: auto"
         />
-        <!-- Read-only: score display -->
-        <div
-          v-else-if="teamAScore !== undefined"
-          class="text-h4 text-weight-bold q-mt-sm"
-        >
-          {{ teamAScore }}
-        </div>
       </div>
 
-      <!-- Center: Court + Win Probability + Status + VS -->
-      <div
-        class="col-auto q-mx-md text-center center-group"
-      >
+      <!-- Center: Court + Win Probability + Status + Scores + VS -->
+      <div class="col-auto q-mx-md text-center center-group">
         <q-chip
           v-if="court !== undefined"
           color="blue-grey-7"
@@ -82,9 +74,13 @@
             size="xs"
             rounded
             text-color="white"
-          >{{ court }}</q-avatar>
+            >{{ court }}</q-avatar
+          >
         </q-chip>
-        <span v-if="winProbability !== undefined" class="text-caption text-grey-6">
+        <span
+          v-if="winProbability !== undefined"
+          class="text-caption text-grey-6"
+        >
           {{ (winProbability * 100).toFixed(0) }}%
           <q-icon name="sports_tennis" color="grey-6" size="sm" />
           {{ ((1 - winProbability) * 100).toFixed(0) }}%
@@ -98,7 +94,21 @@
         >
           {{ getMatchStatusLabel(status) }}
         </q-chip>
-        <div class="text-h6 text-weight-bold text-grey-8">VS</div>
+        <!-- Read-only: scores flanking VS -->
+        <div
+          v-if="
+            !editable && teamAScore !== undefined && teamBScore !== undefined
+          "
+          class="row items-center justify-center q-gutter-x-sm q-mt-xs"
+        >
+          <span class="text-h5 text-weight-bold">{{ teamAScore }}</span>
+          <span class="text-subtitle2 text-weight-bold text-grey-8">VS</span>
+          <span class="text-h5 text-weight-bold">{{ teamBScore }}</span>
+        </div>
+        <div v-else class="text-subtitle2 text-weight-bold text-grey-8">VS</div>
+        <div v-if="completedAt" class="text-caption text-grey-6 q-mt-xs">
+          {{ formatDate(completedAt) }}
+        </div>
       </div>
 
       <!-- Right: Team B players -->
@@ -117,7 +127,8 @@
               white-space: nowrap;
               display: block;
             "
-          >{{ player.firstName || player.name || player.username }}</span>
+            >{{ player.firstName || player.name || player.username }}</span
+          >
           <span
             v-if="player.username && (player.firstName || player.name)"
             class="text-grey-6"
@@ -153,19 +164,7 @@
           input-class="text-h4 text-center"
           style="max-width: 120px; margin-left: auto; margin-right: auto"
         />
-        <!-- Read-only: score display -->
-        <div
-          v-else-if="teamBScore !== undefined"
-          class="text-h4 text-weight-bold q-mt-sm"
-        >
-          {{ teamBScore }}
-        </div>
       </div>
-    </div>
-
-    <!-- Completed at date -->
-    <div v-if="completedAt" class="text-center text-caption text-grey-6 q-mt-xs">
-      {{ formatDate(completedAt) }}
     </div>
   </div>
 </template>
@@ -220,13 +219,24 @@ const localTeamBScore = computed({
 
 const formatDate = (iso: string): string => {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  let h = d.getHours();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${months[d.getMonth()]} ${d.getDate()} ${h}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
 };
 </script>
 
