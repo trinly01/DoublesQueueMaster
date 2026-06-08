@@ -532,17 +532,15 @@ const matchChartData = computed(() => {
       (p: { username?: string }) => p.username === username,
     );
     let diff = 0;
+    let opponents: { firstName?: string; username?: string }[] = [];
     if (inTeamA) {
       diff = match.team_a_score - match.team_b_score;
+      opponents = match.team_b || [];
     } else if (inTeamB) {
       diff = match.team_b_score - match.team_a_score;
+      opponents = match.team_a || [];
     }
-    const date = new Date(match.completed_at);
-    const dateLabel = date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-    });
-    return { diff, dateLabel, match };
+    return { diff, opponents, match };
   });
 });
 
@@ -569,21 +567,38 @@ const initChart = () => {
   chartInstance = echarts.init(chartRef.value);
   chartInstance.setOption({
     tooltip: { trigger: 'axis' },
-    legend: { data: ['Wins', 'Losses', 'Rating'], bottom: 0 },
+    legend: {
+      data: ['Wins', 'Losses', 'Rating'],
+      bottom: 0,
+      itemWidth: 12,
+      itemHeight: 8,
+      textStyle: { fontSize: 11 },
+    },
     grid: {
       left: '3%',
       right: '4%',
-      bottom: '18%',
+      bottom: '15%',
       top: '10%',
       containLabel: true,
     },
-    xAxis: { type: 'category', boundaryGap: false, data: days },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: days,
+      axisLabel: { fontSize: 10 },
+    },
     yAxis: [
-      { type: 'value', name: 'W/L', position: 'left' },
+      {
+        type: 'value',
+        name: 'W/L',
+        position: 'left',
+        nameTextStyle: { fontSize: 10 },
+      },
       {
         type: 'value',
         name: 'Rating',
         position: 'right',
+        nameTextStyle: { fontSize: 10 },
         splitLine: { show: false },
       },
     ],
@@ -627,36 +642,84 @@ const initMatchesChart = () => {
   }
 
   const data = [...matchChartData.value].reverse();
-  const labels = data.map((d) => d.dateLabel);
-  const values = data.map((d) => d.diff);
+  const labels = data.map((d) => {
+    const date = new Date(d.match.completed_at);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  });
 
   matchesChartInstance = echarts.init(matchesChartRef.value);
   matchesChartInstance.setOption({
     tooltip: {
       trigger: 'axis',
       formatter: (params: unknown) => {
-        const p = (params as Array<{ name: string; value: number }>)[0];
+        const p = (params as Array<{ dataIndex: number; value: number }>)[0];
+        const idx = p.dataIndex;
+        const d = data[idx];
+        const oppNames = d.opponents
+          .map(
+            (o: { firstName?: string; username?: string }) =>
+              o.firstName || o.username || '?',
+          )
+          .join(' & ');
         const result = p.value > 0 ? 'Win' : 'Loss';
-        return `${p.name}<br/>${result} by ${Math.abs(p.value)} pts`;
+        const myScore =
+          p.value > 0
+            ? d.match.team_a_score > d.match.team_b_score
+              ? d.match.team_a_score
+              : d.match.team_b_score
+            : d.match.team_a_score > d.match.team_b_score
+              ? d.match.team_b_score
+              : d.match.team_a_score;
+        const theirScore =
+          p.value > 0
+            ? d.match.team_a_score > d.match.team_b_score
+              ? d.match.team_b_score
+              : d.match.team_a_score
+            : d.match.team_a_score > d.match.team_b_score
+              ? d.match.team_a_score
+              : d.match.team_b_score;
+        const dateStr = new Date(d.match.completed_at).toLocaleString(
+          undefined,
+          {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          },
+        );
+        return `${dateStr}<br/>${result} vs ${oppNames}<br/>${myScore}-${theirScore} (${Math.abs(p.value)} pts)`;
       },
     },
     xAxis: {
       type: 'category',
       data: labels,
-      axisLabel: { rotate: 45, fontSize: 10 },
+      axisLabel: { show: false },
     },
     yAxis: {
       type: 'value',
-      name: 'Point Diff',
+      name: 'Pt Diff',
       nameTextStyle: { fontSize: 10 },
+    },
+    legend: {
+      data: ['Win', 'Loss'],
+      bottom: 0,
+      itemWidth: 12,
+      itemHeight: 8,
+      textStyle: { fontSize: 11 },
     },
     series: [
       {
+        name: 'Win',
         type: 'bar',
-        data: values.map((val) => ({
-          value: val,
-          itemStyle: { color: val >= 0 ? '#21ba45' : '#c10015' },
-        })),
+        data: data.map((d) => (d.diff >= 0 ? d.diff : null)),
+        itemStyle: { color: '#21ba45' },
+        barWidth: '60%',
+      },
+      {
+        name: 'Loss',
+        type: 'bar',
+        data: data.map((d) => (d.diff < 0 ? d.diff : null)),
+        itemStyle: { color: '#c10015' },
         barWidth: '60%',
       },
     ],
@@ -664,7 +727,7 @@ const initMatchesChart = () => {
       left: '3%',
       right: '4%',
       bottom: '15%',
-      top: '15%',
+      top: '10%',
       containLabel: true,
     },
   });
