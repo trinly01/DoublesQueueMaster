@@ -2703,6 +2703,7 @@ const players = computed(() =>
 );
 const queue = computed(() => {
   const mapped = MatchmakingApp.state.queues
+    .filter((q) => !q.deletedAt)
     .map((q) => {
       const p = MatchmakingApp.state.players[q.username];
       if (!p || p.deletedAt) return null;
@@ -3122,6 +3123,14 @@ const hasPendingCloudSync = ref(false);
 // The server's matchmaking.lastModified that our local state was last PUSHED to.
 // Used as an optimistic-concurrency token: set ONLY after a successful write.
 const lastSyncedServerTimestamp = ref(0);
+const getLastSyncedKey = (clubId: string) => `last_synced_ts_${clubId}`;
+const loadLastSyncedTimestamp = (clubId: string) => {
+  const saved = LocalStorage.getItem(getLastSyncedKey(clubId)) as number | null;
+  return saved || 0;
+};
+const saveLastSyncedTimestamp = (clubId: string, ts: number) => {
+  LocalStorage.set(getLastSyncedKey(clubId), ts);
+};
 // Track when we went offline to detect sleep/long offline periods
 const offlineSince = ref<number | null>(null);
 
@@ -3411,6 +3420,8 @@ const loadClubData = async (clubId: string) => {
               MatchmakingApp.state.queues = merged.queues;
               MatchmakingApp.state.activeMatches = merged.activeMatches;
               MatchmakingApp.state.completedMatches = merged.completedMatches;
+              // Extra safety: ensure no player appears in multiple matches
+              MatchmakingApp.enforceOneMatchPerPlayer();
             }
           } else {
             // Non-admins: server is source of truth — always overwrite
@@ -3474,6 +3485,13 @@ const loadClubData = async (clubId: string) => {
         }
       }
       MatchmakingApp.persist();
+
+      // Update our concurrency token to the server's version so subsequent syncs
+      // don't falsely conflict with the state we just merged.
+      if (serverMatchmaking?.lastModified) {
+        lastSyncedServerTimestamp.value = serverMatchmaking.lastModified;
+        saveLastSyncedTimestamp(clubId, serverMatchmaking.lastModified);
+      }
 
       // Build admin set and clubMembers list
       clubAdminIds.value = new Set(
@@ -3863,6 +3881,8 @@ const performCloudSync = async (skipServerMerge = false) => {
     ) {
       const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
       Object.assign(MatchmakingApp.state, merged);
+      // Extra safety: ensure no player appears in multiple matches
+      MatchmakingApp.enforceOneMatchPerPlayer();
       notify({
         type: 'info',
         message: 'Merged concurrent changes from another admin.',
@@ -3876,7 +3896,7 @@ const performCloudSync = async (skipServerMerge = false) => {
 
     console.log(
       '[cloudSync] pushing — queues:',
-      MatchmakingApp.state.queues.length,
+      MatchmakingApp.state.queues.filter((q) => !q.deletedAt).length,
       'matches:',
       MatchmakingApp.state.activeMatches.filter((m) => !m.deletedAt).length,
       'ts:',
@@ -3895,6 +3915,9 @@ const performCloudSync = async (skipServerMerge = false) => {
 
     MatchmakingApp.persistSilently();
     lastSyncedServerTimestamp.value = stamp;
+    if (currentClubId.value) {
+      saveLastSyncedTimestamp(currentClubId.value, stamp);
+    }
     hasPendingCloudSync.value = false;
     syncRetryPending = false;
     console.log('Successfully synced to cloud');
@@ -4017,12 +4040,17 @@ const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
 
   const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
   Object.assign(MatchmakingApp.state, merged);
+  // Extra safety: ensure no player appears in multiple matches
+  MatchmakingApp.enforceOneMatchPerPlayer();
   MatchmakingApp.persistSilently();
   lastSyncedServerTimestamp.value = incomingTs;
+  if (currentClubId.value) {
+    saveLastSyncedTimestamp(currentClubId.value, incomingTs);
+  }
 
   console.log(
     '[applyServer] merged — queues:',
-    MatchmakingApp.state.queues.length,
+    MatchmakingApp.state.queues.filter((q) => !q.deletedAt).length,
     'matches:',
     MatchmakingApp.state.activeMatches.filter((m) => !m.deletedAt).length,
   );
@@ -4119,12 +4147,14 @@ const handleJoinClub = async () => {
   }
 };
 
-const doResumeSync = () => {
+const doResumeSync = async () => {
   // Throttle: ignore if we synced < 3s ago
   if (Date.now() - lastResumeSyncAt < 3000) return;
   lastResumeSyncAt = Date.now();
   if (isOnline.value && currentClubId.value) {
-    void loadClubData(currentClubId.value);
+    // Load server state first, then sync. This guarantees we merge the
+    // latest server state before pushing any local changes.
+    await loadClubData(currentClubId.value);
     void performCloudSync();
     void refreshPlayerRatings();
   }
@@ -4183,6 +4213,8 @@ onMounted(async () => {
   const clubId = route.params['clubId'] as string;
   if (clubId) {
     await loadClubData(clubId);
+    // Restore optimistic-concurrency token so we don't false-conflict after refresh
+    lastSyncedServerTimestamp.value = loadLastSyncedTimestamp(clubId);
     // Pull any manual directus_users rating edits on first load.
     void refreshPlayerRatings();
     // Subscribe to live updates so other admins' changes arrive without refresh.
@@ -4485,7 +4517,9 @@ const displayPlayers = computed(() => {
 
   // Add isInMatch and isInQueue properties to each player
   const queueUsernames = new Set(
-    MatchmakingApp.state.queues.map((q) => q.username),
+    MatchmakingApp.state.queues
+      .filter((q) => !q.deletedAt)
+      .map((q) => q.username),
   );
   const withStatus = result.map((p) => ({
     ...p,
@@ -5264,7 +5298,12 @@ const clearQueue = () => {
     },
     persistent: true,
   }).onOk(() => {
-    // Clear the queue
+    // Tombstone all queue entries before clearing (for cross-admin sync)
+    const now = Date.now();
+    MatchmakingApp.state.queues.forEach((q) => {
+      q.deletedAt = now;
+      q.updatedAt = now;
+    });
     MatchmakingApp.state.queues = [];
     MatchmakingApp.persist();
 
@@ -5372,10 +5411,21 @@ const resetSessionData = () => {
       player.losses = 0;
     });
 
+    // Tombstone all active matches before clearing (for cross-admin sync)
+    const now = Date.now();
+    MatchmakingApp.state.activeMatches.forEach((m) => {
+      m.deletedAt = now;
+      m.updatedAt = now;
+    });
+
     // Clear matches
     MatchmakingApp.state.activeMatches = [];
 
-    // Clear queue
+    // Tombstone all queue entries before clearing (for cross-admin sync)
+    MatchmakingApp.state.queues.forEach((q) => {
+      q.deletedAt = now;
+      q.updatedAt = now;
+    });
     MatchmakingApp.state.queues = [];
 
     // Epoch-based clear for completedMatches (multi-admin safe)
@@ -5946,9 +5996,9 @@ const createManualMatchWithCourt = () => {
   const originalQueueTypes: Record<string, 'GENERAL' | 'WINNERS' | 'LOSERS'> =
     {};
   matchPlayers.forEach((p) => {
-    const queueEntry = MatchmakingApp.state.queues.find(
-      (q) => q.username === p.username,
-    );
+    const queueEntry = MatchmakingApp.state.queues
+      .filter((q) => !q.deletedAt)
+      .find((q) => q.username === p.username);
     originalQueueTypes[p.username] = queueEntry?.queueType || 'GENERAL';
   });
 
@@ -6093,7 +6143,7 @@ const cancelMatch = (filteredIndex: number) => {
       for (const username of playerUsernames) {
         // Check if player is already in queue
         const alreadyInQueue = MatchmakingApp.state.queues.some(
-          (q) => q.username === username,
+          (q) => !q.deletedAt && q.username === username,
         );
         if (!alreadyInQueue) {
           MatchmakingApp.state.queues.push({
@@ -6439,7 +6489,11 @@ const saveMatchEdit = () => {
 
   // Return players removed from the match back to the queue
   removedFromMatch.forEach((p) => {
-    if (!MatchmakingApp.state.queues.some((q) => q.username === p.username)) {
+    if (
+      !MatchmakingApp.state.queues.some(
+        (q) => !q.deletedAt && q.username === p.username,
+      )
+    ) {
       MatchmakingApp.state.queues.push({
         username: p.username,
         queueType: 'GENERAL',
