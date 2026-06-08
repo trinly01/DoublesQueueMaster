@@ -2,12 +2,38 @@ import { reactive } from 'vue';
 import { LocalStorage } from 'quasar';
 import { likhaClient } from 'src/boot/likha';
 import { readMe, readItems } from '@likha-erp/likha-sdk';
-
 export interface RatingEvent {
   day: string;
   wins: number;
   losses: number;
   rating: number;
+}
+
+export interface DirectusCompletedMatch {
+  match_key: string;
+  match_id: string;
+  match_type: string;
+  team_a: {
+    username: string;
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    level?: number;
+    rating?: number;
+    avatar?: string;
+  }[];
+  team_b: {
+    username: string;
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    level?: number;
+    rating?: number;
+    avatar?: string;
+  }[];
+  team_a_score: number;
+  team_b_score: number;
+  completed_at: string;
 }
 
 export interface UserProfile {
@@ -21,6 +47,7 @@ export interface UserProfile {
   avatar?: string;
   lastModified?: number;
   events?: RatingEvent[];
+  completedMatches?: DirectusCompletedMatch[];
 }
 
 const STORAGE_KEY = 'player_profile';
@@ -43,6 +70,7 @@ export class PlayerProfileService {
       avatar: saved?.avatar || '',
       lastModified: saved?.lastModified || 0,
       events: saved?.events || [],
+      completedMatches: saved?.completedMatches || [],
     });
   }
 
@@ -117,6 +145,50 @@ export class PlayerProfileService {
           this.state.events = [];
         }
 
+        try {
+          console.log(
+            '[PlayerProfile] Fetching completed_matches for user:',
+            this.state.id,
+          );
+          const matches = await likhaClient.request(
+            readItems('completed_match', {
+              filter: {
+                players: { directus_users_id: { _eq: this.state.id } },
+              },
+              fields: ['*'],
+              sort: ['-completed_at'],
+              limit: 50,
+            }),
+          );
+
+          console.log('[PlayerProfile] Raw matches response:', matches);
+          console.log('[PlayerProfile] Is array?', Array.isArray(matches));
+          console.log(
+            '[PlayerProfile] Matches count:',
+            Array.isArray(matches) ? matches.length : 0,
+          );
+          if (Array.isArray(matches) && matches.length > 0) {
+            console.log(
+              '[PlayerProfile] First match keys:',
+              Object.keys(matches[0]),
+            );
+            console.log('[PlayerProfile] First match:', matches[0]);
+          }
+          this.state.completedMatches = Array.isArray(matches)
+            ? (matches as DirectusCompletedMatch[])
+            : [];
+          console.log(
+            '[PlayerProfile] Stored completedMatches count:',
+            this.state.completedMatches.length,
+          );
+        } catch (err) {
+          console.warn(
+            '[PlayerProfile] Failed to fetch completed matches:',
+            err,
+          );
+          this.state.completedMatches = [];
+        }
+
         this.saveState();
         this.loading.value = false;
         return true;
@@ -143,6 +215,7 @@ export class PlayerProfileService {
     this.state.avatar = '';
     this.state.lastModified = 0;
     this.state.events = [];
+    this.state.completedMatches = [];
   }
 
   public hasCachedProfile(): boolean {

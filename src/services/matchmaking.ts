@@ -55,6 +55,11 @@ export interface CompletedMatchPlayer {
   username: string;
   name?: string; // firstName + lastName, for display in CSV
   duprId?: string;
+  firstName?: string;
+  lastName?: string;
+  level?: number;
+  rating?: number;
+  avatar?: string;
 }
 
 export interface CompletedMatch {
@@ -736,11 +741,21 @@ export class LocalMatchmakingSystem {
         username: p.username,
         name: getFullName(p),
         duprId: p.duprId,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        level: p.level,
+        rating: p.rating,
+        avatar: p.avatar,
       })),
       teamB: teamB.map((p) => ({
         username: p.username,
         name: getFullName(p),
         duprId: p.duprId,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        level: p.level,
+        rating: p.rating,
+        avatar: p.avatar,
       })),
       teamAScore,
       teamBScore,

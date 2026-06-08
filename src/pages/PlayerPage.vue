@@ -156,7 +156,12 @@
               <div class="text-h6">Create Club</div>
               <q-space />
               <q-btn icon="close" flat round dense v-close-popup>
-                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Close</q-tooltip>
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  >Close</q-tooltip
+                >
               </q-btn>
             </q-card-section>
 
@@ -193,20 +198,44 @@
           </q-card>
         </q-dialog>
 
-        <!-- Rating History Dialog -->
+        <!-- Player Stats Dialog -->
         <q-dialog v-model="showHistoryDialog" maximized>
-          <q-card style="min-width: 320px; max-width: 90vw; max-height: 70vh">
+          <q-card style="min-width: 320px; max-width: 90vw; max-height: 80vh">
             <q-card-section class="row items-center q-pb-none">
-              <div class="text-h6">Rating History</div>
+              <div class="text-h6">Player Stats</div>
               <q-space />
               <q-btn icon="close" flat round dense v-close-popup>
-                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Close</q-tooltip>
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  >Close</q-tooltip
+                >
               </q-btn>
             </q-card-section>
 
-            <q-card-section
-              class="q-pt-md"
-              style="max-height: 55vh; overflow-y: auto"
+            <div class="q-px-md q-pt-md">
+              <q-btn-toggle
+                v-model="activeTab"
+                :options="[
+                  {
+                    label: 'Rating History',
+                    value: 'history',
+                    icon: 'trending_up',
+                  },
+                  { label: 'Matches', value: 'matches', icon: 'sports_tennis' },
+                ]"
+                color="grey-5"
+                toggle-color="accent"
+                spread
+                class="full-width"
+              />
+            </div>
+
+            <div
+              v-if="activeTab === 'history'"
+              class="q-pa-md"
+              style="max-height: 60vh; overflow-y: auto"
             >
               <div
                 ref="chartRef"
@@ -243,7 +272,39 @@
               <div v-else class="text-center text-grey q-py-md">
                 No rating history available.
               </div>
-            </q-card-section>
+            </div>
+
+            <div
+              v-else-if="activeTab === 'matches'"
+              class="q-pa-md"
+              style="max-height: 60vh; overflow-y: auto"
+            >
+              <div
+                ref="matchesChartRef"
+                class="chart-container"
+                v-if="matchChartData.length"
+              ></div>
+              <q-list separator v-if="sortedMatches.length">
+                <q-item
+                  v-for="match in sortedMatches"
+                  :key="match.match_key"
+                  class="q-px-sm"
+                >
+                  <q-item-section>
+                    <MatchResult
+                      :teamA="match.team_a"
+                      :teamB="match.team_b"
+                      :teamAScore="match.team_a_score"
+                      :teamBScore="match.team_b_score"
+                      :completedAt="match.completed_at"
+                    />
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="text-center text-grey q-py-md">
+                No completed matches available.
+              </div>
+            </div>
           </q-card>
         </q-dialog>
 
@@ -254,7 +315,12 @@
               <div class="text-h6">Edit Profile</div>
               <q-space />
               <q-btn icon="close" flat round dense v-close-popup>
-                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Close</q-tooltip>
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  >Close</q-tooltip
+                >
               </q-btn>
             </q-card-section>
 
@@ -365,6 +431,7 @@ import {
 } from '@likha-erp/likha-sdk';
 import { PlayerProfile, RatingEvent } from 'src/services/playerProfile';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
+import MatchResult from 'src/components/MatchResult.vue';
 import * as echarts from 'echarts';
 
 const router = useRouter();
@@ -431,6 +498,7 @@ const newClubId = ref('');
 const newClubName = ref('');
 const createClubLoading = ref(false);
 const showHistoryDialog = ref(false);
+const activeTab = ref<'history' | 'matches'>('history');
 
 const playerEvents = computed(() => PlayerProfile.state.events || []);
 
@@ -442,8 +510,47 @@ const sortedEvents = computed<RatingEvent[]>(() => {
   });
 });
 
+const sortedMatches = computed(() => {
+  const matches = PlayerProfile.state.completedMatches || [];
+  console.log('[PlayerPage] raw completedMatches from state:', matches);
+  const sorted = [...matches].sort((a, b) => {
+    const dateA = new Date(a.completed_at).getTime();
+    const dateB = new Date(b.completed_at).getTime();
+    return dateB - dateA;
+  });
+  console.log('[PlayerPage] sortedMatches count:', sorted.length);
+  return sorted;
+});
+
+const matchChartData = computed(() => {
+  const username = PlayerProfile.state.username;
+  return sortedMatches.value.map((match) => {
+    const inTeamA = match.team_a?.some(
+      (p: { username?: string }) => p.username === username,
+    );
+    const inTeamB = match.team_b?.some(
+      (p: { username?: string }) => p.username === username,
+    );
+    let diff = 0;
+    if (inTeamA) {
+      diff = match.team_a_score - match.team_b_score;
+    } else if (inTeamB) {
+      diff = match.team_b_score - match.team_a_score;
+    }
+    const date = new Date(match.completed_at);
+    const dateLabel = date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+    });
+    return { diff, dateLabel, match };
+  });
+});
+
 const chartRef = ref<HTMLDivElement | null>(null);
 let chartInstance: echarts.ECharts | null = null;
+
+const matchesChartRef = ref<HTMLDivElement | null>(null);
+let matchesChartInstance: echarts.ECharts | null = null;
 
 const initChart = () => {
   if (!chartRef.value || sortedEvents.value.length === 0) return;
@@ -511,12 +618,80 @@ const initChart = () => {
   });
 };
 
-watch(showHistoryDialog, (val) => {
-  if (val) {
+const initMatchesChart = () => {
+  if (!matchesChartRef.value || matchChartData.value.length === 0) return;
+
+  if (matchesChartInstance) {
+    matchesChartInstance.dispose();
+    matchesChartInstance = null;
+  }
+
+  const data = [...matchChartData.value].reverse();
+  const labels = data.map((d) => d.dateLabel);
+  const values = data.map((d) => d.diff);
+
+  matchesChartInstance = echarts.init(matchesChartRef.value);
+  matchesChartInstance.setOption({
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: unknown) => {
+        const p = (params as Array<{ name: string; value: number }>)[0];
+        const result = p.value > 0 ? 'Win' : 'Loss';
+        return `${p.name}<br/>${result} by ${Math.abs(p.value)} pts`;
+      },
+    },
+    xAxis: {
+      type: 'category',
+      data: labels,
+      axisLabel: { rotate: 45, fontSize: 10 },
+    },
+    yAxis: {
+      type: 'value',
+      name: 'Point Diff',
+      nameTextStyle: { fontSize: 10 },
+    },
+    series: [
+      {
+        type: 'bar',
+        data: values.map((val) => ({
+          value: val,
+          itemStyle: { color: val >= 0 ? '#21ba45' : '#c10015' },
+        })),
+        barWidth: '60%',
+      },
+    ],
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '15%',
+      top: '15%',
+      containLabel: true,
+    },
+  });
+};
+
+watch([showHistoryDialog, activeTab], ([dialogOpen, tab]) => {
+  console.log(
+    '[PlayerPage] Dialog:',
+    dialogOpen,
+    '| Tab:',
+    tab,
+    '| completedMatches count:',
+    PlayerProfile.state.completedMatches?.length ?? 0,
+  );
+  if (dialogOpen && tab === 'history') {
     nextTick(() => initChart());
-  } else if (chartInstance) {
-    chartInstance.dispose();
-    chartInstance = null;
+  } else if (dialogOpen && tab === 'matches') {
+    nextTick(() => initMatchesChart());
+  } else {
+    if (chartInstance) {
+      chartInstance.dispose();
+      chartInstance = null;
+    }
+    if (matchesChartInstance) {
+      matchesChartInstance.dispose();
+      matchesChartInstance = null;
+    }
   }
 });
 
