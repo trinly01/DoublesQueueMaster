@@ -344,7 +344,12 @@
                 <div class="text-caption q-mb-xs">
                   DUPR ID is optional — to find it, navigate to
                 </div>
-                <q-breadcrumbs class="text-caption text-blue-9 no-wrap" dense>
+                <q-breadcrumbs
+                  gutter="xs"
+                  class="text-caption text-blue-9 no-wrap"
+                  style="font-size: 10px"
+                  dense
+                >
                   <template v-slot:separator>
                     <q-icon size="0.9em" name="chevron_right" color="blue-9" />
                   </template>
