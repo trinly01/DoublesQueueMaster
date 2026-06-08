@@ -110,7 +110,12 @@
                 round
                 dense
               >
-                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Settings</q-tooltip>
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  >Settings</q-tooltip
+                >
               </q-btn>
             </div>
           </div>
@@ -211,7 +216,12 @@
                     round
                     dense
                   >
-                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add player</q-tooltip>
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
+                      >Add player</q-tooltip
+                    >
                   </q-btn>
                   <q-btn
                     v-if="isCurrentUserAdmin"
@@ -223,7 +233,12 @@
                     round
                     dense
                   >
-                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add all</q-tooltip>
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
+                      >Add all</q-tooltip
+                    >
                   </q-btn>
                 </q-toolbar>
               </q-card-section>
@@ -351,7 +366,12 @@
                   >
                     <span class="gt-xs">Auto</span>
                     <span class="lt-sm">Auto</span>
-                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-if="!canGenerateMatches()">
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
+                      v-if="!canGenerateMatches()"
+                    >
                       {{
                         matchType === 'singles'
                           ? 'Need at least 2 players'
@@ -372,7 +392,10 @@
                   >
                     <span class="gt-xs">Manual</span>
                     <span class="lt-sm">Manual</span>
-                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
                       v-if="queue.length < (matchType === 'singles' ? 2 : 4)"
                     >
                       {{
@@ -528,7 +551,12 @@
                           round
                           dense
                         >
-                          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add player</q-tooltip>
+                          <q-tooltip
+                            anchor="top middle"
+                            self="bottom middle"
+                            :offset="[8, 8]"
+                            >Add player</q-tooltip
+                          >
                         </q-btn>
                         <q-btn
                           v-if="isCurrentUserAdmin"
@@ -540,7 +568,12 @@
                           round
                           dense
                         >
-                          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add all</q-tooltip>
+                          <q-tooltip
+                            anchor="top middle"
+                            self="bottom middle"
+                            :offset="[8, 8]"
+                            >Add all</q-tooltip
+                          >
                         </q-btn>
                       </div>
                     </div>
@@ -665,7 +698,12 @@
                     >
                       <span class="gt-xs">Auto</span>
                       <span class="lt-sm">Auto</span>
-                      <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-if="!canGenerateMatches()">
+                      <q-tooltip
+                        anchor="top middle"
+                        self="bottom middle"
+                        :offset="[8, 8]"
+                        v-if="!canGenerateMatches()"
+                      >
                         {{
                           matchType === 'singles'
                             ? 'Need at least 2 players'
@@ -688,7 +726,10 @@
                     >
                       <span class="gt-xs">Manual</span>
                       <span class="lt-sm">Manual</span>
-                      <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+                      <q-tooltip
+                        anchor="top middle"
+                        self="bottom middle"
+                        :offset="[8, 8]"
                         v-if="queue.length < (matchType === 'singles' ? 2 : 4)"
                       >
                         {{
@@ -1062,7 +1103,12 @@
               color="grey"
               @click="showAddPlayerDialog = false"
             >
-              <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Cancel</q-tooltip>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Cancel</q-tooltip
+              >
             </q-btn>
 
             <!-- Single Player Mode Button -->
@@ -1078,7 +1124,12 @@
               "
               icon="add"
             >
-              <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add</q-tooltip>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Add</q-tooltip
+              >
             </q-btn>
 
             <!-- Bulk Import Mode Button -->
@@ -1090,7 +1141,12 @@
               :disable="bulkPlayers.length === 0"
               icon="group_add"
             >
-              <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Import all</q-tooltip>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Import all</q-tooltip
+              >
             </q-btn>
 
             <!-- Club Members Mode Button -->
@@ -1102,7 +1158,12 @@
               :disable="selectedClubMembers.length === 0"
               icon="groups"
             >
-              <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add members</q-tooltip>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Add members</q-tooltip
+              >
             </q-btn>
           </q-card-actions>
         </q-card>
@@ -1134,7 +1195,12 @@
                   class="q-ml-sm"
                 >
                   <q-icon name="verified" size="12px" />
-                  <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Read-only</q-tooltip>
+                  <q-tooltip
+                    anchor="top middle"
+                    self="bottom middle"
+                    :offset="[8, 8]"
+                    >Read-only</q-tooltip
+                  >
                 </q-badge>
               </div>
 
@@ -1253,170 +1319,17 @@
                 Enter match scores
               </div>
 
-              <!-- Match Layout: same structure as MatchCard -->
-              <div class="row items-center q-pa-sm no-wrap">
-                <!-- Left: Team A -->
-                <div class="col text-center">
-                  <div
-                    v-for="player in currentMatch.teamA"
-                    :key="player.username"
-                    class="column items-center q-mb-xs"
-                  >
-                    <span
-                      class="text-weight-medium text-center"
-                      style="
-                        max-width: 80px;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        white-space: nowrap;
-                        display: block;
-                      "
-                      >{{ player.firstName || player.username }}</span
-                    >
-                    <span
-                      v-if="player.username && player.firstName"
-                      class="text-grey-6"
-                      style="
-                        font-size: 10px;
-                        max-width: 80px;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        white-space: nowrap;
-                        display: block;
-                      "
-                    >
-                      @{{ player.username }}
-                    </span>
-                    <q-chip
-                      :label="`L${player.level}`"
-                      :color="getLevelColor(player.level)"
-                      text-color="white"
-                      size="xs"
-                      dense
-                    />
-                  </div>
-                  <q-input
-                    v-model.number="teamAScore"
-                    type="number"
-                    label="Score"
-                    outlined
-                    class="q-mt-sm"
-                    input-class="text-h4 text-center"
-                    style="
-                      max-width: 120px;
-                      margin-left: auto;
-                      margin-right: auto;
-                    "
-                  />
-                </div>
-
-                <!-- Center: Court + Win Probability + VS -->
-                <div
-                  class="col-auto q-mx-md text-center"
-                  style="
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 4px;
-                  "
-                >
-                  <q-chip
-                    v-if="currentMatch.court"
-                    color="blue-grey-7"
-                    text-color="white"
-                    size="sm"
-                    dense
-                  >
-                    Court
-                    <q-avatar
-                      color="blue-grey-9"
-                      style="left: 10px"
-                      dense
-                      size="xs"
-                      rounded
-                      text-color="white"
-                      >{{ currentMatch.court }}</q-avatar
-                    >
-                  </q-chip>
-                  <span class="text-caption text-grey-6">
-                    {{
-                      currentMatch.winProbability !== undefined
-                        ? (currentMatch.winProbability * 100).toFixed(0)
-                        : ''
-                    }}%
-                    <q-icon name="sports_tennis" color="grey-6" size="sm" />
-                    {{
-                      currentMatch.winProbability !== undefined
-                        ? ((1 - currentMatch.winProbability) * 100).toFixed(0)
-                        : ''
-                    }}%
-                  </span>
-                  <q-chip
-                    :color="getMatchStatusColor(currentMatch.status)"
-                    text-color="white"
-                    size="sm"
-                    dense
-                  >
-                    {{ getMatchStatusLabel(currentMatch.status) }}
-                  </q-chip>
-                  <div class="text-h6 text-weight-bold text-grey-8">VS</div>
-                </div>
-
-                <!-- Right: Team B -->
-                <div class="col text-center">
-                  <div
-                    v-for="player in currentMatch.teamB"
-                    :key="player.username"
-                    class="column items-center q-mb-xs"
-                  >
-                    <span
-                      class="text-weight-medium text-center"
-                      style="
-                        max-width: 80px;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        white-space: nowrap;
-                        display: block;
-                      "
-                      >{{ player.firstName || player.username }}</span
-                    >
-                    <span
-                      v-if="player.username && player.firstName"
-                      class="text-grey-6"
-                      style="
-                        font-size: 10px;
-                        max-width: 80px;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        white-space: nowrap;
-                        display: block;
-                      "
-                    >
-                      @{{ player.username }}
-                    </span>
-                    <q-chip
-                      :label="`L${player.level}`"
-                      :color="getLevelColor(player.level)"
-                      text-color="white"
-                      size="xs"
-                      dense
-                    />
-                  </div>
-                  <q-input
-                    v-model.number="teamBScore"
-                    type="number"
-                    label="Score"
-                    outlined
-                    class="q-mt-sm"
-                    input-class="text-h4 text-center"
-                    style="
-                      max-width: 120px;
-                      margin-left: auto;
-                      margin-right: auto;
-                    "
-                  />
-                </div>
-              </div>
+              <MatchResult
+                v-if="currentMatch"
+                :teamA="currentMatch.teamA"
+                :teamB="currentMatch.teamB"
+                :court="currentMatch.court"
+                :winProbability="currentMatch.winProbability"
+                :status="currentMatch.status"
+                editable
+                v-model:teamAScore="teamAScore"
+                v-model:teamBScore="teamBScore"
+              />
             </div>
           </q-card-section>
 
@@ -1751,10 +1664,21 @@
                           )
                         "
                       >
-                        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-if="adminMembers.length <= 1">
+                        <q-tooltip
+                          anchor="top middle"
+                          self="bottom middle"
+                          :offset="[8, 8]"
+                          v-if="adminMembers.length <= 1"
+                        >
                           Club must have at least one admin
                         </q-tooltip>
-                        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-else>Demote to member</q-tooltip>
+                        <q-tooltip
+                          anchor="top middle"
+                          self="bottom middle"
+                          :offset="[8, 8]"
+                          v-else
+                          >Demote to member</q-tooltip
+                        >
                       </q-btn>
                     </q-item-section>
                   </q-item>
@@ -1812,7 +1736,12 @@
                             )
                           "
                         >
-                          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Make admin</q-tooltip>
+                          <q-tooltip
+                            anchor="top middle"
+                            self="bottom middle"
+                            :offset="[8, 8]"
+                            >Make admin</q-tooltip
+                          >
                         </q-btn>
                         <q-btn
                           flat
@@ -1831,7 +1760,12 @@
                             )
                           "
                         >
-                          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Remove from club</q-tooltip>
+                          <q-tooltip
+                            anchor="top middle"
+                            self="bottom middle"
+                            :offset="[8, 8]"
+                            >Remove from club</q-tooltip
+                          >
                         </q-btn>
                       </div>
                     </q-item-section>
@@ -2234,7 +2168,12 @@
                           @click="removePlayerFromEdit(player)"
                           :disable="selectedPlayers.length <= 1"
                         >
-                          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Remove</q-tooltip>
+                          <q-tooltip
+                            anchor="top middle"
+                            self="bottom middle"
+                            :offset="[8, 8]"
+                            >Remove</q-tooltip
+                          >
                         </q-btn>
                         <q-btn
                           flat
@@ -2245,7 +2184,12 @@
                           @click="replacePlayerInEdit(player)"
                           :disable="availableQueuePlayers.length === 0"
                         >
-                          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Swap</q-tooltip>
+                          <q-tooltip
+                            anchor="top middle"
+                            self="bottom middle"
+                            :offset="[8, 8]"
+                            >Swap</q-tooltip
+                          >
                         </q-btn>
                       </div>
                     </q-item-section>
@@ -2325,7 +2269,12 @@
                         size="sm"
                         :disable="selectedPlayers.length >= 4"
                       >
-                        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Add</q-tooltip>
+                        <q-tooltip
+                          anchor="top middle"
+                          self="bottom middle"
+                          :offset="[8, 8]"
+                          >Add</q-tooltip
+                        >
                       </q-btn>
                     </q-item-section>
                   </q-item>
@@ -2367,7 +2316,12 @@
                 icon-right="arrow_forward"
                 @click="proceedToTeamArrangement"
               >
-                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Next</q-tooltip>
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  >Next</q-tooltip
+                >
               </q-btn>
 
               <!-- For singles and other matches, show save button -->
@@ -2379,10 +2333,21 @@
                 @click="saveMatchEdit"
                 :disable="selectedPlayers.length < 2"
               >
-                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-if="selectedPlayers.length < 2">
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  v-if="selectedPlayers.length < 2"
+                >
                   Need 2+ players
                 </q-tooltip>
-                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-else>Save</q-tooltip>
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  v-else
+                  >Save</q-tooltip
+                >
               </q-btn>
             </template>
 
@@ -2416,13 +2381,29 @@
                   selectedPlayers.length < 2 || selectedPlayers.length > 4
                 "
               >
-                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-if="selectedPlayers.length < 2">
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  v-if="selectedPlayers.length < 2"
+                >
                   Need 2+ players
                 </q-tooltip>
-                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-else-if="selectedPlayers.length > 4">
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  v-else-if="selectedPlayers.length > 4"
+                >
                   Max 4 players
                 </q-tooltip>
-                <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]" v-else>Save</q-tooltip>
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  v-else
+                  >Save</q-tooltip
+                >
               </q-btn>
             </template>
           </q-card-actions>
@@ -2507,7 +2488,12 @@
                 </q-item-section>
                 <q-item-section side>
                   <q-btn flat round color="accent" icon="swap_horiz" size="sm">
-                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Swap</q-tooltip>
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
+                      >Swap</q-tooltip
+                    >
                   </q-btn>
                 </q-item-section>
               </q-item>
@@ -2523,7 +2509,12 @@
               color="grey"
               @click="showReplacePlayerDialog = false"
             >
-              <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Cancel</q-tooltip>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Cancel</q-tooltip
+              >
             </q-btn>
           </q-card-actions>
         </q-card>
@@ -2612,7 +2603,12 @@
               color="grey"
               @click="showCourtSelectionDialog = false"
             >
-              <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Cancel</q-tooltip>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Cancel</q-tooltip
+              >
             </q-btn>
           </q-card-actions>
         </q-card>
@@ -2621,7 +2617,9 @@
 
     <q-page-sticky position="bottom-left" :offset="[18, 18]">
       <q-btn round icon="person" color="accent" @click="goHome">
-        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Profile</q-tooltip>
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+          >Profile</q-tooltip
+        >
       </q-btn>
     </q-page-sticky>
   </q-page>
@@ -2646,12 +2644,8 @@ import PlayerAvatar from '../components/PlayerAvatar.vue';
 import EmptyState from '../components/EmptyState.vue';
 import DialogHeader from '../components/DialogHeader.vue';
 import MatchCard from '../components/MatchCard.vue';
-import {
-  getLevelColor,
-  getLevelIcon,
-  getMatchStatusColor,
-  getMatchStatusLabel,
-} from '../utils/playerHelpers';
+import MatchResult from '../components/MatchResult.vue';
+import { getLevelColor, getLevelIcon } from '../utils/playerHelpers';
 import { computeWinProbability } from '../services/matchmaking';
 import { buildDuprCsv, downloadDuprCsv } from '../utils/duprExport';
 
