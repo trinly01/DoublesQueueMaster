@@ -444,12 +444,14 @@ import {
   type DirectusCompletedMatch,
 } from 'src/services/playerProfile';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
+import { useAuth } from 'src/composables/useAuth';
 import MatchResult from 'src/components/MatchResult.vue';
 import * as echarts from 'echarts';
 
 const router = useRouter();
 const $q = useQuasar();
 const { notify } = useNotify();
+const { logout, handleAuthError } = useAuth();
 
 const firstName = computed(() => PlayerProfile.state.firstName);
 const playerRating = computed(() => PlayerProfile.state.rating);
@@ -1010,8 +1012,15 @@ onMounted(async () => {
     PlayerProfile.loading.value = true;
   }
 
-  // Attempt server fetch; silently falls back to cache when offline
-  const fetched = await PlayerProfile.fetchProfile();
+  // Attempt server fetch; silently falls back to cache when offline.
+  // A 401 (invalid/expired session) is re-thrown here and triggers logout.
+  let fetched = false;
+  try {
+    fetched = await PlayerProfile.fetchProfile();
+  } catch (err) {
+    if (await handleAuthError(err, router)) return;
+    console.warn('Profile fetch failed:', err);
+  }
 
   if (!fetched && !PlayerProfile.hasCachedProfile()) {
     notify({
@@ -1056,19 +1065,7 @@ const onLogout = () => {
     ok: { label: 'Logout', unelevated: true, color: 'negative', rounded: true },
     persistent: true,
   }).onOk(async () => {
-    try {
-      await likhaClient.logout();
-    } catch (error) {
-      console.error('Logout API call error:', error);
-    } finally {
-      LocalStorage.remove('likha-data');
-      PlayerProfile.clearProfile();
-      notify({
-        color: 'info',
-        message: 'Logged out successfully',
-      });
-      router.push('/login');
-    }
+    await logout(router);
   });
 };
 </script>
