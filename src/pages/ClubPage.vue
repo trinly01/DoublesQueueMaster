@@ -6314,23 +6314,22 @@ const assignCourtAutomatically = () => {
   const match = matches.value[matchIndex];
   const court = assignCourt();
 
-  if (court > 0) {
+  if (court > 0 && isCourtAvailable(court)) {
     const actualMatch = MatchmakingApp.state.activeMatches.find(
       (am) => am.matchId === match.id,
     );
     if (actualMatch) {
       actualMatch.court = court;
+      actualMatch.status = 'in-progress';
+      actualMatch.createdAt = Date.now();
       actualMatch.updatedAt = Date.now();
     }
 
-    // Count matches for this court to show load balancing info
-    const courtMatchCount = matches.value.filter(
-      (m) => m.court === court,
-    ).length;
+    MatchmakingApp.persist();
 
     notify({
       type: 'positive',
-      message: `Assigned to Court ${court} (${courtMatchCount} total matches)`,
+      message: `Match started on Court ${court}`,
     });
   } else {
     notify({
@@ -6459,22 +6458,22 @@ const assignSpecificCourt = (courtNumber: number) => {
       showCourtSelectionDialog.value = false;
     });
   } else {
-    // Court is available - simple assignment
+    // Court is available - assign and auto-start
     const actualMatch = MatchmakingApp.state.activeMatches.find(
       (am) => am.matchId === match.id,
     );
     if (actualMatch) {
       actualMatch.court = courtNumber;
+      actualMatch.status = 'in-progress';
+      actualMatch.createdAt = Date.now();
       actualMatch.updatedAt = Date.now();
     }
 
-    // Don't auto-start the match; it will start via auto-advance or manual start button
-    // Just assign the court and leave status as is
     MatchmakingApp.persist();
 
     notify({
       type: 'positive',
-      message: `Assigned to Court ${courtNumber}`,
+      message: `Match started on Court ${courtNumber}`,
     });
 
     showCourtSelectionDialog.value = false;
