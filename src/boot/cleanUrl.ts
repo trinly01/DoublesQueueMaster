@@ -19,13 +19,14 @@ export default boot(() => {
     const cleanSearch = stripTrackingParams(params);
     cleanSearch.delete('r');
     const newSearch = cleanSearch.toString();
+    const pathname = loc.pathname.replace(/\/+$/, '');
     const newUrl =
       loc.origin +
-      loc.pathname +
+      pathname +
       (newSearch ? `?${newSearch}` : '') +
-      `/#${redirectPath}` +
-      loc.hash;
-    window.history.replaceState({}, '', newUrl);
+      '#' +
+      redirectPath;
+    window.location.replace(newUrl);
     return;
   }
 

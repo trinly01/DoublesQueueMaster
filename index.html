@@ -163,6 +163,73 @@
     />
   </head>
   <body>
+    <script>
+      (function () {
+        var search = window.location.search;
+        if (!search) return;
+
+        var params = new URLSearchParams(search);
+        var redirectPath = params.get('r');
+
+        function stripTracking(p) {
+          var cleaned = new URLSearchParams();
+          p.forEach(function (value, key) {
+            if (
+              key !== 'fbclid' &&
+              key.indexOf('utm_') !== 0 &&
+              key !== 'gclid' &&
+              key !== 'ttclid' &&
+              key !== 'wbraid'
+            ) {
+              cleaned.append(key, value);
+            }
+          });
+          return cleaned;
+        }
+
+        if (redirectPath) {
+          var cleanSearch = stripTracking(params);
+          cleanSearch.delete('r');
+          var newSearch = cleanSearch.toString();
+          var pathname = window.location.pathname;
+          if (pathname.length > 1 && pathname.slice(-1) === '/') {
+            pathname = pathname.slice(0, -1);
+          }
+          var newUrl =
+            window.location.origin +
+            pathname +
+            (newSearch ? '?' + newSearch : '') +
+            '#' +
+            redirectPath;
+          window.location.replace(newUrl);
+          return;
+        }
+
+        var hasTracking = false;
+        params.forEach(function (_, key) {
+          if (
+            key === 'fbclid' ||
+            key.indexOf('utm_') === 0 ||
+            key === 'gclid' ||
+            key === 'ttclid' ||
+            key === 'wbraid'
+          ) {
+            hasTracking = true;
+          }
+        });
+
+        if (hasTracking) {
+          var cleanSearch = stripTracking(params);
+          var newSearch = cleanSearch.toString();
+          var newUrl =
+            window.location.origin +
+            window.location.pathname +
+            (newSearch ? '?' + newSearch : '') +
+            window.location.hash;
+          window.history.replaceState({}, '', newUrl);
+        }
+      })();
+    </script>
     <!-- quasar:entry-point -->
   </body>
 </html>
