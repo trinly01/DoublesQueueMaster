@@ -50,6 +50,8 @@ export interface ActiveMatch {
   updatedAt?: number; // Epoch ms of last change (for per-field LWW)
   deletedAt?: number; // Epoch ms of deletion (tombstone). If present, match is logically deleted.
   originalQueueTypes?: Record<string, 'GENERAL' | 'WINNERS' | 'LOSERS'>;
+  oldestQueueEntryAt?: number; // Earliest queue enteredAt among all players (for FIFO priority)
+  minGamesPlayed?: number; // Minimum matchesPlayed among all players (for fairness priority)
 }
 
 export interface CompletedMatchPlayer {
@@ -87,6 +89,7 @@ export interface AppState {
   queueReturnMethod?: 'fairness_first' | 'end_of_queue' | 'smart_position';
   autoSortQueue?: boolean;
   queuePriorityMode?: 'timestamp' | 'gamesPlayed';
+  matchmakingMode?: 'variety_first' | 'balance_first';
   sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
   matchType?: 'singles' | 'doubles';
   matchesFilterBy?: 'all' | number;
@@ -300,7 +303,11 @@ export const MatchmakerEngine = {
     return combinations;
   },
 
-  draftBalancedMatch: (players: Player[], teamSize: number) => {
+  draftBalancedMatch: (
+    players: Player[],
+    teamSize: number,
+    mode: 'variety_first' | 'balance_first' = 'variety_first',
+  ) => {
     const allMatchups = MatchmakerEngine.getCombinations(players, teamSize);
 
     // Calculate team strength using Harmonic Mean
@@ -318,42 +325,94 @@ export const MatchmakerEngine = {
       const ratingB = harmonicMean(matchup.teamB);
       const expectedDifference = Math.abs(ratingA - ratingB);
 
-      // Calculate Novelty Penalty
-      let noveltyPenalty = 0;
+      if (mode === 'balance_first') {
+        // Original combined-score behavior
+        let noveltyPenalty = 0;
+        const addTeamPenalty = (team: Player[]) => {
+          for (let i = 0; i < team.length; i++) {
+            for (let j = i + 1; j < team.length; j++) {
+              const historyCount =
+                team[i].history?.playedWith?.[team[j].username] || 0;
+              noveltyPenalty += historyCount * 50;
+            }
+          }
+        };
+        addTeamPenalty(matchup.teamA);
+        addTeamPenalty(matchup.teamB);
+        for (const pA of matchup.teamA) {
+          for (const pB of matchup.teamB) {
+            const historyCount = pA.history?.playedAgainst?.[pB.username] || 0;
+            noveltyPenalty += historyCount * 15;
+          }
+        }
+        return {
+          ...matchup,
+          expectedDifference,
+          combinedScore: expectedDifference + noveltyPenalty,
+        };
+      }
 
-      // Penalty for playing with same teammates
-      const addTeamPenalty = (team: Player[]) => {
+      // Variety-first: count raw repeats, not weighted penalties
+      let partnerRepeats = 0;
+      let opponentRepeats = 0;
+      const countTeamRepeats = (team: Player[]) => {
         for (let i = 0; i < team.length; i++) {
           for (let j = i + 1; j < team.length; j++) {
-            const historyCount =
+            partnerRepeats +=
               team[i].history?.playedWith?.[team[j].username] || 0;
-            noveltyPenalty += historyCount * 50; // 50 rating points penalty per previous match together
           }
         }
       };
-      addTeamPenalty(matchup.teamA);
-      addTeamPenalty(matchup.teamB);
-
-      // Penalty for playing against same opponents
+      countTeamRepeats(matchup.teamA);
+      countTeamRepeats(matchup.teamB);
       for (const pA of matchup.teamA) {
         for (const pB of matchup.teamB) {
-          const historyCount = pA.history?.playedAgainst?.[pB.username] || 0;
-          noveltyPenalty += historyCount * 15; // 15 rating points penalty per previous match against
+          opponentRepeats += pA.history?.playedAgainst?.[pB.username] || 0;
         }
       }
 
       return {
         ...matchup,
         expectedDifference,
-        combinedScore: expectedDifference + noveltyPenalty,
+        partnerRepeats,
+        opponentRepeats,
       };
     });
 
-    evaluated.sort((a, b) => a.combinedScore - b.combinedScore);
+    if (mode === 'balance_first') {
+      type ScoreItem = { combinedScore: number };
+      evaluated.sort(
+        (a, b) =>
+          (a as unknown as ScoreItem).combinedScore -
+          (b as unknown as ScoreItem).combinedScore,
+      );
+      const poolSize = Math.min(3, evaluated.length);
+      return evaluated[Math.floor(Math.random() * poolSize)];
+    }
 
-    // Pick randomly from the top 3 fairest combinations to prevent stale teams
-    const poolSize = Math.min(3, evaluated.length);
-    return evaluated[Math.floor(Math.random() * poolSize)];
+    // Variety-first: sort by fewest partner repeats, then opponent repeats, then balance
+    type VarietyItem = { partnerRepeats: number; opponentRepeats: number };
+    evaluated.sort((a, b) => {
+      const pa = (a as unknown as VarietyItem).partnerRepeats;
+      const pb = (b as unknown as VarietyItem).partnerRepeats;
+      if (pa !== pb) return pa - pb;
+      const oa = (a as unknown as VarietyItem).opponentRepeats;
+      const ob = (b as unknown as VarietyItem).opponentRepeats;
+      if (oa !== ob) return oa - ob;
+      return a.expectedDifference - b.expectedDifference;
+    });
+
+    const best = evaluated[0];
+    if (best && best.expectedDifference > 150) {
+      console.warn(
+        `[Matchmaker] Best variety-first matchup still has a ${Math.round(best.expectedDifference)} rating gap (sweet spot is <150).`,
+        best.teamA.map((p: Player) => p.username),
+        'vs',
+        best.teamB.map((p: Player) => p.username),
+      );
+    }
+
+    return best;
   },
 };
 
@@ -390,13 +449,16 @@ export class LocalMatchmakingSystem {
       initialState.autoSortQueue = true;
     if (initialState.queuePriorityMode === undefined)
       initialState.queuePriorityMode = 'timestamp';
+    if (initialState.matchmakingMode === undefined)
+      initialState.matchmakingMode = 'variety_first';
     if (initialState.sortBy === undefined)
       initialState.sortBy = 'matchesPlayed';
     if (initialState.matchType === undefined)
       initialState.matchType = 'doubles';
     if (initialState.matchesFilterBy === undefined)
       initialState.matchesFilterBy = 'all';
-    if (initialState.scoreType === undefined) initialState.scoreType = 'RALLY';
+    if (initialState.scoreType === undefined)
+      initialState.scoreType = 'SIDEOUT';
     if (initialState.completedMatchesResetAt === undefined)
       initialState.completedMatchesResetAt = 0;
     if (initialState.lastExportedAt === undefined)
@@ -600,10 +662,11 @@ export class LocalMatchmakingSystem {
     this.state.queueReturnMethod = 'fairness_first';
     this.state.autoSortQueue = true;
     this.state.queuePriorityMode = 'timestamp';
+    this.state.matchmakingMode = 'variety_first';
     this.state.sortBy = 'matchesPlayed';
     this.state.matchType = 'doubles';
     this.state.matchesFilterBy = 'all';
-    this.state.scoreType = 'RALLY';
+    this.state.scoreType = 'SIDEOUT';
     this.state.lastModified = Date.now();
     this.state.clubId = '';
     this.saveState();
@@ -755,9 +818,24 @@ export class LocalMatchmakingSystem {
             bestGroup = group;
           }
         }
+        // In balance-first, sort by rating so closest-rated players are adjacent
+        if (this.state.matchmakingMode === 'balance_first') {
+          bestGroup.sort((a, b) => {
+            const rA = this.state.players[a.username]?.rating || 1500;
+            const rB = this.state.players[b.username]?.rating || 1500;
+            return rB - rA;
+          });
+        }
         draftedEntries = bestGroup.slice(0, playersNeeded);
       } else {
         // Fallback to drafting from top of queue if no pure group has enough
+        if (this.state.matchmakingMode === 'balance_first') {
+          prioritizedQueue.sort((a, b) => {
+            const rA = this.state.players[a.username]?.rating || 1500;
+            const rB = this.state.players[b.username]?.rating || 1500;
+            return rB - rA;
+          });
+        }
         draftedEntries = prioritizedQueue.slice(0, playersNeeded);
       }
 
@@ -784,6 +862,7 @@ export class LocalMatchmakingSystem {
       const match = MatchmakerEngine.draftBalancedMatch(
         playersToBalance,
         this.state.teamSize,
+        this.state.matchmakingMode || 'variety_first',
       );
 
       // Validate no duplicate players in the match
@@ -809,6 +888,16 @@ export class LocalMatchmakingSystem {
         originalQueueTypes[entry.username] = entry.queueType;
       });
 
+      // Compute queue-priority metadata for match ordering
+      const oldestQueueEntryAt = Math.min(
+        ...draftedEntries.map((e) => e.enteredAt),
+      );
+      const minGamesPlayed = Math.min(
+        ...draftedEntries.map(
+          (e) => this.state.players[e.username]?.matchesPlayed || 0,
+        ),
+      );
+
       // Push to active matches
       this.state.activeMatches.push({
         matchId: Math.random().toString(36).substring(2, 9), // Simple local ID
@@ -824,6 +913,8 @@ export class LocalMatchmakingSystem {
         createdAt: Date.now(),
         updatedAt: Date.now(),
         originalQueueTypes,
+        oldestQueueEntryAt,
+        minGamesPlayed,
       });
     }
 
