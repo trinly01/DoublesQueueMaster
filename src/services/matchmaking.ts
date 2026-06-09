@@ -22,6 +22,7 @@ export interface Player {
   duprId?: string; // DUPR player ID for CSV export
   ratingUpdatedAt?: number; // Epoch ms of the last rating change (LWW token vs directus_users.rating_updated_at)
   updatedAt?: number; // Epoch ms of the last any field change (for per-field LWW)
+  createdAt?: number; // Epoch ms when player was first created (for checkpoint purge)
   avatar?: string; // Avatar URL from Directus
   deletedAt?: number; // Epoch ms of deletion (tombstone). If present, player is logically deleted.
   history?: {
@@ -97,6 +98,9 @@ export interface AppState {
   completedMatchesResetAt?: number; // Epoch ms — drops completedMatches older than this
   lastExportedAt?: number; // Epoch ms of last export
   settingsUpdatedAt?: number; // Epoch ms of last settings change (for per-field LWW)
+  playersResetAt?: number; // Epoch ms — drops players created before this checkpoint
+  queuesResetAt?: number; // Epoch ms — drops queue entries entered before this checkpoint
+  matchesResetAt?: number; // Epoch ms — drops matches created before this checkpoint
   lastModified?: number;
   clubId?: string; // Which club this local state belongs to
 }
@@ -463,6 +467,12 @@ export class LocalMatchmakingSystem {
       initialState.completedMatchesResetAt = 0;
     if (initialState.lastExportedAt === undefined)
       initialState.lastExportedAt = 0;
+    if (initialState.playersResetAt === undefined)
+      initialState.playersResetAt = 0;
+    if (initialState.queuesResetAt === undefined)
+      initialState.queuesResetAt = 0;
+    if (initialState.matchesResetAt === undefined)
+      initialState.matchesResetAt = 0;
     if (initialState.lastModified === undefined)
       initialState.lastModified = Date.now();
     if (initialState.clubId === undefined) initialState.clubId = '';
@@ -508,11 +518,6 @@ export class LocalMatchmakingSystem {
     });
     this.state.queues = Array.from(uniqueQueues.values());
 
-    // Garbage-collect queue tombstones older than 7 days
-    this.state.queues = this.state.queues.filter(
-      (q) => !q.deletedAt || now - q.deletedAt < SEVEN_DAYS,
-    );
-
     // Validate players dictionary keys match usernames
     const fixedPlayers: Record<string, Player> = {};
     Object.entries(this.state.players).forEach(([key, player]) => {
@@ -527,11 +532,44 @@ export class LocalMatchmakingSystem {
     // Garbage-collect tombstones older than 7 days to prevent array bloat
     const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
+
+    this.state.queues = this.state.queues.filter(
+      (q) => !q.deletedAt || now - q.deletedAt < SEVEN_DAYS,
+    );
+
     this.state.activeMatches = this.state.activeMatches.filter(
       (m) => !m.deletedAt || now - m.deletedAt < SEVEN_DAYS,
     );
 
-    this.state.lastModified = Date.now();
+    // Checkpoint purge: remove any entity created before its reset checkpoint.
+    // This prevents stale data from reappearing after a reset on another admin.
+    const playersCheckpoint = this.state.playersResetAt ?? 0;
+    const queuesCheckpoint = this.state.queuesResetAt ?? 0;
+    const matchesCheckpoint = this.state.matchesResetAt ?? 0;
+
+    if (playersCheckpoint > 0) {
+      const keptPlayers: Record<string, Player> = {};
+      for (const [key, player] of Object.entries(this.state.players)) {
+        if ((player.createdAt ?? 0) >= playersCheckpoint) {
+          keptPlayers[key] = player;
+        }
+      }
+      this.state.players = keptPlayers;
+    }
+
+    if (queuesCheckpoint > 0) {
+      this.state.queues = this.state.queues.filter(
+        (q) => (q.enteredAt ?? 0) >= queuesCheckpoint,
+      );
+    }
+
+    if (matchesCheckpoint > 0) {
+      this.state.activeMatches = this.state.activeMatches.filter(
+        (m) => (m.createdAt ?? 0) >= matchesCheckpoint,
+      );
+    }
+
+    this.state.lastModified = now;
     LocalStorage.set(STORAGE_KEY, this.state);
     if (this.onStateChange) {
       this.onStateChange();
@@ -600,62 +638,42 @@ export class LocalMatchmakingSystem {
   // Helper to completely wipe data (Useful for "End Session" button in UI)
   public clearSession() {
     const now = Date.now();
-    this.state.activeMatches.forEach((m) => {
-      m.deletedAt = now;
-      m.updatedAt = now;
-    });
-    this.state.queues.forEach((q) => {
-      q.deletedAt = now;
-      q.updatedAt = now;
-    });
     this.state.queues = [];
     this.state.activeMatches = [];
+    this.state.queuesResetAt = now;
+    this.state.matchesResetAt = now;
+    this.state.settingsUpdatedAt = now;
+    this.state.lastModified = now;
     this.saveState();
   }
 
   public hardResetEverything() {
     LocalStorage.remove(STORAGE_KEY);
     const now = Date.now();
-    this.state.activeMatches.forEach((m) => {
-      m.deletedAt = now;
-      m.updatedAt = now;
-    });
-    this.state.queues.forEach((q) => {
-      q.deletedAt = now;
-      q.updatedAt = now;
-    });
-    Object.values(this.state.players).forEach((p) => {
-      p.deletedAt = now;
-      p.updatedAt = now;
-    });
     this.state.players = {};
     this.state.queues = [];
     this.state.activeMatches = [];
     this.state.completedMatches = [];
-    this.state.completedMatchesResetAt = 0;
+    this.state.playersResetAt = now;
+    this.state.queuesResetAt = now;
+    this.state.matchesResetAt = now;
+    this.state.completedMatchesResetAt = now;
     this.state.lastExportedAt = 0;
+    this.state.settingsUpdatedAt = now;
+    this.state.lastModified = now;
     this.saveState();
   }
 
   public resetState() {
     const now = Date.now();
-    this.state.activeMatches.forEach((m) => {
-      m.deletedAt = now;
-      m.updatedAt = now;
-    });
-    this.state.queues.forEach((q) => {
-      q.deletedAt = now;
-      q.updatedAt = now;
-    });
-    Object.values(this.state.players).forEach((p) => {
-      p.deletedAt = now;
-      p.updatedAt = now;
-    });
     this.state.players = {};
     this.state.queues = [];
     this.state.activeMatches = [];
     this.state.completedMatches = [];
-    this.state.completedMatchesResetAt = 0;
+    this.state.playersResetAt = now;
+    this.state.queuesResetAt = now;
+    this.state.matchesResetAt = now;
+    this.state.completedMatchesResetAt = now;
     this.state.lastExportedAt = 0;
     this.state.availableCourts = 1;
     this.state.autoAdvanceMatches = true;
@@ -667,7 +685,8 @@ export class LocalMatchmakingSystem {
     this.state.matchType = 'doubles';
     this.state.matchesFilterBy = 'all';
     this.state.scoreType = 'SIDEOUT';
-    this.state.lastModified = Date.now();
+    this.state.settingsUpdatedAt = now;
+    this.state.lastModified = now;
     this.state.clubId = '';
     this.saveState();
   }
@@ -710,6 +729,7 @@ export class LocalMatchmakingSystem {
         matchesPlayed: 0,
         wins: 0,
         losses: 0,
+        createdAt: Date.now(),
         updatedAt: Date.now(),
         ...extra,
       };
@@ -1126,9 +1146,70 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     return { ...server };
   }
 
+  // Compute effective reset checkpoints (latest reset wins across both sides)
+  const effectivePlayersResetAt = Math.max(
+    local.playersResetAt ?? 0,
+    server.playersResetAt ?? 0,
+  );
+  const effectiveQueuesResetAt = Math.max(
+    local.queuesResetAt ?? 0,
+    server.queuesResetAt ?? 0,
+  );
+  const effectiveMatchesResetAt = Math.max(
+    local.matchesResetAt ?? 0,
+    server.matchesResetAt ?? 0,
+  );
+
+  // Pre-filter collections: drop any entity created before the effective checkpoint
+  const filterPlayers = (
+    players: Record<string, Player>,
+    checkpoint: number,
+  ) => {
+    if (checkpoint === 0) return players;
+    const filtered: Record<string, Player> = {};
+    for (const [key, p] of Object.entries(players)) {
+      if ((p.createdAt ?? 0) >= checkpoint) {
+        filtered[key] = p;
+      }
+    }
+    return filtered;
+  };
+
+  const filterQueues = (queues: QueueEntry[], checkpoint: number) => {
+    if (checkpoint === 0) return queues;
+    return queues.filter((q) => (q.enteredAt ?? 0) >= checkpoint);
+  };
+
+  const filterMatches = (matches: ActiveMatch[], checkpoint: number) => {
+    if (checkpoint === 0) return matches;
+    return matches.filter((m) => (m.createdAt ?? 0) >= checkpoint);
+  };
+
+  const localPlayers = filterPlayers(
+    local.players || {},
+    effectivePlayersResetAt,
+  );
+  const serverPlayers = filterPlayers(
+    server.players || {},
+    effectivePlayersResetAt,
+  );
+  const localQueues = filterQueues(local.queues || [], effectiveQueuesResetAt);
+  const serverQueues = filterQueues(
+    server.queues || [],
+    effectiveQueuesResetAt,
+  );
+  const localMatches = filterMatches(
+    local.activeMatches || [],
+    effectiveMatchesResetAt,
+  );
+  const serverMatches = filterMatches(
+    server.activeMatches || [],
+    effectiveMatchesResetAt,
+  );
+
   // Merge players using per-player updatedAt (or matchesPlayed as fallback)
-  const mergedPlayers: Record<string, Player> = { ...(server.players || {}) };
-  for (const [username, lp] of Object.entries(local.players || {})) {
+  const mergedPlayers: Record<string, Player> = { ...serverPlayers };
+  for (const [username, lp] of Object.entries(localPlayers)) {
     const sp = mergedPlayers[username];
     if (!sp) {
       mergedPlayers[username] = lp;
@@ -1154,8 +1235,8 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   // A player missing on one side but present on the other is NOT auto-deleted;
   // only an explicit tombstone (deletedAt) propagates the deletion.
   for (const username of Object.keys(mergedPlayers)) {
-    const lp = local.players?.[username];
-    const sp = server.players?.[username];
+    const lp = localPlayers[username];
+    const sp = serverPlayers[username];
     const localDeleted = lp?.deletedAt ?? 0;
     const serverDeleted = sp?.deletedAt ?? 0;
     if (localDeleted > 0 || serverDeleted > 0) {
@@ -1177,13 +1258,13 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   // If server state is newer overall, start with server queue entries
   // This ensures queue deletions (when players are drafted into matches) propagate
   if (serverTime > localTime) {
-    (server.queues || []).forEach((q) =>
+    serverQueues.forEach((q) =>
       allQueues.set(`${q.username}-${q.queueType}`, {
         entry: q,
         source: 'server',
       }),
     );
-    (local.queues || []).forEach((q) => {
+    localQueues.forEach((q) => {
       const key = `${q.username}-${q.queueType}`;
       const existing = allQueues.get(key);
       if (!existing) {
@@ -1206,13 +1287,13 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     });
   } else {
     // Local state is newer or equal - start with local queue entries
-    (local.queues || []).forEach((q) =>
+    localQueues.forEach((q) =>
       allQueues.set(`${q.username}-${q.queueType}`, {
         entry: q,
         source: 'local',
       }),
     );
-    (server.queues || []).forEach((q) => {
+    serverQueues.forEach((q) => {
       const key = `${q.username}-${q.queueType}`;
       const existing = allQueues.get(key);
       if (!existing) {
@@ -1256,10 +1337,7 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   // Only consider matches from the winning side (newer state) to avoid
   // removing queue entries that were added by the newer state
   const playersInMatches = new Set<string>();
-  const winningMatches =
-    serverTime > localTime
-      ? server.activeMatches || []
-      : local.activeMatches || [];
+  const winningMatches = serverTime > localTime ? serverMatches : localMatches;
 
   winningMatches.forEach((m) => {
     if (!m.deletedAt) {
@@ -1292,10 +1370,10 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     { match: ActiveMatch; source: 'local' | 'server' }
   >();
 
-  (local.activeMatches || []).forEach((m) =>
+  localMatches.forEach((m) =>
     allMatches.set(m.matchId, { match: m, source: 'local' }),
   );
-  (server.activeMatches || []).forEach((m) => {
+  serverMatches.forEach((m) => {
     const existing = allMatches.get(m.matchId);
     if (!existing) {
       allMatches.set(m.matchId, { match: m, source: 'server' });
@@ -1314,8 +1392,8 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   // A match missing on one side but present on the other is NOT auto-deleted;
   // only an explicit tombstone (deletedAt) propagates the deletion.
   for (const matchId of allMatches.keys()) {
-    const lm = local.activeMatches?.find((m) => m.matchId === matchId);
-    const sm = server.activeMatches?.find((m) => m.matchId === matchId);
+    const lm = localMatches.find((m) => m.matchId === matchId);
+    const sm = serverMatches.find((m) => m.matchId === matchId);
     const localDeleted = lm?.deletedAt ?? 0;
     const serverDeleted = sm?.deletedAt ?? 0;
     if (localDeleted > 0 || serverDeleted > 0) {
@@ -1374,6 +1452,9 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     completedMatches: mergedCompletedMatches,
     lastModified: Math.max(localTime, serverTime),
     settingsUpdatedAt: Math.max(localSettingsTime, serverSettingsTime),
+    playersResetAt: effectivePlayersResetAt,
+    queuesResetAt: effectiveQueuesResetAt,
+    matchesResetAt: effectiveMatchesResetAt,
   };
 
   // Ensure no player ends up in multiple active matches after merge.
