@@ -112,8 +112,7 @@
                 color="primary"
                 label="Join"
                 @click="joinClub"
-                :loading="joinLoading"
-                :disable="!clubId || joinLoading"
+                :disable="!clubId"
                 class="full-width join-btn"
                 dense
               />
@@ -443,7 +442,6 @@ import {
   RatingEvent,
   type DirectusCompletedMatch,
 } from 'src/services/playerProfile';
-import { joinClub as joinClubService } from 'src/services/clubMembership';
 import { useAuth } from 'src/composables/useAuth';
 import MatchResult from 'src/components/MatchResult.vue';
 import * as echarts from 'echarts';
@@ -471,7 +469,6 @@ const clubId = ref<string | { clubId: string; name: string }>(
   (LocalStorage.getItem(LAST_CLUB_KEY) as string) || '',
 );
 const clubOptions = ref<{ clubId: string; name: string }[]>([]);
-const joinLoading = ref(false);
 const loading = computed(() => PlayerProfile.loading.value);
 const avatarInput = ref<HTMLInputElement | null>(null);
 
@@ -962,48 +959,10 @@ const filterClubs = async (
   }
 };
 
-const joinClub = async () => {
-  if (!clubId.value || joinLoading.value) return;
-  joinLoading.value = true;
-
-  try {
-    const result = await joinClubService(
-      clubId.value as string,
-      currentUserId.value,
-    );
-
-    if (!result.success) {
-      notify({ color: 'negative', message: result.error });
-      return;
-    }
-
-    if (!result.alreadyMember) {
-      notify({ color: 'positive', message: 'Joined club successfully!' });
-    }
-
-    LocalStorage.set(LAST_CLUB_KEY, clubId.value);
-    router.push(`/club/${clubId.value}`);
-  } catch (err) {
-    console.warn('Join club failed (offline?), using cached data:', err);
-
-    // Offline fallback: proceed if cached matchmaking data exists
-    const cached = LocalStorage.getItem('matchmaking_state') as Record<
-      string,
-      unknown
-    > | null;
-    if (cached && Object.keys(cached).length > 0) {
-      LocalStorage.set(LAST_CLUB_KEY, clubId.value);
-      notify({
-        color: 'warning',
-        message: 'Offline — using cached club data',
-      });
-      router.push(`/club/${clubId.value}`);
-    } else {
-      notify({ color: 'negative', message: 'Failed to join club' });
-    }
-  } finally {
-    joinLoading.value = false;
-  }
+const joinClub = () => {
+  if (!clubId.value) return;
+  LocalStorage.set(LAST_CLUB_KEY, clubId.value);
+  router.push(`/club/${clubId.value}`);
 };
 
 onMounted(async () => {
