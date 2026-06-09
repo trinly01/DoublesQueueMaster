@@ -56,7 +56,10 @@ export async function addClubMember(
 export async function joinClub(
   clubId: string,
   userId: string,
-): Promise<{ success: true; clubUUID: string; alreadyMember: boolean } | { success: false; error: string }> {
+): Promise<
+  | { success: true; clubUUID: string; alreadyMember: boolean }
+  | { success: false; error: string }
+> {
   try {
     const info = await checkClubMembership(clubId, userId);
     if (!info) return { success: false, error: 'Club not found' };
@@ -65,8 +68,31 @@ export async function joinClub(
       await addClubMember(info.clubUUID, userId);
     }
 
-    return { success: true, clubUUID: info.clubUUID, alreadyMember: info.isMember };
+    return {
+      success: true,
+      clubUUID: info.clubUUID,
+      alreadyMember: info.isMember,
+    };
   } catch (err) {
-    return { success: false, error: String(err) };
+    const status = (err as { response?: { status?: number } })?.response
+      ?.status;
+    if (status === 401) {
+      throw err; // Let caller handle auth redirect
+    }
+
+    let errorMessage = 'Failed to join club';
+    if (err instanceof Error) {
+      errorMessage = err.message;
+    } else if (typeof err === 'object' && err !== null) {
+      const sdkErr = err as {
+        errors?: { message?: string }[];
+        message?: string;
+      };
+      errorMessage =
+        sdkErr.errors?.[0]?.message ?? sdkErr.message ?? 'Failed to join club';
+    } else if (typeof err === 'string') {
+      errorMessage = err;
+    }
+    return { success: false, error: errorMessage };
   }
 }

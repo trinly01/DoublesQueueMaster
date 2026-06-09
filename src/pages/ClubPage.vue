@@ -4179,6 +4179,7 @@ const handleJoinClub = async () => {
     // Reload club data to reflect membership
     void loadClubData(currentClubId.value);
   } catch (err) {
+    if (await handleAuthError(err, router)) return;
     notify({ color: 'negative', message: 'Failed to join club' });
   }
 };
@@ -4252,6 +4253,15 @@ onMounted(async () => {
   const clubId = route.params['clubId'] as string;
   if (clubId) {
     await loadClubData(clubId);
+    // Auto-join if not a member (lazy join: works offline if cached, joins when online)
+    if (
+      !isCurrentUserMember.value &&
+      !isOpenPlay.value &&
+      currentUserId.value &&
+      isOnline.value
+    ) {
+      void handleJoinClub();
+    }
     // Restore optimistic-concurrency token so we don't false-conflict after refresh
     lastSyncedServerTimestamp.value = loadLastSyncedTimestamp(clubId);
     // Pull any manual directus_users rating edits on first load.
