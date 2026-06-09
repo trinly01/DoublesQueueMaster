@@ -3385,7 +3385,8 @@ const loadClubData = async (clubId: string) => {
       //   queues/matches (latest-writer-wins) while preserving player stats.
       // Non-admins: server is source of truth — always overwrite.
       if (serverMatchmaking) {
-        // Detect remote reset: another admin cleared all data
+        // Detect remote reset: another admin cleared all data (full reset).
+        // Partial checkpoint advances (session resets) are handled by mergeAppState.
         const serverHasNoPlayers =
           Object.keys(serverMatchmaking.players || {}).length === 0;
         const serverHasNoQueues = (serverMatchmaking.queues || []).length === 0;
@@ -3401,12 +3402,18 @@ const loadClubData = async (clubId: string) => {
           serverTime > localTime;
 
         if (isRemoteReset) {
-          // Another admin performed a reset — adopt empty server state
+          // Another admin performed a reset — adopt server state (mergeAppState will purge)
           MatchmakingApp.state.players = {};
           MatchmakingApp.state.queues = [];
           MatchmakingApp.state.activeMatches = [];
           MatchmakingApp.state.completedMatches = [];
           MatchmakingApp.state.lastModified = serverTime;
+          MatchmakingApp.state.playersResetAt =
+            serverMatchmaking.playersResetAt ?? 0;
+          MatchmakingApp.state.queuesResetAt =
+            serverMatchmaking.queuesResetAt ?? 0;
+          MatchmakingApp.state.matchesResetAt =
+            serverMatchmaking.matchesResetAt ?? 0;
           notify({
             type: 'info',
             message: 'Club data was reset by another admin',
@@ -3442,16 +3449,20 @@ const loadClubData = async (clubId: string) => {
                   ...serverMatchmaking.completedMatches,
                 ];
               }
+              // Carry checkpoint timestamps so resets propagate
+              MatchmakingApp.state.playersResetAt =
+                serverMatchmaking.playersResetAt ?? 0;
+              MatchmakingApp.state.queuesResetAt =
+                serverMatchmaking.queuesResetAt ?? 0;
+              MatchmakingApp.state.matchesResetAt =
+                serverMatchmaking.matchesResetAt ?? 0;
             } else {
               // Existing local state: smart-merge with server
               const merged = mergeAppState(
                 MatchmakingApp.state,
                 serverMatchmaking,
               );
-              MatchmakingApp.state.players = merged.players;
-              MatchmakingApp.state.queues = merged.queues;
-              MatchmakingApp.state.activeMatches = merged.activeMatches;
-              MatchmakingApp.state.completedMatches = merged.completedMatches;
+              Object.assign(MatchmakingApp.state, merged);
               // Extra safety: ensure no player appears in multiple matches
               MatchmakingApp.enforceOneMatchPerPlayer();
             }
@@ -3475,6 +3486,13 @@ const loadClubData = async (clubId: string) => {
                 ...serverMatchmaking.completedMatches,
               ];
             }
+            // Carry checkpoint timestamps so resets propagate
+            MatchmakingApp.state.playersResetAt =
+              serverMatchmaking.playersResetAt ?? 0;
+            MatchmakingApp.state.queuesResetAt =
+              serverMatchmaking.queuesResetAt ?? 0;
+            MatchmakingApp.state.matchesResetAt =
+              serverMatchmaking.matchesResetAt ?? 0;
           }
         }
       }
@@ -5520,6 +5538,8 @@ const resetSessionData = () => {
   );
 
   const doReset = () => {
+    const now = Date.now();
+
     // Reset player stats
     Object.values(MatchmakingApp.state.players).forEach((player) => {
       player.matchesPlayed = 0;
@@ -5527,25 +5547,18 @@ const resetSessionData = () => {
       player.losses = 0;
     });
 
-    // Tombstone all active matches before clearing (for cross-admin sync)
-    const now = Date.now();
-    MatchmakingApp.state.activeMatches.forEach((m) => {
-      m.deletedAt = now;
-      m.updatedAt = now;
-    });
-
-    // Clear matches
+    // Hard-delete matches and queues; checkpoint handles cross-admin purge
     MatchmakingApp.state.activeMatches = [];
-
-    // Tombstone all queue entries before clearing (for cross-admin sync)
-    MatchmakingApp.state.queues.forEach((q) => {
-      q.deletedAt = now;
-      q.updatedAt = now;
-    });
     MatchmakingApp.state.queues = [];
+    MatchmakingApp.state.matchesResetAt = now;
+    MatchmakingApp.state.queuesResetAt = now;
 
     // Epoch-based clear for completedMatches (multi-admin safe)
     MatchmakingApp.clearCompletedMatches();
+
+    MatchmakingApp.state.settingsUpdatedAt = now;
+    MatchmakingApp.state.lastModified = now;
+    MatchmakingApp.persist();
 
     notify({
       type: 'positive',
