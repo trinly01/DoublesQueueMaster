@@ -2688,6 +2688,7 @@ import type { Player, AppState } from '../services/matchmaking';
 import { readItems, updateItem, readMe } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/boot/likha';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
+import { useAuth } from 'src/composables/useAuth';
 
 import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -2712,25 +2713,8 @@ import { buildDuprCsv, downloadDuprCsv } from '../utils/duprExport';
 const $q = useQuasar();
 const { notify } = useNotify();
 
-// Handle 401 Unauthorized errors by clearing token and redirecting to login
-const handleAuthError = (
-  err: unknown,
-  router: ReturnType<typeof useRouter>,
-) => {
-  const error = err as { response?: { status?: number } };
-  if (error?.response?.status === 401) {
-    likhaToken.value = '';
-    localStorage.removeItem('likhaToken');
-    notify({
-      type: 'warning',
-      message: 'Session expired. Please log in again.',
-      timeout: 3000,
-    });
-    router.push('/login');
-    return true;
-  }
-  return false;
-};
+// Shared auth helpers (logout + 401 handling) from the useAuth composable
+const { handleAuthError } = useAuth();
 
 // State: Players, Queue, and Matches
 const players = computed(() =>
@@ -3662,7 +3646,7 @@ const loadClubData = async (clubId: string) => {
     }
   } catch (err) {
     // Handle 401 Unauthorized errors
-    if (handleAuthError(err, router)) return;
+    if (await handleAuthError(err, router)) return;
 
     // Check if the error is due to an unpublished club
     const error = err as { response?: { status?: number }; message?: string };
@@ -3862,7 +3846,7 @@ const refreshPlayerRatings = async () => {
     if (changed) MatchmakingApp.persistSilently();
   } catch (err) {
     // Handle 401 Unauthorized errors
-    if (handleAuthError(err, router)) return;
+    if (await handleAuthError(err, router)) return;
     console.warn('Failed to refresh player ratings:', err);
   }
 };
@@ -3975,7 +3959,7 @@ const performCloudSync = async (skipServerMerge = false) => {
     console.log('Successfully synced to cloud');
   } catch (err) {
     // Handle 401 Unauthorized errors
-    if (handleAuthError(err, router)) {
+    if (await handleAuthError(err, router)) {
       syncInProgress = false;
       return;
     }
@@ -4251,7 +4235,10 @@ onMounted(async () => {
       if (currentUserId.value) {
         LocalStorage.set('current_user_id', currentUserId.value);
       }
-    } catch {
+    } catch (err) {
+      // If token is fully expired (no valid refresh), force re-login
+      if (await handleAuthError(err, router)) return;
+
       const cachedUserId = LocalStorage.getItem('current_user_id') as
         | string
         | null;

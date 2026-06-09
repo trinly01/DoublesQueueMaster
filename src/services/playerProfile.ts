@@ -194,6 +194,14 @@ export class PlayerProfileService {
         return true;
       }
     } catch (err) {
+      // A 401 means the session is invalid/expired — not an offline state.
+      // Re-throw so the caller can trigger a full logout + redirect.
+      const status = (err as { response?: { status?: number } })?.response
+        ?.status;
+      if (status === 401) {
+        this.loading.value = false;
+        throw err;
+      }
       console.warn('Failed to fetch profile from server, using cache:', err);
       this.error.value = 'Offline — showing cached profile';
     } finally {
