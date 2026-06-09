@@ -1406,84 +1406,120 @@
             <div class="q-gutter-y-md">
               <div>
                 <div class="text-subtitle2 q-mb-sm">Queue Management</div>
-                <q-select
-                  v-model="queueReturnMethod"
-                  :options="queueReturnOptions"
-                  label="Return Players to Queue"
-                  outlined
-                  dense
-                  emit-value
-                  map-options
-                >
-                  <template v-slot:option="scope">
-                    <q-item v-bind="scope.itemProps">
-                      <q-item-section>
-                        <q-item-label>{{ scope.opt.label }}</q-item-label>
-                        <q-item-label
-                          v-if="scope.opt.description"
-                          caption
-                          class="text-grey-7"
-                        >
-                          {{ scope.opt.description }}
-                        </q-item-label>
-                      </q-item-section>
-                    </q-item>
-                  </template>
-                </q-select>
-              </div>
+                <div class="row q-col-gutter-md">
+                  <div class="col-12 col-sm-6">
+                    <q-select
+                      v-model="queueReturnMethod"
+                      :options="queueReturnOptions"
+                      label="Return Players to Queue"
+                      outlined
+                      dense
+                      emit-value
+                      map-options
+                    >
+                      <template v-slot:option="scope">
+                        <q-item v-bind="scope.itemProps">
+                          <q-item-section>
+                            <q-item-label>{{ scope.opt.label }}</q-item-label>
+                            <q-item-label
+                              v-if="scope.opt.description"
+                              caption
+                              class="text-grey-7"
+                            >
+                              {{ scope.opt.description }}
+                            </q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </template>
+                    </q-select>
+                  </div>
 
-              <div>
-                <q-toggle
-                  v-model="autoSortQueue"
-                  label="Automatically sort queue by fairness"
-                  color="accent"
-                />
-              </div>
+                  <div class="col-12 col-sm-6">
+                    <q-toggle
+                      v-model="autoSortQueue"
+                      label="Automatically sort queue by fairness"
+                      color="accent"
+                    />
+                  </div>
 
-              <div>
-                <q-select
-                  v-model="queuePriorityMode"
-                  :options="queuePriorityOptions"
-                  label="Queue priority order"
-                  outlined
-                  dense
-                  emit-value
-                  map-options
-                >
-                  <template v-slot:option="scope">
-                    <q-item v-bind="scope.itemProps">
-                      <q-item-section>
-                        <q-item-label>{{ scope.opt.label }}</q-item-label>
-                        <q-item-label
-                          v-if="scope.opt.description"
-                          caption
-                          class="text-grey-7"
-                        >
-                          {{ scope.opt.description }}
-                        </q-item-label>
-                      </q-item-section>
-                    </q-item>
-                  </template>
-                </q-select>
+                  <div class="col-12 col-sm-6">
+                    <q-select
+                      v-model="queuePriorityMode"
+                      :options="queuePriorityOptions"
+                      label="Queue priority order"
+                      outlined
+                      dense
+                      emit-value
+                      map-options
+                    >
+                      <template v-slot:option="scope">
+                        <q-item v-bind="scope.itemProps">
+                          <q-item-section>
+                            <q-item-label>{{ scope.opt.label }}</q-item-label>
+                            <q-item-label
+                              v-if="scope.opt.description"
+                              caption
+                              class="text-grey-7"
+                            >
+                              {{ scope.opt.description }}
+                            </q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </template>
+                    </q-select>
+                  </div>
+
+                  <div class="col-12 col-sm-6">
+                    <q-select
+                      v-model="matchmakingMode"
+                      :options="matchmakingModeOptions"
+                      label="Matchmaking mode"
+                      outlined
+                      dense
+                      emit-value
+                      map-options
+                    >
+                      <template v-slot:option="scope">
+                        <q-item v-bind="scope.itemProps">
+                          <q-item-section>
+                            <q-item-label>{{ scope.opt.label }}</q-item-label>
+                            <q-item-label
+                              v-if="scope.opt.description"
+                              caption
+                              class="text-grey-7"
+                            >
+                              {{ scope.opt.description }}
+                            </q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </template>
+                    </q-select>
+                  </div>
+                </div>
               </div>
 
               <q-separator />
 
               <div>
                 <div class="text-subtitle2 q-mb-sm">Court Management</div>
-                <q-select
-                  v-model="availableCourts"
-                  :options="courtOptions"
-                  label="Number of available courts"
-                  outlined
-                  dense
-                />
-                <q-toggle
-                  v-model="autoAdvanceMatches"
-                  label="Automatically start next match when one completes"
-                  color="accent"
-                  class="q-mt-sm"
-                />
+                <div class="row q-col-gutter-md">
+                  <div class="col-12 col-sm-6">
+                    <q-select
+                      v-model="availableCourts"
+                      :options="courtOptions"
+                      label="Number of available courts"
+                      outlined
+                      dense
+                    />
+                  </div>
+                  <div class="col-12 col-sm-6">
+                    <q-toggle
+                      v-model="autoAdvanceMatches"
+                      label="Automatically start next match when one completes"
+                      color="accent"
+                    />
+                  </div>
+                </div>
               </div>
 
               <q-separator />
@@ -3231,6 +3267,7 @@ const loadClubData = async (clubId: string) => {
               | 'smart_position';
             autoSortQueue: boolean;
             queuePriorityMode: 'timestamp' | 'gamesPlayed';
+            matchmakingMode?: 'variety_first' | 'balance_first';
           };
           uiSettings?: {
             sortBy:
@@ -3322,6 +3359,13 @@ const loadClubData = async (clubId: string) => {
         ) {
           MatchmakingApp.state.queuePriorityMode =
             serverMatchmaking.queuePriorityMode;
+        }
+        if (
+          MatchmakingApp.state.matchmakingMode === undefined &&
+          serverMatchmaking.matchmakingMode !== undefined
+        ) {
+          MatchmakingApp.state.matchmakingMode =
+            serverMatchmaking.matchmakingMode;
         }
         if (
           MatchmakingApp.state.sortBy === undefined &&
@@ -3474,6 +3518,10 @@ const loadClubData = async (clubId: string) => {
         if (MatchmakingApp.state.queuePriorityMode === undefined) {
           MatchmakingApp.state.queuePriorityMode =
             club.appState.queueSettings.queuePriorityMode;
+        }
+        if (MatchmakingApp.state.matchmakingMode === undefined) {
+          MatchmakingApp.state.matchmakingMode =
+            club.appState.queueSettings.matchmakingMode;
         }
       }
       if (club.appState?.uiSettings) {
@@ -4405,6 +4453,14 @@ const queuePriorityMode = computed<'timestamp' | 'gamesPlayed'>({
     MatchmakingApp.persist();
   },
 });
+const matchmakingMode = computed<'variety_first' | 'balance_first'>({
+  get: () => MatchmakingApp.state.matchmakingMode || 'variety_first',
+  set: (val) => {
+    MatchmakingApp.state.matchmakingMode = val;
+    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    MatchmakingApp.persist();
+  },
+});
 
 const currentMatchIndexForActions = ref<number>(-1);
 
@@ -4501,6 +4557,20 @@ const queuePriorityOptions = [
   },
 ];
 
+// Matchmaking mode options
+const matchmakingModeOptions = [
+  {
+    label: 'Variety first (fresh partners)',
+    value: 'variety_first',
+    description: 'Prioritize new partners, then opponents, then balance',
+  },
+  {
+    label: 'Balance first (rating parity)',
+    value: 'balance_first',
+    description: 'Prioritize balanced teams with novelty as a penalty',
+  },
+];
+
 const courtOptions = computed(() =>
   Array.from({ length: maxCourts.value }, (_, i) => ({
     label: `${i + 1} Court${i > 0 ? 's' : ''}`,
@@ -4578,14 +4648,29 @@ const filteredMatches = computed(() => {
       ? matches.value
       : matches.value.filter((match) => match.court === matchesFilterBy.value);
 
-  // Sort by status: in-progress first, then waiting, then explicitly by FIFO (oldest first)
+  // Sort by status: in-progress first, then waiting, then by queue priority
   filtered = [...filtered].sort((a, b) => {
     const statusOrder = { 'in-progress': 0, waiting: 1, completed: 2 };
     const statusDiff = statusOrder[a.status] - statusOrder[b.status];
     if (statusDiff !== 0) return statusDiff;
 
-    // Within same status, sort by FIFO (oldest first)
-    return a.createdAt.getTime() - b.createdAt.getTime();
+    // Within same status, use queue priority order (matches the queue setting)
+    if (queuePriorityMode.value === 'gamesPlayed') {
+      // Less Played First: match with lowest min games played comes first
+      const aGames =
+        (a as unknown as { minGamesPlayed?: number }).minGamesPlayed ?? 0;
+      const bGames =
+        (b as unknown as { minGamesPlayed?: number }).minGamesPlayed ?? 0;
+      if (aGames !== bGames) return aGames - bGames;
+    }
+    // First in Line (default): match with oldest queue entry comes first
+    const aTime =
+      (a as unknown as { oldestQueueEntryAt?: number }).oldestQueueEntryAt ??
+      a.createdAt.getTime();
+    const bTime =
+      (b as unknown as { oldestQueueEntryAt?: number }).oldestQueueEntryAt ??
+      b.createdAt.getTime();
+    return aTime - bTime;
   });
 
   return filtered;
@@ -5147,19 +5232,35 @@ const completeMatch = () => {
   });
 };
 
-// Auto-advance next match for a specific court (FCFS based on creation time)
+// Auto-advance next match for a specific court (priority based on queue settings)
 const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
   // Only auto-advance if the setting is enabled
   if (!autoAdvanceMatches.value) return;
 
-  // Find the oldest waiting match (by creation time)
+  // Find the highest-priority waiting match based on queuePriorityMode
   const waitingMatches = matches.value
     .filter(
       (match) =>
         match.status === 'waiting' &&
         (!match.court || match.court === courtNumber),
     )
-    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()); // Oldest first
+    .sort((a, b) => {
+      // Use queue priority order (same logic as filteredMatches)
+      if (queuePriorityMode.value === 'gamesPlayed') {
+        const aGames =
+          (a as unknown as { minGamesPlayed?: number }).minGamesPlayed ?? 0;
+        const bGames =
+          (b as unknown as { minGamesPlayed?: number }).minGamesPlayed ?? 0;
+        if (aGames !== bGames) return aGames - bGames;
+      }
+      const aTime =
+        (a as unknown as { oldestQueueEntryAt?: number }).oldestQueueEntryAt ??
+        a.createdAt.getTime();
+      const bTime =
+        (b as unknown as { oldestQueueEntryAt?: number }).oldestQueueEntryAt ??
+        b.createdAt.getTime();
+      return aTime - bTime;
+    });
 
   const nextMatch = waitingMatches[0];
 
