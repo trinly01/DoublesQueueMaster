@@ -6363,6 +6363,7 @@ const cancelMatch = (filteredIndex: number) => {
                 : actualMatch.queueSource) ||
               'GENERAL',
             enteredAt: enteredAt,
+            createdAt: Date.now(),
             updatedAt: Date.now(),
           });
         }
@@ -6705,6 +6706,7 @@ const saveMatchEdit = () => {
         username: p.username,
         queueType: 'GENERAL',
         enteredAt: Date.now(),
+        createdAt: Date.now(),
         updatedAt: Date.now(),
       });
     }

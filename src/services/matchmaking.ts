@@ -34,7 +34,8 @@ export interface Player {
 export interface QueueEntry {
   username: string;
   queueType: 'GENERAL' | 'WINNERS' | 'LOSERS';
-  enteredAt: number; // Timestamp for FIFO ordering
+  enteredAt: number; // Sort-priority value for FIFO ordering (can be 0 = "jump to front"). NOT a creation time.
+  createdAt?: number; // Epoch ms when the entry was actually created (used for reset checkpoints).
   updatedAt?: number; // Epoch ms of last change (for per-field LWW)
   deletedAt?: number; // Epoch ms of deletion (tombstone). If present, entry is logically deleted.
 }
@@ -155,6 +156,7 @@ function enforceOneMatchPerPlayerOnState(state: AppState) {
               (m.queueSource === 'MANUAL' ? 'GENERAL' : m.queueSource) ||
               'GENERAL',
             enteredAt: now,
+            createdAt: now,
             updatedAt: now,
           });
         }
@@ -585,12 +587,12 @@ export class LocalMatchmakingSystem {
     }
 
     if (queuesCheckpoint > 0) {
-      // Use updatedAt (real creation/change time) for the checkpoint, NOT enteredAt.
-      // enteredAt is overloaded as a sort-priority value and can be 0 (e.g. the
-      // 'fairness_first' / Jump-to-Front sentinel), which would otherwise be
-      // falsely purged as "older than the reset checkpoint".
+      // Use createdAt (the real creation time) for the checkpoint, NOT enteredAt.
+      // enteredAt is a sort-priority value that can be 0 (the 'fairness_first' /
+      // Jump-to-Front sentinel) and must never be treated as a timestamp here.
+      // Fall back to updatedAt for legacy entries that predate the createdAt field.
       this.state.queues = this.state.queues.filter(
-        (q) => (q.updatedAt ?? q.enteredAt ?? 0) >= queuesCheckpoint,
+        (q) => (q.createdAt ?? q.updatedAt ?? 0) >= queuesCheckpoint,
       );
     }
 
@@ -807,6 +809,7 @@ export class LocalMatchmakingSystem {
       username: normalizedUsername,
       queueType: 'GENERAL',
       enteredAt: Date.now(),
+      createdAt: Date.now(),
       updatedAt: Date.now(),
     });
 
@@ -1080,6 +1083,7 @@ export class LocalMatchmakingSystem {
           username: p.username,
           queueType: 'WINNERS',
           enteredAt: winnerEnteredAt,
+          createdAt: Date.now(),
           updatedAt: Date.now(),
         });
         console.log(
@@ -1102,6 +1106,7 @@ export class LocalMatchmakingSystem {
           username: p.username,
           queueType: 'LOSERS',
           enteredAt: loserEnteredAt,
+          createdAt: Date.now(),
           updatedAt: Date.now(),
         });
         console.log(
@@ -1214,7 +1219,15 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
 
   const filterQueues = (queues: QueueEntry[], checkpoint: number) => {
     if (checkpoint === 0) return queues;
-    return queues.filter((q) => (q.enteredAt ?? 0) >= checkpoint);
+    // Use createdAt (the real creation time) for the checkpoint, NOT enteredAt.
+    // enteredAt is a sort-priority value that can be 0 (the 'fairness_first' /
+    // Jump-to-Front sentinel). Filtering by enteredAt would wrongly purge players
+    // returned to the front after a match completes/cancels — especially
+    // destructive in multi-admin sync where one admin's purge propagates to all.
+    // Fall back to updatedAt for legacy entries that predate the createdAt field.
+    return queues.filter(
+      (q) => (q.createdAt ?? q.updatedAt ?? 0) >= checkpoint,
+    );
   };
 
   const filterMatches = (matches: ActiveMatch[], checkpoint: number) => {
