@@ -4520,7 +4520,7 @@ const matchmakingMode = computed<
   | 'strict_balance'
   | 'fair_balance'
 >({
-  get: () => MatchmakingApp.state.matchmakingMode || 'variety_first',
+  get: () => MatchmakingApp.state.matchmakingMode || 'fair_balance',
   set: (val) => {
     MatchmakingApp.state.matchmakingMode = val;
     MatchmakingApp.state.settingsUpdatedAt = Date.now();
