@@ -35,9 +35,9 @@
             @{{ player.username }}
           </span>
           <q-chip
-            v-if="player.level !== undefined"
-            :label="`L${player.level}`"
-            :color="getLevelColor(player.level as 1 | 2 | 3)"
+            v-if="player.rating !== undefined"
+            :label="player.rating"
+            :color="getRatingColor(player.rating)"
             text-color="white"
             size="xs"
             dense
@@ -144,9 +144,9 @@
             @{{ player.username }}
           </span>
           <q-chip
-            v-if="player.level !== undefined"
-            :label="`L${player.level}`"
-            :color="getLevelColor(player.level as 1 | 2 | 3)"
+            v-if="player.rating !== undefined"
+            :label="player.rating"
+            :color="getRatingColor(player.rating)"
             text-color="white"
             size="xs"
             dense
@@ -172,7 +172,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import {
-  getLevelColor,
+  getRatingColor,
   getMatchStatusColor,
   getMatchStatusLabel,
 } from '../utils/playerHelpers';
@@ -183,6 +183,7 @@ interface TeamPlayer {
   firstName?: string;
   lastName?: string;
   level?: number;
+  rating?: number;
 }
 
 const props = withDefaults(

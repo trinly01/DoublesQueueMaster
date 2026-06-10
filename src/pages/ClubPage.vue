@@ -880,6 +880,18 @@
                 </template>
               </q-input>
 
+              <q-input
+                v-model="newPlayerDuprId"
+                label="DUPR ID (optional)"
+                type="text"
+                outlined
+                dense
+              >
+                <template v-slot:prepend>
+                  <q-icon name="badge" />
+                </template>
+              </q-input>
+
               <q-select
                 v-model="newPlayerLevel"
                 :options="levelOptions"
@@ -966,7 +978,6 @@
                         :name="player.username"
                         :level="player.level"
                         size="sm"
-                        :show-level-badge="false"
                       />
                     </q-item-section>
                     <q-item-section>
@@ -1063,19 +1074,28 @@
                           : undefined
                       "
                       size="md"
-                      :show-level-badge="false"
                       @image-error="clubMemberAvatarErrors.add(member.id)"
                     />
                   </q-item-section>
                   <q-item-section>
-                    <q-item-label class="text-weight-medium">
-                      {{
-                        member.firstName ||
-                        member.username ||
-                        member.email?.split('@')[0] ||
-                        'Unknown'
-                      }}
-                    </q-item-label>
+                    <div class="row items-center no-wrap">
+                      <q-item-label class="text-weight-medium ellipsis">
+                        {{
+                          member.firstName ||
+                          member.username ||
+                          member.email?.split('@')[0] ||
+                          'Unknown'
+                        }}
+                      </q-item-label>
+                      <q-chip
+                        :label="member.rating || 1500"
+                        :color="getRatingColor(member.rating || 1500)"
+                        text-color="white"
+                        size="xs"
+                        dense
+                        class="q-ml-xs"
+                      />
+                    </div>
                     <q-item-label
                       caption
                       class="text-grey-6"
@@ -1087,13 +1107,6 @@
                   </q-item-section>
                   <q-item-section side>
                     <div class="row items-center q-gutter-sm">
-                      <q-chip
-                        :label="`R: ${member.rating || 1500}`"
-                        color="accent"
-                        text-color="white"
-                        size="sm"
-                        dense
-                      />
                       <q-checkbox
                         :model-value="isClubMemberSelected(member.id)"
                         color="accent"
@@ -1685,20 +1698,24 @@
                       </q-avatar>
                     </q-item-section>
                     <q-item-section style="min-width: 0">
-                      <q-item-label class="ellipsis">{{
-                        member.firstName || member.username || 'Unknown'
-                      }}</q-item-label>
+                      <div class="row items-center no-wrap">
+                        <q-item-label class="ellipsis">{{
+                          member.firstName || member.username || 'Unknown'
+                        }}</q-item-label>
+                        <q-chip
+                          :label="member.rating ?? 1500"
+                          :color="getRatingColor(member.rating ?? 1500)"
+                          text-color="white"
+                          size="xs"
+                          dense
+                          class="q-ml-xs"
+                        />
+                      </div>
                       <q-item-label
                         caption
                         v-if="member.username"
                         class="ellipsis"
                         >@{{ member.username }}</q-item-label
-                      >
-                      <q-item-label
-                        caption
-                        class="ellipsis text-info"
-                        v-if="member.rating"
-                        >R: {{ member.rating }}</q-item-label
                       >
                     </q-item-section>
                     <q-item-section side>
@@ -1760,20 +1777,24 @@
                       </q-avatar>
                     </q-item-section>
                     <q-item-section style="min-width: 0">
-                      <q-item-label class="ellipsis">{{
-                        member.firstName || member.username || 'Unknown'
-                      }}</q-item-label>
+                      <div class="row items-center no-wrap">
+                        <q-item-label class="ellipsis">{{
+                          member.firstName || member.username || 'Unknown'
+                        }}</q-item-label>
+                        <q-chip
+                          :label="member.rating ?? 1500"
+                          :color="getRatingColor(member.rating ?? 1500)"
+                          text-color="white"
+                          size="xs"
+                          dense
+                          class="q-ml-xs"
+                        />
+                      </div>
                       <q-item-label
                         caption
                         v-if="member.username"
                         class="ellipsis"
                         >@{{ member.username }}</q-item-label
-                      >
-                      <q-item-label
-                        caption
-                        class="ellipsis text-info"
-                        v-if="member.rating"
-                        >R: {{ member.rating }}</q-item-label
                       >
                     </q-item-section>
                     <q-item-section side>
@@ -2181,7 +2202,6 @@
                         :dupr-id="player.duprId"
                         :image-url="player.avatar"
                         size="md"
-                        :show-level-badge="false"
                       />
                     </q-item-section>
                     <q-item-section>
@@ -2209,9 +2229,14 @@
                           v-if="player.losses !== undefined"
                           >L:{{ player.losses || 0 }}</span
                         >
-                        <span class="q-ml-xs text-primary"
-                          >R:{{ player.rating }}</span
-                        >
+                        <q-chip
+                          :label="player.rating"
+                          :color="getRatingColor(player.rating ?? 1500)"
+                          text-color="white"
+                          size="xs"
+                          dense
+                          class="q-ml-xs"
+                        />
                       </q-item-label>
                     </q-item-section>
                     <q-item-section side>
@@ -2284,7 +2309,6 @@
                         :dupr-id="player.duprId"
                         :image-url="player.avatar"
                         size="md"
-                        :show-level-badge="false"
                       />
                     </q-item-section>
                     <q-item-section>
@@ -2312,9 +2336,14 @@
                           v-if="player.losses !== undefined"
                           >L:{{ player.losses || 0 }}</span
                         >
-                        <span class="q-ml-xs text-primary"
-                          >R:{{ player.rating }}</span
-                        >
+                        <q-chip
+                          :label="player.rating"
+                          :color="getRatingColor(player.rating ?? 1500)"
+                          text-color="white"
+                          size="xs"
+                          dense
+                          class="q-ml-xs"
+                        />
                       </q-item-label>
                     </q-item-section>
                     <q-item-section side>
@@ -2510,7 +2539,6 @@
                     :dupr-id="player.duprId"
                     :image-url="player.avatar"
                     size="md"
-                    :show-level-badge="false"
                   />
                 </q-item-section>
                 <q-item-section>
@@ -2538,9 +2566,14 @@
                       v-if="player.losses !== undefined"
                       >L:{{ player.losses || 0 }}</span
                     >
-                    <span class="q-ml-xs text-primary"
-                      >R:{{ player.rating }}</span
-                    >
+                    <q-chip
+                      :label="player.rating"
+                      :color="getRatingColor(player.rating ?? 1500)"
+                      text-color="white"
+                      size="xs"
+                      dense
+                      class="q-ml-xs"
+                    />
                   </q-item-label>
                 </q-item-section>
                 <q-item-section side>
@@ -2703,7 +2736,11 @@ import EmptyState from '../components/EmptyState.vue';
 import DialogHeader from '../components/DialogHeader.vue';
 import MatchCard from '../components/MatchCard.vue';
 import MatchResult from '../components/MatchResult.vue';
-import { getLevelColor, getLevelIcon } from '../utils/playerHelpers';
+import {
+  getLevelColor,
+  getLevelIcon,
+  getRatingColor,
+} from '../utils/playerHelpers';
 import { computeWinProbability } from '../services/matchmaking';
 import { buildDuprCsv, downloadDuprCsv } from '../utils/duprExport';
 
@@ -2816,6 +2853,7 @@ const teamBScore = ref<number>(0);
 
 const newPlayerName = ref<string | null>(null);
 const newPlayerLevel = ref<1 | 2 | 3 | null>(null);
+const newPlayerDuprId = ref<string>('');
 // Add player dialog mode: 'single' | 'bulk' | 'club'
 const addPlayerMode = ref<'single' | 'bulk' | 'club'>('single');
 const selectedClubMembers = ref<string[]>([]);
@@ -3775,6 +3813,7 @@ const refreshPlayerRatings = async () => {
           'players.directus_users_id.id',
           'players.directus_users_id.rating',
           'players.directus_users_id.rating_updated_at',
+          'players.directus_users_id.dupr_id',
           'players.directus_users_id.avatar',
           'players.directus_users_id.first_name',
           'players.directus_users_id.last_name',
@@ -4336,6 +4375,7 @@ watch(showAddPlayerDialog, (open) => {
     clubMemberSearch.value = '';
     newPlayerName.value = null;
     newPlayerLevel.value = null;
+    newPlayerDuprId.value = '';
     bulkPlayerText.value = '';
     bulkPlayers.value = [];
     bulkDefaultLevel.value = 2;
@@ -5054,7 +5094,7 @@ const addNewPlayer = () => {
   const result = MatchmakingApp.checkInPlayer(
     trimmedName,
     newPlayerLevel.value,
-    { rating: initialRating },
+    { rating: initialRating, duprId: newPlayerDuprId.value || undefined },
   );
 
   if (result === 'already_in_match') {
@@ -5075,6 +5115,7 @@ const addNewPlayer = () => {
 
   newPlayerName.value = null;
   newPlayerLevel.value = null;
+  newPlayerDuprId.value = '';
   showAddPlayerDialog.value = false;
   notify({
     type: 'positive',
@@ -5788,6 +5829,7 @@ const refreshClubMembers = async () => {
           'players.directus_users_id.last_name',
           'players.directus_users_id.email',
           'players.directus_users_id.rating',
+          'players.directus_users_id.dupr_id',
           'players.directus_users_id.avatar',
           'admins.id',
           'admins.directus_users_id.id',

@@ -1,7 +1,7 @@
 <template>
   <q-item
     class="player-item"
-    :class="{ 'player-selected': isSelected }"
+    :class="{ 'player-selected': isSelected, [queueBgClass]: true }"
     @click="$emit('click', player)"
     clickable
   >
@@ -31,14 +31,6 @@
     <q-item-section>
       <q-item-label class="text-weight-medium">
         {{ player.firstName || player.username }}
-        <q-chip
-          v-if="player.queueType && player.queueType !== 'GENERAL'"
-          :label="player.queueType"
-          :color="player.queueType === 'WINNERS' ? 'positive' : 'negative'"
-          text-color="white"
-          size="xs"
-          dense
-        />
       </q-item-label>
       <q-item-label
         caption
@@ -65,11 +57,15 @@
               : 0
           }}%</span
         >
-        <span
-          class="q-ml-xs text-primary"
+        <q-chip
           v-if="!sortBy || sortBy !== 'winRate'"
-          >R:{{ player.rating }}</span
-        >
+          :label="player.rating"
+          :color="getRatingColor(player.rating ?? 1500)"
+          text-color="white"
+          size="xs"
+          dense
+          class="q-ml-xs"
+        />
         <!-- <span v-if="showQueueTime && player.enteredAt" class="q-ml-sm text-grey-6">
           {{ getQueueTimeInfo(player.enteredAt) }}
         </span> -->
@@ -143,8 +139,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import PlayerAvatar from './PlayerAvatar.vue';
+import { getRatingColor } from '../utils/playerHelpers';
 import type { Player as BasePlayer } from '../services/matchmaking';
 type Player = BasePlayer & {
   enteredAt?: number;
@@ -178,6 +175,12 @@ defineEmits<{
   remove: [username: string];
   requeue: [username: string];
 }>();
+
+const queueBgClass = computed(() => {
+  if (props.player.queueType === 'WINNERS') return 'bg-green-1';
+  if (props.player.queueType === 'LOSERS') return 'bg-red-1';
+  return '';
+});
 
 const avatarLoadError = ref(false);
 
