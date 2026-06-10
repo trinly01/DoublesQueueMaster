@@ -3293,7 +3293,8 @@ const loadClubData = async (clubId: string) => {
               | 'variety_first'
               | 'balance_first'
               | 'balanced_variety'
-              | 'strict_balance';
+              | 'strict_balance'
+              | 'fair_balance';
           };
           uiSettings?: {
             sortBy:
@@ -4513,7 +4514,11 @@ const queuePriorityMode = computed<'timestamp' | 'gamesPlayed'>({
   },
 });
 const matchmakingMode = computed<
-  'variety_first' | 'balance_first' | 'balanced_variety' | 'strict_balance'
+  | 'variety_first'
+  | 'balance_first'
+  | 'balanced_variety'
+  | 'strict_balance'
+  | 'fair_balance'
 >({
   get: () => MatchmakingApp.state.matchmakingMode || 'variety_first',
   set: (val) => {
@@ -4640,6 +4645,12 @@ const matchmakingModeOptions = [
     label: 'Strict balance',
     value: 'strict_balance',
     description: 'Always the most balanced match, no novelty consideration',
+  },
+  {
+    label: 'Fair balance (next in line, even teams)',
+    value: 'fair_balance',
+    description:
+      'Drafts the next players in queue order, then forms the most balanced teams from them',
   },
 ];
 
