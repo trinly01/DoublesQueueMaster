@@ -90,7 +90,11 @@ export interface AppState {
   queueReturnMethod?: 'fairness_first' | 'end_of_queue' | 'smart_position';
   autoSortQueue?: boolean;
   queuePriorityMode?: 'timestamp' | 'gamesPlayed';
-  matchmakingMode?: 'variety_first' | 'balance_first';
+  matchmakingMode?:
+    | 'variety_first'
+    | 'balance_first'
+    | 'balanced_variety'
+    | 'strict_balance';
   sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
   matchType?: 'singles' | 'doubles';
   matchesFilterBy?: 'all' | number;
@@ -255,14 +259,28 @@ export const RatingEngine = {
   },
 };
 
-// Harmonic Mean of team ratings (same logic used in draftBalancedMatch)
-export const computeTeamRating = (team: Player[]) => {
+// Pure Harmonic Mean (heavily weights the weakest player)
+export const computeHarmonicMean = (team: Player[]): number => {
   if (team.length === 0) return 1500;
   const sumReciprocal = team.reduce(
-    (sum, p) => sum + 1 / Math.max(1, p.rating),
+    (sum, p) => sum + 1 / Math.max(1, p.rating || 1500),
     0,
   );
   return team.length / sumReciprocal;
+};
+
+// Pure Arithmetic Mean (simple average)
+export const computeArithmeticMean = (team: Player[]): number => {
+  if (team.length === 0) return 1500;
+  return team.reduce((sum, p) => sum + (p.rating || 1500), 0) / team.length;
+};
+
+// Softened Harmonic Mean of team ratings (60% harmonic + 40% arithmetic)
+// Reduces extreme penalty on weaker players while still respecting the weakest link
+export const computeTeamRating = (team: Player[]) => {
+  const harmonic = computeHarmonicMean(team);
+  const arithmetic = computeArithmeticMean(team);
+  return harmonic * 0.6 + arithmetic * 0.4;
 };
 
 // Forecasted win probability for each team
@@ -310,34 +328,39 @@ export const MatchmakerEngine = {
   draftBalancedMatch: (
     players: Player[],
     teamSize: number,
-    mode: 'variety_first' | 'balance_first' = 'variety_first',
+    mode:
+      | 'variety_first'
+      | 'balance_first'
+      | 'balanced_variety'
+      | 'strict_balance' = 'variety_first',
   ) => {
     const allMatchups = MatchmakerEngine.getCombinations(players, teamSize);
 
-    // Calculate team strength using Harmonic Mean
-    const harmonicMean = (team: Player[]) => {
-      if (team.length === 0) return 1500;
-      const sumReciprocal = team.reduce(
-        (sum, p) => sum + 1 / Math.max(1, p.rating),
-        0,
-      );
-      return team.length / sumReciprocal;
-    };
-
     const evaluated = allMatchups.map((matchup) => {
-      const ratingA = harmonicMean(matchup.teamA);
-      const ratingB = harmonicMean(matchup.teamB);
+      const ratingA = computeTeamRating(matchup.teamA);
+      const ratingB = computeTeamRating(matchup.teamB);
       const expectedDifference = Math.abs(ratingA - ratingB);
 
-      if (mode === 'balance_first') {
-        // Original combined-score behavior
+      if (mode === 'strict_balance') {
+        // Pure balance: no novelty penalty, only expectedDifference
+        return {
+          ...matchup,
+          expectedDifference,
+          combinedScore: expectedDifference,
+        };
+      }
+
+      if (mode === 'balance_first' || mode === 'balanced_variety') {
+        // Combined-score behavior: balance + novelty penalty
+        const partnerWeight = mode === 'balanced_variety' ? 25 : 50;
+        const opponentWeight = mode === 'balanced_variety' ? 8 : 15;
         let noveltyPenalty = 0;
         const addTeamPenalty = (team: Player[]) => {
           for (let i = 0; i < team.length; i++) {
             for (let j = i + 1; j < team.length; j++) {
               const historyCount =
                 team[i].history?.playedWith?.[team[j].username] || 0;
-              noveltyPenalty += historyCount * 50;
+              noveltyPenalty += historyCount * partnerWeight;
             }
           }
         };
@@ -346,7 +369,7 @@ export const MatchmakerEngine = {
         for (const pA of matchup.teamA) {
           for (const pB of matchup.teamB) {
             const historyCount = pA.history?.playedAgainst?.[pB.username] || 0;
-            noveltyPenalty += historyCount * 15;
+            noveltyPenalty += historyCount * opponentWeight;
           }
         }
         return {
@@ -383,15 +406,19 @@ export const MatchmakerEngine = {
       };
     });
 
-    if (mode === 'balance_first') {
+    if (
+      mode === 'balance_first' ||
+      mode === 'balanced_variety' ||
+      mode === 'strict_balance'
+    ) {
       type ScoreItem = { combinedScore: number };
       evaluated.sort(
         (a, b) =>
           (a as unknown as ScoreItem).combinedScore -
           (b as unknown as ScoreItem).combinedScore,
       );
-      const poolSize = Math.min(3, evaluated.length);
-      return evaluated[Math.floor(Math.random() * poolSize)];
+      // All balance-oriented modes use strict best
+      return evaluated[0];
     }
 
     // Variety-first: sort by fewest partner repeats, then opponent repeats, then balance
@@ -838,8 +865,12 @@ export class LocalMatchmakingSystem {
             bestGroup = group;
           }
         }
-        // In balance-first, sort by rating so closest-rated players are adjacent
-        if (this.state.matchmakingMode === 'balance_first') {
+        // In balance-first or balanced-variety, sort by rating so closest-rated players are adjacent
+        if (
+          this.state.matchmakingMode === 'balance_first' ||
+          this.state.matchmakingMode === 'balanced_variety' ||
+          this.state.matchmakingMode === 'strict_balance'
+        ) {
           bestGroup.sort((a, b) => {
             const rA = this.state.players[a.username]?.rating || 1500;
             const rB = this.state.players[b.username]?.rating || 1500;
@@ -849,7 +880,11 @@ export class LocalMatchmakingSystem {
         draftedEntries = bestGroup.slice(0, playersNeeded);
       } else {
         // Fallback to drafting from top of queue if no pure group has enough
-        if (this.state.matchmakingMode === 'balance_first') {
+        if (
+          this.state.matchmakingMode === 'balance_first' ||
+          this.state.matchmakingMode === 'balanced_variety' ||
+          this.state.matchmakingMode === 'strict_balance'
+        ) {
           prioritizedQueue.sort((a, b) => {
             const rA = this.state.players[a.username]?.rating || 1500;
             const rB = this.state.players[b.username]?.rating || 1500;

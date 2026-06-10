@@ -14,16 +14,15 @@
             {{ getBalanceText() }}
           </q-chip>
           <q-icon v-if="!isBalanced()" name="warning" color="orange" size="sm">
-            <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Unbalanced</q-tooltip>
+            <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+              >Unbalanced</q-tooltip
+            >
           </q-icon>
         </div>
       </div>
-      <div class="text-caption text-grey-7 q-mt-xs">
-        Skill difference: {{ getSkillDifference() }} point{{
-          getSkillDifference() !== 1 ? 's' : ''
-        }}
-        (Team 1: {{ getTeamSkill(team1) }} vs Team 2: {{ getTeamSkill(team2) }})
-      </div>
+      <!-- <div class="text-caption text-grey-7 q-mt-xs">
+        Team 1: {{ getTeamSkill(team1) }} vs Team 2: {{ getTeamSkill(team2) }}
+      </div> -->
     </div>
 
     <!-- Team Arrangement Actions -->
@@ -53,12 +52,23 @@
             <div class="text-h6">
               Team 1
               <q-chip
-                :label="`Skill: ${getTeamSkill(team1)}`"
+                :label="`Rating: ${getTeamSkill(team1)}`"
                 color="white"
                 text-color="blue-6"
                 size="sm"
                 class="q-ml-sm"
               />
+              <q-chip
+                :label="`Win: ${getWinProbability().teamA}%`"
+                color="white"
+                text-color="blue-6"
+                size="sm"
+                class="q-ml-sm"
+              />
+            </div>
+            <div class="text-caption q-mt-xs" style="opacity: 0.85">
+              H: {{ getHarmonicMean(team1) }} | A:
+              {{ getArithmeticMean(team1) }}
             </div>
           </q-card-section>
           <q-card-section class="team-drop-area">
@@ -91,9 +101,13 @@
                     }"
                   >
                     {{ index + 1 }}
-                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-                      >{{ player.firstName || player.username }} - Level
-                      {{ player.level }} - Position {{ index + 1 }}</q-tooltip
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
+                      >{{ player.firstName || player.username }} - Rating
+                      {{ player.rating || 1500 }} - Position
+                      {{ index + 1 }}</q-tooltip
                     >
                   </q-avatar>
                 </q-item-section>
@@ -116,7 +130,14 @@
                   >
                     @{{ player.username }}
                   </q-item-label>
-                  <q-item-label caption>Level {{ player.level }}</q-item-label>
+                  <q-chip
+                    :label="player.rating || 1500"
+                    :color="getRatingColor(player.rating || 1500)"
+                    text-color="white"
+                    size="xs"
+                    dense
+                    style="width: fit-content"
+                  />
                 </q-item-section>
                 <q-item-section side>
                   <q-icon name="swap_horiz" color="grey-5" size="sm" />
@@ -138,12 +159,23 @@
             <div class="text-h6">
               Team 2
               <q-chip
-                :label="`Skill: ${getTeamSkill(team2)}`"
+                :label="`Rating: ${getTeamSkill(team2)}`"
                 color="white"
                 text-color="orange-6"
                 size="sm"
                 class="q-ml-sm"
               />
+              <q-chip
+                :label="`Win: ${getWinProbability().teamB}%`"
+                color="white"
+                text-color="orange-6"
+                size="sm"
+                class="q-ml-sm"
+              />
+            </div>
+            <div class="text-caption q-mt-xs" style="opacity: 0.85">
+              H: {{ getHarmonicMean(team2) }} | A:
+              {{ getArithmeticMean(team2) }}
             </div>
           </q-card-section>
           <q-card-section class="team-drop-area">
@@ -176,9 +208,13 @@
                     }"
                   >
                     {{ index + 1 }}
-                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-                      >{{ player.firstName || player.username }} - Level
-                      {{ player.level }} - Position {{ index + 1 }}</q-tooltip
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
+                      >{{ player.firstName || player.username }} - Rating
+                      {{ player.rating || 1500 }} - Position
+                      {{ index + 1 }}</q-tooltip
                     >
                   </q-avatar>
                 </q-item-section>
@@ -201,7 +237,14 @@
                   >
                     @{{ player.username }}
                   </q-item-label>
-                  <q-item-label caption>Level {{ player.level }}</q-item-label>
+                  <q-chip
+                    :label="player.rating || 1500"
+                    :color="getRatingColor(player.rating || 1500)"
+                    text-color="white"
+                    size="xs"
+                    dense
+                    style="width: fit-content"
+                  />
                 </q-item-section>
                 <q-item-section side>
                   <q-icon name="swap_horiz" color="grey-5" size="sm" />
@@ -222,6 +265,13 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 
+import { getRatingColor } from '../utils/playerHelpers';
+import {
+  computeTeamRating,
+  computeWinProbability,
+  computeHarmonicMean,
+  computeArithmeticMean,
+} from '../services/matchmaking';
 import type { Player } from '../services/matchmaking';
 
 // Props
@@ -245,38 +295,55 @@ const selectedForSwapTeam = ref<'team1' | 'team2' | null>(null);
 
 // Computed properties
 const getTeamSkill = (team: Player[]): number => {
-  return team.reduce((sum, p) => sum + p.level, 0);
+  return Math.round(computeTeamRating(team));
 };
 
-const getSkillDifference = (): number => {
-  return Math.abs(getTeamSkill(props.team1) - getTeamSkill(props.team2));
+const getHarmonicMean = (team: Player[]): number => {
+  return Math.round(computeHarmonicMean(team));
+};
+
+const getArithmeticMean = (team: Player[]): number => {
+  return Math.round(computeArithmeticMean(team));
+};
+
+const getWinProbability = () => {
+  const prob = computeWinProbability(props.team1, props.team2);
+  return {
+    teamA: Math.round(prob.teamA * 100),
+    teamB: Math.round(prob.teamB * 100),
+  };
+};
+
+const getBalanceDeviation = (): number => {
+  const prob = getWinProbability();
+  return Math.abs(prob.teamA - 50);
 };
 
 const isBalanced = (): boolean => {
-  return getSkillDifference() <= 1;
+  return getBalanceDeviation() <= 20;
 };
 
 const getBalanceColor = (): string => {
-  const diff = getSkillDifference();
-  if (diff === 0) return 'green';
-  if (diff === 1) return 'light-green';
-  if (diff === 2) return 'orange';
+  const dev = getBalanceDeviation();
+  if (dev <= 5) return 'green';
+  if (dev <= 10) return 'light-green';
+  if (dev <= 20) return 'orange';
   return 'red';
 };
 
 const getBalanceIcon = (): string => {
-  const diff = getSkillDifference();
-  if (diff === 0) return 'verified';
-  if (diff === 1) return 'check_circle';
-  if (diff === 2) return 'warning';
+  const dev = getBalanceDeviation();
+  if (dev <= 5) return 'verified';
+  if (dev <= 10) return 'check_circle';
+  if (dev <= 20) return 'warning';
   return 'error';
 };
 
 const getBalanceText = (): string => {
-  const diff = getSkillDifference();
-  if (diff === 0) return 'Perfect Balance';
-  if (diff === 1) return 'Well Balanced';
-  if (diff === 2) return 'Slightly Unbalanced';
+  const dev = getBalanceDeviation();
+  if (dev <= 5) return 'Perfect Balance';
+  if (dev <= 10) return 'Well Balanced';
+  if (dev <= 20) return 'Slightly Unbalanced';
   return 'Very Unbalanced';
 };
 

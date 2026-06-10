@@ -3289,7 +3289,11 @@ const loadClubData = async (clubId: string) => {
               | 'smart_position';
             autoSortQueue: boolean;
             queuePriorityMode: 'timestamp' | 'gamesPlayed';
-            matchmakingMode?: 'variety_first' | 'balance_first';
+            matchmakingMode?:
+              | 'variety_first'
+              | 'balance_first'
+              | 'balanced_variety'
+              | 'strict_balance';
           };
           uiSettings?: {
             sortBy:
@@ -4508,7 +4512,9 @@ const queuePriorityMode = computed<'timestamp' | 'gamesPlayed'>({
     MatchmakingApp.persist();
   },
 });
-const matchmakingMode = computed<'variety_first' | 'balance_first'>({
+const matchmakingMode = computed<
+  'variety_first' | 'balance_first' | 'balanced_variety' | 'strict_balance'
+>({
   get: () => MatchmakingApp.state.matchmakingMode || 'variety_first',
   set: (val) => {
     MatchmakingApp.state.matchmakingMode = val;
@@ -4622,7 +4628,18 @@ const matchmakingModeOptions = [
   {
     label: 'Balance first (rating parity)',
     value: 'balance_first',
-    description: 'Prioritize balanced teams with novelty as a penalty',
+    description: 'Most balanced match with novelty as a penalty',
+  },
+  {
+    label: 'Balanced variety',
+    value: 'balanced_variety',
+    description:
+      'Equal weighting of balance and variety, always the best match',
+  },
+  {
+    label: 'Strict balance',
+    value: 'strict_balance',
+    description: 'Always the most balanced match, no novelty consideration',
   },
 ];
 
@@ -4946,8 +4963,10 @@ const createBalancedMatch = (players: Player[]): Player[] => {
     return players;
   }
 
-  // Sort players by level for better team balancing
-  const sortedPlayers = [...players].sort((a, b) => a.level - b.level);
+  // Sort players by rating for better team balancing
+  const sortedPlayers = [...players].sort(
+    (a, b) => (a.rating || 1500) - (b.rating || 1500),
+  );
 
   // Generate all possible team combinations
   const combinations = generateTeamCombinations(sortedPlayers);
@@ -4957,8 +4976,8 @@ const createBalancedMatch = (players: Player[]): Player[] => {
     const team1 = combination.team1;
     const team2 = combination.team2;
 
-    const team1Skill = team1.reduce((sum, p) => sum + p.level, 0);
-    const team2Skill = team2.reduce((sum, p) => sum + p.level, 0);
+    const team1Skill = team1.reduce((sum, p) => sum + (p.rating || 1500), 0);
+    const team2Skill = team2.reduce((sum, p) => sum + (p.rating || 1500), 0);
     const difference = Math.abs(team1Skill - team2Skill);
 
     return {
