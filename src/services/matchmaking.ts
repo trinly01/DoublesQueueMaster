@@ -1359,34 +1359,6 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   });
   latestPerPlayer.forEach((entry) => mergedQueues.push(entry));
 
-  // Enforce constraint: no player can be in both queue and active matches.
-  // Use both pre-merge match arrays (already checkpoint-filtered) so any match
-  // on either side blocks queue re-entry. Duplicates are harmless in a Set.
-  const playersInMatches = new Set<string>();
-  [...localMatches, ...serverMatches].forEach((m) => {
-    if (!m.deletedAt) {
-      m.teamA.forEach((username) => playersInMatches.add(username));
-      m.teamB.forEach((username) => playersInMatches.add(username));
-    }
-  });
-
-  const filteredQueues = mergedQueues.filter(
-    (q) => !q.deletedAt && !playersInMatches.has(q.username),
-  );
-
-  console.log(
-    '[mergeAppState] local queues:',
-    local.queues?.length,
-    'server queues:',
-    server.queues?.length,
-    'merged queues:',
-    mergedQueues.length,
-    'after removing players in matches:',
-    filteredQueues.length,
-    'winning side:',
-    serverTime > localTime ? 'server' : 'local',
-  );
-
   // Merge matches using per-match updatedAt (or createdAt as fallback)
   const mergedMatches: typeof local.activeMatches = [];
   const allMatches = new Map<
@@ -1437,6 +1409,35 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       mergedMatches.push(match);
     }
   });
+
+  // Enforce constraint: no player can be in both queue and an active match.
+  // IMPORTANT: this must run on the MERGED matches (not the raw per-side
+  // arrays). A stale admin may still have a just-completed match flagged as
+  // active locally; the merge above tombstones it via LWW, so using
+  // mergedMatches prevents that stale match from incorrectly removing queue
+  // entries the other admin re-added on completion.
+  const playersInMatches = new Set<string>();
+  mergedMatches.forEach((m) => {
+    m.teamA.forEach((username) => playersInMatches.add(username));
+    m.teamB.forEach((username) => playersInMatches.add(username));
+  });
+
+  const filteredQueues = mergedQueues.filter(
+    (q) => !q.deletedAt && !playersInMatches.has(q.username),
+  );
+
+  console.log(
+    '[mergeAppState] local queues:',
+    local.queues?.length,
+    'server queues:',
+    server.queues?.length,
+    'merged queues:',
+    mergedQueues.length,
+    'after removing players in matches:',
+    filteredQueues.length,
+    'winning side:',
+    serverTime > localTime ? 'server' : 'local',
+  );
 
   // Merge completedMatches by matchId using updatedAt LWW
   const mergedCompletedMatches: CompletedMatch[] = [];
