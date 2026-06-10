@@ -5262,8 +5262,18 @@ const openMatchResultDialog = (filteredIndex: number) => {
 };
 
 const completeMatch = () => {
-  if (currentMatchIndex.value === -1) return;
+  if (currentMatchIndex.value === -1) {
+    console.warn('[completeMatch] currentMatchIndex is -1, aborting');
+    return;
+  }
   const match = matches.value[currentMatchIndex.value];
+  if (!match) {
+    console.warn(
+      '[completeMatch] match is undefined at index',
+      currentMatchIndex.value,
+    );
+    return;
+  }
 
   const scoreA = Number(teamAScore.value) || 0;
   const scoreB = Number(teamBScore.value) || 0;
@@ -5277,6 +5287,14 @@ const completeMatch = () => {
   }
 
   const freedCourt = match.court;
+  console.log(
+    '[completeMatch] Completing match',
+    match.id,
+    'court:',
+    freedCourt,
+    'returnMethod:',
+    queueReturnMethod.value,
+  );
 
   MatchmakingApp.reportMatchScore(
     match.id,
@@ -6325,7 +6343,7 @@ const cancelMatch = (filteredIndex: number) => {
         enteredAt = 0; // Oldest possible time
       } else if (chosenMethod === 'smart_position') {
         // Priority Position
-        enteredAt = Date.now() - 3600000; // 1 hour old
+        enteredAt = Date.now();
       }
 
       // Return players to queue (prevent duplicates)

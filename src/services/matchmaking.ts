@@ -585,8 +585,12 @@ export class LocalMatchmakingSystem {
     }
 
     if (queuesCheckpoint > 0) {
+      // Use updatedAt (real creation/change time) for the checkpoint, NOT enteredAt.
+      // enteredAt is overloaded as a sort-priority value and can be 0 (e.g. the
+      // 'fairness_first' / Jump-to-Front sentinel), which would otherwise be
+      // falsely purged as "older than the reset checkpoint".
       this.state.queues = this.state.queues.filter(
-        (q) => (q.enteredAt ?? 0) >= queuesCheckpoint,
+        (q) => (q.updatedAt ?? q.enteredAt ?? 0) >= queuesCheckpoint,
       );
     }
 
@@ -865,32 +869,9 @@ export class LocalMatchmakingSystem {
             bestGroup = group;
           }
         }
-        // In balance-first or balanced-variety, sort by rating so closest-rated players are adjacent
-        if (
-          this.state.matchmakingMode === 'balance_first' ||
-          this.state.matchmakingMode === 'balanced_variety' ||
-          this.state.matchmakingMode === 'strict_balance'
-        ) {
-          bestGroup.sort((a, b) => {
-            const rA = this.state.players[a.username]?.rating || 1500;
-            const rB = this.state.players[b.username]?.rating || 1500;
-            return rB - rA;
-          });
-        }
         draftedEntries = bestGroup.slice(0, playersNeeded);
       } else {
         // Fallback to drafting from top of queue if no pure group has enough
-        if (
-          this.state.matchmakingMode === 'balance_first' ||
-          this.state.matchmakingMode === 'balanced_variety' ||
-          this.state.matchmakingMode === 'strict_balance'
-        ) {
-          prioritizedQueue.sort((a, b) => {
-            const rA = this.state.players[a.username]?.rating || 1500;
-            const rB = this.state.players[b.username]?.rating || 1500;
-            return rB - rA;
-          });
-        }
         draftedEntries = prioritizedQueue.slice(0, playersNeeded);
       }
 
@@ -986,9 +967,15 @@ export class LocalMatchmakingSystem {
     const matchIndex = this.state.activeMatches.findIndex(
       (m) => !m.deletedAt && m.matchId === matchId,
     );
-    if (matchIndex === -1) return;
+    if (matchIndex === -1) {
+      console.warn(`[reportMatchScore] Match not found: ${matchId}`);
+      return;
+    }
 
     const match = this.state.activeMatches[matchIndex];
+    console.log(
+      `[reportMatchScore] Completing match ${matchId}, returnMethod: ${returnMethod}`,
+    );
 
     // Hydrate players from usernames
     const teamA = match.teamA.map((u) => this.state.players[u]);
@@ -1078,37 +1065,52 @@ export class LocalMatchmakingSystem {
     if (returnMethod === 'fairness_first') {
       winnerEnteredAt = 0;
       loserEnteredAt = 0;
+    } else if (returnMethod === 'smart_position') {
+      winnerEnteredAt = Date.now();
+      loserEnteredAt = Date.now();
     }
 
     // Send Winners back to Winners Queue (only if they aren't somehow already there)
     updatedWinners.forEach((p) => {
-      if (
-        !this.state.queues.some(
-          (q) => !q.deletedAt && q.username === p.username,
-        )
-      ) {
+      const alreadyInQueue = this.state.queues.some(
+        (q) => !q.deletedAt && q.username === p.username,
+      );
+      if (!alreadyInQueue) {
         this.state.queues.push({
           username: p.username,
           queueType: 'WINNERS',
           enteredAt: winnerEnteredAt,
           updatedAt: Date.now(),
         });
+        console.log(
+          `[reportMatchScore] Added winner ${p.username} to WINNERS queue`,
+        );
+      } else {
+        console.log(
+          `[reportMatchScore] Winner ${p.username} already in queue, skipped`,
+        );
       }
     });
 
     // Send Losers back to Losers Queue
     updatedLosers.forEach((p) => {
-      if (
-        !this.state.queues.some(
-          (q) => !q.deletedAt && q.username === p.username,
-        )
-      ) {
+      const alreadyInQueue = this.state.queues.some(
+        (q) => !q.deletedAt && q.username === p.username,
+      );
+      if (!alreadyInQueue) {
         this.state.queues.push({
           username: p.username,
           queueType: 'LOSERS',
           enteredAt: loserEnteredAt,
           updatedAt: Date.now(),
         });
+        console.log(
+          `[reportMatchScore] Added loser ${p.username} to LOSERS queue`,
+        );
+      } else {
+        console.log(
+          `[reportMatchScore] Loser ${p.username} already in queue, skipped`,
+        );
       }
     });
 
