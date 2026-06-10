@@ -36,8 +36,8 @@
               @{{ player.username }}
             </span>
             <q-chip
-              :label="`L${player.level}`"
-              :color="getLevelColor(player.level)"
+              :label="player.rating"
+              :color="getRatingColor(player.rating)"
               text-color="white"
               size="xs"
               dense
@@ -121,8 +121,8 @@
               @{{ player.username }}
             </span>
             <q-chip
-              :label="`L${player.level}`"
-              :color="getLevelColor(player.level)"
+              :label="player.rating"
+              :color="getRatingColor(player.rating)"
               text-color="white"
               size="xs"
               dense
@@ -166,7 +166,9 @@
 
     <q-item-section side v-if="showActions && !isReadOnlyMode">
       <q-btn color="grey-7" icon="more_vert" flat round size="sm">
-        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Options</q-tooltip>
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+          >Options</q-tooltip
+        >
         <q-menu>
           <q-list style="min-width: 150px">
             <q-item
@@ -240,7 +242,7 @@
 <script setup lang="ts">
 import { inject } from 'vue';
 import {
-  getLevelColor,
+  getRatingColor,
   getMatchStatusColor,
   getMatchStatusLabel,
 } from '../utils/playerHelpers';

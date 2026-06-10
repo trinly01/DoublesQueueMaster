@@ -14,7 +14,9 @@
       style="padding: 2px; min-height: 14px; min-width: 14px"
     >
       <q-icon name="verified" size="12px" />
-      <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">{{ statusTooltip }}</q-tooltip>
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">{{
+        statusTooltip
+      }}</q-tooltip>
     </q-badge>
   </q-avatar>
 
@@ -40,24 +42,9 @@
       "
     >
       <q-icon name="verified" size="12px" />
-      <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">{{ statusTooltip }}</q-tooltip>
-    </q-badge>
-    <q-badge
-      v-if="showLevelBadge && level"
-      floating
-      rounded
-      :color="levelColor"
-      style="
-        padding: 2px;
-        min-height: 8px;
-        min-width: 8px;
-        bottom: -2px;
-        right: -2px;
-        top: auto;
-        left: auto;
-      "
-    >
-      <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">Level {{ level }}</q-tooltip>
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">{{
+        statusTooltip
+      }}</q-tooltip>
     </q-badge>
   </q-avatar>
 </template>
@@ -76,13 +63,11 @@ interface Props {
   size?: string;
   color?: string;
   textColor?: string;
-  showLevelBadge?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   size: 'md',
   textColor: 'white',
-  showLevelBadge: true,
 });
 
 defineEmits<{
@@ -96,14 +81,7 @@ const initials = computed(() => {
   return source.charAt(0).toUpperCase();
 });
 
-const levelColor = computed(() => {
-  if (props.level === 1) return 'green-6';
-  if (props.level === 2) return 'orange-7';
-  if (props.level === 3) return 'red-8';
-  return 'grey-5';
-});
-
-// Color fallback: level > prop > grey
+// Color fallback: prop > grey
 const effectiveColor = computed(() => {
   if (props.color) return props.color;
   if (props.level === 1) return 'green-6';
@@ -112,11 +90,11 @@ const effectiveColor = computed(() => {
   return 'grey-5';
 });
 
-const showStatusBadge = computed(() => !!props.userId);
+const showStatusBadge = computed(() => !!props.userId || !!props.duprId);
 
 const statusBadgeColor = computed(() => (props.duprId ? 'blue-6' : 'accent'));
 
 const statusTooltip = computed(() =>
-  props.duprId ? 'Registered • DUPR linked' : 'Registered member',
+  props.duprId ? 'DUPR linked' : 'Registered member',
 );
 </script>
