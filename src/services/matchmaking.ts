@@ -95,7 +95,8 @@ export interface AppState {
     | 'variety_first'
     | 'balance_first'
     | 'balanced_variety'
-    | 'strict_balance';
+    | 'strict_balance'
+    | 'fair_balance';
   sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
   matchType?: 'singles' | 'doubles';
   matchesFilterBy?: 'all' | number;
@@ -334,7 +335,8 @@ export const MatchmakerEngine = {
       | 'variety_first'
       | 'balance_first'
       | 'balanced_variety'
-      | 'strict_balance' = 'variety_first',
+      | 'strict_balance'
+      | 'fair_balance' = 'variety_first',
   ) => {
     const allMatchups = MatchmakerEngine.getCombinations(players, teamSize);
 
@@ -343,7 +345,7 @@ export const MatchmakerEngine = {
       const ratingB = computeTeamRating(matchup.teamB);
       const expectedDifference = Math.abs(ratingA - ratingB);
 
-      if (mode === 'strict_balance') {
+      if (mode === 'strict_balance' || mode === 'fair_balance') {
         // Pure balance: no novelty penalty, only expectedDifference
         return {
           ...matchup,
@@ -411,7 +413,8 @@ export const MatchmakerEngine = {
     if (
       mode === 'balance_first' ||
       mode === 'balanced_variety' ||
-      mode === 'strict_balance'
+      mode === 'strict_balance' ||
+      mode === 'fair_balance'
     ) {
       type ScoreItem = { combinedScore: number };
       evaluated.sort(
@@ -832,7 +835,15 @@ export class LocalMatchmakingSystem {
   public draftNextMatches(priorityMode: string = 'timestamp') {
     const playersNeeded = this.state.teamSize * 2;
 
+    const isStrictBalance = this.state.matchmakingMode === 'strict_balance';
+
     const sortFn = (a: QueueEntry, b: QueueEntry) => {
+      if (isStrictBalance) {
+        const ratingA = this.state.players[a.username]?.rating ?? 1500;
+        const ratingB = this.state.players[b.username]?.rating ?? 1500;
+        if (ratingA !== ratingB) return ratingB - ratingA;
+        return a.enteredAt - b.enteredAt;
+      }
       if (priorityMode === 'gamesPlayed') {
         const playerA = this.state.players[a.username];
         const playerB = this.state.players[b.username];
@@ -854,34 +865,44 @@ export class LocalMatchmakingSystem {
     while (prioritizedQueue.length >= playersNeeded) {
       let draftedEntries: QueueEntry[] = [];
 
-      const winners = prioritizedQueue.filter((q) => q.queueType === 'WINNERS');
-      const losers = prioritizedQueue.filter((q) => q.queueType === 'LOSERS');
-      const general = prioritizedQueue.filter((q) => q.queueType === 'GENERAL');
-
-      // Find all groups that have enough players to form a match
-      const validGroups = [];
-      if (winners.length >= playersNeeded) validGroups.push(winners);
-      if (losers.length >= playersNeeded) validGroups.push(losers);
-      if (general.length >= playersNeeded) validGroups.push(general);
-
-      if (validGroups.length > 0) {
-        // Find the group that contains the player who has been waiting longest in prioritizedQueue
-        let bestGroup = validGroups[0];
-        let bestIndex = prioritizedQueue.length;
-
-        for (const group of validGroups) {
-          const index = prioritizedQueue.findIndex(
-            (q) => q.username === group[0].username,
-          );
-          if (index < bestIndex) {
-            bestIndex = index;
-            bestGroup = group;
-          }
-        }
-        draftedEntries = bestGroup.slice(0, playersNeeded);
-      } else {
-        // Fallback to drafting from top of queue if no pure group has enough
+      if (isStrictBalance) {
+        // Strict balance: pool all players regardless of queue group and draft
+        // the closest-rated N from the top of the rating-sorted queue.
         draftedEntries = prioritizedQueue.slice(0, playersNeeded);
+      } else {
+        const winners = prioritizedQueue.filter(
+          (q) => q.queueType === 'WINNERS',
+        );
+        const losers = prioritizedQueue.filter((q) => q.queueType === 'LOSERS');
+        const general = prioritizedQueue.filter(
+          (q) => q.queueType === 'GENERAL',
+        );
+
+        // Find all groups that have enough players to form a match
+        const validGroups = [];
+        if (winners.length >= playersNeeded) validGroups.push(winners);
+        if (losers.length >= playersNeeded) validGroups.push(losers);
+        if (general.length >= playersNeeded) validGroups.push(general);
+
+        if (validGroups.length > 0) {
+          // Find the group that contains the player who has been waiting longest in prioritizedQueue
+          let bestGroup = validGroups[0];
+          let bestIndex = prioritizedQueue.length;
+
+          for (const group of validGroups) {
+            const index = prioritizedQueue.findIndex(
+              (q) => q.username === group[0].username,
+            );
+            if (index < bestIndex) {
+              bestIndex = index;
+              bestGroup = group;
+            }
+          }
+          draftedEntries = bestGroup.slice(0, playersNeeded);
+        } else {
+          // Fallback to drafting from top of queue if no pure group has enough
+          draftedEntries = prioritizedQueue.slice(0, playersNeeded);
+        }
       }
 
       const draftedUsernames = draftedEntries.map((e) => e.username);
@@ -965,6 +986,13 @@ export class LocalMatchmakingSystem {
         oldestQueueEntryAt,
         minGamesPlayed,
       });
+    }
+
+    // One-shot: after drafting with strict_balance, revert to balance_first
+    // so subsequent rounds use queue-priority selection again.
+    if (isStrictBalance) {
+      this.state.matchmakingMode = 'balance_first';
+      this.state.settingsUpdatedAt = Date.now();
     }
 
     this.saveState();
