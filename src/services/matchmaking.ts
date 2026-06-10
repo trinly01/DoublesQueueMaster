@@ -818,9 +818,13 @@ export class LocalMatchmakingSystem {
   }
 
   public removeFromQueue(username: string) {
-    this.state.queues = this.state.queues.filter(
-      (q) => q.username !== username,
-    );
+    const now = Date.now();
+    this.state.queues.forEach((q) => {
+      if (q.username === username && !q.deletedAt) {
+        q.deletedAt = now;
+        q.updatedAt = now;
+      }
+    });
     this.saveState();
   }
 
@@ -843,7 +847,9 @@ export class LocalMatchmakingSystem {
       return a.enteredAt - b.enteredAt;
     };
 
-    const prioritizedQueue = [...this.state.queues].sort(sortFn);
+    const prioritizedQueue = this.state.queues
+      .filter((q) => !q.deletedAt)
+      .sort(sortFn);
 
     while (prioritizedQueue.length >= playersNeeded) {
       let draftedEntries: QueueEntry[] = [];
@@ -892,10 +898,14 @@ export class LocalMatchmakingSystem {
         (entry) => this.state.players[entry.username],
       );
 
-      // Remove these players from the global queue
-      this.state.queues = this.state.queues.filter(
-        (q) => !draftedUsernames.includes(q.username),
-      );
+      // Tombstone drafted entries so the deletion propagates in cross-admin sync.
+      const draftTombstoneAt = Date.now();
+      this.state.queues.forEach((q) => {
+        if (draftedUsernames.includes(q.username) && !q.deletedAt) {
+          q.deletedAt = draftTombstoneAt;
+          q.updatedAt = draftTombstoneAt;
+        }
+      });
 
       // Generate the match
       const match = MatchmakerEngine.draftBalancedMatch(
@@ -1298,84 +1308,50 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     }
   }
 
-  // Merge queues using per-queue updatedAt (or enteredAt as fallback)
+  // Merge queues using pure per-entry Last-Write-Wins.
+  // Each key is (username, queueType). For each key, keep the version with the
+  // highest updatedAt, regardless of which side has a newer top-level
+  // lastModified. Tombstones (deletedAt) are simply versions with a deletion
+  // flag — the latest updatedAt wins, so a newer tombstone overrides an older
+  // live copy, and a newer live copy overrides an older tombstone. This removes
+  // the whole-side lastModified bias that previously let stale data win.
   const mergedQueues: typeof local.queues = [];
   const allQueues = new Map<
     string,
     { entry: QueueEntry; source: 'local' | 'server' }
   >();
 
-  // If server state is newer overall, start with server queue entries
-  // This ensures queue deletions (when players are drafted into matches) propagate
-  if (serverTime > localTime) {
-    serverQueues.forEach((q) =>
-      allQueues.set(`${q.username}-${q.queueType}`, {
-        entry: q,
-        source: 'server',
-      }),
-    );
-    localQueues.forEach((q) => {
-      const key = `${q.username}-${q.queueType}`;
-      const existing = allQueues.get(key);
-      if (!existing) {
-        // Entry exists locally but not on server
-        // If server state is newer, this entry was likely deleted on server
-        // Only add it if local entry is newer than server's lastModified
-        const localEntryTime = q.updatedAt ?? q.enteredAt ?? 0;
-        if (localEntryTime > serverTime) {
-          allQueues.set(key, { entry: q, source: 'local' });
-        }
-      } else {
-        // Both have this queue entry - use updatedAt LWW
-        const localTime = q.updatedAt ?? q.enteredAt ?? 0;
-        const serverEntryTime =
-          existing.entry.updatedAt ?? existing.entry.enteredAt ?? 0;
-        if (localTime > serverEntryTime) {
-          allQueues.set(key, { entry: q, source: 'local' });
-        }
+  localQueues.forEach((q) =>
+    allQueues.set(`${q.username}-${q.queueType}`, {
+      entry: q,
+      source: 'local',
+    }),
+  );
+
+  serverQueues.forEach((q) => {
+    const key = `${q.username}-${q.queueType}`;
+    const existing = allQueues.get(key);
+    if (!existing) {
+      allQueues.set(key, { entry: q, source: 'server' });
+    } else {
+      const localTime = existing.entry.updatedAt ?? 0;
+      const serverTimeEntry = q.updatedAt ?? 0;
+      if (serverTimeEntry > localTime) {
+        allQueues.set(key, { entry: q, source: 'server' });
       }
-    });
-  } else {
-    // Local state is newer or equal - start with local queue entries
-    localQueues.forEach((q) =>
-      allQueues.set(`${q.username}-${q.queueType}`, {
-        entry: q,
-        source: 'local',
-      }),
-    );
-    serverQueues.forEach((q) => {
-      const key = `${q.username}-${q.queueType}`;
-      const existing = allQueues.get(key);
-      if (!existing) {
-        // Entry exists on server but not locally
-        // If local state is newer, this entry was likely deleted locally
-        // Only add it if server entry is newer than local's lastModified
-        const serverEntryTime = q.updatedAt ?? q.enteredAt ?? 0;
-        if (serverEntryTime > localTime) {
-          allQueues.set(key, { entry: q, source: 'server' });
-        }
-      } else {
-        // Both have this queue entry - use updatedAt LWW
-        const localEntryTime =
-          existing.entry.updatedAt ?? existing.entry.enteredAt ?? 0;
-        const serverEntryTime = q.updatedAt ?? q.enteredAt ?? 0;
-        if (serverEntryTime > localEntryTime) {
-          allQueues.set(key, { entry: q, source: 'server' });
-        }
-      }
-    });
-  }
+    }
+  });
 
   // Deduplicate: a player should only appear in one queue at a time.
-  // Keep the entry with the latest updatedAt (or enteredAt) per username.
+  // Keep the entry with the latest updatedAt (or createdAt fallback) per username.
   const latestPerPlayer = new Map<string, QueueEntry>();
   allQueues.forEach(({ entry }) => {
     const existing = latestPerPlayer.get(entry.username);
     if (!existing) {
       latestPerPlayer.set(entry.username, entry);
     } else {
-      const existingTime = existing.updatedAt ?? existing.enteredAt ?? 0;
-      const entryTime = entry.updatedAt ?? entry.enteredAt ?? 0;
+      const existingTime = existing.updatedAt ?? existing.createdAt ?? 0;
+      const entryTime = entry.updatedAt ?? entry.createdAt ?? 0;
       if (entryTime > existingTime) {
         latestPerPlayer.set(entry.username, entry);
       }
@@ -1383,13 +1359,11 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   });
   latestPerPlayer.forEach((entry) => mergedQueues.push(entry));
 
-  // Enforce constraint: no player can be in both queue and active matches
-  // Only consider matches from the winning side (newer state) to avoid
-  // removing queue entries that were added by the newer state
+  // Enforce constraint: no player can be in both queue and active matches.
+  // Use both pre-merge match arrays (already checkpoint-filtered) so any match
+  // on either side blocks queue re-entry. Duplicates are harmless in a Set.
   const playersInMatches = new Set<string>();
-  const winningMatches = serverTime > localTime ? serverMatches : localMatches;
-
-  winningMatches.forEach((m) => {
+  [...localMatches, ...serverMatches].forEach((m) => {
     if (!m.deletedAt) {
       m.teamA.forEach((username) => playersInMatches.add(username));
       m.teamB.forEach((username) => playersInMatches.add(username));
