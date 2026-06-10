@@ -336,7 +336,7 @@ export const MatchmakerEngine = {
       | 'balance_first'
       | 'balanced_variety'
       | 'strict_balance'
-      | 'fair_balance' = 'variety_first',
+      | 'fair_balance' = 'fair_balance',
   ) => {
     const allMatchups = MatchmakerEngine.getCombinations(players, teamSize);
 
@@ -486,7 +486,7 @@ export class LocalMatchmakingSystem {
     if (initialState.queuePriorityMode === undefined)
       initialState.queuePriorityMode = 'timestamp';
     if (initialState.matchmakingMode === undefined)
-      initialState.matchmakingMode = 'variety_first';
+      initialState.matchmakingMode = 'fair_balance';
     if (initialState.sortBy === undefined)
       initialState.sortBy = 'matchesPlayed';
     if (initialState.matchType === undefined)
@@ -716,7 +716,7 @@ export class LocalMatchmakingSystem {
     this.state.queueReturnMethod = 'fairness_first';
     this.state.autoSortQueue = true;
     this.state.queuePriorityMode = 'timestamp';
-    this.state.matchmakingMode = 'variety_first';
+    this.state.matchmakingMode = 'fair_balance';
     this.state.sortBy = 'matchesPlayed';
     this.state.matchType = 'doubles';
     this.state.matchesFilterBy = 'all';
@@ -932,7 +932,7 @@ export class LocalMatchmakingSystem {
       const match = MatchmakerEngine.draftBalancedMatch(
         playersToBalance,
         this.state.teamSize,
-        this.state.matchmakingMode || 'variety_first',
+        this.state.matchmakingMode || 'fair_balance',
       );
 
       // Validate no duplicate players in the match
@@ -991,6 +991,7 @@ export class LocalMatchmakingSystem {
     // One-shot: after drafting with strict_balance, revert to balance_first
     // so subsequent rounds use queue-priority selection again.
     if (isStrictBalance) {
+      // change matchmaking mode back to fair_balance
       this.state.matchmakingMode = 'fair_balance';
       this.state.settingsUpdatedAt = Date.now();
     }
