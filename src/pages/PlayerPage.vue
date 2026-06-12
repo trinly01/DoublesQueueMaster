@@ -1454,7 +1454,7 @@ const onLogout = () => {
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
-  min-width: 140px;
+  min-width: 180px;
 }
 
 .rating-badge:hover {
@@ -1470,7 +1470,7 @@ const onLogout = () => {
   border-radius: 8px;
   background: linear-gradient(135deg, #1e88e5 0%, #42a5f5 100%);
   box-shadow: 0 2px 8px rgba(30, 136, 229, 0.3);
-  min-width: 140px;
+  min-width: 180px;
 }
 
 @media (max-width: 768px) {
