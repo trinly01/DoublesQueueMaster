@@ -157,7 +157,7 @@ export class PlayerProfileService {
               },
               fields: ['*'],
               sort: ['-completed_at'],
-              limit: 10,
+              limit: 50,
             }),
           );
 

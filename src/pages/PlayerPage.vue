@@ -227,6 +227,8 @@
                     icon: 'trending_up',
                   },
                   { label: 'Matches', value: 'matches', icon: 'sports_tennis' },
+                  { label: 'Partners', value: 'partners', icon: 'groups' },
+                  { label: 'Rivals', value: 'rivals', icon: 'sports_kabaddi' },
                 ]"
                 color="grey-5"
                 toggle-color="accent"
@@ -306,6 +308,102 @@
               </q-list>
               <div v-else class="text-center text-grey q-py-md">
                 No completed matches available.
+              </div>
+            </div>
+
+            <div
+              v-else-if="activeTab === 'partners'"
+              class="q-pa-md"
+              style="max-height: 60vh; overflow-y: auto"
+            >
+              <q-table
+                v-if="partnerStats.length"
+                :rows="partnerStats"
+                :columns="partnerColumns"
+                row-key="username"
+                dense
+                flat
+                hide-bottom
+                :rows-per-page-options="[0]"
+              >
+                <template v-slot:body-cell-winRate="props">
+                  <q-td :props="props" class="text-center">
+                    <span
+                      :class="
+                        props.row.winRate >= 50
+                          ? 'text-positive text-weight-bold'
+                          : 'text-negative'
+                      "
+                    >
+                      {{ props.row.winRate.toFixed(1) }}%
+                    </span>
+                  </q-td>
+                </template>
+                <template v-slot:body-cell-avgDiff="props">
+                  <q-td :props="props" class="text-center">
+                    <span
+                      :class="
+                        props.row.avgDiff >= 0
+                          ? 'text-positive'
+                          : 'text-negative'
+                      "
+                    >
+                      {{ props.row.avgDiff >= 0 ? '+' : '' }}
+                      {{ props.row.avgDiff.toFixed(1) }}
+                    </span>
+                  </q-td>
+                </template>
+              </q-table>
+              <div v-else class="text-center text-grey q-py-md">
+                No partner data available.
+              </div>
+            </div>
+
+            <div
+              v-else-if="activeTab === 'rivals'"
+              class="q-pa-md"
+              style="max-height: 60vh; overflow-y: auto"
+            >
+              <q-table
+                v-if="nemesisStats.length"
+                :rows="nemesisStats"
+                :columns="nemesisColumns"
+                row-key="username"
+                dense
+                flat
+                hide-bottom
+                :rows-per-page-options="[0]"
+              >
+                <template v-slot:body-cell-winRate="props">
+                  <q-td :props="props" class="text-center">
+                    <span
+                      :class="
+                        props.row.winRate >= 50
+                          ? 'text-positive text-weight-bold'
+                          : 'text-negative'
+                      "
+                    >
+                      {{ props.row.winRate.toFixed(1) }}%
+                    </span>
+                  </q-td>
+                </template>
+                <template v-slot:body-cell-avgDiff="props">
+                  <q-td :props="props" class="text-center">
+                    <span
+                      :class="
+                        props.row.avgDiff >= 0
+                          ? 'text-positive'
+                          : 'text-negative'
+                      "
+                    >
+                      {{ props.row.avgDiff >= 0 ? '+' : '' }}
+                      {{ props.row.avgDiff.toFixed(1) }}
+                    </span>
+                  </q-td>
+                </template>
+              </q-table>
+              <div v-else class="text-center text-grey q-py-md">
+                No rival data available.
               </div>
             </div>
           </q-card>
@@ -510,7 +608,7 @@ const newClubId = ref('');
 const newClubName = ref('');
 const createClubLoading = ref(false);
 const showHistoryDialog = ref(false);
-const activeTab = ref<'history' | 'matches'>('history');
+const activeTab = ref<'history' | 'matches' | 'partners' | 'rivals'>('history');
 
 const playerEvents = computed(() => PlayerProfile.state.events || []);
 
@@ -584,6 +682,245 @@ const matchChartData = computed(() => {
     return { diff, opponents, match, teamALabel, teamBLabel };
   });
 });
+
+interface SynergyStat {
+  username: string;
+  name: string;
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  avgDiff: number;
+}
+
+const partnerStats = computed<SynergyStat[]>(() => {
+  const username = PlayerProfile.state.username;
+  const map = new Map<
+    string,
+    {
+      name: string;
+      games: number;
+      wins: number;
+      losses: number;
+      diffSum: number;
+    }
+  >();
+
+  for (const match of sortedMatches.value) {
+    const inTeamA = match.team_a?.some(
+      (p: { username?: string }) => p.username === username,
+    );
+    const inTeamB = match.team_b?.some(
+      (p: { username?: string }) => p.username === username,
+    );
+
+    let myTeam: typeof match.team_a = [];
+    let myScore = 0;
+    let oppScore = 0;
+
+    if (inTeamA) {
+      myTeam = match.team_a || [];
+      myScore = match.team_a_score;
+      oppScore = match.team_b_score;
+    } else if (inTeamB) {
+      myTeam = match.team_b || [];
+      myScore = match.team_b_score;
+      oppScore = match.team_a_score;
+    } else {
+      continue;
+    }
+
+    const won = myScore > oppScore;
+    const diff = myScore - oppScore;
+
+    for (const p of myTeam) {
+      if (p.username === username) continue;
+      const existing = map.get(p.username) || {
+        name: p.firstName || p.name || p.username || '?',
+        games: 0,
+        wins: 0,
+        losses: 0,
+        diffSum: 0,
+      };
+      existing.games++;
+      if (won) existing.wins++;
+      else existing.losses++;
+      existing.diffSum += diff;
+      map.set(p.username, existing);
+    }
+  }
+
+  return Array.from(map.entries())
+    .map(([uname, data]) => ({
+      username: uname,
+      name: data.name,
+      games: data.games,
+      wins: data.wins,
+      losses: data.losses,
+      winRate: data.games > 0 ? (data.wins / data.games) * 100 : 0,
+      avgDiff: data.games > 0 ? data.diffSum / data.games : 0,
+    }))
+    .sort((a, b) => b.wins - a.wins || b.games - a.games);
+});
+
+const nemesisStats = computed<SynergyStat[]>(() => {
+  const username = PlayerProfile.state.username;
+  const map = new Map<
+    string,
+    {
+      name: string;
+      games: number;
+      wins: number;
+      losses: number;
+      diffSum: number;
+    }
+  >();
+
+  for (const match of sortedMatches.value) {
+    const inTeamA = match.team_a?.some(
+      (p: { username?: string }) => p.username === username,
+    );
+    const inTeamB = match.team_b?.some(
+      (p: { username?: string }) => p.username === username,
+    );
+
+    let opps: typeof match.team_a = [];
+    let myScore = 0;
+    let oppScore = 0;
+
+    if (inTeamA) {
+      opps = match.team_b || [];
+      myScore = match.team_a_score;
+      oppScore = match.team_b_score;
+    } else if (inTeamB) {
+      opps = match.team_a || [];
+      myScore = match.team_b_score;
+      oppScore = match.team_a_score;
+    } else {
+      continue;
+    }
+
+    const won = myScore > oppScore;
+    const diff = myScore - oppScore;
+
+    for (const p of opps) {
+      const existing = map.get(p.username) || {
+        name: p.firstName || p.name || p.username || '?',
+        games: 0,
+        wins: 0,
+        losses: 0,
+        diffSum: 0,
+      };
+      existing.games++;
+      if (won) existing.wins++;
+      else existing.losses++;
+      existing.diffSum += diff;
+      map.set(p.username, existing);
+    }
+  }
+
+  return Array.from(map.entries())
+    .map(([uname, data]) => ({
+      username: uname,
+      name: data.name,
+      games: data.games,
+      wins: data.wins,
+      losses: data.losses,
+      winRate: data.games > 0 ? (data.wins / data.games) * 100 : 0,
+      avgDiff: data.games > 0 ? data.diffSum / data.games : 0,
+    }))
+    .sort((a, b) => b.losses - a.losses || b.games - a.games);
+});
+
+const partnerColumns = [
+  {
+    name: 'name',
+    label: 'Partner',
+    field: 'name',
+    align: 'left' as const,
+    sortable: true,
+  },
+  {
+    name: 'games',
+    label: 'Games',
+    field: 'games',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'wins',
+    label: 'Wins',
+    field: 'wins',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'losses',
+    label: 'Losses',
+    field: 'losses',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'winRate',
+    label: 'Win %',
+    field: 'winRate',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'avgDiff',
+    label: 'Avg Diff',
+    field: 'avgDiff',
+    align: 'center' as const,
+    sortable: true,
+  },
+];
+
+const nemesisColumns = [
+  {
+    name: 'name',
+    label: 'Opponent',
+    field: 'name',
+    align: 'left' as const,
+    sortable: true,
+  },
+  {
+    name: 'games',
+    label: 'Games',
+    field: 'games',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'wins',
+    label: 'Wins',
+    field: 'wins',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'losses',
+    label: 'Losses',
+    field: 'losses',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'winRate',
+    label: 'Win %',
+    field: 'winRate',
+    align: 'center' as const,
+    sortable: true,
+  },
+  {
+    name: 'avgDiff',
+    label: 'Avg Diff',
+    field: 'avgDiff',
+    align: 'center' as const,
+    sortable: true,
+  },
+];
 
 const chartRef = ref<HTMLDivElement | null>(null);
 let chartInstance: echarts.ECharts | null = null;
