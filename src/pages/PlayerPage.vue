@@ -42,27 +42,31 @@
           </div>
 
           <div v-if="PlayerProfile.state.duprId" class="q-mb-none">
-            <q-chip
-              icon="verified"
-              color="blue-6"
-              text-color="white"
-              size="sm"
-              dense
-            >
-              DUPR ID: {{ PlayerProfile.state.duprId }}
-            </q-chip>
+            <div class="dupr-badge q-mt-sm">
+              <q-icon
+                name="verified"
+                size="18px"
+                color="white"
+                class="q-mr-xs"
+              />
+              <span class="text-caption text-white"
+                >DUPR ID: {{ PlayerProfile.state.duprId }}</span
+              >
+            </div>
           </div>
 
-          <q-chip
-            class="rating-chip text-weight-bold q-mt-sm"
-            text-color="white"
-            icon="star"
-            size="lg"
-            clickable
+          <div
+            class="rating-badge q-mt-sm cursor-pointer"
+            :style="{ background: getRatingGradient(ratingColor) }"
             @click="showHistoryDialog = true"
           >
-            Rating: {{ playerRating }}
-          </q-chip>
+            <div class="column items-center">
+              <span class="text-h4 text-weight-bold text-white">{{
+                playerRating
+              }}</span>
+              <span class="text-caption text-white">{{ ratingCategory }}</span>
+            </div>
+          </div>
         </q-card-section>
 
         <q-card-section class="q-px-lg q-mt-sm">
@@ -543,6 +547,7 @@ import {
 import { useAuth } from 'src/composables/useAuth';
 import MatchResult from 'src/components/MatchResult.vue';
 import * as echarts from 'echarts';
+import { getRatingColor, getRatingCategory } from 'src/utils/playerHelpers';
 
 const router = useRouter();
 const $q = useQuasar();
@@ -551,8 +556,21 @@ const { logout, handleAuthError } = useAuth();
 
 const firstName = computed(() => PlayerProfile.state.firstName);
 const playerRating = computed(() => PlayerProfile.state.rating);
+const ratingColor = computed(() => getRatingColor(playerRating.value));
+const ratingCategory = computed(() => getRatingCategory(playerRating.value));
 const username = computed(() => PlayerProfile.state.username);
 const currentUserId = computed(() => PlayerProfile.state.id);
+
+const getRatingGradient = (color: string): string => {
+  const gradients: Record<string, string> = {
+    'grey-6': 'linear-gradient(135deg, #757575 0%, #9e9e9e 100%)',
+    'blue-6': 'linear-gradient(135deg, #1e88e5 0%, #42a5f5 100%)',
+    'green-6': 'linear-gradient(135deg, #43a047 0%, #66bb6a 100%)',
+    'amber-7': 'linear-gradient(135deg, #ffa000 0%, #ffb74d 100%)',
+    'red-7': 'linear-gradient(135deg, #d32f2f 0%, #ef5350 100%)',
+  };
+  return gradients[color] || gradients['grey-6'];
+};
 
 const avatarUrl = computed(() => {
   const avatar = PlayerProfile.state.avatar;
@@ -1424,6 +1442,35 @@ const onLogout = () => {
 }
 .history-rating {
   background: linear-gradient(135deg, #764ba2 0%, #9f7aea 100%) !important;
+}
+
+.rating-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  min-width: 140px;
+}
+
+.rating-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.dupr-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1e88e5 0%, #42a5f5 100%);
+  box-shadow: 0 2px 8px rgba(30, 136, 229, 0.3);
+  min-width: 140px;
 }
 
 @media (max-width: 768px) {
