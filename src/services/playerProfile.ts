@@ -18,18 +18,20 @@ export interface DirectusCompletedMatch {
     name?: string;
     firstName?: string;
     lastName?: string;
-    level?: number;
+    level?: 1 | 2 | 3;
     rating?: number;
     avatar?: string;
+    duprId?: string;
   }[];
   team_b: {
     username: string;
     name?: string;
     firstName?: string;
     lastName?: string;
-    level?: number;
+    level?: 1 | 2 | 3;
     rating?: number;
     avatar?: string;
+    duprId?: string;
   }[];
   team_a_score: number;
   team_b_score: number;

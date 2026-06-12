@@ -62,7 +62,7 @@ export interface CompletedMatchPlayer {
   duprId?: string;
   firstName?: string;
   lastName?: string;
-  level?: number;
+  level?: 1 | 2 | 3;
   rating?: number;
   avatar?: string;
 }
