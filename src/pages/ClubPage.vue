@@ -1316,10 +1316,17 @@
                 :options="levelOptions"
                 label="Player Level"
                 :rules="[(val) => val !== null || 'Player level is required']"
+                :readonly="!!editingPlayer?.userId"
+                :hint="
+                  editingPlayer?.userId
+                    ? 'Level managed by linked account'
+                    : undefined
+                "
                 outlined
                 dense
                 emit-value
                 map-options
+                :bg-color="editingPlayer?.userId ? 'grey-2' : undefined"
               >
                 <template v-slot:prepend>
                   <q-icon name="star" />
@@ -6981,8 +6988,8 @@ const savePlayerEdit = () => {
     playerState.level = newLevel;
     playerState.updatedAt = Date.now();
 
-    // For registered users, also update the rating based on the new level
-    if (playerState.userId) {
+    // For non-registered (guest) players, also update the rating based on the new level
+    if (!playerState.userId) {
       const newRating = newLevel === 1 ? 1450 : newLevel === 2 ? 1500 : 1550;
       playerState.rating = newRating;
       playerState.ratingUpdatedAt = Date.now();
