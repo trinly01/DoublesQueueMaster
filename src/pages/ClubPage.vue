@@ -2848,11 +2848,11 @@ const queue = computed(() => {
       a: { matchesPlayed: number; enteredAt: number; queueType: string },
       b: { matchesPlayed: number; enteredAt: number; queueType: string },
     ) => {
-      // 1. Group visually by Queue Type (Winners -> Losers -> General)
+      // 1. Group visually by Queue Type (General -> Winners -> Losers)
       const typeOrder: Record<string, number> = {
-        WINNERS: 0,
-        LOSERS: 1,
-        GENERAL: 2,
+        GENERAL: 0,
+        WINNERS: 1,
+        LOSERS: 2,
       };
       const orderA = typeOrder[a.queueType] ?? 2;
       const orderB = typeOrder[b.queueType] ?? 2;
