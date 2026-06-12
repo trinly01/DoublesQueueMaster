@@ -64,6 +64,18 @@ export const getRatingColor = (rating: number): string => {
 };
 
 /**
+ * Get the category name for a player rating.
+ * Tiers: Novice, Low Intermediate, High Intermediate, Advanced, Expert.
+ */
+export const getRatingCategory = (rating: number): string => {
+  if (rating < 1450) return 'Novice';
+  if (rating < 1600) return 'Low Intermediate';
+  if (rating < 1800) return 'High Intermediate';
+  if (rating < 2000) return 'Advanced';
+  return 'Expert';
+};
+
+/**
  * Get the icon for a player level
  */
 export const getLevelIcon = (level: 1 | 2 | 3): string => {
