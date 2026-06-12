@@ -145,7 +145,7 @@
           :class="
             $q.dark.isActive ? 'bg-grey-8 text-white' : 'bg-grey-2 text-grey-9'
           "
-          class="q-mb-md rounded-borders"
+          class="q-mb-sm rounded-borders"
         >
           <template v-slot:avatar>
             <q-icon name="signal_wifi_off" color="primary" />
@@ -157,7 +157,7 @@
 
         <q-banner
           v-if="clubLoadingState === 'error'"
-          class="bg-red-1 text-red-9 q-mb-md rounded-borders"
+          class="bg-red-1 text-red-9 q-mb-sm rounded-borders"
           inline-actions
         >
           <template v-slot:avatar>
@@ -181,7 +181,7 @@
           :class="
             $q.dark.isActive ? 'bg-blue-8 text-white' : 'bg-blue-1 text-blue-9'
           "
-          class="q-mb-md rounded-borders"
+          class="q-mb-sm rounded-borders"
           inline-actions
         >
           <template v-slot:avatar>
@@ -351,11 +351,11 @@
               </q-card-section>
               <q-card-section v-if="isCurrentUserAdmin">
                 <!-- Match Type Selector -->
-                <div class="q-mb-md">
-                  <div class="text-caption text-grey-7 q-mb-xs">Match Type</div>
+                <div class="q-mb-sm">
                   <q-select
                     v-model="matchType"
                     :options="matchTypeOptions"
+                    label="Match Type"
                     dense
                     outlined
                     emit-value
@@ -370,6 +370,36 @@
                   </q-select>
                 </div>
 
+                <div v-if="isCurrentUserAdmin" class="q-mb-sm">
+                  <q-select
+                    v-model="matchmakingMode"
+                    :options="matchmakingModeOptions"
+                    label="Matchmaking mode"
+                    dense
+                    outlined
+                    emit-value
+                    map-options
+                    color="accent"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="balance" />
+                    </template>
+                    <template v-slot:option="scope">
+                      <q-item v-bind="scope.itemProps">
+                        <q-item-section>
+                          <q-item-label>{{ scope.opt.label }}</q-item-label>
+                          <q-item-label
+                            v-if="scope.opt.description"
+                            caption
+                            class="text-grey-7"
+                          >
+                            {{ scope.opt.description }}
+                          </q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </template>
+                  </q-select>
+                </div>
                 <div v-if="isCurrentUserAdmin" class="row q-gutter-sm">
                   <q-btn
                     class="col"
@@ -681,13 +711,11 @@
                 </q-card-section>
                 <q-card-section v-if="isCurrentUserAdmin">
                   <!-- Match Type Selector -->
-                  <div class="q-mb-md">
-                    <div class="text-caption text-grey-7 q-mb-xs">
-                      Match Type
-                    </div>
+                  <div class="q-mb-sm">
                     <q-select
                       v-model="matchType"
                       :options="matchTypeOptions"
+                      label="Match Type"
                       dense
                       outlined
                       emit-value
@@ -702,6 +730,36 @@
                     </q-select>
                   </div>
 
+                  <div v-if="isCurrentUserAdmin" class="q-mb-sm">
+                    <q-select
+                      v-model="matchmakingMode"
+                      :options="matchmakingModeOptions"
+                      label="Matchmaking mode"
+                      dense
+                      outlined
+                      emit-value
+                      map-options
+                      color="accent"
+                    >
+                      <template v-slot:prepend>
+                        <q-icon name="balance" />
+                      </template>
+                      <template v-slot:option="scope">
+                        <q-item v-bind="scope.itemProps">
+                          <q-item-section>
+                            <q-item-label>{{ scope.opt.label }}</q-item-label>
+                            <q-item-label
+                              v-if="scope.opt.description"
+                              caption
+                              class="text-grey-7"
+                            >
+                              {{ scope.opt.description }}
+                            </q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </template>
+                    </q-select>
+                  </div>
                   <div v-if="isCurrentUserAdmin" class="row q-gutter-sm">
                     <q-btn
                       class="col"
@@ -850,7 +908,7 @@
           <!-- Content -->
           <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
             <!-- Mode Toggle -->
-            <div class="q-mb-md q-pb-lg">
+            <div class="q-mb-sm q-pb-lg">
               <q-btn-toggle
                 v-model="addPlayerMode"
                 :options="addPlayerModeOptions"
@@ -1345,7 +1403,7 @@
             v-if="currentMatch"
           >
             <div class="q-gutter-y-md">
-              <div class="text-subtitle1 text-center q-mb-md">
+              <div class="text-subtitle1 text-center q-mb-sm">
                 Enter match scores
               </div>
 
@@ -1899,11 +1957,11 @@
             <div class="manual-selection-container">
               <!-- Step 1: Select Players -->
               <div v-if="manualSelectionStep === 1" class="selection-step">
-                <div class="text-h6 q-mb-md">
+                <div class="text-h6 q-mb-sm">
                   Step 1: Select
                   {{ matchType === 'singles' ? '2' : '4' }} Players
                 </div>
-                <div class="text-caption text-grey-7 q-mb-md">
+                <div class="text-caption text-grey-7 q-mb-sm">
                   Click on players to select them for the match ({{
                     selectedPlayers.length
                   }}/{{ matchType === 'singles' ? 2 : 4 }} selected)
@@ -1932,7 +1990,7 @@
 
               <!-- Step 2: Arrange Teams -->
               <div v-if="manualSelectionStep === 2" class="arrangement-step">
-                <div class="text-h6 q-mb-md">Step 2: Arrange Teams</div>
+                <div class="text-h6 q-mb-sm">Step 2: Arrange Teams</div>
 
                 <TeamArrangement
                   v-model:team1="manualTeam1"
@@ -1946,8 +2004,8 @@
                 v-if="manualSelectionStep === 3"
                 class="court-selection-step"
               >
-                <div class="text-h6 q-mb-md">Step 3: Select Court</div>
-                <div class="text-caption text-grey-7 q-mb-md">
+                <div class="text-h6 q-mb-sm">Step 3: Select Court</div>
+                <div class="text-caption text-grey-7 q-mb-sm">
                   Choose how to assign a court for this match
                 </div>
 
@@ -1955,7 +2013,7 @@
                 <q-card
                   flat
                   bordered
-                  class="cursor-pointer q-mb-md primary-court-option"
+                  class="cursor-pointer q-mb-sm primary-court-option"
                   @click="selectAutoCourt"
                   :class="{ selected: selectedCourt === null }"
                 >
@@ -1991,7 +2049,7 @@
                   color="primary"
                   icon="sports_tennis"
                   @click="toggleManualSelection"
-                  class="q-mb-md"
+                  class="q-mb-sm"
                 >
                   <q-icon name="sports_tennis" class="q-mr-xs" />
                   {{ showManualSelection ? 'Hide' : 'Choose' }} Specific Court
@@ -2000,7 +2058,7 @@
                 <!-- Manual Court List (Collapsible) -->
                 <q-slide-transition>
                   <div v-if="showManualSelection">
-                    <q-separator class="q-mb-md" />
+                    <q-separator class="q-mb-sm" />
                     <div class="text-subtitle2 q-mb-sm">Select Court</div>
                     <q-list separator>
                       <q-item
@@ -2158,7 +2216,7 @@
           <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
             <!-- Step 1: Player Management -->
             <div v-if="manualSelectionStep === 1">
-              <div class="text-h6 q-mb-md">
+              <div class="text-h6 q-mb-sm">
                 Step 1: Manage Players
                 <q-chip
                   :label="
@@ -2379,7 +2437,7 @@
             <div
               v-if="manualSelectionStep === 2 && currentMatchType === 'doubles'"
             >
-              <div class="text-h6 q-mb-md">Step 2: Arrange Teams</div>
+              <div class="text-h6 q-mb-sm">Step 2: Arrange Teams</div>
 
               <TeamArrangement
                 v-model:team1="manualTeam1"
@@ -2513,7 +2571,7 @@
 
           <!-- Content -->
           <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
-            <div class="text-subtitle2 q-mb-md">
+            <div class="text-subtitle2 q-mb-sm">
               Choose a player to replace
               <strong>{{
                 playerToReplaceInEdit?.firstName ||
