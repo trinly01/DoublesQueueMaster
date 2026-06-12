@@ -5235,9 +5235,13 @@ const addBulkPlayers = () => {
       continue;
     }
 
+    const initialRating =
+      bulkPlayer.level === 1 ? 1450 : bulkPlayer.level === 2 ? 1500 : 1550;
+
     const result = MatchmakingApp.checkInPlayer(
       trimmedName,
       bulkPlayer.level as 1 | 2 | 3,
+      { rating: initialRating },
     );
     if (result === 'already_in_queue') {
       alreadyInQueue.push(trimmedName);
@@ -6976,6 +6980,13 @@ const savePlayerEdit = () => {
   } else {
     playerState.level = newLevel;
     playerState.updatedAt = Date.now();
+
+    // For registered users, also update the rating based on the new level
+    if (playerState.userId) {
+      const newRating = newLevel === 1 ? 1450 : newLevel === 2 ? 1500 : 1550;
+      playerState.rating = newRating;
+      playerState.ratingUpdatedAt = Date.now();
+    }
   }
 
   MatchmakingApp.persist();
