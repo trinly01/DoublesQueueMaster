@@ -356,9 +356,14 @@
                   :class="row.winRate >= 50 ? 'bg-green-1' : 'bg-red-1'"
                 >
                   <q-item-section avatar>
-                    <q-avatar size="32px" color="primary" text-color="white">
-                      {{ row.name.charAt(0).toUpperCase() }}
-                    </q-avatar>
+                    <PlayerAvatar
+                      :name="row.name"
+                      :username="row.username"
+                      :level="row.level"
+                      :image-url="row.avatar"
+                      :dupr-id="row.duprId"
+                      size="32px"
+                    />
                   </q-item-section>
                   <q-item-section class="col">
                     <q-item-label class="text-weight-medium ellipsis">
@@ -451,9 +456,14 @@
                   :class="row.winRate >= 50 ? 'bg-green-1' : 'bg-red-1'"
                 >
                   <q-item-section avatar>
-                    <q-avatar size="32px" color="negative" text-color="white">
-                      {{ row.name.charAt(0).toUpperCase() }}
-                    </q-avatar>
+                    <PlayerAvatar
+                      :name="row.name"
+                      :username="row.username"
+                      :level="row.level"
+                      :image-url="row.avatar"
+                      :dupr-id="row.duprId"
+                      size="32px"
+                    />
                   </q-item-section>
                   <q-item-section class="col">
                     <q-item-label class="text-weight-medium ellipsis">
@@ -756,6 +766,7 @@ import {
 } from 'src/services/playerProfile';
 import { useAuth } from 'src/composables/useAuth';
 import MatchResult from 'src/components/MatchResult.vue';
+import PlayerAvatar from 'src/components/PlayerAvatar.vue';
 import * as echarts from 'echarts';
 import { getRatingColor, getRatingCategory } from 'src/utils/playerHelpers';
 
@@ -785,10 +796,11 @@ const getRatingGradient = (color: string): string => {
 
 const avatarUrl = computed(() => {
   const avatar = PlayerProfile.state.avatar;
-  if (avatar) {
-    return `https://dink-it.zyberlab.com/assets/${avatar}`;
+  if (!avatar) return '';
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar;
   }
-  return '';
+  return `https://dink-it.zyberlab.com/assets/${avatar}`;
 });
 
 const LAST_CLUB_KEY = 'lastClubId';
@@ -922,6 +934,9 @@ interface SynergyStat {
   losses: number;
   winRate: number;
   avgDiff: number;
+  avatar?: string;
+  level?: 1 | 2 | 3;
+  duprId?: string;
 }
 
 const partnerStats = computed<SynergyStat[]>(() => {
@@ -934,16 +949,15 @@ const partnerStats = computed<SynergyStat[]>(() => {
       wins: number;
       losses: number;
       diffSum: number;
+      avatar?: string;
+      level?: 1 | 2 | 3;
+      duprId?: string;
     }
   >();
 
   for (const match of sortedMatches.value) {
-    const inTeamA = match.team_a?.some(
-      (p: { username?: string }) => p.username === username,
-    );
-    const inTeamB = match.team_b?.some(
-      (p: { username?: string }) => p.username === username,
-    );
+    const inTeamA = match.team_a?.some((p) => p.username === username);
+    const inTeamB = match.team_b?.some((p) => p.username === username);
 
     let myTeam: typeof match.team_a = [];
     let myScore = 0;
@@ -972,6 +986,9 @@ const partnerStats = computed<SynergyStat[]>(() => {
         wins: 0,
         losses: 0,
         diffSum: 0,
+        avatar: p.avatar,
+        level: p.level,
+        duprId: p.duprId,
       };
       existing.games++;
       if (won) existing.wins++;
@@ -990,6 +1007,14 @@ const partnerStats = computed<SynergyStat[]>(() => {
       losses: data.losses,
       winRate: data.games > 0 ? (data.wins / data.games) * 100 : 0,
       avgDiff: data.games > 0 ? data.diffSum / data.games : 0,
+      avatar: data.avatar
+        ? data.avatar.startsWith('http://') ||
+          data.avatar.startsWith('https://')
+          ? data.avatar
+          : `https://dink-it.zyberlab.com/assets/${data.avatar}`
+        : undefined,
+      level: data.level,
+      duprId: data.duprId,
     }))
     .sort((a, b) => b.wins - a.wins || b.games - a.games);
 });
@@ -1004,16 +1029,15 @@ const nemesisStats = computed<SynergyStat[]>(() => {
       wins: number;
       losses: number;
       diffSum: number;
+      avatar?: string;
+      level?: 1 | 2 | 3;
+      duprId?: string;
     }
   >();
 
   for (const match of sortedMatches.value) {
-    const inTeamA = match.team_a?.some(
-      (p: { username?: string }) => p.username === username,
-    );
-    const inTeamB = match.team_b?.some(
-      (p: { username?: string }) => p.username === username,
-    );
+    const inTeamA = match.team_a?.some((p) => p.username === username);
+    const inTeamB = match.team_b?.some((p) => p.username === username);
 
     let opps: typeof match.team_a = [];
     let myScore = 0;
@@ -1041,6 +1065,9 @@ const nemesisStats = computed<SynergyStat[]>(() => {
         wins: 0,
         losses: 0,
         diffSum: 0,
+        avatar: p.avatar,
+        level: p.level,
+        duprId: p.duprId,
       };
       existing.games++;
       if (won) existing.wins++;
@@ -1059,6 +1086,14 @@ const nemesisStats = computed<SynergyStat[]>(() => {
       losses: data.losses,
       winRate: data.games > 0 ? (data.wins / data.games) * 100 : 0,
       avgDiff: data.games > 0 ? data.diffSum / data.games : 0,
+      avatar: data.avatar
+        ? data.avatar.startsWith('http://') ||
+          data.avatar.startsWith('https://')
+          ? data.avatar
+          : `https://dink-it.zyberlab.com/assets/${data.avatar}`
+        : undefined,
+      level: data.level,
+      duprId: data.duprId,
     }))
     .sort((a, b) => b.losses - a.losses || b.games - a.games);
 });
