@@ -233,10 +233,13 @@
                   { label: 'Matches', value: 'matches', icon: 'sports_tennis' },
                   { label: 'Partners', value: 'partners', icon: 'groups' },
                   { label: 'Rivals', value: 'rivals', icon: 'sports_kabaddi' },
+                  { label: 'Clutch', value: 'clutch', icon: 'bolt' },
                 ]"
                 color="grey-5"
                 toggle-color="accent"
                 spread
+                dense
+                size="sm"
                 class="full-width"
               />
             </div>
@@ -246,6 +249,32 @@
               class="q-pa-md"
               style="max-height: 60vh; overflow-y: auto"
             >
+              <div v-if="ratingVelocity" class="row q-col-gutter-sm q-mb-md">
+                <div class="col-6">
+                  <q-card flat bordered class="text-center q-pa-sm">
+                    <div class="text-h6 text-weight-bold">
+                      {{ ratingVelocity.current }}
+                    </div>
+                    <div class="text-caption text-grey-8">Current Rating</div>
+                  </q-card>
+                </div>
+                <div class="col-6">
+                  <q-card flat bordered class="text-center q-pa-sm">
+                    <div
+                      class="text-h6 text-weight-bold"
+                      :class="
+                        ratingVelocity.change >= 0
+                          ? 'text-positive'
+                          : 'text-negative'
+                      "
+                    >
+                      {{ ratingVelocity.change >= 0 ? '+' : ''
+                      }}{{ ratingVelocity.change }}
+                    </div>
+                    <div class="text-caption text-grey-8">Rating Change</div>
+                  </q-card>
+                </div>
+              </div>
               <div
                 ref="chartRef"
                 class="chart-container"
@@ -320,8 +349,55 @@
               class="q-pa-md"
               style="max-height: 60vh; overflow-y: auto"
             >
+              <q-list separator v-if="partnerStats.length && isMobileScreen">
+                <q-item
+                  v-for="row in partnerStats"
+                  :key="row.username"
+                  :class="row.winRate >= 50 ? 'bg-green-1' : 'bg-red-1'"
+                >
+                  <q-item-section avatar>
+                    <q-avatar size="32px" color="primary" text-color="white">
+                      {{ row.name.charAt(0).toUpperCase() }}
+                    </q-avatar>
+                  </q-item-section>
+                  <q-item-section class="col">
+                    <q-item-label class="text-weight-medium ellipsis">
+                      {{ row.name }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side class="text-right">
+                    <q-chip
+                      :color="row.winRate >= 50 ? 'positive' : 'negative'"
+                      text-color="white"
+                      size="sm"
+                      dense
+                      class="q-mb-xs"
+                    >
+                      {{ row.winRate.toFixed(0) }}%
+                    </q-chip>
+                    <div class="text-caption">
+                      <span class="text-grey-10">{{ row.games }}G</span>
+                      <span class="text-green text-weight-bold q-ml-xs"
+                        >{{ row.wins }}W</span
+                      >
+                      <span class="text-red-10 q-ml-xs">{{ row.losses }}L</span>
+                      <span
+                        class="q-ml-xs"
+                        :class="
+                          row.avgDiff >= 0
+                            ? 'text-green text-weight-bold'
+                            : 'text-red-10'
+                        "
+                      >
+                        {{ row.avgDiff >= 0 ? '+' : ''
+                        }}{{ row.avgDiff.toFixed(1) }}
+                      </span>
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </q-list>
               <q-table
-                v-if="partnerStats.length"
+                v-else-if="partnerStats.length"
                 :rows="partnerStats"
                 :columns="partnerColumns"
                 row-key="username"
@@ -368,8 +444,55 @@
               class="q-pa-md"
               style="max-height: 60vh; overflow-y: auto"
             >
+              <q-list separator v-if="nemesisStats.length && isMobileScreen">
+                <q-item
+                  v-for="row in nemesisStats"
+                  :key="row.username"
+                  :class="row.winRate >= 50 ? 'bg-green-1' : 'bg-red-1'"
+                >
+                  <q-item-section avatar>
+                    <q-avatar size="32px" color="negative" text-color="white">
+                      {{ row.name.charAt(0).toUpperCase() }}
+                    </q-avatar>
+                  </q-item-section>
+                  <q-item-section class="col">
+                    <q-item-label class="text-weight-medium ellipsis">
+                      {{ row.name }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side class="text-right">
+                    <q-chip
+                      :color="row.winRate >= 50 ? 'positive' : 'negative'"
+                      text-color="white"
+                      size="sm"
+                      dense
+                      class="q-mb-xs"
+                    >
+                      {{ row.winRate.toFixed(0) }}%
+                    </q-chip>
+                    <div class="text-caption">
+                      <span class="text-grey-10">{{ row.games }}G</span>
+                      <span class="text-green text-weight-bold q-ml-xs"
+                        >{{ row.wins }}W</span
+                      >
+                      <span class="text-red-10 q-ml-xs">{{ row.losses }}L</span>
+                      <span
+                        class="q-ml-xs"
+                        :class="
+                          row.avgDiff >= 0
+                            ? 'text-green text-weight-bold'
+                            : 'text-red-10'
+                        "
+                      >
+                        {{ row.avgDiff >= 0 ? '+' : ''
+                        }}{{ row.avgDiff.toFixed(1) }}
+                      </span>
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </q-list>
               <q-table
-                v-if="nemesisStats.length"
+                v-else-if="nemesisStats.length"
                 :rows="nemesisStats"
                 :columns="nemesisColumns"
                 row-key="username"
@@ -408,6 +531,93 @@
               </q-table>
               <div v-else class="text-center text-grey q-py-md">
                 No rival data available.
+              </div>
+            </div>
+
+            <div
+              v-else-if="activeTab === 'clutch'"
+              class="q-pa-md"
+              style="max-height: 60vh; overflow-y: auto"
+            >
+              <div v-if="clutchStats.total > 0">
+                <div class="row q-col-gutter-sm q-mb-md">
+                  <div class="col-4">
+                    <q-card flat bordered class="text-center q-pa-sm">
+                      <div class="text-h6 text-weight-bold">
+                        {{ clutchStats.total }}
+                      </div>
+                      <div class="text-caption text-grey-8">Games</div>
+                    </q-card>
+                  </div>
+                  <div class="col-4">
+                    <q-card flat bordered class="text-center q-pa-sm">
+                      <div
+                        class="text-h6 text-weight-bold"
+                        :class="
+                          clutchStats.winRate >= 50
+                            ? 'text-positive'
+                            : 'text-negative'
+                        "
+                      >
+                        {{ clutchStats.winRate.toFixed(1) }}%
+                      </div>
+                      <div class="text-caption text-grey-8">Win Rate</div>
+                    </q-card>
+                  </div>
+                  <div class="col-4">
+                    <q-card flat bordered class="text-center q-pa-sm">
+                      <div class="text-h6 text-weight-bold text-positive">
+                        {{ clutchStats.wins }}
+                      </div>
+                      <div class="text-caption text-grey-8">Wins</div>
+                    </q-card>
+                  </div>
+                </div>
+
+                <div class="text-subtitle2 text-weight-medium q-mb-sm">
+                  Recent Clutch Games
+                </div>
+                <q-list separator>
+                  <q-item
+                    v-for="(g, idx) in clutchStats.games.slice(0, 10)"
+                    :key="idx"
+                    :class="g.won ? 'bg-green-1' : 'bg-red-1'"
+                  >
+                    <q-item-section>
+                      <q-item-label class="text-weight-medium">
+                        vs {{ g.opponents }}
+                      </q-item-label>
+                      <q-item-label caption>
+                        {{
+                          g.match.team_a
+                            ?.map((p) => p.firstName || p.username || '?')
+                            .join(' & ')
+                        }}
+                        {{ g.match.team_a_score }} - {{ g.match.team_b_score }}
+                        {{
+                          g.match.team_b
+                            ?.map((p) => p.firstName || p.username || '?')
+                            .join(' & ')
+                        }}
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-chip
+                        :color="g.won ? 'positive' : 'negative'"
+                        text-color="white"
+                        size="sm"
+                        dense
+                      >
+                        {{ g.won ? 'W' : 'L' }} ({{ g.myScore }}-{{
+                          g.oppScore
+                        }})
+                      </q-chip>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </div>
+              <div v-else class="text-center text-grey q-py-md">
+                No clutch games yet (tight scores ≤ 2 pts).
               </div>
             </div>
           </q-card>
@@ -560,6 +770,7 @@ const ratingColor = computed(() => getRatingColor(playerRating.value));
 const ratingCategory = computed(() => getRatingCategory(playerRating.value));
 const username = computed(() => PlayerProfile.state.username);
 const currentUserId = computed(() => PlayerProfile.state.id);
+const isMobileScreen = computed(() => $q.screen.lt.sm);
 
 const getRatingGradient = (color: string): string => {
   const gradients: Record<string, string> = {
@@ -626,7 +837,9 @@ const newClubId = ref('');
 const newClubName = ref('');
 const createClubLoading = ref(false);
 const showHistoryDialog = ref(false);
-const activeTab = ref<'history' | 'matches' | 'partners' | 'rivals'>('history');
+const activeTab = ref<'history' | 'matches' | 'partners' | 'rivals' | 'clutch'>(
+  'history',
+);
 
 const playerEvents = computed(() => PlayerProfile.state.events || []);
 
@@ -939,6 +1152,88 @@ const nemesisColumns = [
     sortable: true,
   },
 ];
+
+interface ClutchMatch {
+  match: DirectusCompletedMatch;
+  myScore: number;
+  oppScore: number;
+  diff: number;
+  won: boolean;
+  opponents: string;
+}
+
+const clutchStats = computed(() => {
+  const username = PlayerProfile.state.username;
+  const clutchGames: ClutchMatch[] = [];
+  let clutchWins = 0;
+  let clutchLosses = 0;
+
+  for (const match of sortedMatches.value) {
+    const inTeamA = match.team_a?.some(
+      (p: { username?: string }) => p.username === username,
+    );
+    const inTeamB = match.team_b?.some(
+      (p: { username?: string }) => p.username === username,
+    );
+
+    let myScore = 0;
+    let oppScore = 0;
+    let opps: typeof match.team_a = [];
+
+    if (inTeamA) {
+      myScore = match.team_a_score;
+      oppScore = match.team_b_score;
+      opps = match.team_b || [];
+    } else if (inTeamB) {
+      myScore = match.team_b_score;
+      oppScore = match.team_a_score;
+      opps = match.team_a || [];
+    } else {
+      continue;
+    }
+
+    const diff = Math.abs(myScore - oppScore);
+    if (diff <= 2) {
+      const won = myScore > oppScore;
+      if (won) clutchWins++;
+      else clutchLosses++;
+
+      const opponentNames = opps
+        .map(
+          (p: { firstName?: string; username?: string }) =>
+            p.firstName || p.username || '?',
+        )
+        .join(' & ');
+
+      clutchGames.push({
+        match,
+        myScore,
+        oppScore,
+        diff,
+        won,
+        opponents: opponentNames,
+      });
+    }
+  }
+
+  const total = clutchWins + clutchLosses;
+  return {
+    total,
+    wins: clutchWins,
+    losses: clutchLosses,
+    winRate: total > 0 ? (clutchWins / total) * 100 : 0,
+    games: clutchGames,
+  };
+});
+
+const ratingVelocity = computed(() => {
+  const events = sortedEvents.value;
+  if (events.length < 2) return null;
+  const current = events[0]?.rating ?? playerRating.value;
+  const oldest = events[events.length - 1]?.rating ?? current;
+  const change = current - oldest;
+  return { current, oldest, change };
+});
 
 const chartRef = ref<HTMLDivElement | null>(null);
 let chartInstance: echarts.ECharts | null = null;
