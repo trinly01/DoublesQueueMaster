@@ -167,6 +167,34 @@
         }
       },
       {
+        "collection": "ai_prompts",
+        "meta": {
+          "accountability": "all",
+          "archive_app_filter": true,
+          "archive_field": "status",
+          "archive_value": "archived",
+          "collapse": "open",
+          "collection": "ai_prompts",
+          "color": null,
+          "display_template": null,
+          "group": null,
+          "hidden": false,
+          "icon": "magic_button",
+          "item_duplication_fields": null,
+          "note": null,
+          "preview_url": null,
+          "singleton": false,
+          "sort": 5,
+          "sort_field": "sort",
+          "translations": null,
+          "unarchive_value": "draft",
+          "versioning": false
+        },
+        "schema": {
+          "name": "ai_prompts"
+        }
+      },
+      {
         "collection": "club",
         "meta": {
           "accountability": "all",
@@ -184,7 +212,7 @@
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": 2,
+          "sort": 5,
           "sort_field": "sort",
           "translations": null,
           "unarchive_value": "draft",
@@ -261,14 +289,14 @@
           "collection": "completed_match",
           "color": null,
           "display_template": null,
-          "group": null,
+          "group": "Trin_Dink_It",
           "hidden": false,
           "icon": null,
           "item_duplication_fields": null,
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": 5,
+          "sort": 3,
           "sort_field": "sort",
           "translations": null,
           "unarchive_value": "draft",
@@ -324,7 +352,7 @@
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": 1,
+          "sort": 4,
           "sort_field": "sort",
           "translations": null,
           "unarchive_value": "draft",
@@ -482,14 +510,14 @@
           "collection": "payment",
           "color": null,
           "display_template": null,
-          "group": null,
+          "group": "Trin_Dink_It",
           "hidden": false,
           "icon": null,
           "item_duplication_fields": null,
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": 6,
+          "sort": 2,
           "sort_field": "sort",
           "translations": null,
           "unarchive_value": "draft",
@@ -510,14 +538,14 @@
           "collection": "payment_settings",
           "color": null,
           "display_template": null,
-          "group": null,
+          "group": "Trin_Dink_It",
           "hidden": false,
           "icon": null,
           "item_duplication_fields": null,
           "note": null,
           "preview_url": null,
           "singleton": true,
-          "sort": 7,
+          "sort": 1,
           "sort_field": null,
           "translations": null,
           "unarchive_value": "draft",
@@ -3040,6 +3068,656 @@
         }
       },
       {
+        "collection": "ai_prompts",
+        "field": "id",
+        "type": "uuid",
+        "meta": {
+          "collection": "ai_prompts",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "id",
+          "group": null,
+          "hidden": true,
+          "interface": "input",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 1,
+          "special": [
+            "uuid"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "half"
+        },
+        "schema": {
+          "name": "id",
+          "table": "ai_prompts",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": false,
+          "is_unique": true,
+          "is_indexed": false,
+          "is_primary_key": true,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "ai_prompts",
+        "field": "sort",
+        "type": "integer",
+        "meta": {
+          "collection": "ai_prompts",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "sort",
+          "group": null,
+          "hidden": true,
+          "interface": "input",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 2,
+          "special": null,
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "half"
+        },
+        "schema": {
+          "name": "sort",
+          "table": "ai_prompts",
+          "data_type": "integer",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": 32,
+          "numeric_scale": 0,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "ai_prompts",
+        "field": "date_created",
+        "type": "timestamp",
+        "meta": {
+          "collection": "ai_prompts",
+          "conditions": null,
+          "display": "datetime",
+          "display_options": {
+            "relative": true
+          },
+          "field": "date_created",
+          "group": null,
+          "hidden": true,
+          "interface": "datetime",
+          "note": null,
+          "options": null,
+          "readonly": true,
+          "required": false,
+          "searchable": true,
+          "sort": 3,
+          "special": [
+            "date-created"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "half"
+        },
+        "schema": {
+          "name": "date_created",
+          "table": "ai_prompts",
+          "data_type": "timestamp with time zone",
+          "default_value": "CURRENT_TIMESTAMP",
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "ai_prompts",
+        "field": "user_created",
+        "type": "uuid",
+        "meta": {
+          "collection": "ai_prompts",
+          "conditions": null,
+          "display": "user",
+          "display_options": null,
+          "field": "user_created",
+          "group": null,
+          "hidden": true,
+          "interface": "select-dropdown-m2o",
+          "note": null,
+          "options": {
+            "template": "{{avatar}} {{first_name}} {{last_name}}"
+          },
+          "readonly": true,
+          "required": false,
+          "searchable": true,
+          "sort": 4,
+          "special": [
+            "user-created"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "half"
+        },
+        "schema": {
+          "name": "user_created",
+          "table": "ai_prompts",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": "directus_users",
+          "foreign_key_column": "id"
+        }
+      },
+      {
+        "collection": "ai_prompts",
+        "field": "date_updated",
+        "type": "timestamp",
+        "meta": {
+          "collection": "ai_prompts",
+          "conditions": null,
+          "display": "datetime",
+          "display_options": {
+            "relative": true
+          },
+          "field": "date_updated",
+          "group": null,
+          "hidden": true,
+          "interface": "datetime",
+          "note": null,
+          "options": null,
+          "readonly": true,
+          "required": false,
+          "searchable": true,
+          "sort": 5,
+          "special": [
+            "date-updated"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "half"
+        },
+        "schema": {
+          "name": "date_updated",
+          "table": "ai_prompts",
+          "data_type": "timestamp with time zone",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "ai_prompts",
+        "field": "user_updated",
+        "type": "uuid",
+        "meta": {
+          "collection": "ai_prompts",
+          "conditions": null,
+          "display": "user",
+          "display_options": null,
+          "field": "user_updated",
+          "group": null,
+          "hidden": true,
+          "interface": "select-dropdown-m2o",
+          "note": null,
+          "options": {
+            "template": "{{avatar}} {{first_name}} {{last_name}}"
+          },
+          "readonly": true,
+          "required": false,
+          "searchable": true,
+          "sort": 6,
+          "special": [
+            "user-updated"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "half"
+        },
+        "schema": {
+          "name": "user_updated",
+          "table": "ai_prompts",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": "directus_users",
+          "foreign_key_column": "id"
+        }
+      },
+      {
+        "collection": "ai_prompts",
+        "field": "meta_prompts_notice",
+        "type": "alias",
+        "meta": {
+          "collection": "ai_prompts",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "meta_prompts_notice",
+          "group": null,
+          "hidden": false,
+          "interface": "presentation-notice",
+          "note": null,
+          "options": {
+            "icon": "info",
+            "text": "$t:mcp_prompts_collection_schema.meta_prompts_notice"
+          },
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 7,
+          "special": [
+            "alias",
+            "no-data"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        }
+      },
+      {
+        "collection": "ai_prompts",
+        "field": "name",
+        "type": "string",
+        "meta": {
+          "collection": "ai_prompts",
+          "conditions": null,
+          "display": "formatted-value",
+          "display_options": {
+            "font": "monospace"
+          },
+          "field": "name",
+          "group": null,
+          "hidden": false,
+          "interface": "input",
+          "note": null,
+          "options": {
+            "slug": true,
+            "trim": true
+          },
+          "readonly": false,
+          "required": true,
+          "searchable": true,
+          "sort": 8,
+          "special": null,
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "half"
+        },
+        "schema": {
+          "name": "name",
+          "table": "ai_prompts",
+          "data_type": "character varying",
+          "default_value": null,
+          "max_length": 255,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": true,
+          "is_indexed": true,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "ai_prompts",
+        "field": "status",
+        "type": "string",
+        "meta": {
+          "collection": "ai_prompts",
+          "conditions": null,
+          "display": "labels",
+          "display_options": {
+            "choices": [
+              {
+                "background": "var(--theme--primary-background)",
+                "color": "var(--theme--primary)",
+                "foreground": "var(--theme--primary)",
+                "text": "$t:published",
+                "value": "published"
+              },
+              {
+                "background": "var(--theme--background-normal)",
+                "color": "var(--theme--foreground)",
+                "foreground": "var(--theme--foreground)",
+                "text": "$t:draft",
+                "value": "draft"
+              },
+              {
+                "background": "var(--theme--warning-background)",
+                "color": "var(--theme--warning)",
+                "foreground": "var(--theme--warning)",
+                "text": "$t:archived",
+                "value": "archived"
+              }
+            ]
+          },
+          "field": "status",
+          "group": null,
+          "hidden": false,
+          "interface": "select-dropdown",
+          "note": null,
+          "options": {
+            "choices": [
+              {
+                "color": "var(--theme--primary)",
+                "text": "$t:published",
+                "value": "published"
+              },
+              {
+                "color": "var(--theme--foreground)",
+                "text": "$t:draft",
+                "value": "draft"
+              },
+              {
+                "color": "var(--theme--warning)",
+                "text": "$t:archived",
+                "value": "archived"
+              }
+            ]
+          },
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 9,
+          "special": null,
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "half"
+        },
+        "schema": {
+          "name": "status",
+          "table": "ai_prompts",
+          "data_type": "character varying",
+          "default_value": "draft",
+          "max_length": 255,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "ai_prompts",
+        "field": "description",
+        "type": "text",
+        "meta": {
+          "collection": "ai_prompts",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "description",
+          "group": null,
+          "hidden": false,
+          "interface": "input",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 10,
+          "special": null,
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "description",
+          "table": "ai_prompts",
+          "data_type": "text",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "ai_prompts",
+        "field": "system_prompt",
+        "type": "text",
+        "meta": {
+          "collection": "ai_prompts",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "system_prompt",
+          "group": null,
+          "hidden": false,
+          "interface": "input-rich-text-md",
+          "note": "$t:mcp_prompts_collection_schema.system_prompt_note",
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 11,
+          "special": null,
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "system_prompt",
+          "table": "ai_prompts",
+          "data_type": "text",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "ai_prompts",
+        "field": "messages",
+        "type": "json",
+        "meta": {
+          "collection": "ai_prompts",
+          "conditions": null,
+          "display": "formatted-json-value",
+          "display_options": {
+            "format": "{{ role }} • {{ text }}"
+          },
+          "field": "messages",
+          "group": null,
+          "hidden": false,
+          "interface": "list",
+          "note": "$t:mcp_prompts_collection_schema.messages_note",
+          "options": {
+            "addLabel": "New Message",
+            "fields": [
+              {
+                "field": "role",
+                "meta": {
+                  "display": "labels",
+                  "display_options": {
+                    "choices": [
+                      {
+                        "icon": "person",
+                        "text": "$t:mcp_prompts_collection_schema.messages_role_user",
+                        "value": "user"
+                      },
+                      {
+                        "icon": "smart_toy",
+                        "text": "$t:mcp_prompts_collection_schema.messages_role_assistant",
+                        "value": "assistant"
+                      }
+                    ]
+                  },
+                  "field": "role",
+                  "interface": "select-dropdown",
+                  "note": "$t:mcp_prompts_collection_schema.messages_role_note",
+                  "options": {
+                    "choices": [
+                      {
+                        "icon": "person",
+                        "text": "$t:mcp_prompts_collection_schema.messages_role_user",
+                        "value": "user"
+                      },
+                      {
+                        "icon": "smart_toy",
+                        "text": "$t:mcp_prompts_collection_schema.messages_role_assistant",
+                        "value": "assistant"
+                      }
+                    ]
+                  },
+                  "required": true,
+                  "type": "string",
+                  "width": "full"
+                },
+                "name": "role",
+                "type": "string"
+              },
+              {
+                "field": "text",
+                "meta": {
+                  "display": "formatted-value",
+                  "display_options": {
+                    "format": true
+                  },
+                  "field": "text",
+                  "interface": "input-rich-text-md",
+                  "note": "The actual content of the message. You can use {{ curly_braces }} for placeholders that will be replaced with real data.",
+                  "required": true,
+                  "type": "text",
+                  "width": "full"
+                },
+                "name": "text",
+                "type": "text"
+              }
+            ],
+            "showConfirmDiscard": true,
+            "template": "{{ role }} • {{ text }}"
+          },
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 12,
+          "special": [
+            "cast-json"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "messages",
+          "table": "ai_prompts",
+          "data_type": "json",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
         "collection": "club",
         "field": "id",
         "type": "uuid",
@@ -3157,7 +3835,7 @@
           "name": "status",
           "table": "club",
           "data_type": "character varying",
-          "default_value": "draft",
+          "default_value": "published",
           "max_length": 255,
           "numeric_precision": null,
           "numeric_scale": null,
@@ -3704,7 +4382,9 @@
           "required": false,
           "searchable": true,
           "sort": 15,
-          "special": null,
+          "special": [
+            "date-created"
+          ],
           "translations": null,
           "validation": null,
           "validation_message": null,
@@ -3716,6 +4396,50 @@
           "data_type": "timestamp without time zone",
           "default_value": null,
           "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "club",
+        "field": "referral_code",
+        "type": "string",
+        "meta": {
+          "collection": "club",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "referral_code",
+          "group": null,
+          "hidden": false,
+          "interface": "input",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 16,
+          "special": null,
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "referral_code",
+          "table": "club",
+          "data_type": "character varying",
+          "default_value": null,
+          "max_length": 255,
           "numeric_precision": null,
           "numeric_scale": null,
           "is_nullable": true,
@@ -6009,7 +6733,7 @@
           "name": "rating",
           "table": "directus_users",
           "data_type": "integer",
-          "default_value": 1500,
+          "default_value": 1450,
           "max_length": null,
           "numeric_precision": 32,
           "numeric_scale": 0,
@@ -6225,6 +6949,52 @@
           "validation": null,
           "validation_message": null,
           "width": "full"
+        }
+      },
+      {
+        "collection": "directus_users",
+        "field": "last_payment",
+        "type": "dateTime",
+        "meta": {
+          "collection": "directus_users",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "last_payment",
+          "group": null,
+          "hidden": false,
+          "interface": "datetime",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 7,
+          "special": [
+            "date-created"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "last_payment",
+          "table": "directus_users",
+          "data_type": "timestamp without time zone",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
         }
       },
       {
@@ -9911,6 +10681,52 @@
         }
       },
       {
+        "collection": "payment",
+        "field": "player",
+        "type": "uuid",
+        "meta": {
+          "collection": "payment",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "player",
+          "group": null,
+          "hidden": false,
+          "interface": "select-dropdown-m2o",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 10,
+          "special": [
+            "m2o"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "player",
+          "table": "payment",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": "Player",
+          "foreign_key_column": "id"
+        }
+      },
+      {
         "collection": "payment_settings",
         "field": "id",
         "type": "uuid",
@@ -12873,6 +13689,56 @@
         }
       },
       {
+        "collection": "ai_prompts",
+        "field": "user_created",
+        "related_collection": "directus_users",
+        "meta": {
+          "junction_field": null,
+          "many_collection": "ai_prompts",
+          "many_field": "user_created",
+          "one_allowed_collections": null,
+          "one_collection": "directus_users",
+          "one_collection_field": null,
+          "one_deselect_action": "nullify",
+          "one_field": null,
+          "sort_field": null
+        },
+        "schema": {
+          "table": "ai_prompts",
+          "column": "user_created",
+          "foreign_key_table": "directus_users",
+          "foreign_key_column": "id",
+          "constraint_name": "ai_prompts_user_created_foreign",
+          "on_update": "NO ACTION",
+          "on_delete": "NO ACTION"
+        }
+      },
+      {
+        "collection": "ai_prompts",
+        "field": "user_updated",
+        "related_collection": "directus_users",
+        "meta": {
+          "junction_field": null,
+          "many_collection": "ai_prompts",
+          "many_field": "user_updated",
+          "one_allowed_collections": null,
+          "one_collection": "directus_users",
+          "one_collection_field": null,
+          "one_deselect_action": "nullify",
+          "one_field": null,
+          "sort_field": null
+        },
+        "schema": {
+          "table": "ai_prompts",
+          "column": "user_updated",
+          "foreign_key_table": "directus_users",
+          "foreign_key_column": "id",
+          "constraint_name": "ai_prompts_user_updated_foreign",
+          "on_update": "NO ACTION",
+          "on_delete": "NO ACTION"
+        }
+      },
+      {
         "collection": "club",
         "field": "user_created",
         "related_collection": "directus_users",
@@ -13493,6 +14359,31 @@
           "foreign_key_table": "club",
           "foreign_key_column": "id",
           "constraint_name": "payment_club_foreign",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL"
+        }
+      },
+      {
+        "collection": "payment",
+        "field": "player",
+        "related_collection": "Player",
+        "meta": {
+          "junction_field": null,
+          "many_collection": "payment",
+          "many_field": "player",
+          "one_allowed_collections": null,
+          "one_collection": "Player",
+          "one_collection_field": null,
+          "one_deselect_action": "nullify",
+          "one_field": null,
+          "sort_field": null
+        },
+        "schema": {
+          "table": "payment",
+          "column": "player",
+          "foreign_key_table": "Player",
+          "foreign_key_column": "id",
+          "constraint_name": "payment_player_foreign",
           "on_update": "NO ACTION",
           "on_delete": "SET NULL"
         }
