@@ -120,7 +120,7 @@
       "error_on_reject": true,
       "method": "POST"
     },
-    "operation": "65e09e9a-1038-48af-bc50-6a0315fee597",
+    "operation": "3abb3f77-f1f6-4b9d-87e8-17f07e3e5920",
     "operations": [
       {
         "id": "238f9b0b-b5f2-4e2c-9a8e-fb300213fb3c",
@@ -130,22 +130,37 @@
         "position_x": 37,
         "position_y": 1,
         "options": {
-          "code": "module.exports = async function(data) {\n    const { origin, role } = data.$accountability;\n    const { clubId, playerId } = data.$trigger.body;\n    \n    const id = clubId || playerId;\n    if (!role || !origin || !id) throw new Error('Unauthorized');\n    \n    const isClub = !!clubId;\n    const amount = isClub ? 499 : 169;\n    const itemName = isClub ? 'Club Activation' : 'Player Subscription';\n    const itemCategory = isClub ? 'Club Activation' : 'Player Subscription';\n    const redirectPath = isClub ? `/club/${id}` : `/profile`;\n    \n    function encodeBase64(str) {\n        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n        let b64 = '';\n        let i = 0;\n        while (i < str.length) {\n            let c1 = str.charCodeAt(i++) || 0;\n            let c2 = str.charCodeAt(i++) || 0;\n            let c3 = str.charCodeAt(i++) || 0;\n\n            let e1 = c1 >> 2;\n            let e2 = ((c1 & 3) << 4) | (c2 >> 4);\n            let e3 = ((c2 & 15) << 2) | (c3 >> 6);\n            let e4 = c3 & 63;\n\n            if (isNaN(str.charCodeAt(i - 2))) { e3 = e4 = 64; }\n            else if (isNaN(str.charCodeAt(i - 1))) { e4 = 64; }\n\n            b64 += chars.charAt(e1) + chars.charAt(e2) + \n                   (e3 === 64 ? '=' : chars.charAt(e3)) + \n                   (e4 === 64 ? '=' : chars.charAt(e4));\n        }\n        return b64;\n    }\n    \n    const apiKey = \"xnd_development_Bbkmk7VMhSMBkW0Rs7qGgf4fhbOgzZ7kz0l7rm25DZYttErICCq6KudlGt3v\";\n    const stringToEncode = apiKey + \":\";\n    const base64Token = encodeBase64(stringToEncode);\n    const authHeader = `Basic ${base64Token}`;\n    \n    const requestBody = {\n        external_id: id,\n        amount,\n        description: `Invoice for ${itemName}`,\n        invoice_duration: 86400,\n        customer_notification_preference: {\n            invoice_created: [\"whatsapp\", \"email\", \"viber\"],\n            invoice_reminder: [\"whatsapp\", \"email\", \"viber\"],\n            invoice_paid: [\"whatsapp\", \"email\", \"viber\"]\n        },\n        success_redirect_url: `${origin}/#${redirectPath}`,\n        failure_redirect_url: `${origin}/#${redirectPath}`,\n        currency: \"PHP\",\n        items: [\n            {\n                name: itemName,\n                quantity: 1,\n                price: amount,\n                category: itemCategory,\n            }\n        ],\n    };\n    \n    return { authHeader, body: requestBody };\n}"
+          "code": "module.exports = async function(data) {\n    const { origin, role } = data.$accountability;\n    const { clubId, playerId } = data.$trigger.body;\n    \n    const id = clubId || playerId;\n    if (!role || !origin || !id) throw new Error('Unauthorized');\n    \n    const isClub = !!clubId;\n    const amount = isClub ? 499 : 169;\n    const itemName = isClub ? 'Club Activation' : 'Player Subscription';\n    const itemCategory = isClub ? 'Club Activation' : 'Player Subscription';\n    const redirectPath = isClub ? `/club/${id}` : `/profile`;\n    \n    function encodeBase64(str) {\n        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n        let b64 = '';\n        let i = 0;\n        while (i < str.length) {\n            let c1 = str.charCodeAt(i++) || 0;\n            let c2 = str.charCodeAt(i++) || 0;\n            let c3 = str.charCodeAt(i++) || 0;\n\n            let e1 = c1 >> 2;\n            let e2 = ((c1 & 3) << 4) | (c2 >> 4);\n            let e3 = ((c2 & 15) << 2) | (c3 >> 6);\n            let e4 = c3 & 63;\n\n            if (isNaN(str.charCodeAt(i - 2))) { e3 = e4 = 64; }\n            else if (isNaN(str.charCodeAt(i - 1))) { e4 = 64; }\n\n            b64 += chars.charAt(e1) + chars.charAt(e2) + \n                   (e3 === 64 ? '=' : chars.charAt(e3)) + \n                   (e4 === 64 ? '=' : chars.charAt(e4));\n        }\n        return b64;\n    }\n    \n    const apiKey = data.read_payment_settings[0].api_key;\n    const stringToEncode = apiKey + \":\";\n    const base64Token = encodeBase64(stringToEncode);\n    const authHeader = `Basic ${base64Token}`;\n    \n    const requestBody = {\n        external_id: id,\n        amount,\n        description: `Invoice for ${itemName}`,\n        invoice_duration: 86400,\n        customer_notification_preference: {\n            invoice_created: [\"whatsapp\", \"email\", \"viber\"],\n            invoice_reminder: [\"whatsapp\", \"email\", \"viber\"],\n            invoice_paid: [\"whatsapp\", \"email\", \"viber\"]\n        },\n        success_redirect_url: `${origin}/#${redirectPath}`,\n        failure_redirect_url: `${origin}/#${redirectPath}`,\n        currency: \"PHP\",\n        items: [\n            {\n                name: itemName,\n                quantity: 1,\n                price: amount,\n                category: itemCategory,\n            }\n        ],\n    };\n    \n    return { authHeader, body: requestBody };\n}"
         },
         "resolve": "cbd27aed-743e-4892-8ffd-564b28ffdc54",
         "reject": "b4a49d6b-ca0c-4cbd-ae99-4efacb34ee84"
+      },
+      {
+        "id": "3abb3f77-f1f6-4b9d-87e8-17f07e3e5920",
+        "name": "Read payment settings",
+        "key": "read_payment_settings",
+        "type": "item-read",
+        "position_x": 19,
+        "position_y": 1,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "payment_settings"
+        },
+        "resolve": "238f9b0b-b5f2-4e2c-9a8e-fb300213fb3c",
+        "reject": null
       },
       {
         "id": "65e09e9a-1038-48af-bc50-6a0315fee597",
         "name": "xnd_development_Bbkmk7VMhSMBkW0Rs7qGgf4fhbOgzZ7kz0l7rm25DZYttErICCq6KudlGt3v",
         "key": "xnd_development_bbkmk7_v_mh_sm_bk_w0_rs7q_ggf4fhb_ogz_z7kz0l7rm25_dz_ytt_er_ic_cq6_kudl_gt3v",
         "type": "log",
-        "position_x": 19,
-        "position_y": 1,
+        "position_x": 17,
+        "position_y": 19,
         "options": {
           "message": "{{$accountability}}"
         },
-        "resolve": "238f9b0b-b5f2-4e2c-9a8e-fb300213fb3c",
+        "resolve": null,
         "reject": null
       },
       {
@@ -760,7 +775,7 @@
           },
           "collection": "club"
         },
-        "resolve": null,
+        "resolve": "047ef17f-3c30-40f4-ad67-998a877f0969",
         "reject": null
       },
       {
