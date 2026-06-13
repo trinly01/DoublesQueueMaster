@@ -130,7 +130,7 @@
         "position_x": 37,
         "position_y": 1,
         "options": {
-          "code": "module.exports = async function(data) {\n\t// Do something...\n    \n    const { origin, role } = data.$accountability\n    const { clubId } = data.$trigger.body\n    \n    if (!role || !origin || !clubId) throw new Error('Unauthorized')\n    \n    function encodeBase64(str) {\n        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n        let b64 = '';\n        let i = 0;\n        while (i < str.length) {\n            let c1 = str.charCodeAt(i++) || 0;\n            let c2 = str.charCodeAt(i++) || 0;\n            let c3 = str.charCodeAt(i++) || 0;\n\n            let e1 = c1 >> 2;\n            let e2 = ((c1 & 3) << 4) | (c2 >> 4);\n            let e3 = ((c2 & 15) << 2) | (c3 >> 6);\n            let e4 = c3 & 63;\n\n            if (isNaN(str.charCodeAt(i - 2))) { e3 = e4 = 64; }\n            else if (isNaN(str.charCodeAt(i - 1))) { e4 = 64; }\n\n            b64 += chars.charAt(e1) + chars.charAt(e2) + \n                   (e3 === 64 ? '=' : chars.charAt(e3)) + \n                   (e4 === 64 ? '=' : chars.charAt(e4));\n        }\n        return b64;\n    }\n    \n    // 1. Your raw API key\nconst apiKey = \"xnd_development_Bbkmk7VMhSMBkW0Rs7qGgf4fhbOgzZ7kz0l7rm25DZYttErICCq6KudlGt3v\";\n\n// 2. Append the required colon to the end\nconst stringToEncode = apiKey + \":\";\n\n// 3. Convert the string to a Base64 encoded format\nconst base64Token = encodeBase64(stringToEncode);\n\n// 4. Prepend \"Basic \" to create the final Authorization header value\nconst authHeader = `Basic ${base64Token}`;\n    \n    \n    \n\tconst body = {\n          \"external_id\": clubId,\n          \"amount\": 499,\n          \"description\": \"Invoice Demo #123\",\n          \"invoice_duration\": 86400,\n          \"customer_notification_preference\": {\n            \"invoice_created\": [\n              \"whatsapp\",\n              \"email\",\n              \"viber\"\n            ],\n            \"invoice_reminder\": [\n              \"whatsapp\",\n              \"email\",\n              \"viber\"\n            ],\n            \"invoice_paid\": [\n              \"whatsapp\",\n              \"email\",\n              \"viber\"\n            ]\n          },\n          \"success_redirect_url\": `${origin}/#/club/${clubId}`,\n          \"failure_redirect_url\": `${origin}/#/club/${clubId}`,\n          \"currency\": \"PHP\",\n          \"items\": [\n            {\n              \"name\": \"san.fabian.dinkers club activation\",\n              \"quantity\": 1,\n              \"price\": 499,\n              \"category\": \"Club Activation\",\n            }\n          ],\n        };\n    \n    return {\n        authHeader,\n        body\n    }\n}"
+          "code": "module.exports = async function(data) {\n    const { origin, role } = data.$accountability;\n    const { clubId, playerId } = data.$trigger.body;\n    \n    const id = clubId || playerId;\n    if (!role || !origin || !id) throw new Error('Unauthorized');\n    \n    const isClub = !!clubId;\n    const amount = isClub ? 499 : 169;\n    const itemName = isClub ? 'Club Activation' : 'Player Subscription';\n    const itemCategory = isClub ? 'Club Activation' : 'Player Subscription';\n    const redirectPath = isClub ? `/club/${id}` : `/profile`;\n    \n    function encodeBase64(str) {\n        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n        let b64 = '';\n        let i = 0;\n        while (i < str.length) {\n            let c1 = str.charCodeAt(i++) || 0;\n            let c2 = str.charCodeAt(i++) || 0;\n            let c3 = str.charCodeAt(i++) || 0;\n\n            let e1 = c1 >> 2;\n            let e2 = ((c1 & 3) << 4) | (c2 >> 4);\n            let e3 = ((c2 & 15) << 2) | (c3 >> 6);\n            let e4 = c3 & 63;\n\n            if (isNaN(str.charCodeAt(i - 2))) { e3 = e4 = 64; }\n            else if (isNaN(str.charCodeAt(i - 1))) { e4 = 64; }\n\n            b64 += chars.charAt(e1) + chars.charAt(e2) + \n                   (e3 === 64 ? '=' : chars.charAt(e3)) + \n                   (e4 === 64 ? '=' : chars.charAt(e4));\n        }\n        return b64;\n    }\n    \n    const apiKey = \"xnd_development_Bbkmk7VMhSMBkW0Rs7qGgf4fhbOgzZ7kz0l7rm25DZYttErICCq6KudlGt3v\";\n    const stringToEncode = apiKey + \":\";\n    const base64Token = encodeBase64(stringToEncode);\n    const authHeader = `Basic ${base64Token}`;\n    \n    const requestBody = {\n        external_id: id,\n        amount,\n        description: `Invoice for ${itemName}`,\n        invoice_duration: 86400,\n        customer_notification_preference: {\n            invoice_created: [\"whatsapp\", \"email\", \"viber\"],\n            invoice_reminder: [\"whatsapp\", \"email\", \"viber\"],\n            invoice_paid: [\"whatsapp\", \"email\", \"viber\"]\n        },\n        success_redirect_url: `${origin}/#${redirectPath}`,\n        failure_redirect_url: `${origin}/#${redirectPath}`,\n        currency: \"PHP\",\n        items: [\n            {\n                name: itemName,\n                quantity: 1,\n                price: amount,\n                category: itemCategory,\n            }\n        ],\n    };\n    \n    return { authHeader, body: requestBody };\n}"
         },
         "resolve": "cbd27aed-743e-4892-8ffd-564b28ffdc54",
         "reject": "b4a49d6b-ca0c-4cbd-ae99-4efacb34ee84"
@@ -339,7 +339,7 @@
         "position_x": 38,
         "position_y": 1,
         "options": {
-          "code": "module.exports = async function(data) {\n    // 1. Grab the single player object directly\n    const player = data.$trigger;\n    const user = data.read_user;\n    \n    const playerTs = Number(player?.ratingUpdatedAt || 0);\n    const userTs   = Number(user?.rating_updated_at || 0);\n    \n    const shouldUpdate = playerTs > userTs\n\n    if (!shouldUpdate) throw('Skip rating update')\n\n    // 2. Safety check: make sure the userId actually exists before proceeding\n    if (!player || !player.userId) {\n        return null; // Return null (or {}) if data is missing to prevent errors\n    }\n\n    // 3. Get today's date in YYYY-MM-DD format\n    const today = new Date().toISOString().split('T')[0];\n\n    // 4. Return the newly formatted object\n    return {\n        player_day: `${player.userId}@${today}`,\n        player: player.userId,\n        day: today,\n        wins: player.wins || 0,\n        losses: player.losses || 0,\n        rating: player.rating || 1500\n    };\n}"
+          "code": "module.exports = async function(data) {\n    // 1. Grab the single player object directly\n    const player = data.$trigger;\n    const user = data.read_user;\n    \n    const playerTs = Number(player?.ratingUpdatedAt || 0);\n    const userTs   = Number(user?.rating_updated_at || 0);\n    \n    const shouldUpdate = playerTs > userTs\n\n    if (!shouldUpdate) throw('Skip rating update')\n\n    // 2. Safety check: make sure the userId actually exists before proceeding\n    if (!player || !player.userId || (player.wins + player.losses) === 0) {\n        throw new Error('Player must have a user account and at least one recorded match')\n    }\n\n    // 3. Get today's date in YYYY-MM-DD format\n    const today = new Date().toISOString().split('T')[0];\n\n    // 4. Return the newly formatted object\n    return {\n        player_day: `${player.userId}@${today}`,\n        player: player.userId,\n        day: today,\n        wins: player.wins || 0,\n        losses: player.losses || 0,\n        rating: player.rating || 1500\n    };\n}"
         },
         "resolve": "3118305f-7081-467f-852b-cc17eb52cf75",
         "reject": null
@@ -396,6 +396,80 @@
         },
         "resolve": null,
         "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "acf9d9d3-e91e-4944-b6ee-ef5f8f39a660",
+    "name": "block multi club creation",
+    "icon": "bolt",
+    "color": null,
+    "description": null,
+    "trigger": "event",
+    "options": {
+      "type": "filter",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "club"
+      ]
+    },
+    "operation": "a527fd9d-b3f3-40bd-80af-916138c2279c",
+    "operations": [
+      {
+        "id": "a527fd9d-b3f3-40bd-80af-916138c2279c",
+        "name": "read clubs",
+        "key": "read_clubs",
+        "type": "item-read",
+        "position_x": 19,
+        "position_y": 1,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "query": {
+            "filter": {
+              "user_created": {
+                "_eq": "{{ $accountability.user }}"
+              }
+            },
+            "aggregate": {
+              "count": "id"
+            }
+          },
+          "collection": "club"
+        },
+        "resolve": "fc077968-4dfd-4e3c-8492-e0af0e5ce032",
+        "reject": null
+      },
+      {
+        "id": "d3861d31-6c28-422a-8eaa-b3af7dc78cae",
+        "name": "Throw Error",
+        "key": "throw_error_8n7ck",
+        "type": "throw-error",
+        "position_x": 55,
+        "position_y": 1,
+        "options": {
+          "status": "403",
+          "message": "Club creation limit reached"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "fc077968-4dfd-4e3c-8492-e0af0e5ce032",
+        "name": "Run Script",
+        "key": "exec_nzhs8",
+        "type": "exec",
+        "position_x": 37,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = function(data) {\n    const count = Number(data.read_clubs?.[0]?.count?.id || 0);\n    if (count >= 2) throw new Error('Club creation limit reached')\n    return { proceed: true };\n};"
+        },
+        "resolve": null,
+        "reject": "d3861d31-6c28-422a-8eaa-b3af7dc78cae"
       }
     ],
     "flow_manager_category": null,
@@ -611,6 +685,25 @@
         "reject": null
       },
       {
+        "id": "27ad6924-e586-49d0-9bf7-d31faf0de71d",
+        "name": "condition is club",
+        "key": "condition_is_club",
+        "type": "condition",
+        "position_x": 15,
+        "position_y": 21,
+        "options": {
+          "filter": {
+            "run_script": {
+              "category": {
+                "_eq": "Club Activation"
+              }
+            }
+          }
+        },
+        "resolve": "7256a1d7-fa58-42c9-b857-5451f43b24c5",
+        "reject": "f45610d3-7584-42fd-9966-f6b3e9285df8"
+      },
+      {
         "id": "316c7752-3975-4d4d-837b-1ad2b1f11af9",
         "name": "Read payment settings",
         "key": "read_payment_settings",
@@ -623,6 +716,25 @@
           "collection": "payment_settings"
         },
         "resolve": "8890a154-a7d8-4113-9cfa-5fd857f9cd91",
+        "reject": null
+      },
+      {
+        "id": "3ac0d039-c00b-46b9-a085-32af48fa4000",
+        "name": "Create Data",
+        "key": "item_create_k4s5i_hqyax",
+        "type": "item-create",
+        "position_x": 51,
+        "position_y": 40,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "payment",
+          "payload": {
+            "club": "{{ update_club_status[0] }}",
+            "details": "{{ $trigger.body }}"
+          }
+        },
+        "resolve": null,
         "reject": null
       },
       {
@@ -648,7 +760,7 @@
           },
           "collection": "club"
         },
-        "resolve": "047ef17f-3c30-40f4-ad67-998a877f0969",
+        "resolve": null,
         "reject": null
       },
       {
@@ -659,9 +771,34 @@
         "position_x": 38,
         "position_y": 2,
         "options": {
-          "code": "module.exports = async function(data) {\n    const trigger = data.$trigger;\n\n    // 1. STRUCTURAL GUARD\n    // Ensure the payload has the basic required structure\n    if (!trigger || !trigger.body || !trigger.headers) {\n        throw new Error(\"Validation Failed: Malformed webhook structure.\");\n    }\n\n    // 2. SECURITY GUARD (Crucial)\n    // Validate the Xendit Callback Token to ensure this request isn't spoofed.\n    // Replace the hardcoded string with your actual token from the Xendit Dashboard, \n    // or better yet, store it in Directus Environment Variables.\n    const expectedToken = data.read_payment_settings[0].webhook_verification_token;\n    const incomingToken = trigger.headers['x-callback-token'];\n\n    if (incomingToken !== expectedToken) {\n        throw new Error(\"Security Alert: Invalid Xendit Callback Token.\");\n    }\n\n    // 3. BUSINESS LOGIC GUARD\n    // Ensure we are only processing successful payments\n    if (trigger.body.status !== \"PAID\") {\n        throw new Error(`Ignored Webhook: Invoice status is '${trigger.body.status}', expected 'PAID'.`);\n    }\n\n    // 4. DATA INTEGRITY GUARD\n    // Ensure the required fields you need for your database exist\n    if (!trigger.body.external_id || !trigger.body.paid_amount) {\n        throw new Error(\"Validation Failed: Missing required fields (external_id or paid_amount).\");\n    }\n\n    // If all guards pass, return the sanitized data for the next Flow operations\n    return {\n        dateNow: new Date(),\n        isValid: true,\n        referenceId: trigger.body.external_id,\n        amount: trigger.body.paid_amount,\n        paymentMethod: trigger.body.payment_method,\n        timestamp: trigger.body.paid_at\n    };\n};"
+          "code": "module.exports = async function(data) {\n    const trigger = data.$trigger;\n\n    if (!trigger || !trigger.body || !trigger.headers) {\n        throw new Error(\"Validation Failed: Malformed webhook structure.\");\n    }\n\n    const expectedToken = data.read_payment_settings[0].webhook_verification_token;\n    const incomingToken = trigger.headers['x-callback-token'];\n\n    if (incomingToken !== expectedToken) {\n        throw new Error(\"Security Alert: Invalid Xendit Callback Token.\");\n    }\n\n    if (trigger.body.status !== \"PAID\") {\n        throw new Error(`Ignored Webhook: Invoice status is '${trigger.body.status}', expected 'PAID'.`);\n    }\n\n    if (!trigger.body.external_id || !trigger.body.paid_amount) {\n        throw new Error(\"Validation Failed: Missing required fields (external_id or paid_amount).\");\n    }\n\n    const category = trigger.body.items?.[0]?.category || '';\n\n    return {\n        dateNow: new Date(),\n        isValid: true,\n        referenceId: trigger.body.external_id,\n        amount: trigger.body.paid_amount,\n        paymentMethod: trigger.body.payment_method,\n        timestamp: trigger.body.paid_at,\n        category,\n    };\n};"
         },
-        "resolve": "7256a1d7-fa58-42c9-b857-5451f43b24c5",
+        "resolve": "27ad6924-e586-49d0-9bf7-d31faf0de71d",
+        "reject": null
+      },
+      {
+        "id": "f45610d3-7584-42fd-9966-f6b3e9285df8",
+        "name": "update player last_payment",
+        "key": "update_player_last_payment",
+        "type": "item-update",
+        "position_x": 33,
+        "position_y": 40,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "query": {
+            "filter": {
+              "username": {
+                "_eq": "{{ $trigger.body.external_id }}"
+              }
+            }
+          },
+          "payload": {
+            "last_payment": "{{ run_script.dateNow }}"
+          },
+          "collection": "directus_users"
+        },
+        "resolve": "3ac0d039-c00b-46b9-a085-32af48fa4000",
         "reject": null
       }
     ],
