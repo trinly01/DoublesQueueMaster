@@ -47,6 +47,7 @@ export interface UserProfile {
   rating: number;
   duprId?: string;
   avatar?: string;
+  lastPayment?: string;
   lastModified?: number;
   events?: RatingEvent[];
   completedMatches?: DirectusCompletedMatch[];
@@ -70,6 +71,7 @@ export class PlayerProfileService {
       rating: saved?.rating ?? 1500,
       duprId: saved?.duprId || '',
       avatar: saved?.avatar || '',
+      lastPayment: saved?.lastPayment || '',
       lastModified: saved?.lastModified || 0,
       events: saved?.events || [],
       completedMatches: saved?.completedMatches || [],
@@ -127,6 +129,8 @@ export class PlayerProfileService {
         this.state.username = (userObj.username ?? '') as string;
         this.state.avatar = (userObj.avatar ?? '') as string;
         this.state.duprId = (userObj.dupr_id as string | undefined) ?? '';
+        this.state.lastPayment =
+          (userObj.last_payment as string | undefined) ?? '';
         this.state.rating = rating;
 
         try {

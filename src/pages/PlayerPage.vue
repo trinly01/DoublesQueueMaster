@@ -349,13 +349,21 @@
               class="q-pa-md"
               style="max-height: 60vh; overflow-y: auto"
             >
+              <PayBanner
+                v-if="isPaymentExpired"
+                :loading="paymentLoading"
+                @pay="callPayment({ playerId: username })"
+              />
               <q-list separator v-if="partnerStats.length && isMobileScreen">
                 <q-item
-                  v-for="row in partnerStats"
+                  v-for="(row, idx) in partnerStats"
                   :key="row.username"
                   :class="row.winRate >= 50 ? 'bg-green-1' : 'bg-red-1'"
                 >
-                  <q-item-section avatar>
+                  <q-item-section
+                    avatar
+                    :class="{ 'stats-blur': isPaymentExpired }"
+                  >
                     <PlayerAvatar
                       :name="row.name"
                       :username="row.username"
@@ -363,11 +371,20 @@
                       :image-url="row.avatar"
                       :dupr-id="row.duprId"
                       size="32px"
+                      :masked="isPaymentExpired"
+                      :index="idx"
                     />
                   </q-item-section>
-                  <q-item-section class="col">
+                  <q-item-section
+                    class="col"
+                    :class="{ 'stats-blur': isPaymentExpired }"
+                  >
                     <q-item-label class="text-weight-medium ellipsis">
-                      {{ row.name }}
+                      {{
+                        isPaymentExpired
+                          ? row.name.replace(/./g, '*')
+                          : row.name
+                      }}
                     </q-item-label>
                   </q-item-section>
                   <q-item-section side class="text-right">
@@ -411,6 +428,15 @@
                 hide-bottom
                 :rows-per-page-options="[0]"
               >
+                <template v-slot:body-cell-name="props">
+                  <q-td :props="props">
+                    {{
+                      isPaymentExpired
+                        ? props.row.name.replace(/./g, '*')
+                        : props.row.name
+                    }}
+                  </q-td>
+                </template>
                 <template v-slot:body-cell-winRate="props">
                   <q-td :props="props" class="text-center">
                     <span
@@ -449,13 +475,21 @@
               class="q-pa-md"
               style="max-height: 60vh; overflow-y: auto"
             >
+              <PayBanner
+                v-if="isPaymentExpired"
+                :loading="paymentLoading"
+                @pay="callPayment({ playerId: username })"
+              />
               <q-list separator v-if="nemesisStats.length && isMobileScreen">
                 <q-item
-                  v-for="row in nemesisStats"
+                  v-for="(row, idx) in nemesisStats"
                   :key="row.username"
                   :class="row.winRate >= 50 ? 'bg-green-1' : 'bg-red-1'"
                 >
-                  <q-item-section avatar>
+                  <q-item-section
+                    avatar
+                    :class="{ 'stats-blur': isPaymentExpired }"
+                  >
                     <PlayerAvatar
                       :name="row.name"
                       :username="row.username"
@@ -463,11 +497,20 @@
                       :image-url="row.avatar"
                       :dupr-id="row.duprId"
                       size="32px"
+                      :masked="isPaymentExpired"
+                      :index="idx"
                     />
                   </q-item-section>
-                  <q-item-section class="col">
+                  <q-item-section
+                    class="col"
+                    :class="{ 'stats-blur': isPaymentExpired }"
+                  >
                     <q-item-label class="text-weight-medium ellipsis">
-                      {{ row.name }}
+                      {{
+                        isPaymentExpired
+                          ? row.name.replace(/./g, '*')
+                          : row.name
+                      }}
                     </q-item-label>
                   </q-item-section>
                   <q-item-section side class="text-right">
@@ -511,6 +554,15 @@
                 hide-bottom
                 :rows-per-page-options="[0]"
               >
+                <template v-slot:body-cell-name="props">
+                  <q-td :props="props">
+                    {{
+                      isPaymentExpired
+                        ? props.row.name.replace(/./g, '*')
+                        : props.row.name
+                    }}
+                  </q-td>
+                </template>
                 <template v-slot:body-cell-winRate="props">
                   <q-td :props="props" class="text-center">
                     <span
@@ -545,10 +597,16 @@
             </div>
 
             <div
-              v-else-if="activeTab === 'clutch'"
+              v-if="activeTab === 'clutch'"
               class="q-pa-md"
               style="max-height: 60vh; overflow-y: auto"
             >
+              <PayBanner
+                v-if="isPaymentExpired"
+                message="Subscription expired. Renew to view clutch stats."
+                :loading="paymentLoading"
+                @pay="callPayment({ playerId: username })"
+              />
               <div v-if="clutchStats.total > 0">
                 <div class="row q-col-gutter-sm q-mb-md">
                   <div class="col-4">
@@ -595,20 +653,60 @@
                   >
                     <q-item-section>
                       <q-item-label class="text-weight-medium">
-                        vs {{ g.opponents }}
+                        vs
+                        <span :class="{ 'stats-blur': isPaymentExpired }">
+                          {{
+                            isPaymentExpired
+                              ? g.opponents.replace(/./g, '*')
+                              : g.opponents
+                          }}
+                        </span>
                       </q-item-label>
                       <q-item-label caption>
-                        {{
-                          g.match.team_a
-                            ?.map((p) => p.firstName || p.username || '?')
-                            .join(' & ')
-                        }}
-                        {{ g.match.team_a_score }} - {{ g.match.team_b_score }}
-                        {{
-                          g.match.team_b
-                            ?.map((p) => p.firstName || p.username || '?')
-                            .join(' & ')
-                        }}
+                        <template v-if="!isPaymentExpired">
+                          {{
+                            g.match.team_a
+                              ?.map((p) => p.firstName || p.username || '?')
+                              .join(' & ')
+                          }}
+                        </template>
+                        <span
+                          v-else
+                          :class="{ 'stats-blur': isPaymentExpired }"
+                          >{{
+                            g.match.team_a
+                              ?.map((p) =>
+                                (p.firstName || p.username || '?').replace(
+                                  /./g,
+                                  '*',
+                                ),
+                              )
+                              .join(' & ')
+                          }}</span
+                        >
+                        {{ g.match.team_a_score }} -
+                        {{ g.match.team_b_score }}
+                        <template v-if="!isPaymentExpired">
+                          {{
+                            g.match.team_b
+                              ?.map((p) => p.firstName || p.username || '?')
+                              .join(' & ')
+                          }}
+                        </template>
+                        <span
+                          v-else
+                          :class="{ 'stats-blur': isPaymentExpired }"
+                          >{{
+                            g.match.team_b
+                              ?.map((p) =>
+                                (p.firstName || p.username || '?').replace(
+                                  /./g,
+                                  '*',
+                                ),
+                              )
+                              .join(' & ')
+                          }}</span
+                        >
                       </q-item-label>
                     </q-item-section>
                     <q-item-section side>
@@ -765,8 +863,10 @@ import {
   type DirectusCompletedMatch,
 } from 'src/services/playerProfile';
 import { useAuth } from 'src/composables/useAuth';
+import { usePayment } from 'src/composables/usePayment';
 import MatchResult from 'src/components/MatchResult.vue';
 import PlayerAvatar from 'src/components/PlayerAvatar.vue';
+import PayBanner from 'src/components/PayBanner.vue';
 import * as echarts from 'echarts';
 import { getRatingColor, getRatingCategory } from 'src/utils/playerHelpers';
 
@@ -774,6 +874,7 @@ const router = useRouter();
 const $q = useQuasar();
 const { notify } = useNotify();
 const { logout, handleAuthError } = useAuth();
+const { paymentLoading, fetchPaymentSettings, callPayment } = usePayment();
 
 const firstName = computed(() => PlayerProfile.state.firstName);
 const playerRating = computed(() => PlayerProfile.state.rating);
@@ -782,6 +883,13 @@ const ratingCategory = computed(() => getRatingCategory(playerRating.value));
 const username = computed(() => PlayerProfile.state.username);
 const currentUserId = computed(() => PlayerProfile.state.id);
 const isMobileScreen = computed(() => $q.screen.lt.sm);
+const isPaymentExpired = computed(() => {
+  const lastPayment = PlayerProfile.state.lastPayment;
+  if (!lastPayment) return false;
+  const lastDate = new Date(lastPayment).getTime();
+  const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  return lastDate < oneMonthAgo;
+});
 
 const getRatingGradient = (color: string): string => {
   const gradients: Record<string, string> = {
@@ -1473,6 +1581,9 @@ watch([showHistoryDialog, activeTab], ([dialogOpen, tab]) => {
     '| completedMatches count:',
     PlayerProfile.state.completedMatches?.length ?? 0,
   );
+  if (dialogOpen) {
+    void fetchPaymentSettings();
+  }
   if (dialogOpen && tab === 'history') {
     nextTick(() => initChart());
   } else if (dialogOpen && tab === 'matches') {
@@ -1801,6 +1912,13 @@ const onLogout = () => {
   background: linear-gradient(135deg, #1e88e5 0%, #42a5f5 100%);
   box-shadow: 0 2px 8px rgba(30, 136, 229, 0.3);
   min-width: 180px;
+}
+
+.stats-blur {
+  filter: blur(4px);
+  opacity: 0.6;
+  user-select: none;
+  pointer-events: none;
 }
 
 @media (max-width: 768px) {

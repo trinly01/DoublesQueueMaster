@@ -63,7 +63,7 @@
           label="Pay"
           icon="payment"
           size="md"
-          @click="callForActivation"
+          @click="() => callPayment({ clubId: currentClubId })"
           :loading="paymentLoading"
           unelevated
           rounded
@@ -2787,6 +2787,7 @@ import { readItems, updateItem, readMe } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/boot/likha';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
 import { useAuth } from 'src/composables/useAuth';
+import { usePayment } from 'src/composables/usePayment';
 
 import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -2997,8 +2998,7 @@ const clubLoadingState = ref<
   'loading' | 'loaded' | 'not-found' | 'unpublished' | 'error'
 >('loading');
 const clubErrorMessage = ref<string>('');
-const paymentLink = ref<string>('');
-const paymentLoading = ref<boolean>(false);
+const { paymentLoading, fetchPaymentSettings, callPayment } = usePayment();
 let ratingsRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
 // Current user and club membership
@@ -3190,58 +3190,6 @@ const copyClubLink = async () => {
         timeout: 1500,
       });
     });
-};
-
-const callForActivation = async () => {
-  if (paymentLink.value && !paymentLoading.value) {
-    paymentLoading.value = true;
-    try {
-      const url = new URL(paymentLink.value);
-      const path = url.pathname + url.search;
-      console.log('POST path:', path);
-
-      const token = await likhaClient.getToken();
-      const response = await fetch(url.toString(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          clubId: currentClubId.value,
-        }),
-      });
-      const result = (await response.json()).data;
-      console.log('POST result:', result);
-
-      if (result && typeof result.invoice_url === 'string') {
-        window.open(result.invoice_url, '_blank');
-      }
-    } catch (err) {
-      console.error('POST request failed:', err);
-    } finally {
-      paymentLoading.value = false;
-    }
-  }
-};
-
-const fetchPaymentSettings = async () => {
-  try {
-    const result = await likhaClient.request(
-      readItems('payment_settings', {
-        fields: ['club_activation_payment_link'] as string[],
-        limit: 1,
-      }),
-    );
-
-    const settings = result as unknown as Record<string, unknown>;
-    paymentLink.value =
-      typeof settings.club_activation_payment_link === 'string'
-        ? settings.club_activation_payment_link
-        : '';
-  } catch (err) {
-    console.warn('Failed to fetch payment settings:', err);
-  }
 };
 
 // Cloud sync state
