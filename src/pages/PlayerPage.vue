@@ -197,11 +197,22 @@
               <q-input
                 v-model="newClubId"
                 filled
-                label="Club ID (unique URL slug)"
+                label="Club ID"
                 dense
                 class="q-mb-sm"
-                :rules="[(val) => !!val?.trim() || 'Club ID is required']"
+                :rules="[
+                  (val) => !!val?.trim() || 'Club ID is required',
+                  (val) =>
+                    /^[a-z0-9._-]+$/.test(val?.trim() || '') ||
+                    'Only lowercase letters, numbers, periods, hyphens, and underscores',
+                ]"
                 hint="e.g. san-fabian-dinkers"
+                @blur="
+                  newClubId = newClubId
+                    .trim()
+                    .toLowerCase()
+                    .replace(/[^a-z0-9._-]/g, '')
+                "
               />
               <q-input
                 v-model="newClubName"
@@ -209,6 +220,19 @@
                 label="Club Name"
                 dense
                 :rules="[(val) => !!val?.trim() || 'Club name is required']"
+              />
+              <q-input
+                v-model="newReferralCode"
+                filled
+                label="Referral Code (optional)"
+                dense
+                class="q-mt-sm"
+                :rules="[
+                  (val) =>
+                    !val ||
+                    /^[a-z0-9._-]+$/.test(val) ||
+                    'Only lowercase letters, numbers, periods, hyphens, and underscores',
+                ]"
               />
             </q-card-section>
 
@@ -1008,6 +1032,7 @@ const isEditProfileDisabled = computed(() => {
 const showCreateClubDialog = ref(false);
 const newClubId = ref('');
 const newClubName = ref('');
+const newReferralCode = ref('');
 const createClubLoading = ref(false);
 const showHistoryDialog = ref(false);
 const activeTab = ref<'history' | 'matches' | 'partners' | 'rivals' | 'clutch'>(
@@ -1687,19 +1712,21 @@ const createClub = async () => {
     return;
   createClubLoading.value = true;
   try {
-    await likhaClient.request(
-      createItem('club', {
-        clubId: newClubId.value.trim(),
-        name: newClubName.value.trim(),
-        admins: { create: [{ directus_users_id: currentUserId.value }] },
-        players: { create: [{ directus_users_id: currentUserId.value }] },
-      }),
-    );
+    const payload: Record<string, unknown> = {
+      clubId: newClubId.value.trim(),
+      name: newClubName.value.trim(),
+      admins: { create: [{ directus_users_id: currentUserId.value }] },
+      players: { create: [{ directus_users_id: currentUserId.value }] },
+    };
+    const referral = newReferralCode.value.replace(/\s/g, '');
+    if (referral) payload.referral_code = referral;
+    await likhaClient.request(createItem('club', payload));
 
     const createdId = newClubId.value;
     showCreateClubDialog.value = false;
     newClubId.value = '';
     newClubName.value = '';
+    newReferralCode.value = '';
 
     router.push(`/club/${createdId}`);
   } catch (err) {
