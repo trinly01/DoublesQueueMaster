@@ -1032,11 +1032,7 @@
                     class="q-pa-sm"
                   >
                     <q-item-section avatar>
-                      <PlayerAvatar
-                        :name="player.username"
-                        :level="player.level"
-                        size="sm"
-                      />
+                      <PlayerAvatar :name="player.username" size="sm" />
                     </q-item-section>
                     <q-item-section>
                       <q-item-label class="text-weight-medium">{{
@@ -2262,7 +2258,7 @@
                       <PlayerAvatar
                         :name="player.firstName"
                         :username="player.username"
-                        :level="player.level"
+                        :color="getRatingColor(player.rating)"
                         :user-id="player.userId"
                         :dupr-id="player.duprId"
                         :image-url="player.avatar"
@@ -2369,7 +2365,7 @@
                       <PlayerAvatar
                         :name="player.firstName"
                         :username="player.username"
-                        :level="player.level"
+                        :color="getRatingColor(player.rating)"
                         :user-id="player.userId"
                         :dupr-id="player.duprId"
                         :image-url="player.avatar"
@@ -2599,7 +2595,7 @@
                   <PlayerAvatar
                     :name="player.firstName"
                     :username="player.username"
-                    :level="player.level"
+                    :color="getRatingColor(player.rating)"
                     :user-id="player.userId"
                     :dupr-id="player.duprId"
                     :image-url="player.avatar"

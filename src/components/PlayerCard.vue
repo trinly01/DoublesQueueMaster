@@ -10,7 +10,7 @@
         v-if="!player.avatar || avatarLoadError"
         :name="player.firstName"
         :username="player.username"
-        :level="player.level"
+        :color="getRatingColor(player.rating)"
         :user-id="player.userId"
         :dupr-id="player.duprId"
         size="md"
@@ -19,7 +19,7 @@
         v-else
         :name="player.firstName"
         :username="player.username"
-        :level="player.level"
+        :color="getRatingColor(player.rating)"
         :user-id="player.userId"
         :dupr-id="player.duprId"
         :image-url="player.avatar"

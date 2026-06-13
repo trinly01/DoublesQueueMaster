@@ -41,30 +41,51 @@
             @{{ username }}
           </div>
 
-          <div v-if="PlayerProfile.state.duprId" class="q-mb-none">
-            <div class="dupr-badge q-mt-sm">
-              <q-icon
-                name="verified"
-                size="18px"
-                color="white"
-                class="q-mr-xs"
-              />
-              <span class="text-caption text-white"
-                >DUPR ID: {{ PlayerProfile.state.duprId }}</span
-              >
-            </div>
-          </div>
-
           <div
-            class="rating-badge q-mt-sm cursor-pointer"
-            :style="{ background: getRatingGradient(ratingColor) }"
-            @click="showHistoryDialog = true"
+            class="column items-center"
+            style="width: 180px; gap: 8px; margin: 0 auto"
           >
-            <div class="column items-center">
-              <span class="text-h4 text-weight-bold text-white">{{
-                playerRating
-              }}</span>
-              <span class="text-caption text-white">{{ ratingCategory }}</span>
+            <q-btn
+              v-if="PlayerProfile.state.duprId"
+              color="primary"
+              icon="verified"
+              :label="`DUPR ID: ${PlayerProfile.state.duprId}`"
+              size="sm"
+              dense
+              rounded
+              class="full-width"
+              style="border-radius: 12px"
+            />
+
+            <q-btn
+              color="accent"
+              icon="emoji_events"
+              label="Leaderboard"
+              size="sm"
+              dense
+              rounded
+              class="full-width"
+              style="border-radius: 12px"
+              @click="showLeaderboardDialog = true"
+            />
+
+            <div
+              class="rating-badge cursor-pointer"
+              :style="{
+                background: getRatingGradient(ratingColor),
+                width: '100%',
+                display: 'flex',
+              }"
+              @click="showHistoryDialog = true"
+            >
+              <div class="column items-center">
+                <span class="text-h4 text-weight-bold text-white">{{
+                  playerRating
+                }}</span>
+                <span class="text-caption text-white">{{
+                  ratingCategory
+                }}</span>
+              </div>
             </div>
           </div>
         </q-card-section>
@@ -367,7 +388,7 @@
                     <PlayerAvatar
                       :name="row.name"
                       :username="row.username"
-                      :level="row.level"
+                      :color="getRatingColor(row.rating ?? 1500)"
                       :image-url="row.avatar"
                       :dupr-id="row.duprId"
                       size="32px"
@@ -493,7 +514,7 @@
                     <PlayerAvatar
                       :name="row.name"
                       :username="row.username"
-                      :level="row.level"
+                      :color="getRatingColor(row.rating ?? 1500)"
                       :image-url="row.avatar"
                       :dupr-id="row.duprId"
                       size="32px"
@@ -731,6 +752,97 @@
           </q-card>
         </q-dialog>
 
+        <!-- Leaderboard Dialog -->
+        <q-dialog v-model="showLeaderboardDialog">
+          <q-card style="min-width: 320px; max-width: 90vw; max-height: 80vh">
+            <q-card-section class="row items-center q-pb-none">
+              <div class="text-h6">Leaderboard</div>
+              <q-space />
+              <q-btn icon="close" flat round dense v-close-popup>
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  >Close</q-tooltip
+                >
+              </q-btn>
+            </q-card-section>
+
+            <div class="q-px-md q-pt-md">
+              <q-btn-toggle
+                v-model="leaderboardTab"
+                :options="[
+                  {
+                    label: 'Global',
+                    value: 'global',
+                    icon: 'public',
+                  },
+                  {
+                    label: 'From Matches',
+                    value: 'matches',
+                    icon: 'sports_tennis',
+                  },
+                ]"
+                color="grey-5"
+                toggle-color="accent"
+                spread
+                dense
+                size="sm"
+                class="full-width"
+              />
+            </div>
+
+            <q-card-section
+              class="q-pa-md"
+              style="max-height: 60vh; overflow-y: auto"
+            >
+              <div v-if="leaderboardLoading" class="flex flex-center q-py-md">
+                <q-spinner color="accent" size="32px" />
+              </div>
+              <q-list separator v-else-if="leaderboardData.length">
+                <q-item
+                  v-for="(player, idx) in leaderboardData"
+                  :key="player.username"
+                >
+                  <q-item-section avatar>
+                    <div class="text-h6 text-weight-bold text-grey-5">
+                      {{ idx + 1 }}
+                    </div>
+                  </q-item-section>
+                  <q-item-section avatar>
+                    <PlayerAvatar
+                      :name="player.firstName"
+                      :username="player.username"
+                      :color="getRatingColor(player.rating)"
+                      :image-url="player.avatar"
+                      size="32px"
+                    />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-weight-medium">
+                      {{ player.firstName || player.username }}
+                    </q-item-label>
+                    <q-item-label caption>@{{ player.username }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-chip
+                      :color="getRatingColor(player.rating)"
+                      text-color="white"
+                      size="sm"
+                      class="text-weight-bold"
+                    >
+                      {{ player.rating }}
+                    </q-chip>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="text-center text-grey q-py-md">
+                No data available.
+              </div>
+            </q-card-section>
+          </q-card>
+        </q-dialog>
+
         <!-- Edit Profile Dialog -->
         <q-dialog v-model="showEditProfileDialog" persistent>
           <q-card style="min-width: 320px; max-width: 90vw">
@@ -852,6 +964,7 @@ import { useNotify } from 'src/composables/useNotify';
 import { likhaClient } from 'src/boot/likha';
 import {
   readItems,
+  readUsers,
   createItem,
   uploadFiles,
   updateUser,
@@ -912,9 +1025,36 @@ const avatarUrl = computed(() => {
 });
 
 const LAST_CLUB_KEY = 'lastClubId';
+const LEADERBOARD_CACHE_KEY = 'leaderboard_cache';
 const clubId = ref<string | { clubId: string; name: string }>(
   (LocalStorage.getItem(LAST_CLUB_KEY) as string) || '',
 );
+
+const loadLeaderboardCache = () => {
+  const cached = LocalStorage.getItem(LEADERBOARD_CACHE_KEY) as
+    | {
+        global: typeof globalLeaderboard.value;
+        matches: typeof matchesLeaderboard.value;
+      }
+    | string
+    | null;
+  if (!cached) return false;
+  try {
+    const data = typeof cached === 'string' ? JSON.parse(cached) : cached;
+    if (data?.global) globalLeaderboard.value = data.global;
+    if (data?.matches) matchesLeaderboard.value = data.matches;
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const saveLeaderboardCache = () => {
+  LocalStorage.set(LEADERBOARD_CACHE_KEY, {
+    global: globalLeaderboard.value,
+    matches: matchesLeaderboard.value,
+  });
+};
 const clubOptions = ref<{ clubId: string; name: string }[]>([]);
 const loading = computed(() => PlayerProfile.loading.value);
 const avatarInput = ref<HTMLInputElement | null>(null);
@@ -960,6 +1100,34 @@ const showHistoryDialog = ref(false);
 const activeTab = ref<'history' | 'matches' | 'partners' | 'rivals' | 'clutch'>(
   'history',
 );
+
+const showLeaderboardDialog = ref(false);
+const leaderboardTab = ref<'global' | 'matches'>('global');
+const leaderboardLoading = ref(false);
+const globalLeaderboard = ref<
+  Array<{
+    firstName: string;
+    lastName: string;
+    username: string;
+    rating: number;
+    avatar?: string;
+  }>
+>([]);
+const matchesLeaderboard = ref<
+  Array<{
+    firstName: string;
+    lastName: string;
+    username: string;
+    rating: number;
+    avatar?: string;
+  }>
+>([]);
+
+const leaderboardData = computed(() => {
+  return leaderboardTab.value === 'global'
+    ? globalLeaderboard.value
+    : matchesLeaderboard.value;
+});
 
 const playerEvents = computed(() => PlayerProfile.state.events || []);
 
@@ -1043,7 +1211,7 @@ interface SynergyStat {
   winRate: number;
   avgDiff: number;
   avatar?: string;
-  level?: 1 | 2 | 3;
+  rating?: number;
   duprId?: string;
 }
 
@@ -1058,7 +1226,7 @@ const partnerStats = computed<SynergyStat[]>(() => {
       losses: number;
       diffSum: number;
       avatar?: string;
-      level?: 1 | 2 | 3;
+      rating?: number;
       duprId?: string;
     }
   >();
@@ -1095,7 +1263,7 @@ const partnerStats = computed<SynergyStat[]>(() => {
         losses: 0,
         diffSum: 0,
         avatar: p.avatar,
-        level: p.level,
+        rating: p.rating,
         duprId: p.duprId,
       };
       existing.games++;
@@ -1121,7 +1289,7 @@ const partnerStats = computed<SynergyStat[]>(() => {
           ? data.avatar
           : `https://dink-it.zyberlab.com/assets/${data.avatar}`
         : undefined,
-      level: data.level,
+      rating: data.rating,
       duprId: data.duprId,
     }))
     .sort((a, b) => b.wins - a.wins || b.games - a.games);
@@ -1138,7 +1306,7 @@ const nemesisStats = computed<SynergyStat[]>(() => {
       losses: number;
       diffSum: number;
       avatar?: string;
-      level?: 1 | 2 | 3;
+      rating?: number;
       duprId?: string;
     }
   >();
@@ -1174,7 +1342,7 @@ const nemesisStats = computed<SynergyStat[]>(() => {
         losses: 0,
         diffSum: 0,
         avatar: p.avatar,
-        level: p.level,
+        rating: p.rating,
         duprId: p.duprId,
       };
       existing.games++;
@@ -1200,7 +1368,7 @@ const nemesisStats = computed<SynergyStat[]>(() => {
           ? data.avatar
           : `https://dink-it.zyberlab.com/assets/${data.avatar}`
         : undefined,
-      level: data.level,
+      rating: data.rating,
       duprId: data.duprId,
     }))
     .sort((a, b) => b.losses - a.losses || b.games - a.games);
@@ -1812,6 +1980,96 @@ onMounted(async () => {
   }
 });
 
+const fetchLeaderboard = async () => {
+  if (leaderboardLoading.value) return;
+
+  // 1. Load from cache instantly for offline / fast startup
+  const hasCache = loadLeaderboardCache();
+  if (!hasCache) {
+    leaderboardLoading.value = true;
+  }
+
+  try {
+    // Global top 10 by current rating
+    const globalResult = await likhaClient.request(
+      readUsers({
+        fields: ['first_name', 'last_name', 'username', 'rating', 'avatar'],
+        sort: ['-rating'],
+        limit: 10,
+        filter: { rating: { _nnull: true } },
+      }),
+    );
+
+    // From matches: top 10 by event rating (deduplicated by player)
+    const eventsResult = await likhaClient.request(
+      readItems('event', {
+        fields: [
+          'player.first_name',
+          'player.last_name',
+          'player.username',
+          'player.rating',
+          'player.avatar',
+          'rating',
+        ],
+        sort: ['-rating'],
+        limit: 100,
+      }),
+    );
+
+    const resolveAvatar = (avatar: unknown): string => {
+      const a = (avatar as string) || '';
+      if (!a) return '';
+      if (a.startsWith('http://') || a.startsWith('https://')) return a;
+      return `https://dink-it.zyberlab.com/assets/${a}`;
+    };
+
+    globalLeaderboard.value = (
+      Array.isArray(globalResult) ? globalResult : []
+    ).map((u: Record<string, unknown>) => ({
+      firstName: (u.first_name as string) || '',
+      lastName: (u.last_name as string) || '',
+      username: (u.username as string) || '',
+      rating: typeof u.rating === 'number' ? u.rating : Number(u.rating) || 0,
+      avatar: resolveAvatar(u.avatar),
+    }));
+
+    const seen = new Set<string>();
+    const matchPlayers: typeof globalLeaderboard.value = [];
+    for (const e of Array.isArray(eventsResult) ? eventsResult : []) {
+      const evt = e as Record<string, unknown>;
+      const p = evt.player as Record<string, unknown> | undefined;
+      if (!p) continue;
+      const uname = (p.username as string) || '';
+      if (seen.has(uname)) continue;
+      seen.add(uname);
+      matchPlayers.push({
+        firstName: (p.first_name as string) || '',
+        lastName: (p.last_name as string) || '',
+        username: uname,
+        rating: typeof p.rating === 'number' ? p.rating : Number(p.rating) || 0,
+        avatar: resolveAvatar(p.avatar),
+      });
+    }
+    matchesLeaderboard.value = matchPlayers.slice(0, 10);
+    saveLeaderboardCache();
+  } catch (err) {
+    if (!hasCache) {
+      console.error('Failed to fetch leaderboard:', err);
+    }
+  } finally {
+    leaderboardLoading.value = false;
+  }
+};
+
+watch(showLeaderboardDialog, (open) => {
+  if (open) {
+    // Load cache instantly for offline / fast display
+    loadLeaderboardCache();
+    // Always attempt a refresh in background
+    fetchLeaderboard();
+  }
+});
+
 const onLogout = () => {
   $q.dialog({
     title: 'Logout',
@@ -1908,7 +2166,7 @@ const onLogout = () => {
   align-items: center;
   justify-content: center;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #1e88e5 0%, #42a5f5 100%);
   box-shadow: 0 2px 8px rgba(30, 136, 229, 0.3);
   min-width: 180px;
