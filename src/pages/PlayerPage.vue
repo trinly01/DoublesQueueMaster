@@ -407,6 +407,9 @@
                           : row.name
                       }}
                     </q-item-label>
+                    <q-item-label caption class="ellipsis"
+                      >@{{ row.username }}</q-item-label
+                    >
                   </q-item-section>
                   <q-item-section side class="text-right">
                     <q-chip
@@ -486,6 +489,9 @@
                           : row.name
                       }}
                     </q-item-label>
+                    <q-item-label caption class="ellipsis"
+                      >@{{ row.username }}</q-item-label
+                    >
                   </q-item-section>
                   <q-item-section side class="text-right">
                     <q-chip
