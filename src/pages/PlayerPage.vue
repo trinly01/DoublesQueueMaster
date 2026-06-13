@@ -227,8 +227,8 @@
         </q-dialog>
 
         <!-- Player Stats Dialog -->
-        <q-dialog v-model="showHistoryDialog" maximized>
-          <q-card style="min-width: 320px; max-width: 90vw; max-height: 80vh">
+        <q-dialog v-model="showHistoryDialog">
+          <q-card style="width: 480px; max-width: 90vw; max-height: 80vh">
             <q-card-section class="row items-center q-pb-none">
               <div class="text-h6">Player Stats</div>
               <q-space />
@@ -375,7 +375,7 @@
                 :loading="paymentLoading"
                 @pay="callPayment({ playerId: username })"
               />
-              <q-list separator v-if="partnerStats.length && isMobileScreen">
+              <q-list separator v-if="partnerStats.length">
                 <q-item
                   v-for="(row, idx) in partnerStats"
                   :key="row.username"
@@ -439,53 +439,6 @@
                   </q-item-section>
                 </q-item>
               </q-list>
-              <q-table
-                v-else-if="partnerStats.length"
-                :rows="partnerStats"
-                :columns="partnerColumns"
-                row-key="username"
-                dense
-                flat
-                hide-bottom
-                :rows-per-page-options="[0]"
-              >
-                <template v-slot:body-cell-name="props">
-                  <q-td :props="props">
-                    {{
-                      isPaymentExpired
-                        ? props.row.name.replace(/./g, '*')
-                        : props.row.name
-                    }}
-                  </q-td>
-                </template>
-                <template v-slot:body-cell-winRate="props">
-                  <q-td :props="props" class="text-center">
-                    <span
-                      :class="
-                        props.row.winRate >= 50
-                          ? 'text-positive text-weight-bold'
-                          : 'text-negative'
-                      "
-                    >
-                      {{ props.row.winRate.toFixed(1) }}%
-                    </span>
-                  </q-td>
-                </template>
-                <template v-slot:body-cell-avgDiff="props">
-                  <q-td :props="props" class="text-center">
-                    <span
-                      :class="
-                        props.row.avgDiff >= 0
-                          ? 'text-positive'
-                          : 'text-negative'
-                      "
-                    >
-                      {{ props.row.avgDiff >= 0 ? '+' : '' }}
-                      {{ props.row.avgDiff.toFixed(1) }}
-                    </span>
-                  </q-td>
-                </template>
-              </q-table>
               <div v-else class="text-center text-grey q-py-md">
                 No partner data available.
               </div>
@@ -501,7 +454,7 @@
                 :loading="paymentLoading"
                 @pay="callPayment({ playerId: username })"
               />
-              <q-list separator v-if="nemesisStats.length && isMobileScreen">
+              <q-list separator v-if="nemesisStats.length">
                 <q-item
                   v-for="(row, idx) in nemesisStats"
                   :key="row.username"
@@ -565,53 +518,6 @@
                   </q-item-section>
                 </q-item>
               </q-list>
-              <q-table
-                v-else-if="nemesisStats.length"
-                :rows="nemesisStats"
-                :columns="nemesisColumns"
-                row-key="username"
-                dense
-                flat
-                hide-bottom
-                :rows-per-page-options="[0]"
-              >
-                <template v-slot:body-cell-name="props">
-                  <q-td :props="props">
-                    {{
-                      isPaymentExpired
-                        ? props.row.name.replace(/./g, '*')
-                        : props.row.name
-                    }}
-                  </q-td>
-                </template>
-                <template v-slot:body-cell-winRate="props">
-                  <q-td :props="props" class="text-center">
-                    <span
-                      :class="
-                        props.row.winRate >= 50
-                          ? 'text-positive text-weight-bold'
-                          : 'text-negative'
-                      "
-                    >
-                      {{ props.row.winRate.toFixed(1) }}%
-                    </span>
-                  </q-td>
-                </template>
-                <template v-slot:body-cell-avgDiff="props">
-                  <q-td :props="props" class="text-center">
-                    <span
-                      :class="
-                        props.row.avgDiff >= 0
-                          ? 'text-positive'
-                          : 'text-negative'
-                      "
-                    >
-                      {{ props.row.avgDiff >= 0 ? '+' : '' }}
-                      {{ props.row.avgDiff.toFixed(1) }}
-                    </span>
-                  </q-td>
-                </template>
-              </q-table>
               <div v-else class="text-center text-grey q-py-md">
                 No rival data available.
               </div>
@@ -754,7 +660,7 @@
 
         <!-- Leaderboard Dialog -->
         <q-dialog v-model="showLeaderboardDialog">
-          <q-card style="min-width: 320px; max-width: 90vw; max-height: 80vh">
+          <q-card style="width: 480px; max-width: 90vw; max-height: 80vh">
             <q-card-section class="row items-center q-pb-none">
               <div class="text-h6">Leaderboard</div>
               <q-space />
@@ -805,24 +711,26 @@
                   :key="player.username"
                 >
                   <q-item-section avatar>
-                    <div class="text-h6 text-weight-bold text-grey-5">
-                      {{ idx + 1 }}
+                    <div class="row items-center no-wrap" style="gap: 8px">
+                      <div class="text-h6 text-weight-bold text-grey-5">
+                        {{ idx + 1 }}
+                      </div>
+                      <PlayerAvatar
+                        :name="player.firstName"
+                        :username="player.username"
+                        :color="getRatingColor(player.rating)"
+                        :image-url="player.avatar"
+                        size="32px"
+                      />
                     </div>
                   </q-item-section>
-                  <q-item-section avatar>
-                    <PlayerAvatar
-                      :name="player.firstName"
-                      :username="player.username"
-                      :color="getRatingColor(player.rating)"
-                      :image-url="player.avatar"
-                      size="32px"
-                    />
-                  </q-item-section>
                   <q-item-section>
-                    <q-item-label class="text-weight-medium">
+                    <q-item-label class="text-weight-medium ellipsis">
                       {{ player.firstName || player.username }}
                     </q-item-label>
-                    <q-item-label caption>@{{ player.username }}</q-item-label>
+                    <q-item-label caption class="ellipsis"
+                      >@{{ player.username }}</q-item-label
+                    >
                   </q-item-section>
                   <q-item-section side>
                     <q-chip
@@ -995,7 +903,6 @@ const ratingColor = computed(() => getRatingColor(playerRating.value));
 const ratingCategory = computed(() => getRatingCategory(playerRating.value));
 const username = computed(() => PlayerProfile.state.username);
 const currentUserId = computed(() => PlayerProfile.state.id);
-const isMobileScreen = computed(() => $q.screen.lt.sm);
 const isPaymentExpired = computed(() => {
   const lastPayment = PlayerProfile.state.lastPayment;
   if (!lastPayment) return false;
@@ -1373,96 +1280,6 @@ const nemesisStats = computed<SynergyStat[]>(() => {
     }))
     .sort((a, b) => b.losses - a.losses || b.games - a.games);
 });
-
-const partnerColumns = [
-  {
-    name: 'name',
-    label: 'Partner',
-    field: 'name',
-    align: 'left' as const,
-    sortable: true,
-  },
-  {
-    name: 'games',
-    label: 'Games',
-    field: 'games',
-    align: 'center' as const,
-    sortable: true,
-  },
-  {
-    name: 'wins',
-    label: 'Wins',
-    field: 'wins',
-    align: 'center' as const,
-    sortable: true,
-  },
-  {
-    name: 'losses',
-    label: 'Losses',
-    field: 'losses',
-    align: 'center' as const,
-    sortable: true,
-  },
-  {
-    name: 'winRate',
-    label: 'Win %',
-    field: 'winRate',
-    align: 'center' as const,
-    sortable: true,
-  },
-  {
-    name: 'avgDiff',
-    label: 'Avg Diff',
-    field: 'avgDiff',
-    align: 'center' as const,
-    sortable: true,
-  },
-];
-
-const nemesisColumns = [
-  {
-    name: 'name',
-    label: 'Opponent',
-    field: 'name',
-    align: 'left' as const,
-    sortable: true,
-  },
-  {
-    name: 'games',
-    label: 'Games',
-    field: 'games',
-    align: 'center' as const,
-    sortable: true,
-  },
-  {
-    name: 'wins',
-    label: 'Wins',
-    field: 'wins',
-    align: 'center' as const,
-    sortable: true,
-  },
-  {
-    name: 'losses',
-    label: 'Losses',
-    field: 'losses',
-    align: 'center' as const,
-    sortable: true,
-  },
-  {
-    name: 'winRate',
-    label: 'Win %',
-    field: 'winRate',
-    align: 'center' as const,
-    sortable: true,
-  },
-  {
-    name: 'avgDiff',
-    label: 'Avg Diff',
-    field: 'avgDiff',
-    align: 'center' as const,
-    sortable: true,
-  },
-];
 
 interface ClutchMatch {
   match: DirectusCompletedMatch;
