@@ -1,6 +1,12 @@
 <template>
+  <!-- Masked with image: generic placeholder, never reveals real identity -->
+  <q-avatar v-if="masked && imageUrl" :size="size">
+    <img :src="genericAvatarUrl" alt="Player" />
+  </q-avatar>
+
+  <!-- No image (or masked without image): colored initials -->
   <q-avatar
-    v-if="!imageUrl"
+    v-else-if="!imageUrl"
     :color="effectiveColor"
     :text-color="textColor || 'white'"
     :size="size"
@@ -20,6 +26,7 @@
     </q-badge>
   </q-avatar>
 
+  <!-- Real image -->
   <q-avatar v-else :size="size">
     <img
       :src="imageUrl"
@@ -63,11 +70,14 @@ interface Props {
   size?: string;
   color?: string;
   textColor?: string;
+  masked?: boolean;
+  index?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   size: 'md',
   textColor: 'white',
+  masked: false,
 });
 
 defineEmits<{
@@ -76,9 +86,15 @@ defineEmits<{
 
 // Compute initials from name > username > email
 const initials = computed(() => {
+  if (props.masked) return '*';
   const source =
     props.name || props.username || props.email?.split('@')[0] || '';
   return source.charAt(0).toUpperCase();
+});
+
+const genericAvatarUrl = computed(() => {
+  const n = (props.index ?? 0) % 6;
+  return `https://cdn.quasar.dev/img/avatar${n + 1}.jpg`;
 });
 
 // Color fallback: prop > grey
