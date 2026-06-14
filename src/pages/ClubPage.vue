@@ -4267,7 +4267,9 @@ const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
   const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
   Object.assign(MatchmakingApp.state, merged);
   // Extra safety: ensure no player appears in multiple matches
+  // and no court has multiple in-progress matches
   MatchmakingApp.enforceOneMatchPerPlayer();
+  MatchmakingApp.enforceOneMatchPerCourt();
   MatchmakingApp.persistSilently();
   lastSyncedServerTimestamp.value = incomingTs;
   if (currentClubId.value) {
@@ -4653,14 +4655,14 @@ const nextInLineMatch = computed(() =>
   ),
 );
 
-// Seed with current max startedAt so existing matches aren't re-announced
+// Seed with current max startedAt so existing matches aren't re-announced.
+// When no in-progress matches exist, seed with Date.now() so already-started
+// matches from other admins don't get falsely announced on initial load.
+const existingStartedAts = matches.value
+  .filter((m) => m.status === 'in-progress')
+  .map((m) => m.startedAt?.getTime() || 0);
 const lastProcessedStartedAt = ref(
-  Math.max(
-    0,
-    ...matches.value
-      .filter((m) => m.status === 'in-progress')
-      .map((m) => m.startedAt?.getTime() || 0),
-  ),
+  existingStartedAts.length > 0 ? Math.max(...existingStartedAts) : Date.now(),
 );
 const prevNextInLineId = ref<string | null>(
   nextInLineMatch.value?.matchId || null,

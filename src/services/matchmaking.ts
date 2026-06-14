@@ -522,6 +522,10 @@ export class LocalMatchmakingSystem {
     // Losing matches are tombstoned and their players returned to queue.
     this.enforceOneMatchPerPlayer();
 
+    // Ensure no court has more than one in-progress match.
+    // Losing matches are tombstoned and their players returned to queue.
+    this.enforceOneMatchPerCourt();
+
     // Enforce constraint: no player can be in both queue and active matches
     this.enforceQueueMatchConstraint();
     // Remove orphaned queue entries (entries without a matching player profile)
@@ -660,6 +664,67 @@ export class LocalMatchmakingSystem {
   // players from the losing match(es) are returned to the queue.
   public enforceOneMatchPerPlayer() {
     enforceOneMatchPerPlayerOnState(this.state);
+  }
+
+  // Enforce: at most one in-progress match per court.
+  // When a conflict is found, the match with the newest startedAt wins;
+  // players from the losing match(es) are returned to the queue.
+  public enforceOneMatchPerCourt() {
+    const courtToMatches = new Map<number, ActiveMatch[]>();
+    this.state.activeMatches.forEach((m) => {
+      if (m.deletedAt || m.status !== 'in-progress' || !m.court) return;
+      const arr = courtToMatches.get(m.court) || [];
+      arr.push(m);
+      courtToMatches.set(m.court, arr);
+    });
+
+    const matchesToRemove = new Set<string>();
+    courtToMatches.forEach((matches) => {
+      if (matches.length <= 1) return;
+      // Keep the match with the newest startedAt (or updatedAt fallback)
+      matches.sort((a, b) => {
+        const diff = (b.startedAt ?? 0) - (a.startedAt ?? 0);
+        if (diff !== 0) return diff;
+        return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+      });
+      for (let i = 1; i < matches.length; i++) {
+        matchesToRemove.add(matches[i].matchId);
+      }
+    });
+
+    if (matchesToRemove.size === 0) return;
+
+    const now = Date.now();
+    this.state.activeMatches.forEach((m) => {
+      if (matchesToRemove.has(m.matchId)) {
+        // Return all players from this match to the queue
+        [...m.teamA, ...m.teamB].forEach((username) => {
+          if (
+            !this.state.queues.some(
+              (q) => !q.deletedAt && q.username === username,
+            )
+          ) {
+            this.state.queues.push({
+              username,
+              queueType:
+                m.originalQueueTypes?.[username] ||
+                (m.queueSource === 'MANUAL' ? 'GENERAL' : m.queueSource) ||
+                'GENERAL',
+              enteredAt: now,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
+        });
+        // Tombstone the match
+        m.deletedAt = now;
+        m.updatedAt = now;
+      }
+    });
+
+    console.log(
+      `[enforceOneMatchPerCourt] Removed ${matchesToRemove.size} conflicting match(es) from courts, returned players to queue`,
+    );
   }
 
   private loadState(): AppState | null {
