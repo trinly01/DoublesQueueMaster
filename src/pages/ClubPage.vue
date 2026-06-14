@@ -123,7 +123,6 @@
                 size="20px"
               />
               <q-btn
-                v-if="isCurrentUserAdmin"
                 :color="ttsEnabled ? 'white' : 'amber-4'"
                 :icon="ttsEnabled ? 'volume_up' : 'volume_off'"
                 @click="
