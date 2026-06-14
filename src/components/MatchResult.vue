@@ -47,14 +47,36 @@
         <!-- Editable: score input -->
         <q-input
           v-if="editable"
+          ref="teamAInput"
           v-model.number="localTeamAScore"
           type="number"
+          inputmode="numeric"
+          pattern="[0-9]*"
           label="Score"
           outlined
           class="q-mt-sm"
           input-class="text-h4 text-center"
           style="max-width: 120px; margin-left: auto; margin-right: auto"
         />
+        <div
+          v-if="
+            editable &&
+            status === 'in-progress' &&
+            !localTeamAScore &&
+            !localTeamBScore
+          "
+          class="row justify-center q-gutter-sm"
+          style="margin-top: 2px"
+        >
+          <q-btn
+            v-for="s in quickScores"
+            :key="s"
+            size="xs"
+            :label="String(s)"
+            color="accent"
+            @click="setTeamAScore(s)"
+          />
+        </div>
       </div>
 
       <!-- Center: Court + Win Probability + Status + Scores + VS -->
@@ -109,6 +131,12 @@
         <div v-if="completedAt" class="text-caption text-grey-6 q-mt-xs">
           {{ formatDate(completedAt) }}
         </div>
+        <div
+          v-if="startedAt && completedAt"
+          class="text-caption text-grey-7 q-mt-xs"
+        >
+          Match lasted {{ formatDuration(startedAt, completedAt) }}
+        </div>
       </div>
 
       <!-- Right: Team B players -->
@@ -156,21 +184,44 @@
         <!-- Editable: score input -->
         <q-input
           v-if="editable"
+          ref="teamBInput"
           v-model.number="localTeamBScore"
           type="number"
+          inputmode="numeric"
+          pattern="[0-9]*"
           label="Score"
           outlined
           class="q-mt-sm"
           input-class="text-h4 text-center"
           style="max-width: 120px; margin-left: auto; margin-right: auto"
         />
+        <div
+          v-if="
+            editable &&
+            status === 'in-progress' &&
+            !localTeamAScore &&
+            !localTeamBScore
+          "
+          class="row justify-center q-gutter-sm"
+          style="margin-top: 2px"
+        >
+          <q-btn
+            v-for="s in quickScores"
+            :key="s"
+            size="xs"
+            :label="String(s)"
+            color="accent"
+            @click="setTeamBScore(s)"
+          />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import type { QInput } from 'quasar';
 import {
   getRatingColor,
   getMatchStatusColor,
@@ -196,6 +247,7 @@ const props = withDefaults(
     winProbability?: number;
     status?: string;
     editable?: boolean;
+    startedAt?: string;
     completedAt?: string;
   }>(),
   {
@@ -212,6 +264,22 @@ const localTeamAScore = computed({
   get: () => props.teamAScore ?? 0,
   set: (val) => emit('update:teamAScore', val),
 });
+
+const quickScores = [11, 15, 21];
+const teamAInput = ref<QInput | null>(null);
+const teamBInput = ref<QInput | null>(null);
+
+const setTeamAScore = (s: number) => {
+  localTeamAScore.value = s;
+  localTeamBScore.value = 0;
+  teamBInput.value?.focus();
+};
+
+const setTeamBScore = (s: number) => {
+  localTeamBScore.value = s;
+  localTeamAScore.value = 0;
+  teamAInput.value?.focus();
+};
 
 const localTeamBScore = computed({
   get: () => props.teamBScore ?? 0,
@@ -238,6 +306,15 @@ const formatDate = (iso: string): string => {
   const ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12 || 12;
   return `${months[d.getMonth()]} ${d.getDate()} ${h}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
+};
+
+const formatDuration = (startIso: string, endIso: string): string => {
+  const start = new Date(startIso).getTime();
+  const end = new Date(endIso).getTime();
+  const diff = Math.max(0, end - start);
+  const mins = Math.floor(diff / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+  return `${mins}m ${secs}s`;
 };
 </script>
 
