@@ -126,7 +126,11 @@
                 v-if="isCurrentUserAdmin"
                 :color="ttsEnabled ? 'white' : 'amber-4'"
                 :icon="ttsEnabled ? 'volume_up' : 'volume_off'"
-                @click="(ttsEnabled = !ttsEnabled), clearSpeechQueue()"
+                @click="
+                  ttsEnabled
+                    ? ((ttsEnabled = false), clearSpeechQueue())
+                    : (ttsEnabled = true)
+                "
                 flat
                 round
                 dense

@@ -48,6 +48,11 @@ const playNextInQueue = () => {
     isSpeaking = false;
     return;
   }
+  if (MatchmakingApp.state.ttsEnabled === false) {
+    speechQueue.length = 0;
+    isSpeaking = false;
+    return;
+  }
   isSpeaking = true;
   const text = speechQueue.shift()!;
   const utterance = new SpeechSynthesisUtterance(text);
@@ -75,6 +80,7 @@ const playNextInQueue = () => {
 };
 
 export const enqueueSpeak = (text: string) => {
+  if (MatchmakingApp.state.ttsEnabled === false) return;
   speechQueue.push(text);
   if (!isSpeaking) playNextInQueue();
 };
