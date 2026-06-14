@@ -112,7 +112,7 @@ export const getMatchStatusColor = (status: string): string => {
     case 'waiting':
       return 'grey-6';
     case 'in-progress':
-      return 'green-6';
+      return 'red-6';
     case 'completed':
       return 'blue-6';
     default:

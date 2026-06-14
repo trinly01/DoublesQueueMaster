@@ -273,12 +273,14 @@ const setTeamAScore = (s: number) => {
   localTeamAScore.value = s;
   localTeamBScore.value = 0;
   teamBInput.value?.focus();
+  teamBInput.value?.select();
 };
 
 const setTeamBScore = (s: number) => {
   localTeamBScore.value = s;
   localTeamAScore.value = 0;
   teamAInput.value?.focus();
+  teamAInput.value?.select();
 };
 
 const localTeamBScore = computed({

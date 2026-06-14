@@ -516,6 +516,7 @@
                       @changeCourt="openCourtSelectionDialog(index)"
                       @startMatch="startMatch(index)"
                       @cancelMatch="cancelMatch(index)"
+                      @custom-announce="handleCustomAnnounce"
                       :is-court-available="
                         match.court ? isCourtAvailable(match.court) : false
                       "
@@ -871,6 +872,7 @@
                         @changeCourt="openCourtSelectionDialog(index)"
                         @startMatch="startMatch(index)"
                         @cancelMatch="cancelMatch(index)"
+                        @custom-announce="handleCustomAnnounce"
                         :is-court-available="
                           match.court ? isCourtAvailable(match.court) : false
                         "
@@ -2811,12 +2813,57 @@ import {
 } from '../utils/playerHelpers';
 import { computeWinProbability } from '../services/matchmaking';
 import { buildDuprCsv, downloadDuprCsv } from '../utils/duprExport';
+import {
+  announce,
+  announceMatchStart,
+  getNextInLine,
+  buildMatchAnnounceText,
+  getPlayerName,
+} from '../services/announcer';
 
 // Player type
 
 // Quasar instance for notifications
 const $q = useQuasar();
 const { notify } = useNotify();
+
+// Announce match on double-click / double-tap on a match card
+const handleCustomAnnounce = (match: {
+  id: string;
+  teamA: { firstName?: string; username: string }[];
+  teamB: { firstName?: string; username: string }[];
+  court?: number;
+  status?: string;
+}) => {
+  const a = match.teamA.map((p) => p.firstName || p.username);
+  const b = match.teamB.map((p) => p.firstName || p.username);
+  const text = buildMatchAnnounceText(
+    a,
+    b,
+    match.court,
+    match.status === 'waiting',
+  );
+  announce(notify, text, match.id);
+
+  // Only announce next-in-line when double-clicking a waiting match
+  if (match.status === 'waiting') {
+    const next = getNextInLine(
+      matches.value,
+      queuePriorityMode.value,
+      MatchmakingApp.state.activeMatches,
+    );
+    if (next) {
+      const na = next.teamA.map((u) =>
+        getPlayerName(MatchmakingApp.state.players, u),
+      );
+      const nb = next.teamB.map((u) =>
+        getPlayerName(MatchmakingApp.state.players, u),
+      );
+      const nextText = buildMatchAnnounceText(na, nb, undefined, true);
+      announce(notify, nextText, next.matchId);
+    }
+  }
+};
 
 // Shared auth helpers (logout + 401 handling) from the useAuth composable
 const { handleAuthError } = useAuth();
@@ -4543,6 +4590,33 @@ const queuePriorityMode = computed<'timestamp' | 'gamesPlayed'>({
     MatchmakingApp.persist();
   },
 });
+
+// Watch for next-in-line changes and auto-announce
+const nextInLineMatch = computed(() =>
+  getNextInLine(
+    matches.value,
+    queuePriorityMode.value,
+    MatchmakingApp.state.activeMatches,
+  ),
+);
+
+watch(
+  () => nextInLineMatch.value?.matchId,
+  (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      const next = nextInLineMatch.value!;
+      const na = next.teamA.map((u) =>
+        getPlayerName(MatchmakingApp.state.players, u),
+      );
+      const nb = next.teamB.map((u) =>
+        getPlayerName(MatchmakingApp.state.players, u),
+      );
+      const text = buildMatchAnnounceText(na, nb, undefined, true);
+      announce(notify, text, next.matchId);
+    }
+  },
+);
+
 const matchmakingMode = computed<
   | 'variety_first'
   | 'balance_first'
@@ -6500,6 +6574,14 @@ const startMatchOnCourt = (
   match.court = court;
   match.startedAt = Date.now();
   match.updatedAt = Date.now();
+
+  announceMatchStart(
+    notify,
+    match,
+    court,
+    MatchmakingApp.state.activeMatches,
+    MatchmakingApp.state.players,
+  );
 };
 
 // Start a waiting match
