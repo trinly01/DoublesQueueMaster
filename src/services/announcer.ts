@@ -1,5 +1,12 @@
+import { ref } from 'vue';
 import type { ActiveMatch, Player } from './matchmaking';
 import { MatchmakingApp } from './matchmaking';
+
+// ── Admin-only voice flag ──────────────────────────────
+let isAdminMode = false;
+export const setAdminMode = (val: boolean) => {
+  isAdminMode = val;
+};
 
 // ── Announcement History (in-memory only) ──────────────
 export interface AnnouncementRecord {
@@ -29,7 +36,7 @@ const pushAnnouncement = (text: string, matchId?: string) => {
 
 // ── TTS Queue ──────────────────────────────────────────
 const speechQueue: string[] = [];
-let isSpeaking = false;
+export const isSpeaking = ref(false);
 
 const pickFemaleVoice = (): SpeechSynthesisVoice | null => {
   const voices = window.speechSynthesis.getVoices();
@@ -45,15 +52,15 @@ const pickFemaleVoice = (): SpeechSynthesisVoice | null => {
 
 const playNextInQueue = () => {
   if (speechQueue.length === 0) {
-    isSpeaking = false;
+    isSpeaking.value = false;
     return;
   }
   if (MatchmakingApp.state.ttsEnabled === false) {
     speechQueue.length = 0;
-    isSpeaking = false;
+    isSpeaking.value = false;
     return;
   }
-  isSpeaking = true;
+  isSpeaking.value = true;
   const text = speechQueue.shift()!;
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = 0.65;
@@ -82,7 +89,7 @@ const playNextInQueue = () => {
 export const enqueueSpeak = (text: string) => {
   if (MatchmakingApp.state.ttsEnabled === false) return;
   speechQueue.push(text);
-  if (!isSpeaking) playNextInQueue();
+  if (!isSpeaking.value) playNextInQueue();
 };
 
 export const clearSpeechQueue = () => {
@@ -99,6 +106,7 @@ export const announce = (
   pushAnnouncement(text, matchId);
   notify({ type: 'info', message: text, timeout: 3000 });
 
+  if (!isAdminMode) return;
   if (MatchmakingApp.state.ttsEnabled === false) return;
 
   if (!('speechSynthesis' in window)) {
@@ -205,8 +213,8 @@ export const announceMatchStart = (
   const b = match.teamB.map((u) => getPlayerName(players, u));
   const text = buildMatchAnnounceText(a, b, court);
 
-  // Announce the newly started match 3 times
-  for (let i = 0; i < 3; i++) {
+  // Announce the newly started match 2 times (ideal for noisy clubs)
+  for (let i = 0; i < 2; i++) {
     announce(notify, text, match.matchId);
   }
 };
