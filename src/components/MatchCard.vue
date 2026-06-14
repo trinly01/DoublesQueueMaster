@@ -7,7 +7,6 @@
         : ''
     "
     @click="handleClick"
-    @dblclick="emit('customAnnounce', match)"
     clickable
   >
     <q-item-section>
