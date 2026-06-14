@@ -2869,17 +2869,7 @@ const handleCustomAnnounce = (match: {
   court?: number;
   status?: string;
 }) => {
-  const a = match.teamA.map((p) => p.firstName || p.username);
-  const b = match.teamB.map((p) => p.firstName || p.username);
-  const text = buildMatchAnnounceText(
-    a,
-    b,
-    match.court,
-    match.status === 'waiting',
-  );
-  announce(notify, text, match.id);
-
-  // Only announce next-in-line when double-clicking a waiting match
+  // For waiting matches, only announce the next-in-line
   if (match.status === 'waiting') {
     const next = getNextInLine(
       matches.value,
@@ -2893,10 +2883,17 @@ const handleCustomAnnounce = (match: {
       const nb = next.teamB.map((u) =>
         getPlayerName(MatchmakingApp.state.players, u),
       );
-      const nextText = buildMatchAnnounceText(na, nb, undefined, true);
-      announce(notify, nextText, next.matchId);
+      const text = buildMatchAnnounceText(na, nb, undefined, true);
+      announce(notify, text, next.matchId);
     }
+    return;
   }
+
+  // For in-progress matches, announce the court match normally
+  const a = match.teamA.map((p) => p.firstName || p.username);
+  const b = match.teamB.map((p) => p.firstName || p.username);
+  const text = buildMatchAnnounceText(a, b, match.court);
+  announce(notify, text, match.id);
 };
 
 // Shared auth helpers (logout + 401 handling) from the useAuth composable
@@ -4646,18 +4643,27 @@ const queuePriorityMode = computed<'timestamp' | 'gamesPlayed'>({
 });
 
 // ── Centralised announcement watcher ─────────────────
-// Watches both in-progress IDs *and* next-in-line ID in one primitive so
-// Vue batches all mutations into a single callback. We always announce
-// newly-started matches FIRST, then next-in-line.
-const prevInProgressIds = ref<Set<string>>(new Set());
-const prevNextInLineId = ref<string | null>(null);
-
+// Uses startedAt timestamps to detect newly-started matches
+// and matchId to detect next-in-line changes.
 const nextInLineMatch = computed(() =>
   getNextInLine(
     matches.value,
     queuePriorityMode.value,
     MatchmakingApp.state.activeMatches,
   ),
+);
+
+// Seed with current max startedAt so existing matches aren't re-announced
+const lastProcessedStartedAt = ref(
+  Math.max(
+    0,
+    ...matches.value
+      .filter((m) => m.status === 'in-progress')
+      .map((m) => m.startedAt?.getTime() || 0),
+  ),
+);
+const prevNextInLineId = ref<string | null>(
+  nextInLineMatch.value?.matchId || null,
 );
 
 watch(
@@ -4669,25 +4675,15 @@ watch(
       .join(',');
     return `${inProgress}::${nextInLineMatch.value?.matchId || ''}`;
   },
-  (newVal, oldVal) => {
-    // First trigger: capture current state without announcing
-    if (oldVal === undefined) {
-      const currentInProgress = matches.value.filter(
-        (m) => m.status === 'in-progress',
-      );
-      prevInProgressIds.value = new Set(currentInProgress.map((m) => m.id));
-      prevNextInLineId.value = nextInLineMatch.value?.matchId || null;
-      return;
-    }
-
-    const currentInProgress = matches.value.filter(
-      (m) => m.status === 'in-progress',
-    );
-    const currentIds = new Set(currentInProgress.map((m) => m.id));
-
-    // 1. Announce newly started matches first, sorted by court
-    const newlyStarted = currentInProgress
-      .filter((m) => !prevInProgressIds.value.has(m.id))
+  () => {
+    // 1. Announce newly started matches (startedAt is new), sorted by court
+    const newlyStarted = matches.value
+      .filter(
+        (m) =>
+          m.status === 'in-progress' &&
+          m.startedAt &&
+          m.startedAt.getTime() > lastProcessedStartedAt.value,
+      )
       .sort((a, b) => (a.court ?? 0) - (b.court ?? 0));
 
     for (const m of newlyStarted) {
@@ -4699,7 +4695,12 @@ watch(
       }
     }
 
-    prevInProgressIds.value = currentIds;
+    if (newlyStarted.length > 0) {
+      lastProcessedStartedAt.value = Math.max(
+        lastProcessedStartedAt.value,
+        ...newlyStarted.map((m) => m.startedAt!.getTime()),
+      );
+    }
 
     // 2. Then announce next-in-line if it changed
     const nextId = nextInLineMatch.value?.matchId || null;
