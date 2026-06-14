@@ -86,6 +86,12 @@
           >
             {{ getMatchStatusLabel(match.status) }}
           </q-chip>
+          <span
+            v-if="match.status === 'in-progress' && match.startedAt"
+            class="text-caption text-grey-7"
+          >
+            {{ elapsed }}
+          </span>
         </div>
 
         <!-- Right: Team B players -->
@@ -240,7 +246,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue';
+import { inject, ref, onUnmounted, watch } from 'vue';
 import {
   getRatingColor,
   getMatchStatusColor,
@@ -286,10 +292,54 @@ interface Props {
   isCourtAvailable?: boolean;
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   showActions: true,
   availableCourts: 0,
   isCourtAvailable: true,
+});
+
+const elapsed = ref('');
+let timer: ReturnType<typeof setInterval> | null = null;
+
+const updateElapsed = () => {
+  if (!props.match.startedAt) {
+    elapsed.value = '';
+    return;
+  }
+  const diff = Date.now() - props.match.startedAt.getTime();
+  const mins = Math.floor(diff / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+  elapsed.value = `${mins}m ${secs}s`;
+};
+
+const startTimer = () => {
+  if (timer) return;
+  updateElapsed();
+  timer = setInterval(updateElapsed, 1000);
+};
+
+const stopTimer = () => {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+};
+
+watch(
+  () => [props.match.status, props.match.startedAt?.getTime()],
+  () => {
+    if (props.match.status === 'in-progress' && props.match.startedAt) {
+      startTimer();
+    } else {
+      stopTimer();
+      elapsed.value = '';
+    }
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => {
+  stopTimer();
 });
 
 defineEmits<{

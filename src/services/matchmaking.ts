@@ -48,6 +48,7 @@ export interface ActiveMatch {
   expectedDifference: number;
   status: 'waiting' | 'in-progress' | 'completed';
   court?: number;
+  startedAt?: number; // Epoch ms when match began
   createdAt?: number;
   updatedAt?: number; // Epoch ms of last change (for per-field LWW)
   deletedAt?: number; // Epoch ms of deletion (tombstone). If present, match is logically deleted.
@@ -74,6 +75,7 @@ export interface CompletedMatch {
   teamB: CompletedMatchPlayer[];
   teamAScore: number;
   teamBScore: number;
+  startedAt?: number; // Epoch ms when match began
   completedAt: number; // Epoch ms
   updatedAt: number; // Epoch ms (LWW)
 }
@@ -1096,6 +1098,7 @@ export class LocalMatchmakingSystem {
       })),
       teamAScore,
       teamBScore,
+      startedAt: match.startedAt,
       completedAt: now,
       updatedAt: now,
     };

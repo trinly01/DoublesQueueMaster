@@ -1417,6 +1417,11 @@
                 :court="currentMatch.court"
                 :winProbability="currentMatch.winProbability"
                 :status="currentMatch.status"
+                :startedAt="
+                  currentMatch.startedAt
+                    ? currentMatch.startedAt.toISOString()
+                    : undefined
+                "
                 editable
                 v-model:teamAScore="teamAScore"
                 v-model:teamBScore="teamBScore"
@@ -1435,6 +1440,7 @@
             />
             <q-btn
               color="accent"
+              :disable="!canCompleteMatch"
               @click="completeMatch"
               label="Complete Match"
               icon="check"
@@ -2898,6 +2904,7 @@ const matches = computed(() => {
         court: m.court,
         order: index + 1,
         createdAt: new Date(m.createdAt || Date.now()),
+        startedAt: m.startedAt ? new Date(m.startedAt) : undefined,
         queueSource: m.queueSource,
       };
     });
@@ -2912,6 +2919,20 @@ const duprExportableMatches = computed(() => {
 
 const teamAScore = ref<number>(0);
 const teamBScore = ref<number>(0);
+
+const canCompleteMatch = computed(() => {
+  const match =
+    currentMatchIndex.value >= 0
+      ? matches.value[currentMatchIndex.value]
+      : null;
+  if (!match || match.status !== 'in-progress') return false;
+  const a = Number(teamAScore.value) || 0;
+  const b = Number(teamBScore.value) || 0;
+  if (Number.isNaN(a) || Number.isNaN(b)) return false;
+  if (a < 0 || b < 0) return false;
+  if (a === b) return false;
+  return true;
+});
 
 const newPlayerName = ref<string | null>(null);
 const newPlayerLevel = ref<1 | 2 | 3 | null>(null);
@@ -5389,10 +5410,7 @@ const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
         (am) => am.matchId === nextMatch.id,
       );
       if (actualMatch) {
-        actualMatch.court = courtNumber;
-        actualMatch.status = 'in-progress';
-        actualMatch.createdAt = Date.now();
-        actualMatch.updatedAt = Date.now();
+        startMatchOnCourt(actualMatch, courtNumber);
       }
 
       // Persist the auto-advance changes
@@ -6217,9 +6235,15 @@ const createManualMatchWithCourt = () => {
     return;
   }
 
-  const assignedCourt = selectedCourt.value || undefined;
+  let assignedCourt = selectedCourt.value || undefined;
+
+  // Auto-assign court if none selected
+  if (!assignedCourt) {
+    assignedCourt = assignCourt();
+  }
+
   const isCourtEmpty =
-    !assignedCourt ||
+    !!assignedCourt &&
     !matches.value.some(
       (m) => m.court === assignedCourt && m.status === 'in-progress',
     );
@@ -6246,8 +6270,13 @@ const createManualMatchWithCourt = () => {
       : [selectedPlayers.value[1]]
     ).map((p) => p.username),
     expectedDifference: 0,
-    status: isCourtEmpty ? 'in-progress' : 'waiting',
-    court: isCourtEmpty ? assignedCourt : undefined,
+    ...(isCourtEmpty
+      ? {
+          status: 'in-progress' as const,
+          court: assignedCourt,
+          startedAt: Date.now(),
+        }
+      : { status: 'waiting' as const, court: undefined }),
     createdAt: Date.now(),
     updatedAt: Date.now(),
     originalQueueTypes,
@@ -6436,10 +6465,7 @@ const assignCourtAutomatically = () => {
       (am) => am.matchId === match.id,
     );
     if (actualMatch) {
-      actualMatch.court = court;
-      actualMatch.status = 'in-progress';
-      actualMatch.createdAt = Date.now();
-      actualMatch.updatedAt = Date.now();
+      startMatchOnCourt(actualMatch, court);
     }
 
     MatchmakingApp.persist();
@@ -6463,6 +6489,17 @@ const isCourtAvailable = (courtNumber: number): boolean => {
   return !matches.value.some(
     (m) => m.court === courtNumber && m.status === 'in-progress',
   );
+};
+
+// Reusable helpers for match state transitions
+const startMatchOnCourt = (
+  match: (typeof MatchmakingApp.state.activeMatches)[0],
+  court: number,
+) => {
+  match.status = 'in-progress';
+  match.court = court;
+  match.startedAt = Date.now();
+  match.updatedAt = Date.now();
 };
 
 // Start a waiting match
@@ -6505,9 +6542,7 @@ const startMatch = (filteredIndex: number) => {
   }
 
   // Start the match
-  actualMatch.status = 'in-progress';
-  actualMatch.createdAt = Date.now();
-  actualMatch.updatedAt = Date.now();
+  startMatchOnCourt(actualMatch, actualMatch.court);
 
   // Save data
   MatchmakingApp.persist();
@@ -6548,7 +6583,7 @@ const assignSpecificCourt = (courtNumber: number) => {
       if (actualExisting) {
         actualExisting.court = originalCourt;
         actualExisting.status = 'waiting';
-        actualExisting.createdAt = Date.now();
+        delete (actualExisting as { startedAt?: number }).startedAt;
         actualExisting.updatedAt = Date.now();
       }
 
@@ -6559,9 +6594,7 @@ const assignSpecificCourt = (courtNumber: number) => {
         actualMatch.court = courtNumber;
         // Only start if it was already in-progress (shouldn't happen for waiting matches)
         if (actualMatch.status !== 'in-progress') {
-          actualMatch.status = 'in-progress';
-          actualMatch.createdAt = Date.now();
-          actualMatch.updatedAt = Date.now();
+          startMatchOnCourt(actualMatch, courtNumber);
         }
       }
 
@@ -6580,10 +6613,7 @@ const assignSpecificCourt = (courtNumber: number) => {
       (am) => am.matchId === match.id,
     );
     if (actualMatch) {
-      actualMatch.court = courtNumber;
-      actualMatch.status = 'in-progress';
-      actualMatch.createdAt = Date.now();
-      actualMatch.updatedAt = Date.now();
+      startMatchOnCourt(actualMatch, courtNumber);
     }
 
     MatchmakingApp.persist();
