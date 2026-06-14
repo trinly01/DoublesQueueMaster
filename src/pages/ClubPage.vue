@@ -123,8 +123,10 @@
                 size="20px"
               />
               <q-btn
+                v-if="isCurrentUserAdmin"
                 :color="ttsEnabled ? 'white' : 'amber-4'"
                 :icon="ttsEnabled ? 'volume_up' : 'volume_off'"
+                :class="{ 'speaking-pulse': isSpeaking }"
                 @click="
                   ttsEnabled
                     ? ((ttsEnabled = false), clearSpeechQueue())
@@ -2850,6 +2852,8 @@ import {
   buildMatchAnnounceText,
   getPlayerName,
   clearSpeechQueue,
+  isSpeaking,
+  setAdminMode,
 } from '../services/announcer';
 
 // Player type
@@ -3241,6 +3245,7 @@ const isCurrentUserAdmin = computed(() => {
   );
   return isAdmin;
 });
+watch(isCurrentUserAdmin, (val) => setAdminMode(val), { immediate: true });
 
 // Dynamic max-height for queue list: taller when match-type + buttons are hidden
 const queueMaxHeightDesktop = computed(() =>
@@ -4661,15 +4666,18 @@ watch(
         (m) => m.status === 'in-progress',
       );
       const currentIds = new Set(currentInProgress.map((m) => m.id));
-      // Find newly started match (wasn't in-progress on previous tick)
-      const newlyStarted = currentInProgress.find(
-        (m) => !prevInProgressIds.value.has(m.id),
-      );
-      if (newlyStarted) {
-        const a = newlyStarted.teamA.map((p) => p.firstName || p.username);
-        const b = newlyStarted.teamB.map((p) => p.firstName || p.username);
-        const text = buildMatchAnnounceText(a, b, newlyStarted.court);
-        announce(notify, text, newlyStarted.id);
+      // Find ALL newly started matches, announce in court order
+      const newlyStarted = currentInProgress
+        .filter((m) => !prevInProgressIds.value.has(m.id))
+        .sort((a, b) => (a.court ?? 0) - (b.court ?? 0));
+      for (const m of newlyStarted) {
+        const a = m.teamA.map((p) => p.firstName || p.username);
+        const b = m.teamB.map((p) => p.firstName || p.username);
+        const text = buildMatchAnnounceText(a, b, m.court);
+        // Repeat 2 times for consistency with announceMatchStart
+        for (let i = 0; i < 2; i++) {
+          announce(notify, text, m.id);
+        }
       }
       prevInProgressIds.value = currentIds;
       // Then announce next in line
@@ -7518,6 +7526,24 @@ const savePlayerEdit = () => {
   50% {
     transform: scale(1.1);
     box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+  }
+}
+
+// Speaking pulse animation for mute/unmute button
+.speaking-pulse {
+  animation: speaking-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes speaking-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(33, 186, 69, 0.5);
+  }
+
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 8px rgba(33, 186, 69, 0);
   }
 }
 
