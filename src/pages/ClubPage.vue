@@ -2847,7 +2847,6 @@ import { computeWinProbability } from '../services/matchmaking';
 import { buildDuprCsv, downloadDuprCsv } from '../utils/duprExport';
 import {
   announce,
-  announceMatchStart,
   getNextInLine,
   buildMatchAnnounceText,
   getPlayerName,
@@ -4646,10 +4645,13 @@ const queuePriorityMode = computed<'timestamp' | 'gamesPlayed'>({
   },
 });
 
-// Track which matches were in-progress on previous tick to detect newly started
+// ── Centralised announcement watcher ─────────────────
+// Watches both in-progress IDs *and* next-in-line ID in one primitive so
+// Vue batches all mutations into a single callback. We always announce
+// newly-started matches FIRST, then next-in-line.
 const prevInProgressIds = ref<Set<string>>(new Set());
+const prevNextInLineId = ref<string | null>(null);
 
-// Watch for next-in-line changes and auto-announce
 const nextInLineMatch = computed(() =>
   getNextInLine(
     matches.value,
@@ -4659,28 +4661,49 @@ const nextInLineMatch = computed(() =>
 );
 
 watch(
-  () => nextInLineMatch.value?.matchId,
-  (newId, oldId) => {
-    if (newId && newId !== oldId) {
+  () => {
+    const inProgress = matches.value
+      .filter((m) => m.status === 'in-progress')
+      .map((m) => m.id)
+      .sort()
+      .join(',');
+    return `${inProgress}::${nextInLineMatch.value?.matchId || ''}`;
+  },
+  (newVal, oldVal) => {
+    // First trigger: capture current state without announcing
+    if (oldVal === undefined) {
       const currentInProgress = matches.value.filter(
         (m) => m.status === 'in-progress',
       );
-      const currentIds = new Set(currentInProgress.map((m) => m.id));
-      // Find ALL newly started matches, announce in court order
-      const newlyStarted = currentInProgress
-        .filter((m) => !prevInProgressIds.value.has(m.id))
-        .sort((a, b) => (a.court ?? 0) - (b.court ?? 0));
-      for (const m of newlyStarted) {
-        const a = m.teamA.map((p) => p.firstName || p.username);
-        const b = m.teamB.map((p) => p.firstName || p.username);
-        const text = buildMatchAnnounceText(a, b, m.court);
-        // Repeat 2 times for consistency with announceMatchStart
-        for (let i = 0; i < 2; i++) {
-          announce(notify, text, m.id);
-        }
+      prevInProgressIds.value = new Set(currentInProgress.map((m) => m.id));
+      prevNextInLineId.value = nextInLineMatch.value?.matchId || null;
+      return;
+    }
+
+    const currentInProgress = matches.value.filter(
+      (m) => m.status === 'in-progress',
+    );
+    const currentIds = new Set(currentInProgress.map((m) => m.id));
+
+    // 1. Announce newly started matches first, sorted by court
+    const newlyStarted = currentInProgress
+      .filter((m) => !prevInProgressIds.value.has(m.id))
+      .sort((a, b) => (a.court ?? 0) - (b.court ?? 0));
+
+    for (const m of newlyStarted) {
+      const a = m.teamA.map((p) => p.firstName || p.username);
+      const b = m.teamB.map((p) => p.firstName || p.username);
+      const text = buildMatchAnnounceText(a, b, m.court);
+      for (let i = 0; i < 2; i++) {
+        announce(notify, text, m.id);
       }
-      prevInProgressIds.value = currentIds;
-      // Then announce next in line
+    }
+
+    prevInProgressIds.value = currentIds;
+
+    // 2. Then announce next-in-line if it changed
+    const nextId = nextInLineMatch.value?.matchId || null;
+    if (nextId && nextId !== prevNextInLineId.value) {
       const next = nextInLineMatch.value!;
       const na = next.teamA.map((u) =>
         getPlayerName(MatchmakingApp.state.players, u),
@@ -4690,6 +4713,7 @@ watch(
       );
       const text = buildMatchAnnounceText(na, nb, undefined, true);
       announce(notify, text, next.matchId);
+      prevNextInLineId.value = nextId;
     }
   },
 );
@@ -6659,14 +6683,6 @@ const startMatchOnCourt = (
   match.court = court;
   match.startedAt = Date.now();
   match.updatedAt = Date.now();
-
-  announceMatchStart(
-    notify,
-    match,
-    court,
-    MatchmakingApp.state.activeMatches,
-    MatchmakingApp.state.players,
-  );
 };
 
 // Start a waiting match
