@@ -1,5 +1,15 @@
 <template>
-  <q-item class="match-item" @click="$emit('click', match)" clickable>
+  <q-item
+    class="match-item"
+    :style="
+      match.status === 'in-progress'
+        ? 'background-color: rgba(118, 75, 162, 0.06)'
+        : ''
+    "
+    @click="handleClick"
+    @dblclick="emit('customAnnounce', match)"
+    clickable
+  >
     <q-item-section>
       <!-- Match Layout: Players split around center (status+court+icon) -->
       <div class="row items-center q-pa-sm no-wrap">
@@ -78,20 +88,22 @@
                 : ''
             }}%
           </span>
-          <q-chip
-            :color="getMatchStatusColor(match.status)"
+          <q-badge
+            v-if="match.status === 'waiting'"
+            rounded
+            color="grey-6"
             text-color="white"
-            size="sm"
-            dense
           >
             {{ getMatchStatusLabel(match.status) }}
-          </q-chip>
-          <span
+          </q-badge>
+          <q-badge
             v-if="match.status === 'in-progress' && match.startedAt"
-            class="text-caption text-grey-7"
+            rounded
+            color="amber-6"
+            text-color="black"
           >
             {{ elapsed }}
-          </span>
+          </q-badge>
         </div>
 
         <!-- Right: Team B players -->
@@ -247,11 +259,7 @@
 
 <script setup lang="ts">
 import { inject, ref, onUnmounted, watch } from 'vue';
-import {
-  getRatingColor,
-  getMatchStatusColor,
-  getMatchStatusLabel,
-} from '../utils/playerHelpers';
+import { getRatingColor, getMatchStatusLabel } from '../utils/playerHelpers';
 
 const isReadOnlyMode = inject('isReadOnlyMode', false);
 
@@ -298,7 +306,29 @@ const props = withDefaults(defineProps<Props>(), {
   isCourtAvailable: true,
 });
 
+const emit = defineEmits<{
+  click: [match: Match];
+  completeMatch: [];
+  editMatch: [];
+  assignCourt: [];
+  changeCourt: [];
+  startMatch: [];
+  cancelMatch: [];
+  customAnnounce: [match: Match];
+}>();
+
 const elapsed = ref('');
+let lastTap = 0;
+
+const handleClick = () => {
+  const now = Date.now();
+  if (now - lastTap < 300) {
+    emit('customAnnounce', props.match);
+  } else {
+    emit('click', props.match);
+  }
+  lastTap = now;
+};
 let timer: ReturnType<typeof setInterval> | null = null;
 
 const updateElapsed = () => {
@@ -341,16 +371,6 @@ watch(
 onUnmounted(() => {
   stopTimer();
 });
-
-defineEmits<{
-  click: [match: Match];
-  completeMatch: [];
-  editMatch: [];
-  assignCourt: [];
-  changeCourt: [];
-  startMatch: [];
-  cancelMatch: [];
-}>();
 </script>
 
 <style lang="scss" scoped>
