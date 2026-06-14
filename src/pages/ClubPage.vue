@@ -89,12 +89,16 @@
                 </span>
               </div>
               <h1
-                class="text-h5 text-weight-bold text-white q-mt-none q-mb-none"
+                :class="$q.screen.lt.md ? 'text-h6' : 'text-h5'"
+                class="text-weight-bold text-white q-mt-none q-mb-none"
               >
                 {{ clubName }}
               </h1>
-              <p class="text-caption text-grey-1 q-ma-none">
-                Smart matchmaking for singles & doubles
+              <p
+                class="text-caption text-grey-1 q-ma-none"
+                :style="{ fontSize: $q.screen.lt.md ? '10px' : '12px' }"
+              >
+                Smart queue matchmaking
               </p>
             </div>
             <div class="col-auto row items-center q-gutter-sm">
@@ -118,6 +122,22 @@
                 color="white"
                 size="20px"
               />
+              <q-btn
+                v-if="isCurrentUserAdmin"
+                :color="ttsEnabled ? 'white' : 'amber-4'"
+                :icon="ttsEnabled ? 'volume_up' : 'volume_off'"
+                @click="(ttsEnabled = !ttsEnabled), clearSpeechQueue()"
+                flat
+                round
+                dense
+              >
+                <q-tooltip
+                  anchor="top middle"
+                  self="bottom middle"
+                  :offset="[8, 8]"
+                  >{{ ttsEnabled ? 'Mute voice' : 'Unmute voice' }}</q-tooltip
+                >
+              </q-btn>
               <q-btn
                 v-if="isCurrentUserAdmin"
                 color="white"
@@ -2826,6 +2846,7 @@ import {
   getNextInLine,
   buildMatchAnnounceText,
   getPlayerName,
+  clearSpeechQueue,
 } from '../services/announcer';
 
 // Player type
