@@ -1,4 +1,5 @@
 import type { ActiveMatch, Player } from './matchmaking';
+import { MatchmakingApp } from './matchmaking';
 
 // ── Announcement History (in-memory only) ──────────────
 export interface AnnouncementRecord {
@@ -91,6 +92,8 @@ export const announce = (
 ) => {
   pushAnnouncement(text, matchId);
   notify({ type: 'info', message: text, timeout: 3000 });
+
+  if (MatchmakingApp.state.ttsEnabled === false) return;
 
   if (!('speechSynthesis' in window)) {
     console.warn('[TTS] speechSynthesis not supported');

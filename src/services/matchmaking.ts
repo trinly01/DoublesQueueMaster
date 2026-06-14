@@ -103,6 +103,7 @@ export interface AppState {
   matchType?: 'singles' | 'doubles';
   matchesFilterBy?: 'all' | number;
   scoreType?: 'RALLY' | 'SIDEOUT'; // For DUPR CSV export
+  ttsEnabled?: boolean; // Text-to-speech announcements
   completedMatchesResetAt?: number; // Epoch ms — drops completedMatches older than this
   lastExportedAt?: number; // Epoch ms of last export
   settingsUpdatedAt?: number; // Epoch ms of last settings change (for per-field LWW)
@@ -497,6 +498,7 @@ export class LocalMatchmakingSystem {
       initialState.matchesFilterBy = 'all';
     if (initialState.scoreType === undefined)
       initialState.scoreType = 'SIDEOUT';
+    if (initialState.ttsEnabled === undefined) initialState.ttsEnabled = true;
     if (initialState.completedMatchesResetAt === undefined)
       initialState.completedMatchesResetAt = 0;
     if (initialState.lastExportedAt === undefined)
@@ -723,6 +725,7 @@ export class LocalMatchmakingSystem {
     this.state.matchType = 'doubles';
     this.state.matchesFilterBy = 'all';
     this.state.scoreType = 'SIDEOUT';
+    this.state.ttsEnabled = true;
     this.state.settingsUpdatedAt = now;
     this.state.lastModified = now;
     this.state.clubId = '';

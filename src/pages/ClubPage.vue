@@ -1601,6 +1601,13 @@
                       color="accent"
                     />
                   </div>
+                  <div class="col-12 col-sm-6">
+                    <q-toggle
+                      v-model="ttsEnabled"
+                      label="Enable voice announcements (TTS)"
+                      color="accent"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -3049,6 +3056,14 @@ const autoAdvanceMatches = computed<boolean>({
     MatchmakingApp.persist();
   },
 });
+const ttsEnabled = computed<boolean>({
+  get: () => MatchmakingApp.state.ttsEnabled ?? true,
+  set: (val) => {
+    MatchmakingApp.state.ttsEnabled = val;
+    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    MatchmakingApp.persist();
+  },
+});
 const maxCourts = ref<number>(8);
 
 // Route and Club state
@@ -3489,6 +3504,12 @@ const loadClubData = async (clubId: string) => {
         ) {
           MatchmakingApp.state.matchesFilterBy =
             serverMatchmaking.matchesFilterBy;
+        }
+        if (
+          MatchmakingApp.state.ttsEnabled === undefined &&
+          serverMatchmaking.ttsEnabled !== undefined
+        ) {
+          MatchmakingApp.state.ttsEnabled = serverMatchmaking.ttsEnabled;
         }
       } else {
         // Cloud appState is blank/null — clear local data so UI starts fresh
@@ -5646,27 +5667,35 @@ const requeuePlayer = (username: string) => {
   const p = players.value.find((p) => p.username === username);
   if (!p) return;
 
-  const result = MatchmakingApp.checkInPlayer(p.username, p.level);
+  $q.dialog({
+    title: 'Add to Queue',
+    message: `Add "${p.firstName || p.username}" to the queue?`,
+    cancel: { label: 'Cancel', color: 'grey' },
+    ok: { label: 'Add', color: 'accent' },
+    persistent: true,
+  }).onOk(() => {
+    const result = MatchmakingApp.checkInPlayer(p.username, p.level);
 
-  if (result === 'already_in_match') {
+    if (result === 'already_in_match') {
+      notify({
+        type: 'warning',
+        message: `Player "${username}" is already in a match`,
+      });
+      return;
+    }
+
+    if (result === 'already_in_queue') {
+      notify({
+        type: 'warning',
+        message: `Player "${username}" is already in the queue`,
+      });
+      return;
+    }
+
     notify({
-      type: 'warning',
-      message: `Player "${username}" is already in a match`,
+      type: 'positive',
+      message: `Player "${username}" added to queue`,
     });
-    return;
-  }
-
-  if (result === 'already_in_queue') {
-    notify({
-      type: 'warning',
-      message: `Player "${username}" is already in the queue`,
-    });
-    return;
-  }
-
-  notify({
-    type: 'positive',
-    message: `Player "${username}" added to queue`,
   });
 };
 
