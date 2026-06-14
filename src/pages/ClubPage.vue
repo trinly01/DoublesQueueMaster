@@ -3088,6 +3088,11 @@ const ttsEnabled = computed<boolean>({
     MatchmakingApp.persist();
   },
 });
+watch(ttsEnabled, (newVal, oldVal) => {
+  if (oldVal === true && newVal === false) {
+    clearSpeechQueue();
+  }
+});
 const maxCourts = ref<number>(8);
 
 // Route and Club state
@@ -4636,6 +4641,9 @@ const queuePriorityMode = computed<'timestamp' | 'gamesPlayed'>({
   },
 });
 
+// Track which matches were in-progress on previous tick to detect newly started
+const prevInProgressIds = ref<Set<string>>(new Set());
+
 // Watch for next-in-line changes and auto-announce
 const nextInLineMatch = computed(() =>
   getNextInLine(
@@ -4649,6 +4657,22 @@ watch(
   () => nextInLineMatch.value?.matchId,
   (newId, oldId) => {
     if (newId && newId !== oldId) {
+      const currentInProgress = matches.value.filter(
+        (m) => m.status === 'in-progress',
+      );
+      const currentIds = new Set(currentInProgress.map((m) => m.id));
+      // Find newly started match (wasn't in-progress on previous tick)
+      const newlyStarted = currentInProgress.find(
+        (m) => !prevInProgressIds.value.has(m.id),
+      );
+      if (newlyStarted) {
+        const a = newlyStarted.teamA.map((p) => p.firstName || p.username);
+        const b = newlyStarted.teamB.map((p) => p.firstName || p.username);
+        const text = buildMatchAnnounceText(a, b, newlyStarted.court);
+        announce(notify, text, newlyStarted.id);
+      }
+      prevInProgressIds.value = currentIds;
+      // Then announce next in line
       const next = nextInLineMatch.value!;
       const na = next.teamA.map((u) =>
         getPlayerName(MatchmakingApp.state.players, u),
