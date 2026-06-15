@@ -990,37 +990,34 @@ export class LocalMatchmakingSystem {
         // the closest-rated N from the top of the rating-sorted queue.
         draftedEntries = prioritizedQueue.slice(0, playersNeeded);
       } else {
+        // Non-strict modes: respect bracket priority sequence.
+        // 1. GENERAL-only match (if enough to form one)
+        // 2. Overflow GENERAL + LOSERS (leftover GENERAL absorb into lower bracket)
+        // 3. WINNERS vs WINNERS
+        // 4. LOSERS vs LOSERS
+        // 5. Fallback: mix from top of overall sorted queue
+        const general = prioritizedQueue.filter(
+          (q) => q.queueType === 'GENERAL',
+        );
         const winners = prioritizedQueue.filter(
           (q) => q.queueType === 'WINNERS',
         );
         const losers = prioritizedQueue.filter((q) => q.queueType === 'LOSERS');
-        const general = prioritizedQueue.filter(
-          (q) => q.queueType === 'GENERAL',
-        );
 
-        // Find all groups that have enough players to form a match
-        const validGroups = [];
-        if (winners.length >= playersNeeded) validGroups.push(winners);
-        if (losers.length >= playersNeeded) validGroups.push(losers);
-        if (general.length >= playersNeeded) validGroups.push(general);
-
-        if (validGroups.length > 0) {
-          // Find the group that contains the player who has been waiting longest in prioritizedQueue
-          let bestGroup = validGroups[0];
-          let bestIndex = prioritizedQueue.length;
-
-          for (const group of validGroups) {
-            const index = prioritizedQueue.findIndex(
-              (q) => q.username === group[0].username,
-            );
-            if (index < bestIndex) {
-              bestIndex = index;
-              bestGroup = group;
-            }
-          }
-          draftedEntries = bestGroup.slice(0, playersNeeded);
+        if (general.length >= playersNeeded) {
+          draftedEntries = general.slice(0, playersNeeded);
+        } else if (
+          general.length > 0 &&
+          general.length + losers.length >= playersNeeded
+        ) {
+          // Leftover GENERAL overflow into LOSERS bracket
+          const neededFromLosers = playersNeeded - general.length;
+          draftedEntries = [...general, ...losers.slice(0, neededFromLosers)];
+        } else if (winners.length >= playersNeeded) {
+          draftedEntries = winners.slice(0, playersNeeded);
+        } else if (losers.length >= playersNeeded) {
+          draftedEntries = losers.slice(0, playersNeeded);
         } else {
-          // Fallback to drafting from top of queue if no pure group has enough
           draftedEntries = prioritizedQueue.slice(0, playersNeeded);
         }
       }
