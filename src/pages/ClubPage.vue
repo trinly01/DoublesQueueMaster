@@ -5667,10 +5667,13 @@ const resetGamesPlayed = () => {
     persistent: true,
   }).onOk(() => {
     // Reset player stats (preserve ratings)
+    const now = Date.now();
     Object.values(MatchmakingApp.state.players).forEach((player) => {
       player.matchesPlayed = 0;
       player.wins = 0;
       player.losses = 0;
+      player.statsUpdatedAt = now;
+      player.updatedAt = now;
     });
 
     MatchmakingApp.persist();
@@ -5851,6 +5854,8 @@ const resetSessionData = () => {
       player.matchesPlayed = 0;
       player.wins = 0;
       player.losses = 0;
+      player.statsUpdatedAt = now;
+      player.updatedAt = now;
     });
 
     // Hard-delete matches and queues; checkpoint handles cross-admin purge

@@ -21,6 +21,7 @@ export interface Player {
   userId?: string; // Directus user ID — present only for registered club members
   duprId?: string; // DUPR player ID for CSV export
   ratingUpdatedAt?: number; // Epoch ms of the last rating change (LWW token vs directus_users.rating_updated_at)
+  statsUpdatedAt?: number; // Epoch ms of the last matchesPlayed/wins/losses/history change
   updatedAt?: number; // Epoch ms of the last any field change (for per-field LWW)
   createdAt?: number; // Epoch ms when player was first created (for checkpoint purge)
   avatar?: string; // Avatar URL from Directus
@@ -267,6 +268,7 @@ export const RatingEngine = {
         wins: (player.wins || 0) + (isWinner ? 1 : 0),
         losses: (player.losses || 0) + (isWinner ? 0 : 1),
         ratingUpdatedAt: Date.now(),
+        statsUpdatedAt: Date.now(),
         updatedAt: Date.now(),
       };
     };
@@ -612,7 +614,13 @@ export class LocalMatchmakingSystem {
     if (playersCheckpoint > 0) {
       const keptPlayers: Record<string, Player> = {};
       for (const [key, player] of Object.entries(this.state.players)) {
-        if ((player.createdAt ?? 0) >= playersCheckpoint) {
+        const effectiveTime = Math.max(
+          player.createdAt ?? 0,
+          player.updatedAt ?? 0,
+          player.deletedAt ?? 0,
+          player.statsUpdatedAt ?? 0,
+        );
+        if (effectiveTime >= playersCheckpoint) {
           keptPlayers[key] = player;
         }
       }
@@ -620,19 +628,25 @@ export class LocalMatchmakingSystem {
     }
 
     if (queuesCheckpoint > 0) {
-      // Use createdAt (the real creation time) for the checkpoint, NOT enteredAt.
-      // enteredAt is a sort-priority value that can be 0 (the 'fairness_first' /
-      // Jump-to-Front sentinel) and must never be treated as a timestamp here.
-      // Fall back to updatedAt for legacy entries that predate the createdAt field.
-      this.state.queues = this.state.queues.filter(
-        (q) => (q.createdAt ?? q.updatedAt ?? 0) >= queuesCheckpoint,
-      );
+      this.state.queues = this.state.queues.filter((q) => {
+        const effectiveTime = Math.max(
+          q.createdAt ?? 0,
+          q.updatedAt ?? 0,
+          q.deletedAt ?? 0,
+        );
+        return effectiveTime >= queuesCheckpoint;
+      });
     }
 
     if (matchesCheckpoint > 0) {
-      this.state.activeMatches = this.state.activeMatches.filter(
-        (m) => (m.createdAt ?? 0) >= matchesCheckpoint,
-      );
+      this.state.activeMatches = this.state.activeMatches.filter((m) => {
+        const effectiveTime = Math.max(
+          m.createdAt ?? 0,
+          m.updatedAt ?? 0,
+          m.deletedAt ?? 0,
+        );
+        return effectiveTime >= matchesCheckpoint;
+      });
     }
 
     this.state.lastModified = now;
@@ -871,6 +885,7 @@ export class LocalMatchmakingSystem {
         losses: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        statsUpdatedAt: Date.now(),
         ...extra,
       };
     } else {
@@ -1357,12 +1372,15 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     if (checkpoint === 0) return players;
     // A tombstoned player created before the reset but deleted after it must
     // survive so the tombstone can win over stale live copies on other admins.
+    // Also include statsUpdatedAt so a player who got new stats after the
+    // reset is not incorrectly purged.
     const filtered: Record<string, Player> = {};
     for (const [key, p] of Object.entries(players)) {
       const effectiveTime = Math.max(
         p.createdAt ?? 0,
         p.updatedAt ?? 0,
         p.deletedAt ?? 0,
+        p.statsUpdatedAt ?? 0,
       );
       if (effectiveTime >= checkpoint) {
         filtered[key] = p;
@@ -1424,7 +1442,11 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     effectiveMatchesResetAt,
   );
 
-  // Merge players using per-player updatedAt (or matchesPlayed as fallback)
+  // Merge players using per-field LWW:
+  // 1. Non-stat fields (name, avatar, level, etc.) use player.updatedAt (whole-object LWW).
+  // 2. Stats fields (matchesPlayed, wins, losses, history) use statsUpdatedAt.
+  // 3. Rating uses ratingUpdatedAt.
+  // This prevents a non-stat edit (avatar change) from overwriting fresh stats.
   const mergedPlayers: Record<string, Player> = { ...serverPlayers };
   for (const [username, lp] of Object.entries(localPlayers)) {
     const sp = mergedPlayers[username];
@@ -1432,36 +1454,75 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       mergedPlayers[username] = lp;
       continue;
     }
-    // Use updatedAt if available, otherwise fall back to matchesPlayed
+
+    // Step 1: pick the base winner by overall updatedAt (or matchesPlayed fallback)
     const lpTime = lp.updatedAt ?? 0;
     const spTime = sp.updatedAt ?? 0;
+    let baseWinner: Player;
     if (lpTime > 0 || spTime > 0) {
-      // Both have updatedAt - use LWW
-      mergedPlayers[username] = lpTime > spTime ? lp : sp;
+      baseWinner = lpTime > spTime ? { ...lp } : { ...sp };
     } else {
-      // Fallback to matchesPlayed for backward compatibility
       const lpGames = lp.matchesPlayed ?? 0;
       const spGames = sp.matchesPlayed ?? 0;
-      if (lpGames > spGames) mergedPlayers[username] = lp;
-      else if (lpGames < spGames) mergedPlayers[username] = sp;
-      else mergedPlayers[username] = localTime > serverTime ? lp : sp;
+      if (lpGames > spGames) baseWinner = { ...lp };
+      else if (spGames > lpGames) baseWinner = { ...sp };
+      else baseWinner = localTime > serverTime ? { ...lp } : { ...sp };
     }
+
+    // Step 2: overlay newer stats if the loser has fresher stats
+    const other = baseWinner === lp ? sp : lp;
+    const baseStatsAt = baseWinner.statsUpdatedAt ?? 0;
+    const otherStatsAt = other.statsUpdatedAt ?? 0;
+    if (otherStatsAt > baseStatsAt) {
+      baseWinner.matchesPlayed = other.matchesPlayed;
+      baseWinner.wins = other.wins;
+      baseWinner.losses = other.losses;
+      baseWinner.history = other.history ? { ...other.history } : undefined;
+      baseWinner.statsUpdatedAt = otherStatsAt;
+    }
+
+    // Step 3: overlay newer rating if the loser has a fresher rating
+    const baseRatingAt = baseWinner.ratingUpdatedAt ?? 0;
+    const otherRatingAt = other.ratingUpdatedAt ?? 0;
+    if (otherRatingAt > baseRatingAt) {
+      baseWinner.rating = other.rating;
+      baseWinner.ratingUpdatedAt = otherRatingAt;
+    }
+
+    mergedPlayers[username] = baseWinner;
   }
 
   // Handle player deletions using tombstone (deletedAt) instead of top-level lastModified.
-  // A player missing on one side but present on the other is NOT auto-deleted;
-  // only an explicit tombstone (deletedAt) propagates the deletion.
   for (const username of Object.keys(mergedPlayers)) {
     const lp = localPlayers[username];
     const sp = serverPlayers[username];
     const localDeleted = lp?.deletedAt ?? 0;
     const serverDeleted = sp?.deletedAt ?? 0;
     if (localDeleted > 0 || serverDeleted > 0) {
-      // Use the latest effective timestamp (updatedAt or deletedAt) so a
-      // newer live copy can win over an older tombstone (LWW).
       const localTime = Math.max(lp?.updatedAt ?? 0, localDeleted);
       const serverTime = Math.max(sp?.updatedAt ?? 0, serverDeleted);
-      mergedPlayers[username] = localTime > serverTime ? lp! : sp!;
+      const winner = localTime > serverTime ? lp! : sp!;
+      const loser = localTime > serverTime ? sp! : lp!;
+
+      // Even if the tombstone/liveness winner is chosen by updatedAt,
+      // still overlay fresher stats from the loser if available.
+      const winnerStatsAt = winner.statsUpdatedAt ?? 0;
+      const loserStatsAt = loser.statsUpdatedAt ?? 0;
+      if (loserStatsAt > winnerStatsAt) {
+        winner.matchesPlayed = loser.matchesPlayed;
+        winner.wins = loser.wins;
+        winner.losses = loser.losses;
+        winner.history = loser.history ? { ...loser.history } : undefined;
+        winner.statsUpdatedAt = loserStatsAt;
+      }
+      const winnerRatingAt = winner.ratingUpdatedAt ?? 0;
+      const loserRatingAt = loser.ratingUpdatedAt ?? 0;
+      if (loserRatingAt > winnerRatingAt) {
+        winner.rating = loser.rating;
+        winner.ratingUpdatedAt = loserRatingAt;
+      }
+
+      mergedPlayers[username] = winner;
     }
   }
 
