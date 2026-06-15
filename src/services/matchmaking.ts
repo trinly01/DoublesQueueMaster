@@ -38,6 +38,7 @@ export interface QueueEntry {
   createdAt?: number; // Epoch ms when the entry was actually created (used for reset checkpoints).
   updatedAt?: number; // Epoch ms of last change (for per-field LWW)
   deletedAt?: number; // Epoch ms of deletion (tombstone). If present, entry is logically deleted.
+  queuedAt?: number; // Epoch ms when the player was last placed into the queue (add / re-queue).
 }
 
 export interface ActiveMatch {
@@ -146,11 +147,22 @@ function enforceOneMatchPerPlayerOnState(state: AppState) {
   if (matchesToRemove.size === 0) return;
 
   const now = Date.now();
+  // Pre-calculate which players are kept in non-removed matches
+  const playersKept = new Set<string>();
+  state.activeMatches.forEach((m) => {
+    if (!m.deletedAt && !matchesToRemove.has(m.matchId)) {
+      m.teamA.forEach((u) => playersKept.add(u));
+      m.teamB.forEach((u) => playersKept.add(u));
+    }
+  });
+
   state.activeMatches.forEach((m) => {
     if (matchesToRemove.has(m.matchId)) {
-      // Return all players from this match to the queue
+      // Return all players from this match to the queue,
+      // but only if they are not already in another kept match.
       [...m.teamA, ...m.teamB].forEach((username) => {
         if (
+          !playersKept.has(username) &&
           !state.queues.some((q) => !q.deletedAt && q.username === username)
         ) {
           state.queues.push({
@@ -162,6 +174,7 @@ function enforceOneMatchPerPlayerOnState(state: AppState) {
             enteredAt: now,
             createdAt: now,
             updatedAt: now,
+            queuedAt: now,
           });
         }
       });
@@ -541,16 +554,25 @@ export class LocalMatchmakingSystem {
     });
     this.state.activeMatches = Array.from(uniqueMatches.values());
 
-    // Deduplicate queues by username (keep newest updatedAt/enteredAt,
-    // including tombstones so a newer deletion can win over an older live entry)
+    // Deduplicate queues by username (keep newest queuedAt first,
+    // then updatedAt, including tombstones so a newer deletion can win
+    // over an older live entry).
     const uniqueQueues = new Map<string, QueueEntry>();
     this.state.queues.forEach((q) => {
       const existing = uniqueQueues.get(q.username);
       if (!existing) {
         uniqueQueues.set(q.username, q);
       } else {
-        const existingTime = existing.updatedAt ?? existing.enteredAt ?? 0;
-        const entryTime = q.updatedAt ?? q.enteredAt ?? 0;
+        const existingQueued = existing.queuedAt ?? existing.createdAt ?? 0;
+        const entryQueued = q.queuedAt ?? q.createdAt ?? 0;
+        if (entryQueued !== existingQueued) {
+          if (entryQueued > existingQueued) {
+            uniqueQueues.set(q.username, q);
+          }
+          return;
+        }
+        const existingTime = existing.updatedAt ?? existing.createdAt ?? 0;
+        const entryTime = q.updatedAt ?? q.createdAt ?? 0;
         if (entryTime > existingTime) {
           uniqueQueues.set(q.username, q);
         }
@@ -695,11 +717,22 @@ export class LocalMatchmakingSystem {
     if (matchesToRemove.size === 0) return;
 
     const now = Date.now();
+    // Pre-calculate which players are kept in non-removed matches
+    const playersKept = new Set<string>();
+    this.state.activeMatches.forEach((m) => {
+      if (!m.deletedAt && !matchesToRemove.has(m.matchId)) {
+        m.teamA.forEach((u) => playersKept.add(u));
+        m.teamB.forEach((u) => playersKept.add(u));
+      }
+    });
+
     this.state.activeMatches.forEach((m) => {
       if (matchesToRemove.has(m.matchId)) {
-        // Return all players from this match to the queue
+        // Return all players from this match to the queue,
+        // but only if they are not already in another kept match.
         [...m.teamA, ...m.teamB].forEach((username) => {
           if (
+            !playersKept.has(username) &&
             !this.state.queues.some(
               (q) => !q.deletedAt && q.username === username,
             )
@@ -713,6 +746,7 @@ export class LocalMatchmakingSystem {
               enteredAt: now,
               createdAt: now,
               updatedAt: now,
+              queuedAt: now,
             });
           }
         });
@@ -884,6 +918,7 @@ export class LocalMatchmakingSystem {
       enteredAt: Date.now(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      queuedAt: Date.now(),
     });
 
     this.saveState();
@@ -1195,6 +1230,7 @@ export class LocalMatchmakingSystem {
           enteredAt: winnerEnteredAt,
           createdAt: Date.now(),
           updatedAt: Date.now(),
+          queuedAt: Date.now(),
         });
         console.log(
           `[reportMatchScore] Added winner ${p.username} to WINNERS queue`,
@@ -1218,6 +1254,7 @@ export class LocalMatchmakingSystem {
           enteredAt: loserEnteredAt,
           createdAt: Date.now(),
           updatedAt: Date.now(),
+          queuedAt: Date.now(),
         });
         console.log(
           `[reportMatchScore] Added loser ${p.username} to LOSERS queue`,
@@ -1318,9 +1355,16 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     checkpoint: number,
   ) => {
     if (checkpoint === 0) return players;
+    // A tombstoned player created before the reset but deleted after it must
+    // survive so the tombstone can win over stale live copies on other admins.
     const filtered: Record<string, Player> = {};
     for (const [key, p] of Object.entries(players)) {
-      if ((p.createdAt ?? 0) >= checkpoint) {
+      const effectiveTime = Math.max(
+        p.createdAt ?? 0,
+        p.updatedAt ?? 0,
+        p.deletedAt ?? 0,
+      );
+      if (effectiveTime >= checkpoint) {
         filtered[key] = p;
       }
     }
@@ -1329,20 +1373,33 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
 
   const filterQueues = (queues: QueueEntry[], checkpoint: number) => {
     if (checkpoint === 0) return queues;
-    // Use createdAt (the real creation time) for the checkpoint, NOT enteredAt.
+    // Use the latest of createdAt / updatedAt / deletedAt for the checkpoint.
     // enteredAt is a sort-priority value that can be 0 (the 'fairness_first' /
-    // Jump-to-Front sentinel). Filtering by enteredAt would wrongly purge players
-    // returned to the front after a match completes/cancels — especially
-    // destructive in multi-admin sync where one admin's purge propagates to all.
-    // Fall back to updatedAt for legacy entries that predate the createdAt field.
-    return queues.filter(
-      (q) => (q.createdAt ?? q.updatedAt ?? 0) >= checkpoint,
-    );
+    // Jump-to-Front sentinel) and must never be used here.
+    // A tombstoned entry created before the reset but deleted after it must
+    // survive so the tombstone can win over stale live copies on other admins.
+    return queues.filter((q) => {
+      const effectiveTime = Math.max(
+        q.createdAt ?? 0,
+        q.updatedAt ?? 0,
+        q.deletedAt ?? 0,
+      );
+      return effectiveTime >= checkpoint;
+    });
   };
 
   const filterMatches = (matches: ActiveMatch[], checkpoint: number) => {
     if (checkpoint === 0) return matches;
-    return matches.filter((m) => (m.createdAt ?? 0) >= checkpoint);
+    // A tombstoned match created before the reset but deleted after it must
+    // survive so the tombstone can win over stale active copies on other admins.
+    return matches.filter((m) => {
+      const effectiveTime = Math.max(
+        m.createdAt ?? 0,
+        m.updatedAt ?? 0,
+        m.deletedAt ?? 0,
+      );
+      return effectiveTime >= checkpoint;
+    });
   };
 
   const localPlayers = filterPlayers(
@@ -1443,20 +1500,60 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   });
 
   // Deduplicate: a player should only appear in one queue at a time.
-  // Keep the entry with the latest updatedAt (or createdAt fallback) per username.
+  // Use queuedAt vs deletedAt to decide whether a player is in the queue.
+  // A tombstone with a newer deletedAt than any live queuedAt means the
+  // player was removed after being queued — old live entries must not resurrect.
   const latestPerPlayer = new Map<string, QueueEntry>();
+  const entriesByPlayer = new Map<string, QueueEntry[]>();
   allQueues.forEach(({ entry }) => {
-    const existing = latestPerPlayer.get(entry.username);
-    if (!existing) {
-      latestPerPlayer.set(entry.username, entry);
-    } else {
-      const existingTime = existing.updatedAt ?? existing.createdAt ?? 0;
-      const entryTime = entry.updatedAt ?? entry.createdAt ?? 0;
-      if (entryTime > existingTime) {
-        latestPerPlayer.set(entry.username, entry);
-      }
-    }
+    const arr = entriesByPlayer.get(entry.username) || [];
+    arr.push(entry);
+    entriesByPlayer.set(entry.username, arr);
   });
+
+  entriesByPlayer.forEach((entries) => {
+    const live = entries.filter((e) => !e.deletedAt);
+    const tombstones = entries.filter((e) => e.deletedAt);
+    const maxLiveQueuedAt =
+      live.length > 0
+        ? Math.max(
+            ...live.map((e) => e.queuedAt ?? e.createdAt ?? e.updatedAt ?? 0),
+          )
+        : 0;
+    const maxTombstoneDeletedAt =
+      tombstones.length > 0
+        ? Math.max(...tombstones.map((e) => e.deletedAt ?? 0))
+        : 0;
+
+    let candidates: QueueEntry[];
+    if (maxTombstoneDeletedAt > maxLiveQueuedAt) {
+      // Player was removed after the latest queue-add: tombstone wins
+      candidates = tombstones;
+    } else if (maxLiveQueuedAt > maxTombstoneDeletedAt) {
+      // Player was added after the latest removal: live entry wins
+      candidates = live;
+    } else {
+      // No conflict or equal — fall back to all entries
+      candidates = entries;
+    }
+
+    // Pick the candidate with the highest queuedAt first,
+    // then updatedAt / createdAt fallback. This prevents a stale live entry
+    // with a coincidentally high updatedAt (e.g. wrong clock on offline admin)
+    // from resurrecting over a more recently queued live entry.
+    const winner = candidates.reduce((best, e) => {
+      const bestQueued = best.queuedAt ?? best.createdAt ?? 0;
+      const eQueued = e.queuedAt ?? e.createdAt ?? 0;
+      if (eQueued !== bestQueued) return eQueued > bestQueued ? e : best;
+
+      const bestTime = best.updatedAt ?? best.createdAt ?? 0;
+      const eTime = e.updatedAt ?? e.createdAt ?? 0;
+      return eTime > bestTime ? e : best;
+    }, candidates[0]!);
+
+    latestPerPlayer.set(winner.username, winner);
+  });
+
   latestPerPlayer.forEach((entry) => mergedQueues.push(entry));
 
   // Merge matches using per-match updatedAt (or createdAt as fallback)
@@ -1569,11 +1666,25 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     }
   });
 
+  // If a match exists in completedMatches, it must not remain active
+  // (in-progress or waiting). Tombstone stale active copies so the merge
+  // never resurrects a match that has already been reported.
+  const completedMatchIds = new Set(
+    mergedCompletedMatches.map((m) => m.matchId),
+  );
+  mergedMatches.forEach((m) => {
+    if (!m.deletedAt && completedMatchIds.has(m.matchId)) {
+      m.deletedAt = Date.now();
+      m.updatedAt = Date.now();
+    }
+  });
+  const activeMatchesAfterCleanup = mergedMatches.filter((m) => !m.deletedAt);
+
   const mergedState: AppState = {
     ...settingsSource,
     players: mergedPlayers,
     queues: filteredQueues,
-    activeMatches: mergedMatches,
+    activeMatches: activeMatchesAfterCleanup,
     completedMatches: mergedCompletedMatches,
     lastModified: Math.max(localTime, serverTime),
     settingsUpdatedAt: Math.max(localSettingsTime, serverSettingsTime),
