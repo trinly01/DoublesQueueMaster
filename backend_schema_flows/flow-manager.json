@@ -291,44 +291,6 @@
         "reject": null
       },
       {
-        "id": "2f472dd8-88f2-475d-b400-03545d77f7ac",
-        "name": "read events",
-        "key": "read_events",
-        "type": "item-read",
-        "position_x": 56,
-        "position_y": 1,
-        "options": {
-          "permissions": "$full",
-          "emitEvents": false,
-          "query": {
-            "filter": {
-              "player": {
-                "_eq": "{{$last.player}}"
-              },
-              "wins": {
-                "_eq": "{{$last.wins}}"
-              },
-              "losses": {
-                "_eq": "{{$last.losses}}"
-              },
-              "rating": {
-                "_eq": "{{$last.rating}}"
-              },
-              "date_created": {
-                "_gte": "$NOW(-7 days)",
-                "_lte": "$NOW"
-              }
-            },
-            "sort": [
-              "-date_created"
-            ]
-          },
-          "collection": "event"
-        },
-        "resolve": "50235d77-1d7d-45e8-9bc4-771cf0cb4ce6",
-        "reject": null
-      },
-      {
         "id": "3118305f-7081-467f-852b-cc17eb52cf75",
         "name": "create event",
         "key": "create_event",
@@ -367,19 +329,6 @@
         "reject": null
       },
       {
-        "id": "50235d77-1d7d-45e8-9bc4-771cf0cb4ce6",
-        "name": "Run Script",
-        "key": "exec_u0ls4",
-        "type": "exec",
-        "position_x": 11,
-        "position_y": 20,
-        "options": {
-          "code": "module.exports = async function(data) {\n\tif (data.read_events.length) throw new Error(\"Event already exist\")\n\treturn true;\n}"
-        },
-        "resolve": "3118305f-7081-467f-852b-cc17eb52cf75",
-        "reject": null
-      },
-      {
         "id": "8547d566-71e6-400e-9065-219a54087145",
         "name": "Read user",
         "key": "read_user",
@@ -405,9 +354,9 @@
         "position_x": 38,
         "position_y": 1,
         "options": {
-          "code": "module.exports = async function(data) {\n    // 1. Grab the single player object directly\n    const player = data.$trigger;\n    const user = data.read_user;\n    \n    const playerTs = Number(player?.ratingUpdatedAt || 0);\n    const userTs   = Number(user?.rating_updated_at || 0);\n    \n    const shouldUpdate = playerTs > userTs\n\n    if (!shouldUpdate) throw('Skip rating update')\n\n    // 2. Safety check: make sure the userId actually exists before proceeding\n    if (!player || !player.userId || (player.wins + player.losses) === 0) {\n        throw new Error('Player must have a user account and at least one recorded match')\n    }\n\n    // 3. Get today's date in YYYY-MM-DD format\n    const today = new Date().toISOString().split('T')[0];\n\n    // 4. Return the newly formatted object\n    return {\n        player_day: `${player.userId}@${today}`,\n        player: player.userId,\n        day: today,\n        wins: player.wins || 0,\n        losses: player.losses || 0,\n        rating: player.rating || 1500\n    };\n}"
+          "code": "module.exports = async function(data) {\n    const player = data.$trigger;\n    const user = data.read_user;\n\n    // 1. Validate player exists first\n    if (!player || !player.userId) {\n        throw new Error('Player must have a user account');\n    }\n    \n    const totalMatches = (player.wins || 0) + (player.losses || 0);\n    if (totalMatches === 0) {\n        throw new Error('Player must have at least one recorded match');\n    }\n\n    // 2. Compare timestamps (use the LATEST of rating or stats)\n    const playerRatingTs = Number(player.ratingUpdatedAt || 0);\n    const playerStatsTs  = Number(player.statsUpdatedAt || 0);\n    const playerLatestTs = Math.max(playerRatingTs, playerStatsTs);\n    \n    const userRatingTs = Number(user?.rating_updated_at || 0);\n    const userStatsTs  = Number(user?.stats_updated_at || 0);\n    const userLatestTs = Math.max(userRatingTs, userStatsTs);\n    \n    if (playerLatestTs <= userLatestTs) {\n        throw new Error('Skip: data is not newer');\n    }\n\n    // 3. Derive day from statsUpdatedAt (fallback to today if missing)\n    const statsDate = playerStatsTs \n        ? new Date(playerStatsTs).toISOString().split('T')[0]\n        : new Date().toISOString().split('T')[0];\n\n    return {\n        player_day: `${player.userId}@${statsDate}`,\n        player: player.userId,\n        day: statsDate,\n        wins: player.wins || 0,\n        losses: player.losses || 0,\n        rating: player.rating || 1500,\n        stats_updated_at: playerStatsTs,\n        rating_updated_at: playerRatingTs\n    };\n};"
         },
-        "resolve": "2f472dd8-88f2-475d-b400-03545d77f7ac",
+        "resolve": "3118305f-7081-467f-852b-cc17eb52cf75",
         "reject": null
       },
       {
