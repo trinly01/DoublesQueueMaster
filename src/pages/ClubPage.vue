@@ -6604,6 +6604,7 @@ const cancelMatch = (filteredIndex: number) => {
             enteredAt: enteredAt,
             createdAt: Date.now(),
             updatedAt: Date.now(),
+            queuedAt: Date.now(),
           });
         }
       }
@@ -6948,6 +6949,7 @@ const saveMatchEdit = () => {
         enteredAt: Date.now(),
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        queuedAt: Date.now(),
       });
     }
   });
