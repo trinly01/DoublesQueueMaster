@@ -40,14 +40,28 @@ export const isSpeaking = ref(false);
 
 const pickFemaleVoice = (): SpeechSynthesisVoice | null => {
   const voices = window.speechSynthesis.getVoices();
-  const female = voices.find(
+
+  // 1. Prefer Female English voice with Filipina or Filipino accent
+  const femaleFilipina = voices.find(
     (v) =>
-      v.lang.startsWith('en') &&
+      v.lang.toLowerCase().startsWith('en') &&
+      /female/i.test(v.name) &&
+      (/filipina|filipino|philippine|pinoy/i.test(v.name) ||
+        /\bph\b|philippines/i.test(v.lang.toLowerCase())),
+  );
+  if (femaleFilipina) return femaleFilipina;
+
+  // 2. Any female English voice
+  const femaleEnglish = voices.find(
+    (v) =>
+      v.lang.toLowerCase().startsWith('en') &&
       (/female|samantha|karen|moira|tessa|serena|zira/i.test(v.name) ||
         v.name.includes('Google US English')),
   );
-  if (female) return female;
-  return voices.find((v) => v.lang.startsWith('en')) || null;
+  if (femaleEnglish) return femaleEnglish;
+
+  // 3. Any English voice
+  return voices.find((v) => v.lang.toLowerCase().startsWith('en')) || null;
 };
 
 const playNextInQueue = () => {
@@ -63,8 +77,8 @@ const playNextInQueue = () => {
   isSpeaking.value = true;
   const text = speechQueue.shift()!;
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 0.65;
-  utterance.pitch = 1.1;
+  utterance.rate = 0.75;
+  utterance.pitch = 1.0;
   utterance.volume = 1;
 
   const voice = pickFemaleVoice();
