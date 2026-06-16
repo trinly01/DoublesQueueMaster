@@ -1463,7 +1463,14 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       const spGames = sp.matchesPlayed ?? 0;
       if (lpGames > spGames) baseWinner = { ...lp };
       else if (spGames > lpGames) baseWinner = { ...sp };
-      else baseWinner = localTime > serverTime ? { ...lp } : { ...sp };
+      else {
+        // No entity-level timestamps and identical stats.
+        // Prefer server as source of truth. Never use whole-state lastModified
+        // for entity-level conflict resolution — an offline admin's unrelated
+        // local activity (e.g., queue changes) can make localTime newer even
+        // though this specific player was never touched locally.
+        baseWinner = { ...sp };
+      }
     }
 
     // Step 2: overlay newer stats if the loser has fresher stats
