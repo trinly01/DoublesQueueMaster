@@ -131,11 +131,15 @@
         <div v-if="completedAt" class="text-caption text-grey-6 q-mt-xs">
           {{ formatDate(completedAt) }}
         </div>
-        <div
-          v-if="startedAt && completedAt"
-          class="text-caption text-grey-7 q-mt-xs"
-        >
-          Match lasted {{ formatDuration(startedAt, completedAt) }}
+        <div v-if="startedAt && completedAt" class="q-mt-xs">
+          <q-badge
+            rounded
+            color="amber-6"
+            text-color="black"
+            class="text-caption"
+          >
+            {{ formatDuration(startedAt, completedAt) }}
+          </q-badge>
         </div>
       </div>
 

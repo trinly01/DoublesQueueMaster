@@ -36,6 +36,7 @@ export interface DirectusCompletedMatch {
   team_a_score: number;
   team_b_score: number;
   completed_at: string;
+  started_at?: string;
 }
 
 export interface UserProfile {

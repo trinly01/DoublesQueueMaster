@@ -380,6 +380,7 @@
                       :teamAScore="match.team_a_score"
                       :teamBScore="match.team_b_score"
                       :completedAt="match.completed_at"
+                      :startedAt="match.started_at"
                     />
                   </q-item-section>
                 </q-item>
