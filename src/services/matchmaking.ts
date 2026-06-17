@@ -191,27 +191,36 @@ function enforceOneMatchPerPlayerOnState(state: AppState) {
 }
 
 /**
- * Calculate K-factor based on rating distance from default (1500)
- * This provides stability across per-event resets of matchesPlayed/wins/losses
- */
-const calculateKFactor = (rating: number): number => {
-  const distanceFromStart = Math.abs(rating - 1500);
-
-  if (distanceFromStart >= 100) {
-    return 20; // Well-established skill (stable)
-  } else if (distanceFromStart >= 50) {
-    return 30; // Some skill established (medium volatility)
-  } else {
-    return 40; // Still establishing skill (higher volatility)
-  }
-};
-
-/**
  * ==========================================
  * 2. INDIVIDUAL RATING ALGORITHM
  * ==========================================
- * Pure math function. Aggressive decaying volatility for fast accuracy.
+ * Constant K, zero-sum, individual-expectation-proportional distribution.
+ * Works for singles (team.length = 1) and doubles (team.length = 2).
  */
+const BASE_K = 30;
+const RATING_FLOOR = 100;
+
+/**
+ * Distribute an integer `total` across `weights` proportionally, guaranteeing
+ * the rounded parts sum EXACTLY to `total` (largest-remainder method).
+ */
+const allocateInteger = (total: number, weights: number[]): number[] => {
+  const sum = weights.reduce((s, w) => s + w, 0);
+  const norm =
+    sum > 0
+      ? weights.map((w) => w / sum)
+      : weights.map(() => 1 / weights.length);
+  const raw = norm.map((n) => n * total);
+  const floors = raw.map((r) => Math.floor(r));
+  const remainder = total - floors.reduce((s, f) => s + f, 0);
+  const order = raw
+    .map((r, i) => ({ i, frac: r - Math.floor(r) }))
+    .sort((a, b) => b.frac - a.frac);
+  const result = [...floors];
+  for (let k = 0; k < remainder; k++) result[order[k % order.length].i] += 1;
+  return result;
+};
+
 export const RatingEngine = {
   calculateShift: (
     winners: Player[],
@@ -219,64 +228,53 @@ export const RatingEngine = {
     scoreW: number,
     scoreL: number,
   ) => {
-    // Calculate team strength using Harmonic Mean to heavily penalize skill variance (Weakest Link Theorem)
-    const harmonicMean = (team: Player[]) => {
-      if (team.length === 0) return 1500;
-      const sumReciprocal = team.reduce(
-        (sum, p) => sum + 1 / Math.max(1, p.rating),
-        0,
-      );
-      return team.length / sumReciprocal;
-    };
+    // Team strengths via harmonic mean (weak-link penalty for doubles)
+    const ratingW = computeHarmonicMean(winners);
+    const ratingL = computeHarmonicMean(losers);
 
-    const ratingW = harmonicMean(winners);
-    const ratingL = harmonicMean(losers);
-
-    const totalWinnerRating = winners.reduce((sum, p) => sum + p.rating, 0);
-    const totalLoserRating = losers.reduce((sum, p) => sum + p.rating, 0);
-
+    // Team expected win probability (for the winning team)
     const expectedW = 1 / (1 + Math.pow(10, (ratingL - ratingW) / 400));
     const multiplier = 1 + Math.abs(scoreW - scoreL) * 0.05;
 
-    const applyToPlayer = (
-      player: Player,
-      isWinner: boolean,
-      team: Player[],
-    ): Player => {
-      // Rating-distance-based K-factor for stability across per-event resets
-      const baseK = calculateKFactor(player.rating);
-      // Inverse Stakes Scaling: Halve the volatility in Doubles because you are only 50% responsible for the match
-      const K = baseK / team.length;
+    // K scaled by team size: singles = 30, doubles = 15
+    const K = BASE_K / winners.length;
 
-      const outcome = isWinner ? 1 : 0;
-      const expected = isWinner ? expectedW : 1 - expectedW;
+    // Total zero-sum pool to transfer, rounded ONCE to an integer.
+    const pool = Math.round(K * multiplier * Math.abs(1 - expectedW));
 
-      // Base shift if points were distributed equally
-      const baseShift = K * multiplier * (outcome - expected);
+    // --- WINNERS: credit weight = 1 - E_individual (underdogs earn more) ---
+    const winnerCredits = winners.map(
+      (p) => 1 - 1 / (1 + Math.pow(10, (ratingL - p.rating) / 400)),
+    );
+    const winnerGains = allocateInteger(pool, winnerCredits);
 
-      // Proportional distribution (Backpack problem solver)
-      const totalTeamRating = isWinner ? totalWinnerRating : totalLoserRating;
-      const proportionalShare = player.rating / totalTeamRating;
+    // --- LOSERS: blame weight = E_individual (favorites pay more) ---
+    const loserBlames = losers.map(
+      (p) => 1 / (1 + Math.pow(10, (ratingW - p.rating) / 400)),
+    );
+    const loserLosses = allocateInteger(pool, loserBlames);
 
-      // Scale shift by their share relative to an even split (1 / team.length)
-      const shift = baseShift * (proportionalShare * team.length);
+    const updatedWinners = winners.map((player, i) => ({
+      ...player,
+      rating: Math.max(RATING_FLOOR, player.rating + winnerGains[i]),
+      matchesPlayed: player.matchesPlayed + 1,
+      wins: (player.wins || 0) + 1,
+      ratingUpdatedAt: Date.now(),
+      statsUpdatedAt: Date.now(),
+      updatedAt: Date.now(),
+    }));
 
-      return {
-        ...player,
-        rating: Math.round(player.rating + shift),
-        matchesPlayed: player.matchesPlayed + 1,
-        wins: (player.wins || 0) + (isWinner ? 1 : 0),
-        losses: (player.losses || 0) + (isWinner ? 0 : 1),
-        ratingUpdatedAt: Date.now(),
-        statsUpdatedAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-    };
+    const updatedLosers = losers.map((player, i) => ({
+      ...player,
+      rating: Math.max(RATING_FLOOR, player.rating - loserLosses[i]),
+      matchesPlayed: player.matchesPlayed + 1,
+      losses: (player.losses || 0) + 1,
+      ratingUpdatedAt: Date.now(),
+      statsUpdatedAt: Date.now(),
+      updatedAt: Date.now(),
+    }));
 
-    return {
-      updatedWinners: winners.map((p) => applyToPlayer(p, true, winners)),
-      updatedLosers: losers.map((p) => applyToPlayer(p, false, losers)),
-    };
+    return { updatedWinners, updatedLosers };
   },
 };
 
