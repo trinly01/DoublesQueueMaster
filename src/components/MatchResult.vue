@@ -10,7 +10,10 @@
           class="column items-center q-mb-xs"
         >
           <span
-            class="text-weight-medium text-center"
+            :class="[
+              'text-weight-medium text-center',
+              isBlurred(player.username) ? 'stats-blur' : '',
+            ]"
             style="
               max-width: 80px;
               overflow: hidden;
@@ -18,11 +21,19 @@
               white-space: nowrap;
               display: block;
             "
-            >{{ player.firstName || player.name || player.username }}</span
+            >{{
+              blurText(
+                player.firstName || player.name || player.username,
+                player.username,
+              )
+            }}</span
           >
           <span
             v-if="player.username && (player.firstName || player.name)"
-            class="text-grey-6"
+            :class="[
+              'text-grey-6',
+              isBlurred(player.username) ? 'stats-blur' : '',
+            ]"
             style="
               font-size: 10px;
               max-width: 80px;
@@ -32,7 +43,7 @@
               display: block;
             "
           >
-            @{{ player.username }}
+            @{{ blurText(player.username, player.username) }}
           </span>
           <q-chip
             v-if="player.rating !== undefined"
@@ -41,6 +52,7 @@
             text-color="white"
             size="xs"
             dense
+            :class="{ 'stats-blur': isBlurred(player.username) }"
           />
         </div>
 
@@ -128,7 +140,13 @@
           <span class="text-h5 text-weight-bold">{{ teamBScore }}</span>
         </div>
         <div v-else class="text-subtitle2 text-weight-bold text-grey-8">VS</div>
-        <div v-if="completedAt" class="text-caption text-grey-6 q-mt-xs">
+        <div
+          v-if="completedAt"
+          :class="[
+            'text-caption text-grey-6 q-mt-xs',
+            blurDate ? 'stats-blur' : '',
+          ]"
+        >
           {{ formatDate(completedAt) }}
         </div>
         <div v-if="startedAt && completedAt" class="q-mt-xs">
@@ -151,7 +169,10 @@
           class="column items-center q-mb-xs"
         >
           <span
-            class="text-weight-medium text-center"
+            :class="[
+              'text-weight-medium text-center',
+              isBlurred(player.username) ? 'stats-blur' : '',
+            ]"
             style="
               max-width: 80px;
               overflow: hidden;
@@ -159,11 +180,19 @@
               white-space: nowrap;
               display: block;
             "
-            >{{ player.firstName || player.name || player.username }}</span
+            >{{
+              blurText(
+                player.firstName || player.name || player.username,
+                player.username,
+              )
+            }}</span
           >
           <span
             v-if="player.username && (player.firstName || player.name)"
-            class="text-grey-6"
+            :class="[
+              'text-grey-6',
+              isBlurred(player.username) ? 'stats-blur' : '',
+            ]"
             style="
               font-size: 10px;
               max-width: 80px;
@@ -173,7 +202,7 @@
               display: block;
             "
           >
-            @{{ player.username }}
+            @{{ blurText(player.username, player.username) }}
           </span>
           <q-chip
             v-if="player.rating !== undefined"
@@ -182,6 +211,7 @@
             text-color="white"
             size="xs"
             dense
+            :class="{ 'stats-blur': isBlurred(player.username) }"
           />
         </div>
 
@@ -230,6 +260,7 @@ import {
   getRatingColor,
   getMatchStatusColor,
   getMatchStatusLabel,
+  formatDate,
 } from '../utils/playerHelpers';
 
 interface TeamPlayer {
@@ -253,11 +284,23 @@ const props = withDefaults(
     editable?: boolean;
     startedAt?: string;
     completedAt?: string;
+    blurExceptUsername?: string;
+    blurDate?: boolean;
   }>(),
   {
     editable: false,
   },
 );
+
+const isBlurred = (playerUsername: string): boolean => {
+  if (!props.blurExceptUsername) return false;
+  return playerUsername !== props.blurExceptUsername;
+};
+
+const blurText = (text: string, playerUsername: string): string => {
+  if (!isBlurred(playerUsername)) return text;
+  return text.replace(/./g, '*');
+};
 
 const emit = defineEmits<{
   'update:teamAScore': [value: number];
@@ -291,28 +334,6 @@ const localTeamBScore = computed({
   get: () => props.teamBScore ?? 0,
   set: (val) => emit('update:teamBScore', val),
 });
-
-const formatDate = (iso: string): string => {
-  const d = new Date(iso);
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  let h = d.getHours();
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${months[d.getMonth()]} ${d.getDate()} ${h}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
-};
 
 const formatDuration = (startIso: string, endIso: string): string => {
   const start = new Date(startIso).getTime();
@@ -369,5 +390,11 @@ const formatDuration = (startIso: string, endIso: string): string => {
       font-size: 0.8rem;
     }
   }
+}
+
+.stats-blur {
+  filter: blur(4px);
+  opacity: 0.6;
+  user-select: none;
 }
 </style>
