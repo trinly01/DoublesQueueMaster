@@ -442,9 +442,13 @@
                           : row.name
                       }}
                     </q-item-label>
-                    <q-item-label caption class="ellipsis"
-                      >@{{ row.username }}</q-item-label
-                    >
+                    <q-item-label caption class="ellipsis">
+                      {{
+                        isPaymentExpired
+                          ? '@' + row.username.replace(/./g, '*')
+                          : '@' + row.username
+                      }}
+                    </q-item-label>
                   </q-item-section>
                   <q-item-section side class="text-right">
                     <q-chip
@@ -524,9 +528,13 @@
                           : row.name
                       }}
                     </q-item-label>
-                    <q-item-label caption class="ellipsis"
-                      >@{{ row.username }}</q-item-label
-                    >
+                    <q-item-label caption class="ellipsis">
+                      {{
+                        isPaymentExpired
+                          ? '@' + row.username.replace(/./g, '*')
+                          : '@' + row.username
+                      }}
+                    </q-item-label>
                   </q-item-section>
                   <q-item-section side class="text-right">
                     <q-chip
@@ -613,81 +621,25 @@
                 <div class="text-subtitle2 text-weight-medium q-mb-sm">
                   Recent Clutch Games
                 </div>
-                <q-list separator>
+                <q-list separator v-if="clutchStats.games.length">
                   <q-item
-                    v-for="(g, idx) in clutchStats.games.slice(0, 10)"
-                    :key="idx"
-                    :class="g.won ? 'bg-green-1' : 'bg-red-1'"
+                    v-for="g in clutchStats.games.slice(0, 10)"
+                    :key="g.match.match_key"
+                    :class="['q-px-sm', getMatchRowClass(g.match)]"
                   >
                     <q-item-section>
-                      <q-item-label class="text-weight-medium">
-                        vs
-                        <span :class="{ 'stats-blur': isPaymentExpired }">
-                          {{
-                            isPaymentExpired
-                              ? g.opponents.replace(/./g, '*')
-                              : g.opponents
-                          }}
-                        </span>
-                      </q-item-label>
-                      <q-item-label caption>
-                        <template v-if="!isPaymentExpired">
-                          {{
-                            g.match.team_a
-                              ?.map((p) => p.firstName || p.username || '?')
-                              .join(' & ')
-                          }}
-                        </template>
-                        <span
-                          v-else
-                          :class="{ 'stats-blur': isPaymentExpired }"
-                          >{{
-                            g.match.team_a
-                              ?.map((p) =>
-                                (p.firstName || p.username || '?').replace(
-                                  /./g,
-                                  '*',
-                                ),
-                              )
-                              .join(' & ')
-                          }}</span
-                        >
-                        {{ g.match.team_a_score }} -
-                        {{ g.match.team_b_score }}
-                        <template v-if="!isPaymentExpired">
-                          {{
-                            g.match.team_b
-                              ?.map((p) => p.firstName || p.username || '?')
-                              .join(' & ')
-                          }}
-                        </template>
-                        <span
-                          v-else
-                          :class="{ 'stats-blur': isPaymentExpired }"
-                          >{{
-                            g.match.team_b
-                              ?.map((p) =>
-                                (p.firstName || p.username || '?').replace(
-                                  /./g,
-                                  '*',
-                                ),
-                              )
-                              .join(' & ')
-                          }}</span
-                        >
-                      </q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-chip
-                        :color="g.won ? 'positive' : 'negative'"
-                        text-color="white"
-                        size="sm"
-                        dense
-                      >
-                        {{ g.won ? 'W' : 'L' }} ({{ g.myScore }}-{{
-                          g.oppScore
-                        }})
-                      </q-chip>
+                      <MatchResult
+                        :teamA="g.match.team_a"
+                        :teamB="g.match.team_b"
+                        :teamAScore="g.match.team_a_score"
+                        :teamBScore="g.match.team_b_score"
+                        :completedAt="g.match.completed_at"
+                        :startedAt="g.match.started_at"
+                        :blurDate="isPaymentExpired"
+                        :blurExceptUsername="
+                          isPaymentExpired ? username : undefined
+                        "
+                      />
                     </q-item-section>
                   </q-item>
                 </q-list>
@@ -955,7 +907,12 @@ import PlayerAvatar from 'src/components/PlayerAvatar.vue';
 import PayBanner from 'src/components/PayBanner.vue';
 import * as echarts from 'echarts';
 import QRCode from 'qrcode';
-import { getRatingColor, getRatingCategory } from 'src/utils/playerHelpers';
+import {
+  getRatingColor,
+  getRatingCategory,
+  formatDate,
+  wilsonLowerBound,
+} from 'src/utils/playerHelpers';
 
 const router = useRouter();
 const $q = useQuasar();
@@ -1281,7 +1238,11 @@ const partnerStats = computed<SynergyStat[]>(() => {
       rating: data.rating,
       duprId: data.duprId,
     }))
-    .sort((a, b) => b.wins - a.wins || b.games - a.games);
+    .sort(
+      (a, b) =>
+        wilsonLowerBound(b.wins, b.games) - wilsonLowerBound(a.wins, a.games) ||
+        b.games - a.games,
+    );
 });
 
 const nemesisStats = computed<SynergyStat[]>(() => {
@@ -1360,7 +1321,11 @@ const nemesisStats = computed<SynergyStat[]>(() => {
       rating: data.rating,
       duprId: data.duprId,
     }))
-    .sort((a, b) => b.losses - a.losses || b.games - a.games);
+    .sort(
+      (a, b) =>
+        wilsonLowerBound(b.losses, b.games) -
+          wilsonLowerBound(a.losses, a.games) || b.games - a.games,
+    );
 });
 
 interface ClutchMatch {
@@ -1574,25 +1539,7 @@ const initMatchesChart = () => {
         const p = (params as Array<{ dataIndex: number; value: number }>)[0];
         const idx = p.dataIndex;
         const d = data[idx];
-        const date = new Date(d.match.completed_at);
-        const months = [
-          'Jan',
-          'Feb',
-          'Mar',
-          'Apr',
-          'May',
-          'Jun',
-          'Jul',
-          'Aug',
-          'Sep',
-          'Oct',
-          'Nov',
-          'Dec',
-        ];
-        let h = date.getHours();
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        h = h % 12 || 12;
-        const dateStr = `${months[date.getMonth()]} ${date.getDate()} ${h}:${String(date.getMinutes()).padStart(2, '0')} ${ampm}`;
+        const dateStr = formatDate(d.match.completed_at);
         return `${dateStr}<br/>${d.match.team_a_score} - ${d.teamALabel}<br/>${d.match.team_b_score} - ${d.teamBLabel}`;
       },
     },

@@ -238,3 +238,46 @@ export const generateCourtOptions = (
     value: i + 1,
   }));
 };
+
+/**
+ * Format an ISO date to a readable string: "Jun 17 9:30 PM"
+ */
+export const formatDate = (iso: string): string => {
+  const d = new Date(iso);
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  let h = d.getHours();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${months[d.getMonth()]} ${d.getDate()} ${h}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
+};
+
+/**
+ * Wilson score lower-bound confidence interval.
+ * Best-practice ranking for a positive rate with unequal sample sizes.
+ * z = 1.96 corresponds to ~95% confidence.
+ */
+export const wilsonLowerBound = (successes: number, total: number): number => {
+  if (total === 0) return 0;
+  const z = 1.96;
+  const p = successes / total;
+  const z2 = z * z;
+  return (
+    (p +
+      z2 / (2 * total) -
+      z * Math.sqrt((p * (1 - p) + z2 / (4 * total)) / total)) /
+    (1 + z2 / total)
+  );
+};
