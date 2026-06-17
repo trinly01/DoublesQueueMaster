@@ -1095,6 +1095,12 @@
 
             <!-- Club Members Mode -->
             <div v-else-if="addPlayerMode === 'club'" class="q-gutter-y-md">
+              <PayBanner
+                v-if="isClubSubscriptionExpired"
+                message="Subscription expired. Renew to add club members."
+                :loading="paymentLoading"
+                @pay="callPayment({ clubId: currentClubId })"
+              />
               <!-- Search & Sort -->
               <div class="row q-col-gutter-sm">
                 <div class="col-12 col-sm-5">
@@ -1135,6 +1141,7 @@
                     dense
                     unelevated
                     style="height: 40px"
+                    :disable="isClubSubscriptionExpired"
                     @click="openScanDialog"
                   />
                 </div>
@@ -1150,8 +1157,10 @@
                 <q-item
                   v-for="member in availableClubMembers"
                   :key="member.id"
-                  clickable
-                  @click="toggleClubMember(member.id)"
+                  :clickable="!isClubSubscriptionExpired"
+                  @click="
+                    !isClubSubscriptionExpired && toggleClubMember(member.id)
+                  "
                   :class="{ 'bg-purple-1': isClubMemberSelected(member.id) }"
                 >
                   <q-item-section avatar>
@@ -1203,6 +1212,7 @@
                       <q-checkbox
                         :model-value="isClubMemberSelected(member.id)"
                         color="accent"
+                        :disable="isClubSubscriptionExpired"
                         @click.stop="toggleClubMember(member.id)"
                       />
                     </div>
@@ -1278,7 +1288,9 @@
               color="accent"
               @click="addClubMembers"
               label="Add Selected Members"
-              :disable="selectedClubMembers.length === 0"
+              :disable="
+                selectedClubMembers.length === 0 || isClubSubscriptionExpired
+              "
               icon="groups"
             >
               <q-tooltip
@@ -2886,6 +2898,7 @@ import TeamArrangement from '../components/TeamArrangement.vue';
 import PlayerList from '../components/PlayerList.vue';
 import PlayerCard from '../components/PlayerCard.vue';
 import PlayerAvatar from '../components/PlayerAvatar.vue';
+import PayBanner from '../components/PayBanner.vue';
 import EmptyState from '../components/EmptyState.vue';
 import DialogHeader from '../components/DialogHeader.vue';
 import MatchCard from '../components/MatchCard.vue';
@@ -3161,6 +3174,10 @@ const clubName = ref<string>('');
 const clubLoadingState = ref<
   'loading' | 'loaded' | 'not-found' | 'unpublished' | 'error'
 >('loading');
+const clubStatus = ref<string>('published');
+const isClubSubscriptionExpired = computed(
+  () => !isOpenPlay.value && clubStatus.value !== 'published',
+);
 const clubErrorMessage = ref<string>('');
 const { paymentLoading, fetchPaymentSettings, callPayment } = usePayment();
 let ratingsRefreshInterval: ReturnType<typeof setInterval> | null = null;
@@ -3277,6 +3294,7 @@ const regularMembers = computed(() =>
 );
 
 const toggleClubMember = (memberId: string) => {
+  if (isClubSubscriptionExpired.value) return;
   const idx = selectedClubMembers.value.indexOf(memberId);
   if (idx >= 0) {
     selectedClubMembers.value.splice(idx, 1);
@@ -3485,6 +3503,7 @@ const likhaToken = ref(localStorage.getItem('likhaToken') || '');
 // Load club data from cloud
 const loadClubData = async (clubId: string) => {
   if (!clubId || !likhaUrl.value) {
+    clubStatus.value = 'published';
     clubLoadingState.value = 'loaded';
     return;
   }
@@ -3604,17 +3623,7 @@ const loadClubData = async (clubId: string) => {
       clubName.value = club.name || clubId;
       MatchmakingApp.state.clubId = clubId;
 
-      // Check if club is unpublished and user is admin
-      if (club.status !== 'published') {
-        const isAdmin = (club.admins || []).some(
-          (a) => a.directus_users_id?.id === currentUserId.value,
-        );
-        if (isAdmin) {
-          clubLoadingState.value = 'unpublished';
-          clubErrorMessage.value = `Club "${club.name || clubId}" is not yet activated. Please click the Pay button below to activate.`;
-          return;
-        }
-      }
+      clubStatus.value = club.status || 'published';
 
       // Local client is the source of truth. Only use cloud settings as fallback
       // when local state doesn't have them yet (first visit / new device).
@@ -4068,6 +4077,7 @@ const loadClubData = async (clubId: string) => {
           clubMembers.value.some((m) => m.id === currentUserId.value);
       }
 
+      clubStatus.value = 'published';
       clubLoadingState.value = 'loaded';
       notify({
         color: 'warning',
@@ -5405,6 +5415,7 @@ const generateTeamCombinations = (
 // Helper function to create balanced singles matches from 2 players
 // Action functions
 const addClubMembers = () => {
+  if (isClubSubscriptionExpired.value) return;
   if (selectedClubMembers.value.length === 0) return;
 
   const added: string[] = [];
