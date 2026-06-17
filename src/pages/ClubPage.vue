@@ -3547,6 +3547,10 @@ const loadClubData = async (clubId: string) => {
           'admins.directus_users_id.id',
           'admins.directus_users_id.email',
         ] as unknown as string[],
+        deep: {
+          players: { _limit: -1 },
+          admins: { _limit: -1 },
+        },
       }),
     );
 
@@ -4017,6 +4021,9 @@ const loadClubData = async (clubId: string) => {
               'admins.directus_users_id.id',
             ] as unknown as string[],
             limit: 1,
+            deep: {
+              admins: { _limit: -1 },
+            },
           }),
         );
 
@@ -4109,6 +4116,9 @@ const refreshPlayerRatings = async () => {
           'players.directus_users_id.first_name',
           'players.directus_users_id.last_name',
         ] as unknown as string[],
+        deep: {
+          players: { _limit: -1 },
+        },
       }),
     );
 
@@ -6264,6 +6274,10 @@ const refreshClubMembers = async () => {
           'admins.directus_users_id.id',
           'admins.directus_users_id.email',
         ] as unknown as string[],
+        deep: {
+          players: { _limit: -1 },
+          admins: { _limit: -1 },
+        },
       }),
     );
     if (!result || result.length === 0) return;
