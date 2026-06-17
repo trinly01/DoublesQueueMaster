@@ -37,10 +37,6 @@
             {{ firstName }}
           </div>
 
-          <div class="text-subtitle1 text-grey-7 q-mb-none">
-            @{{ username }}
-          </div>
-
           <div
             class="column items-center"
             style="width: 180px; gap: 8px; margin: 0 auto"
@@ -52,9 +48,23 @@
               :label="`DUPR ID: ${PlayerProfile.state.duprId}`"
               size="sm"
               dense
+              flat
               rounded
               class="full-width"
               style="border-radius: 12px"
+            />
+
+            <q-btn
+              v-if="username"
+              no-caps
+              rounded
+              text-color="grey-7"
+              icon="qr_code"
+              :label="`@${username}`"
+              dense
+              flat
+              class="full-width"
+              @click="openQrDialog"
             />
 
             <q-btn
@@ -782,6 +792,30 @@
           </q-card>
         </q-dialog>
 
+        <!-- QR Code Dialog -->
+        <q-dialog v-model="showQrDialog">
+          <q-card style="min-width: 280px; max-width: 90vw">
+            <q-card-section class="row items-center q-pb-none">
+              <div class="text-h6">My Check-in QR</div>
+              <q-space />
+              <q-btn icon="close" flat round dense v-close-popup />
+            </q-card-section>
+            <q-card-section class="flex flex-center q-pa-lg">
+              <q-img
+                v-if="qrCodeDataUrl"
+                :src="qrCodeDataUrl"
+                style="width: 240px; height: 240px"
+                fit="contain"
+              />
+            </q-card-section>
+            <q-card-section class="text-center q-pt-none">
+              <div class="text-subtitle2 text-grey-7">
+                Show this to an admin to check in
+              </div>
+            </q-card-section>
+          </q-card>
+        </q-dialog>
+
         <!-- Edit Profile Dialog -->
         <q-dialog v-model="showEditProfileDialog" persistent>
           <q-card style="min-width: 320px; max-width: 90vw">
@@ -920,6 +954,7 @@ import MatchResult from 'src/components/MatchResult.vue';
 import PlayerAvatar from 'src/components/PlayerAvatar.vue';
 import PayBanner from 'src/components/PayBanner.vue';
 import * as echarts from 'echarts';
+import QRCode from 'qrcode';
 import { getRatingColor, getRatingCategory } from 'src/utils/playerHelpers';
 
 const router = useRouter();
@@ -1041,6 +1076,21 @@ const activeTab = ref<'history' | 'matches' | 'partners' | 'rivals' | 'clutch'>(
 );
 
 const showLeaderboardDialog = ref(false);
+const showQrDialog = ref(false);
+const qrCodeDataUrl = ref('');
+
+const openQrDialog = async () => {
+  if (!username.value) return;
+  try {
+    qrCodeDataUrl.value = await QRCode.toDataURL(username.value, {
+      width: 280,
+      margin: 2,
+    });
+    showQrDialog.value = true;
+  } catch {
+    notify({ type: 'negative', message: 'Failed to generate QR code' });
+  }
+};
 const leaderboardTab = ref<'global' | 'matches'>('global');
 const leaderboardLoading = ref(false);
 const globalLeaderboard = ref<
