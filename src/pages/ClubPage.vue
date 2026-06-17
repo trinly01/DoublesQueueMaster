@@ -1097,7 +1097,7 @@
             <div v-else-if="addPlayerMode === 'club'" class="q-gutter-y-md">
               <!-- Search & Sort -->
               <div class="row q-col-gutter-sm">
-                <div class="col-12 col-sm-7">
+                <div class="col-12 col-sm-5">
                   <q-input
                     v-model="clubMemberSearch"
                     label="Search club members"
@@ -1110,7 +1110,7 @@
                     </template>
                   </q-input>
                 </div>
-                <div class="col-12 col-sm-5">
+                <div class="col-12 col-sm-4">
                   <q-select
                     v-model="clubMemberSort"
                     :options="[
@@ -1124,6 +1124,18 @@
                     dense
                     emit-value
                     map-options
+                  />
+                </div>
+                <div class="col-12 col-sm-3">
+                  <q-btn
+                    color="accent"
+                    icon="qr_code_scanner"
+                    label="Scan QR"
+                    class="full-width"
+                    dense
+                    unelevated
+                    style="height: 40px"
+                    @click="openScanDialog"
                   />
                 </div>
               </div>
@@ -1276,6 +1288,46 @@
                 >Add members</q-tooltip
               >
             </q-btn>
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+
+      <!-- QR Scanner Dialog -->
+      <q-dialog
+        v-model="showScanDialog"
+        :maximized="$q.screen.lt.md"
+        @hide="stopScan"
+      >
+        <q-card
+          class="bg-white"
+          style="
+            max-width: 600px;
+            width: 95vw;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+          "
+        >
+          <DialogHeader title="Scan Player QR" icon="qr_code_scanner" />
+          <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
+            <div v-if="scanError" class="text-negative text-center q-pa-md">
+              <q-icon name="error" size="48px" />
+              <div class="text-h6 q-mt-sm">{{ scanError }}</div>
+              <q-btn
+                color="accent"
+                label="Try Again"
+                class="q-mt-md"
+                @click="startScan"
+              />
+            </div>
+            <div
+              v-else
+              id="qr-reader"
+              style="width: 100%; min-height: 300px"
+            ></div>
+          </q-card-section>
+          <q-card-actions align="right" class="q-pa-md">
+            <q-btn flat label="Cancel" color="grey" v-close-popup />
           </q-card-actions>
         </q-card>
       </q-dialog>
@@ -2845,6 +2897,7 @@ import {
 } from '../utils/playerHelpers';
 import { computeWinProbability } from '../services/matchmaking';
 import { buildDuprCsv, downloadDuprCsv } from '../utils/duprExport';
+import { Html5Qrcode } from 'html5-qrcode';
 import {
   announce,
   getNextInLine,
@@ -3023,6 +3076,9 @@ const clubMemberSort = ref<'nameAsc' | 'nameDesc' | 'ratingDesc' | 'ratingAsc'>(
   'nameAsc',
 );
 const clubMemberAvatarErrors = ref<Set<string>>(new Set());
+const showScanDialog = ref(false);
+const scanError = ref('');
+let html5QrCode: Html5Qrcode | null = null;
 const bulkPlayerText = ref<string>('');
 const bulkPlayers = ref<
   Array<{ username: string; level: 1 | 2 | 3; original: string }>
@@ -3149,6 +3205,12 @@ const availableClubMembers = computed(() => {
   }
 
   list = [...list].sort((a, b) => {
+    // Selected members always on top
+    const aSelected = selectedClubMembers.value.includes(a.id) ? 1 : 0;
+    const bSelected = selectedClubMembers.value.includes(b.id) ? 1 : 0;
+    if (aSelected !== bSelected) return bSelected - aSelected;
+
+    // Then apply chosen sort
     switch (clubMemberSort.value) {
       case 'nameAsc':
         return (a.firstName || a.username || '').localeCompare(
@@ -3225,6 +3287,92 @@ const toggleClubMember = (memberId: string) => {
 
 const isClubMemberSelected = (memberId: string): boolean => {
   return selectedClubMembers.value.includes(memberId);
+};
+
+const openScanDialog = () => {
+  scanError.value = '';
+  showScanDialog.value = true;
+  // Wait for dialog to render before starting scanner
+  setTimeout(() => startScan(), 300);
+};
+
+const startScan = async () => {
+  scanError.value = '';
+  try {
+    if (!html5QrCode) {
+      html5QrCode = new Html5Qrcode('qr-reader');
+    }
+    await html5QrCode.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      onScanSuccess,
+      () => {
+        /* ignore scan errors */
+      },
+    );
+  } catch (err) {
+    scanError.value =
+      'Camera access denied or not available. Please allow camera permission.';
+    console.error('[QR Scan] Start failed:', err);
+  }
+};
+
+const stopScan = async () => {
+  try {
+    if (html5QrCode && html5QrCode.isScanning) {
+      await html5QrCode.stop();
+      html5QrCode.clear();
+    }
+  } catch {
+    // ignore stop errors
+  }
+};
+
+const onScanSuccess = async (decodedText: string) => {
+  // Stop scanning immediately
+  await stopScan();
+  showScanDialog.value = false;
+
+  const scannedUsername = decodedText.trim();
+  if (!scannedUsername) {
+    notify({ type: 'warning', message: 'Invalid QR code' });
+    return;
+  }
+
+  // Find member by username in availableClubMembers
+  const member = availableClubMembers.value.find(
+    (m) => m.username?.toLowerCase() === scannedUsername.toLowerCase(),
+  );
+
+  if (!member) {
+    // Not a club member — offer to switch to Single Player mode
+    notify({
+      type: 'warning',
+      message: `"${scannedUsername}" is not a club member. Switching to manual entry.`,
+    });
+    addPlayerMode.value = 'single';
+    newPlayerName.value = scannedUsername;
+    return;
+  }
+
+  // Check if already selected
+  if (isClubMemberSelected(member.id)) {
+    notify({
+      type: 'info',
+      message: `"${member.firstName || member.username}" is already selected`,
+    });
+    return;
+  }
+
+  // Auto-select the member
+  toggleClubMember(member.id);
+  notify({
+    type: 'positive',
+    message: `Selected "${member.firstName || member.username}"`,
+  });
+
+  // Optional: auto-submit if user prefers one-at-a-time scanning
+  // For now, keep dialog open so admin can scan multiple players
 };
 const isCurrentUserAdmin = computed(() => {
   if (isOpenPlay.value) return true;
