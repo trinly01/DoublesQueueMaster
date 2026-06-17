@@ -579,7 +579,6 @@
             >
               <PayBanner
                 v-if="isPaymentExpired"
-                message="Subscription expired. Renew to view clutch stats."
                 :loading="paymentLoading"
                 @pay="callPayment({ playerId: username })"
               />
