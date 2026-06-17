@@ -1097,7 +1097,6 @@
             <div v-else-if="addPlayerMode === 'club'" class="q-gutter-y-md">
               <PayBanner
                 v-if="isClubSubscriptionExpired"
-                message="Subscription expired. Renew to add club members."
                 :loading="paymentLoading"
                 @pay="callPayment({ clubId: currentClubId })"
               />
