@@ -208,10 +208,16 @@ function enforceOneMatchPerPlayerOnState(state: AppState) {
  * - MARGIN_WEIGHT = 0.1 (log-elastic, not linear)
  * High K is safe here precisely because the model is zero-sum: ratings stay
  * calibrated long-term while still separating players (~82% partner diff).
+ *
+ * Anti-carry tweak: when a player is the weaker of the two partners, their
+ * share of the pool is reduced as the partner gap grows. This keeps the
+ * lower-rated partner from getting a free boost when paired with a much
+ * stronger teammate. Value chosen from synthetic + real-data backtesting.
  */
 const K_DOUBLES = 48;
 const K_SINGLES = 32;
 const MARGIN_WEIGHT = 0.1;
+const PARTNER_GAP_FACTOR = 0.5;
 const RATING_FLOOR = 100;
 
 /**
@@ -258,16 +264,30 @@ export const RatingEngine = {
     const expectedW = 1 / (1 + Math.pow(10, (ratingL - ratingW) / 400));
     const pool = Math.round(K * multiplier * (1 - expectedW));
 
-    // WINNERS: credit weight = 1 - E_individual (underdogs earn more)
-    const winnerCredits = winners.map(
-      (p) => 1 - 1 / (1 + Math.pow(10, (ratingL - p.rating) / 400)),
-    );
+    // Apply anti-carry partner-gap penalty: weaker partner in a large-gap
+    // pair gets less weight, so strong players cannot pull up weak players.
+    const applyGapPenalty = (team: Player[], isWinners: boolean) =>
+      team.map((p, i) => {
+        const partner = team[(i + 1) % team.length];
+        const gap = Math.abs(partner.rating - p.rating);
+        const base = isWinners
+          ? 1 - 1 / (1 + Math.pow(10, (ratingL - p.rating) / 400))
+          : 1 / (1 + Math.pow(10, (ratingW - p.rating) / 400));
+        const weaker = p.rating < partner.rating;
+        const penalty = weaker
+          ? Math.max(0.1, 1 - (PARTNER_GAP_FACTOR * gap) / 400)
+          : 1;
+        return base * penalty;
+      });
+
+    // WINNERS: credit weight = 1 - E_individual (underdogs earn more), then
+    // reduced if the partner gap is huge (anti-carry).
+    const winnerCredits = applyGapPenalty(winners, true);
     const winnerGains = allocateInteger(pool, winnerCredits);
 
-    // LOSERS: blame weight = E_individual (favorites pay more)
-    const loserBlames = losers.map(
-      (p) => 1 / (1 + Math.pow(10, (ratingW - p.rating) / 400)),
-    );
+    // LOSERS: blame weight = E_individual (favorites pay more), then
+    // increased if the partner gap is huge (stronger partner pays more).
+    const loserBlames = applyGapPenalty(losers, false);
     const loserLosses = allocateInteger(pool, loserBlames);
 
     const updatedWinners = winners.map((player, i) => ({

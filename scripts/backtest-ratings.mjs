@@ -10,7 +10,15 @@ const CSV_PATH = path.join(
   '..',
   'test',
   'fixtures',
-  'completed_matches.csv',
+  'completed_matches_initial_backtest.csv',
+);
+
+const NEW_CSV_PATH = path.join(
+  __dirname,
+  '..',
+  'test',
+  'fixtures',
+  'completed_matches_2026_06_18_event.csv',
 );
 
 function parseCsv(csvText) {
@@ -339,6 +347,60 @@ function zeroSumDeltas(winners, losers, sW, sL, { k, mw }) {
   return { wd, ld };
 }
 
+// zero-sum equal split: no partner differentiation, no carry effect
+function equalSplitDeltas(winners, losers, sW, sL, { k, mw }) {
+  const rW = arithmeticMean(winners);
+  const rL = arithmeticMean(losers);
+  const mult = 1 + mw * Math.log(1 + Math.abs(sW - sL));
+  const pool = Math.round(k * mult * (1 - expected(rW, rL)));
+  const share = Math.floor(pool / winners.length);
+  const wd = winners.map(() => share);
+  wd[0] += pool - share * winners.length;
+  const ld = losers.map(() => -share);
+  ld[0] -= pool - share * losers.length;
+  return { wd, ld };
+}
+
+// zero-sum gap-adjusted: reduce underdog credit when partner gap is large
+function gapAdjustedDeltas(winners, losers, sW, sL, { k, mw, gapFactor }) {
+  const rW = arithmeticMean(winners);
+  const rL = arithmeticMean(losers);
+  const mult = 1 + mw * Math.log(1 + Math.abs(sW - sL));
+  const pool = Math.round(k * mult * (1 - expected(rW, rL)));
+
+  const adjust = (arr, isWinners) =>
+    arr.map((p, i) => {
+      const partner = arr[(i + 1) % arr.length];
+      const gap = Math.abs(partner.rating - p.rating);
+      const base = isWinners
+        ? 1 - expected(p.rating, rL)
+        : expected(p.rating, rW);
+      // If I'm the weaker partner, shrink my share as the partner gap grows
+      const weaker = p.rating < partner.rating;
+      const penalty = weaker ? Math.max(0.1, 1 - (gapFactor * gap) / 400) : 1;
+      return base * penalty;
+    });
+
+  const wWeights = adjust(winners, true);
+  const lWeights = adjust(losers, false);
+  const wd = allocateInteger(pool, wWeights);
+  const ld = allocateInteger(pool, lWeights).map((x) => -x);
+  return { wd, ld };
+}
+
+// zero-sum rating-proportional: higher-rated player gets more credit (reverse of current)
+function ratingProportionalDeltas(winners, losers, sW, sL, { k, mw }) {
+  const rW = arithmeticMean(winners);
+  const rL = arithmeticMean(losers);
+  const mult = 1 + mw * Math.log(1 + Math.abs(sW - sL));
+  const pool = Math.round(k * mult * (1 - expected(rW, rL)));
+  const wWeights = winners.map((p) => p.rating);
+  const lWeights = losers.map((p) => p.rating);
+  const wd = allocateInteger(pool, wWeights);
+  const ld = allocateInteger(pool, lWeights).map((x) => -x);
+  return { wd, ld };
+}
+
 // current pooled engine returning raw deltas (for drift comparison)
 function currentDeltas(winners, losers, sW, sL) {
   const r = currentEngine(winners, losers, sW, sL);
@@ -486,6 +548,28 @@ function runFairnessAnalysis(sortedMatches) {
     ['ZERO-SUM perPlayer k56 mw0.1', zeroSumDeltas, { k: 56, mw: 0.1 }],
     ['ZERO-SUM perPlayer k40 mw0.2', zeroSumDeltas, { k: 40, mw: 0.2 }],
     ['ZERO-SUM perPlayer k40 mw0.3', zeroSumDeltas, { k: 40, mw: 0.3 }],
+    ['ZERO-SUM equal split k48', equalSplitDeltas, { k: 48, mw: 0.1 }],
+    [
+      'ZERO-SUM gapAdjust 0.5 k48',
+      gapAdjustedDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.5 },
+    ],
+    [
+      'ZERO-SUM gapAdjust 0.75 k48',
+      gapAdjustedDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75 },
+    ],
+    [
+      'ZERO-SUM gapAdjust 1.0 k48',
+      gapAdjustedDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0 },
+    ],
+    [
+      'ZERO-SUM gapAdjust 2.0 k48',
+      gapAdjustedDeltas,
+      { k: 48, mw: 0.1, gapFactor: 2.0 },
+    ],
+    ['ZERO-SUM ratingProp k48', ratingProportionalDeltas, { k: 48, mw: 0.1 }],
     ['CURRENT pooled harmonic', currentDeltas, {}],
   ];
   const rows = configs.map(([label, fn, params]) =>
@@ -560,6 +644,14 @@ function runFairnessAnalysis(sortedMatches) {
   console.log(
     '- ratingStd: final spread of skill. Higher = ratings separate players more (to a point).',
   );
+
+  fs.writeFileSync(
+    path.join(__dirname, '..', 'test', 'fixtures', 'fairness-results.json'),
+    JSON.stringify({ shortTerm: rows, longTerm: ltRows }, null, 2),
+  );
+  console.log(
+    '\nFairness results written to test/fixtures/fairness-results.json',
+  );
 }
 
 // Print real CSV examples with player-by-player gains/losses under the new engine.
@@ -610,6 +702,225 @@ function printExampleTables(sortedMatches) {
       ),
     );
   }
+}
+
+// Analyze the 6/18 event across multiple engine variants to find the best
+// balance between partner differentiation and carry-prevention.
+function analyzeCarryComplaint() {
+  const raw = fs.readFileSync(NEW_CSV_PATH, 'utf8');
+  const allMatches = parseCsv(raw);
+  const doublesMatches = allMatches.filter((m) => m.matchType === 'doubles');
+  const sortedMatches = [...doublesMatches].sort(
+    (a, b) => new Date(a.date) - new Date(b.date),
+  );
+
+  const getKey = (p) => p.username || p.name;
+  const trackNames = ['EddieWow Datuin jr', 'romel saclolo', 'Rommel Sandoval'];
+
+  const variants = [
+    ['CURRENT underdog-credit', zeroSumDeltas, { k: 48, mw: 0.1 }],
+    ['Equal split', equalSplitDeltas, { k: 48, mw: 0.1 }],
+    ['Gap-adjusted 0.5', gapAdjustedDeltas, { k: 48, mw: 0.1, gapFactor: 0.5 }],
+    [
+      'Gap-adjusted 0.75',
+      gapAdjustedDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75 },
+    ],
+    ['Gap-adjusted 1.0', gapAdjustedDeltas, { k: 48, mw: 0.1, gapFactor: 1.0 }],
+    ['Gap-adjusted 2.0', gapAdjustedDeltas, { k: 48, mw: 0.1, gapFactor: 2.0 }],
+    ['Rating-proportional', ratingProportionalDeltas, { k: 48, mw: 0.1 }],
+  ];
+
+  console.log('\n\n=== CARRY COMPLAINT ANALYSIS (6/18 event) ===');
+  console.log('Comparing how each engine splits points between partners.');
+
+  const carryResults = [];
+
+  for (const [label, deltaFn, params] of variants) {
+    const players = {};
+    const hydrate = (arr) =>
+      arr.map((p) => ({
+        ...p,
+        rating: players[getKey(p)]?.rating || p.rating || 1500,
+      }));
+    const history = Object.fromEntries(trackNames.map((n) => [n, []]));
+
+    for (const m of sortedMatches) {
+      const aWon = m.teamAScore > m.teamBScore;
+      const winners = hydrate(aWon ? m.teamA : m.teamB);
+      const losers = hydrate(aWon ? m.teamB : m.teamA);
+      const sW = aWon ? m.teamAScore : m.teamBScore;
+      const sL = aWon ? m.teamBScore : m.teamAScore;
+      const { wd, ld } = deltaFn(winners, losers, sW, sL, params);
+
+      const record = (arr, deltas, result, oppArr) =>
+        arr.forEach((p, i) => {
+          const key = getKey(p);
+          players[key] = { ...p, rating: p.rating + deltas[i] };
+          if (trackNames.includes(p.name)) {
+            const partner = arr[(i + 1) % arr.length];
+            history[p.name].push({
+              matchId: m.matchId,
+              score: `${sW}-${sL}`,
+              partner: partner.name || partner.username || 'Unknown',
+              opp: oppArr
+                .map((x) => x.name || x.username || 'Unknown')
+                .join(' + '),
+              before: p.rating,
+              change: deltas[i],
+              after: p.rating + deltas[i],
+              result,
+            });
+          }
+        });
+
+      record(winners, wd, 'W', losers);
+      record(losers, ld, 'L', winners);
+    }
+
+    console.log(`\n--- ${label} ---`);
+    const perEngine = { engine: label, players: [] };
+    for (const name of trackNames) {
+      const rows = history[name];
+      if (rows.length === 0) continue;
+      const net = rows.reduce((s, r) => s + r.change, 0);
+      const headToHead = rows.filter(
+        (r) => r.opp.includes('EddieWow') || r.opp.includes('romel saclolo'),
+      );
+      const h2hNet = headToHead.reduce((s, r) => s + r.change, 0);
+      console.log(
+        `  ${name.padEnd(18)} net=${(net > 0 ? '+' : '').padStart(1)}${net.toString().padStart(3)}  vsEddie/Romel=${(h2hNet > 0 ? '+' : '').padStart(1)}${h2hNet.toString().padStart(3)}  (${rows.length} matches)`,
+      );
+      perEngine.players.push({ name, net, h2hNet, matches: rows.length });
+    }
+    carryResults.push(perEngine);
+  }
+
+  fs.writeFileSync(
+    path.join(__dirname, '..', 'test', 'fixtures', 'carry-analysis.json'),
+    JSON.stringify(carryResults, null, 2),
+  );
+  console.log('\nCarry analysis written to test/fixtures/carry-analysis.json');
+}
+
+// Synthetic scenario simulator: grid of weak/strong, equal/unequal, upset/favorite, blowout/close.
+function simulateScenarios() {
+  const variants = [
+    ['CURRENT underdog-credit', zeroSumDeltas, { k: 48, mw: 0.1 }],
+    ['Equal split', equalSplitDeltas, { k: 48, mw: 0.1 }],
+    ['Gap-adjusted 0.5', gapAdjustedDeltas, { k: 48, mw: 0.1, gapFactor: 0.5 }],
+    [
+      'Gap-adjusted 0.75',
+      gapAdjustedDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75 },
+    ],
+    ['Gap-adjusted 1.0', gapAdjustedDeltas, { k: 48, mw: 0.1, gapFactor: 1.0 }],
+    ['Gap-adjusted 2.0', gapAdjustedDeltas, { k: 48, mw: 0.1, gapFactor: 2.0 }],
+    ['Rating-proportional', ratingProportionalDeltas, { k: 48, mw: 0.1 }],
+  ];
+
+  const scenarios = [
+    // description, p1, p2, opp1, opp2, scoreW, scoreL
+    ['weak+strong vs balanced, upset win', 1300, 1700, 1500, 1500, 11, 9],
+    ['weak+strong vs balanced, blowout upset', 1300, 1700, 1500, 1500, 11, 1],
+    ['weak+strong vs balanced, close loss', 1300, 1700, 1500, 1500, 9, 11],
+    ['weak+strong vs strong, upset win', 1300, 1700, 1700, 1700, 11, 9],
+    ['balanced vs balanced, win', 1500, 1500, 1500, 1500, 11, 9],
+    ['balanced vs weak, expected win', 1500, 1500, 1300, 1300, 11, 3],
+    ['strong vs weak, expected win', 1700, 1700, 1300, 1300, 11, 3],
+    ['strong+weak vs strong+weak, win', 1700, 1300, 1600, 1400, 11, 9],
+    ['huge gap partner vs balanced, win', 1200, 1800, 1500, 1500, 11, 9],
+    [
+      'huge gap partner vs balanced, blowout win',
+      1200,
+      1800,
+      1500,
+      1500,
+      11,
+      2,
+    ],
+    ['huge gap partner vs balanced, loss', 1200, 1800, 1500, 1500, 5, 11],
+    ['weak+weak vs strong+strong, upset win', 1300, 1300, 1700, 1700, 11, 9],
+    ['strong+strong vs weak+weak, blowout win', 1700, 1700, 1300, 1300, 11, 1],
+  ];
+
+  const allResults = [];
+
+  console.log(
+    '\n\n=== SYNTHETIC SCENARIO SIMULATION (all partner/skill combinations) ===',
+  );
+
+  for (const [label, deltaFn, params] of variants) {
+    console.log(`\n--- ${label} ---`);
+    console.log(
+      'Scenario'.padEnd(38),
+      'TeamAvg',
+      'OppAvg',
+      'P1'.padStart(5),
+      'P2'.padStart(5),
+      'P1Chg',
+      'P2Chg',
+      'CarryScore',
+    );
+    console.log('-'.repeat(95));
+    for (const [desc, p1, p2, o1, o2, sTeam, sOpp] of scenarios) {
+      const teamA = [
+        { name: 'P1', rating: p1 },
+        { name: 'P2', rating: p2 },
+      ];
+      const teamB = [
+        { name: 'O1', rating: o1 },
+        { name: 'O2', rating: o2 },
+      ];
+      const teamWon = sTeam > sOpp;
+      const winners = teamWon ? teamA : teamB;
+      const losers = teamWon ? teamB : teamA;
+      const sW = teamWon ? sTeam : sOpp;
+      const sL = teamWon ? sOpp : sTeam;
+      const { wd, ld } = deltaFn(winners, losers, sW, sL, params);
+      const p1Change = teamWon ? wd[0] : ld[0];
+      const p2Change = teamWon ? wd[1] : ld[1];
+      const teamAvg = (p1 + p2) / 2;
+      const oppAvg = (o1 + o2) / 2;
+      // Carry score: how much more the weaker partner gains than the stronger.
+      // Positive = weaker partner gets more (potential carry). Negative = stronger gets more.
+      const weakChange = p1 < p2 ? p1Change : p2Change;
+      const strongChange = p1 < p2 ? p2Change : p1Change;
+      const carryScore = weakChange - strongChange;
+      console.log(
+        desc.padEnd(38),
+        teamAvg.toFixed(0).padStart(6),
+        oppAvg.toFixed(0).padStart(6),
+        p1.toString().padStart(5),
+        p2.toString().padStart(5),
+        (p1Change > 0 ? '+' : '').padStart(1) + p1Change.toString().padStart(4),
+        (p2Change > 0 ? '+' : '').padStart(1) + p2Change.toString().padStart(4),
+        (carryScore > 0 ? '+' : '').padStart(1) +
+          carryScore.toString().padStart(4),
+      );
+      allResults.push({
+        engine: label,
+        scenario: desc,
+        p1,
+        p2,
+        o1,
+        o2,
+        sW,
+        sL,
+        p1Change,
+        p2Change,
+        carryScore,
+      });
+    }
+  }
+
+  fs.writeFileSync(
+    path.join(__dirname, '..', 'test', 'fixtures', 'scenario-simulation.json'),
+    JSON.stringify(allResults, null, 2),
+  );
+  console.log(
+    '\nScenario results written to test/fixtures/scenario-simulation.json',
+  );
 }
 
 function main() {
@@ -724,6 +1035,8 @@ function main() {
 
   runFairnessAnalysis(sortedMatches);
   printExampleTables(sortedMatches);
+  analyzeCarryComplaint();
+  simulateScenarios();
 }
 
 main();
