@@ -184,4 +184,19 @@ describe('RatingEngine.calculateShift', () => {
     expect(jaysonGain).toBeGreaterThan(10);
     expect(trinGain).toBeGreaterThan(0);
   });
+
+  it('anti-carry: weak partner in huge gap pair gets less credit than before, but still more than strong partner', () => {
+    const w = [makePlayer(2000), makePlayer(1000)];
+    const l = [makePlayer(1500), makePlayer(1500)];
+    const r = RatingEngine.calculateShift(w, l, 11, 9);
+    assertZeroSum(w, l, r);
+    const strongGain = r.updatedWinners[0].rating - 2000;
+    const weakGain = r.updatedWinners[1].rating - 1000;
+    // Even with the gap penalty, the weak partner (who overperformed vs the
+    // 1500 opponents) still earns more than the strong partner.
+    expect(weakGain).toBeGreaterThan(strongGain);
+    // Anti-carry: the gap penalty keeps the difference reasonable. With the
+    // old pure underdog model the weak partner would have taken most of the pool.
+    expect(weakGain - strongGain).toBeLessThan(10);
+  });
 });
