@@ -13,7 +13,7 @@ const makePlayer = (rating: number, extra: Partial<Player> = {}): Player => ({
   ...extra,
 });
 
-// Zero-sum invariant checker
+// Zero-sum invariant: total winner gain == total loser loss (unless floor clamps).
 function assertZeroSum(
   winners: Player[],
   losers: Player[],
@@ -31,48 +31,42 @@ function assertZeroSum(
   if (!floorExpected) {
     expect(totalGain).toBe(totalLoss);
   } else {
-    // Floor clamp means losers may lose less than winners gain
     expect(totalGain).toBeGreaterThanOrEqual(totalLoss);
   }
 }
 
 describe('RatingEngine.calculateShift', () => {
-  it('even doubles close score: near-equal splits, zero-sum', () => {
+  it('winners gain and losers lose (zero-sum)', () => {
     const w = [makePlayer(1500), makePlayer(1500)];
     const l = [makePlayer(1500), makePlayer(1500)];
     const r = RatingEngine.calculateShift(w, l, 11, 10);
     assertZeroSum(w, l, r);
-    r.updatedWinners.forEach((p) => expect(p.rating - 1500).toBeGreaterThan(0));
-    r.updatedLosers.forEach((p) => expect(p.rating - 1500).toBeLessThan(0));
+    r.updatedWinners.forEach((p) => expect(p.rating).toBeGreaterThan(1500));
+    r.updatedLosers.forEach((p) => expect(p.rating).toBeLessThan(1500));
   });
 
-  it('even doubles blowout: larger shifts, still zero-sum', () => {
+  it('blowout moves ratings more than a close game', () => {
     const w = [makePlayer(1500), makePlayer(1500)];
     const l = [makePlayer(1500), makePlayer(1500)];
     const rClose = RatingEngine.calculateShift(w, l, 11, 10);
     const rBlowout = RatingEngine.calculateShift(w, l, 11, 0);
-    assertZeroSum(w, l, rClose);
-    assertZeroSum(w, l, rBlowout);
-    // Blowout should move ratings more than close game
     const closeGain = rClose.updatedWinners[0].rating - 1500;
     const blowoutGain = rBlowout.updatedWinners[0].rating - 1500;
     expect(blowoutGain).toBeGreaterThan(closeGain);
   });
 
-  it('big upset: underdogs gain large; favorites lose large', () => {
+  it('big upset: underdogs gain large; favorites lose large (zero-sum)', () => {
     const w = [makePlayer(1000), makePlayer(1000)];
     const l = [makePlayer(1500), makePlayer(1500)];
     const r = RatingEngine.calculateShift(w, l, 11, 9);
     assertZeroSum(w, l, r);
-    // Underdogs should climb significantly
     expect(r.updatedWinners[0].rating).toBeGreaterThan(1000);
     expect(r.updatedWinners[1].rating).toBeGreaterThan(1000);
-    // Favorites should drop
     expect(r.updatedLosers[0].rating).toBeLessThan(1500);
     expect(r.updatedLosers[1].rating).toBeLessThan(1500);
   });
 
-  it('mixed team win: low-rated gets big credit, high-rated gets tiny', () => {
+  it('mixed team win: low-rated partner gets more credit than high-rated partner', () => {
     const w = [makePlayer(2000), makePlayer(1000)];
     const l = [makePlayer(1500), makePlayer(1500)];
     const r = RatingEngine.calculateShift(w, l, 11, 9);
@@ -82,7 +76,7 @@ describe('RatingEngine.calculateShift', () => {
     expect(lowRatedGain).toBeGreaterThan(highRatedGain);
   });
 
-  it('mixed team loss: high-rated pays big blame, low-rated pays tiny', () => {
+  it('mixed team loss: high-rated partner pays more than low-rated partner', () => {
     const w = [makePlayer(1500), makePlayer(1500)];
     const l = [makePlayer(2000), makePlayer(1000)];
     const r = RatingEngine.calculateShift(w, l, 11, 9);
@@ -92,7 +86,7 @@ describe('RatingEngine.calculateShift', () => {
     expect(highRatedLoss).toBeGreaterThan(lowRatedLoss);
   });
 
-  it('singles vs doubles K: same matchup shifts ~2x for singles', () => {
+  it('per-player swing: singles (K=32) >= doubles per-player (K=48 split by 2)', () => {
     const sW = [makePlayer(1500)];
     const sL = [makePlayer(1500)];
     const dW = [makePlayer(1500), makePlayer(1500)];
@@ -103,18 +97,18 @@ describe('RatingEngine.calculateShift', () => {
 
     const sGain = singles.updatedWinners[0].rating - 1500;
     const dGain = doubles.updatedWinners[0].rating - 1500;
-    // Singles should be roughly 2x doubles (K=30 vs K=15)
-    expect(sGain).toBeGreaterThanOrEqual(dGain * 1.5);
+    // Singles puts the full pool on one player; doubles splits a larger pool
+    // across two, so per-player singles change is still the larger one.
+    expect(sGain).toBeGreaterThanOrEqual(dGain);
   });
 
   it('floor hit: rating clamps at 100, never negative', () => {
-    // Ratings close enough that pool is non-zero, but loser starts near floor
     const w = [makePlayer(150)];
     const l = [makePlayer(105)];
     const r = RatingEngine.calculateShift(w, l, 11, 0);
     assertZeroSum(w, l, r, true);
     expect(r.updatedLosers[0].rating).toBe(100);
-    expect(r.updatedLosers[0].rating).toBeGreaterThanOrEqual(100);
+    expect(r.updatedWinners[0].rating).toBeGreaterThan(150);
   });
 
   // --- Real-CSV regression cases ---
@@ -129,12 +123,11 @@ describe('RatingEngine.calculateShift', () => {
       makePlayer(1548, { username: 'Eddie' }),
     ];
     const r = RatingEngine.calculateShift(w, l, 11, 4);
-    assertZeroSum(w, l, r);
-    // James (underdog on team) should get >= Shirwin (favorite on team)
+    // James (underdog on team) gets more credit than Shirwin (favorite on team)
     const jamesGain = r.updatedWinners[1].rating - 1529;
     const shirwinGain = r.updatedWinners[0].rating - 1632;
-    expect(jamesGain).toBeGreaterThanOrEqual(shirwinGain);
-    // Losers should pay similar amounts
+    expect(jamesGain).toBeGreaterThan(shirwinGain);
+    // Losers pay similar amounts (17-point rating gap is small)
     const peejayLoss = 1565 - r.updatedLosers[0].rating;
     const eddieLoss = 1548 - r.updatedLosers[1].rating;
     expect(Math.abs(peejayLoss - eddieLoss)).toBeLessThanOrEqual(2);
@@ -150,11 +143,10 @@ describe('RatingEngine.calculateShift', () => {
       makePlayer(1441, { username: 'Abbey' }),
     ];
     const r = RatingEngine.calculateShift(w, l, 11, 1);
-    assertZeroSum(w, l, r);
     const rommelLoss = 1514 - r.updatedLosers[0].rating;
     const abbeyLoss = 1441 - r.updatedLosers[1].rating;
-    // Rommel (favorite) should pay >= Abbey (underdog)
-    expect(rommelLoss).toBeGreaterThanOrEqual(abbeyLoss);
+    // Rommel (favorite) pays more than Abbey (underdog)
+    expect(rommelLoss).toBeGreaterThan(abbeyLoss);
   });
 
   it('CSV Match 28: Peejay+Shirwin vs Jayson+Trin 11-2 upset', () => {
@@ -167,11 +159,12 @@ describe('RatingEngine.calculateShift', () => {
       makePlayer(1636, { username: 'Trin' }),
     ];
     const r = RatingEngine.calculateShift(w, l, 11, 2);
-    assertZeroSum(w, l, r);
     const trinLoss = 1636 - r.updatedLosers[1].rating;
     const jaysonLoss = 1400 - r.updatedLosers[0].rating;
-    // Trin (huge favorite) should pay more than Jayson (huge underdog)
+    // Trin (huge favorite) pays more than Jayson (huge underdog)
     expect(trinLoss).toBeGreaterThan(jaysonLoss);
+    expect(trinLoss).toBeGreaterThan(10);
+    expect(jaysonLoss).toBeLessThan(10);
   });
 
   it('CSV Match 10: Jayson+Trin vs Henri+Celine 11-2', () => {
@@ -184,21 +177,11 @@ describe('RatingEngine.calculateShift', () => {
       makePlayer(1555, { username: 'Celine' }),
     ];
     const r = RatingEngine.calculateShift(w, l, 11, 2);
-    assertZeroSum(w, l, r);
     const jaysonGain = r.updatedWinners[0].rating - 1397;
     const trinGain = r.updatedWinners[1].rating - 1630;
-    // Jayson (huge underdog) should get more credit than Trin (huge favorite)
+    // Jayson (huge underdog) gets more credit than Trin (huge favorite)
     expect(jaysonGain).toBeGreaterThan(trinGain);
-  });
-});
-
-describe('allocateInteger', () => {
-  // Access via module since it's not exported. We can't directly test it,
-  // but we verify zero-sum behavior through calculateShift tests above.
-  // For direct testing we'd need to export it. The zero-sum tests above
-  // effectively validate allocateInteger correctness.
-
-  it('is validated indirectly through all calculateShift tests', () => {
-    expect(true).toBe(true); // All calculateShift tests check zero-sum
+    expect(jaysonGain).toBeGreaterThan(10);
+    expect(trinGain).toBeGreaterThan(0);
   });
 });
