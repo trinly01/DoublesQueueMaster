@@ -96,10 +96,6 @@ function harmonicMean(players) {
   return players.length / sumReciprocal;
 }
 
-function teamRating60_40(players) {
-  return harmonicMean(players) * 0.6 + arithmeticMean(players) * 0.4;
-}
-
 function expected(ratingA, ratingB) {
   return 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
 }
