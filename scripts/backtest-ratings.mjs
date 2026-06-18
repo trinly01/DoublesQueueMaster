@@ -10,7 +10,7 @@ const CSV_PATH = path.join(
   '..',
   'test',
   'fixtures',
-  'completed_matches_initial_backtest.csv',
+  'completed_matches_combined.csv',
 );
 
 const NEW_CSV_PATH = path.join(

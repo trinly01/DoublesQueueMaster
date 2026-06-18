@@ -3,18 +3,18 @@
     "engineName": "current",
     "seedingStrategy": "reset_per_event",
     "engineParams": {},
-    "logLoss": 0.6926103889152428,
-    "brier": 0.24973268045422434,
-    "accuracy": 0.5836734693877551,
-    "upsetAccuracy": 1.4019607843137254,
-    "totalUpsets": 102,
-    "predictions": 245,
+    "logLoss": 0.6924518141941206,
+    "brier": 0.24965340470436706,
+    "accuracy": 0.5869565217391305,
+    "upsetAccuracy": 1.4210526315789473,
+    "totalUpsets": 114,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.5,
-        "count": 244,
-        "actualRate": 0.4713114754098361,
-        "error": 0.02868852459016391
+        "count": 275,
+        "actualRate": 0.4690909090909091,
+        "error": 0.030909090909090886
       },
       {
         "prob": 0.6,
@@ -23,8 +23,8 @@
         "error": 0.4
       }
     ],
-    "meanPredictedProb": 0.5024085821132764,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5025367505324788,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -33,12 +33,12 @@
       "k": 12,
       "marginWeight": 0.1
     },
-    "logLoss": 0.6923911408898684,
-    "brier": 0.24962576386943494,
-    "accuracy": 0.5795918367346938,
-    "upsetAccuracy": 1.3786407766990292,
-    "totalUpsets": 103,
-    "predictions": 245,
+    "logLoss": 0.6921587325298122,
+    "brier": 0.2495095079186797,
+    "accuracy": 0.5760869565217391,
+    "upsetAccuracy": 1.358974358974359,
+    "totalUpsets": 117,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -48,9 +48,9 @@
       },
       {
         "prob": 0.5,
-        "count": 241,
-        "actualRate": 0.46887966804979253,
-        "error": 0.03112033195020747
+        "count": 272,
+        "actualRate": 0.46691176470588236,
+        "error": 0.03308823529411764
       },
       {
         "prob": 0.6,
@@ -59,8 +59,8 @@
         "error": 0.06666666666666665
       }
     ],
-    "meanPredictedProb": 0.5035773188285088,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5037042005049891,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -69,12 +69,12 @@
       "k": 12,
       "marginWeight": 0.15
     },
-    "logLoss": 0.6923976758942454,
-    "brier": 0.24962935216211934,
-    "accuracy": 0.5836734693877551,
-    "upsetAccuracy": 1.4019607843137254,
-    "totalUpsets": 102,
-    "predictions": 245,
+    "logLoss": 0.6920677725460703,
+    "brier": 0.24946448378617841,
+    "accuracy": 0.5797101449275363,
+    "upsetAccuracy": 1.3793103448275863,
+    "totalUpsets": 116,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -84,9 +84,9 @@
       },
       {
         "prob": 0.5,
-        "count": 237,
-        "actualRate": 0.46835443037974683,
-        "error": 0.03164556962025317
+        "count": 268,
+        "actualRate": 0.4664179104477612,
+        "error": 0.03358208955223879
       },
       {
         "prob": 0.6,
@@ -95,8 +95,8 @@
         "error": 0.20000000000000007
       }
     ],
-    "meanPredictedProb": 0.5038749361001675,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5040411937202534,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -105,12 +105,12 @@
       "k": 12,
       "marginWeight": 0.2
     },
-    "logLoss": 0.6925354096438197,
-    "brier": 0.24969855041327912,
-    "accuracy": 0.563265306122449,
-    "upsetAccuracy": 1.2897196261682242,
-    "totalUpsets": 107,
-    "predictions": 245,
+    "logLoss": 0.6921779935130489,
+    "brier": 0.24951994833100793,
+    "accuracy": 0.5615942028985508,
+    "upsetAccuracy": 1.28099173553719,
+    "totalUpsets": 121,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -120,9 +120,9 @@
       },
       {
         "prob": 0.5,
-        "count": 235,
-        "actualRate": 0.46382978723404256,
-        "error": 0.036170212765957444
+        "count": 266,
+        "actualRate": 0.462406015037594,
+        "error": 0.03759398496240601
       },
       {
         "prob": 0.6,
@@ -131,8 +131,8 @@
         "error": 0.2571428571428571
       }
     ],
-    "meanPredictedProb": 0.5041223598082518,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5043050408843511,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -141,12 +141,12 @@
       "k": 16,
       "marginWeight": 0.1
     },
-    "logLoss": 0.6925768540613552,
-    "brier": 0.2497215301706532,
-    "accuracy": 0.5877551020408164,
-    "upsetAccuracy": 1.4257425742574257,
-    "totalUpsets": 101,
-    "predictions": 245,
+    "logLoss": 0.6921519874446417,
+    "brier": 0.24950926578393198,
+    "accuracy": 0.5833333333333334,
+    "upsetAccuracy": 1.4,
+    "totalUpsets": 115,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -156,19 +156,19 @@
       },
       {
         "prob": 0.5,
-        "count": 232,
-        "actualRate": 0.46551724137931033,
-        "error": 0.03448275862068967
+        "count": 262,
+        "actualRate": 0.4618320610687023,
+        "error": 0.03816793893129772
       },
       {
         "prob": 0.6,
-        "count": 7,
-        "actualRate": 0.8571428571428571,
-        "error": 0.2571428571428571
+        "count": 8,
+        "actualRate": 0.875,
+        "error": 0.275
       }
     ],
-    "meanPredictedProb": 0.5047703403356173,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5049710142996029,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -177,12 +177,12 @@
       "k": 16,
       "marginWeight": 0.15
     },
-    "logLoss": 0.6925109055795987,
-    "brier": 0.24968879042920133,
-    "accuracy": 0.5795918367346938,
-    "upsetAccuracy": 1.3786407766990292,
-    "totalUpsets": 103,
-    "predictions": 245,
+    "logLoss": 0.6920292751391115,
+    "brier": 0.2494484070798004,
+    "accuracy": 0.5760869565217391,
+    "upsetAccuracy": 1.358974358974359,
+    "totalUpsets": 117,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -192,19 +192,19 @@
       },
       {
         "prob": 0.5,
-        "count": 232,
-        "actualRate": 0.46551724137931033,
-        "error": 0.03448275862068967
+        "count": 262,
+        "actualRate": 0.4618320610687023,
+        "error": 0.03816793893129772
       },
       {
         "prob": 0.6,
-        "count": 7,
-        "actualRate": 0.8571428571428571,
-        "error": 0.2571428571428571
+        "count": 8,
+        "actualRate": 0.875,
+        "error": 0.275
       }
     ],
-    "meanPredictedProb": 0.5050430338877809,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5052700639094465,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -213,12 +213,12 @@
       "k": 16,
       "marginWeight": 0.2
     },
-    "logLoss": 0.6926637533219129,
-    "brier": 0.24976618637306863,
-    "accuracy": 0.5836734693877551,
-    "upsetAccuracy": 1.4019607843137254,
-    "totalUpsets": 102,
-    "predictions": 245,
+    "logLoss": 0.6921999823330552,
+    "brier": 0.24953477258128287,
+    "accuracy": 0.5797101449275363,
+    "upsetAccuracy": 1.3793103448275863,
+    "totalUpsets": 116,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -228,19 +228,19 @@
       },
       {
         "prob": 0.5,
-        "count": 229,
-        "actualRate": 0.4672489082969432,
-        "error": 0.03275109170305679
+        "count": 259,
+        "actualRate": 0.46332046332046334,
+        "error": 0.03667953667953666
       },
       {
         "prob": 0.6,
-        "count": 9,
-        "actualRate": 0.7777777777777778,
-        "error": 0.1777777777777778
+        "count": 10,
+        "actualRate": 0.8,
+        "error": 0.20000000000000007
       }
     ],
-    "meanPredictedProb": 0.5054991862129795,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5057346244052179,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -249,12 +249,12 @@
       "k": 20,
       "marginWeight": 0.1
     },
-    "logLoss": 0.6927677670716057,
-    "brier": 0.24981940029678307,
-    "accuracy": 0.5877551020408164,
-    "upsetAccuracy": 1.4257425742574257,
-    "totalUpsets": 101,
-    "predictions": 245,
+    "logLoss": 0.692215976827423,
+    "brier": 0.24954413933304218,
+    "accuracy": 0.5833333333333334,
+    "upsetAccuracy": 1.4,
+    "totalUpsets": 115,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -264,19 +264,19 @@
       },
       {
         "prob": 0.5,
-        "count": 225,
-        "actualRate": 0.4711111111111111,
-        "error": 0.02888888888888891
+        "count": 255,
+        "actualRate": 0.4666666666666667,
+        "error": 0.033333333333333326
       },
       {
         "prob": 0.6,
-        "count": 10,
-        "actualRate": 0.7,
-        "error": 0.09999999999999998
+        "count": 11,
+        "actualRate": 0.7272727272727273,
+        "error": 0.12727272727272732
       }
     ],
-    "meanPredictedProb": 0.5058093891208366,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.506069502362263,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -285,12 +285,12 @@
       "k": 20,
       "marginWeight": 0.15
     },
-    "logLoss": 0.6929484076930008,
-    "brier": 0.24990988253580526,
-    "accuracy": 0.5755102040816327,
-    "upsetAccuracy": 1.3557692307692308,
-    "totalUpsets": 104,
-    "predictions": 245,
+    "logLoss": 0.6923254659858696,
+    "brier": 0.2495993633552855,
+    "accuracy": 0.572463768115942,
+    "upsetAccuracy": 1.3389830508474576,
+    "totalUpsets": 118,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -300,19 +300,19 @@
       },
       {
         "prob": 0.5,
-        "count": 222,
-        "actualRate": 0.46846846846846846,
-        "error": 0.03153153153153154
+        "count": 251,
+        "actualRate": 0.46215139442231074,
+        "error": 0.037848605577689265
       },
       {
         "prob": 0.6,
-        "count": 11,
-        "actualRate": 0.7272727272727273,
-        "error": 0.12727272727272732
+        "count": 13,
+        "actualRate": 0.7692307692307693,
+        "error": 0.1692307692307693
       }
     ],
-    "meanPredictedProb": 0.5063038146051907,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.506575651702974,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -321,12 +321,12 @@
       "k": 20,
       "marginWeight": 0.2
     },
-    "logLoss": 0.6931014836363721,
-    "brier": 0.24998786198327985,
-    "accuracy": 0.5877551020408164,
-    "upsetAccuracy": 1.4257425742574257,
-    "totalUpsets": 101,
-    "predictions": 245,
+    "logLoss": 0.6924823348334023,
+    "brier": 0.24967941398485977,
+    "accuracy": 0.5833333333333334,
+    "upsetAccuracy": 1.4,
+    "totalUpsets": 115,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -336,19 +336,19 @@
       },
       {
         "prob": 0.5,
-        "count": 216,
-        "actualRate": 0.4722222222222222,
-        "error": 0.02777777777777779
+        "count": 245,
+        "actualRate": 0.46530612244897956,
+        "error": 0.034693877551020436
       },
       {
         "prob": 0.6,
-        "count": 13,
-        "actualRate": 0.7692307692307693,
-        "error": 0.1692307692307693
+        "count": 15,
+        "actualRate": 0.8,
+        "error": 0.20000000000000007
       }
     ],
-    "meanPredictedProb": 0.5067030990182968,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5070102367850648,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -357,12 +357,12 @@
       "k": 24,
       "marginWeight": 0.1
     },
-    "logLoss": 0.6929644405085272,
-    "brier": 0.24991892251286701,
-    "accuracy": 0.5755102040816327,
-    "upsetAccuracy": 1.3557692307692308,
-    "totalUpsets": 104,
-    "predictions": 245,
+    "logLoss": 0.6922532166572672,
+    "brier": 0.249564810081134,
+    "accuracy": 0.572463768115942,
+    "upsetAccuracy": 1.3389830508474576,
+    "totalUpsets": 118,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -372,19 +372,19 @@
       },
       {
         "prob": 0.5,
-        "count": 215,
-        "actualRate": 0.4697674418604651,
-        "error": 0.030232558139534904
+        "count": 244,
+        "actualRate": 0.46311475409836067,
+        "error": 0.03688524590163933
       },
       {
         "prob": 0.6,
-        "count": 13,
-        "actualRate": 0.7692307692307693,
-        "error": 0.1692307692307693
+        "count": 15,
+        "actualRate": 0.8,
+        "error": 0.20000000000000007
       }
     ],
-    "meanPredictedProb": 0.5068836944037616,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5071910088470651,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -393,12 +393,12 @@
       "k": 24,
       "marginWeight": 0.15
     },
-    "logLoss": 0.6934275844940627,
-    "brier": 0.25015074588848796,
-    "accuracy": 0.5918367346938775,
-    "upsetAccuracy": 1.45,
-    "totalUpsets": 100,
-    "predictions": 245,
+    "logLoss": 0.6927219697594479,
+    "brier": 0.2497996720457769,
+    "accuracy": 0.5869565217391305,
+    "upsetAccuracy": 1.4210526315789473,
+    "totalUpsets": 114,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -408,15 +408,15 @@
       },
       {
         "prob": 0.5,
-        "count": 205,
-        "actualRate": 0.4682926829268293,
-        "error": 0.031707317073170704
+        "count": 234,
+        "actualRate": 0.46153846153846156,
+        "error": 0.038461538461538436
       },
       {
         "prob": 0.6,
-        "count": 18,
-        "actualRate": 0.6666666666666666,
-        "error": 0.06666666666666665
+        "count": 20,
+        "actualRate": 0.7,
+        "error": 0.09999999999999998
       },
       {
         "prob": 0.7,
@@ -425,8 +425,8 @@
         "error": 0.30000000000000004
       }
     ],
-    "meanPredictedProb": 0.5074254769325186,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5077442573993068,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -435,12 +435,12 @@
       "k": 24,
       "marginWeight": 0.2
     },
-    "logLoss": 0.6937689794606392,
-    "brier": 0.2503200965041483,
-    "accuracy": 0.5755102040816327,
-    "upsetAccuracy": 1.3557692307692308,
-    "totalUpsets": 104,
-    "predictions": 245,
+    "logLoss": 0.6929343641171664,
+    "brier": 0.24990551590387766,
+    "accuracy": 0.572463768115942,
+    "upsetAccuracy": 1.3389830508474576,
+    "totalUpsets": 118,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -450,15 +450,15 @@
       },
       {
         "prob": 0.5,
-        "count": 199,
-        "actualRate": 0.47738693467336685,
-        "error": 0.022613065326633153
+        "count": 228,
+        "actualRate": 0.4692982456140351,
+        "error": 0.030701754385964897
       },
       {
         "prob": 0.6,
-        "count": 21,
-        "actualRate": 0.6190476190476191,
-        "error": 0.01904761904761909
+        "count": 23,
+        "actualRate": 0.6521739130434783,
+        "error": 0.05217391304347829
       },
       {
         "prob": 0.7,
@@ -467,8 +467,8 @@
         "error": 0.30000000000000004
       }
     ],
-    "meanPredictedProb": 0.5079584793974536,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5083151121940285,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -477,30 +477,30 @@
       "k": 32,
       "marginWeight": 0.1
     },
-    "logLoss": 0.6942326463092631,
-    "brier": 0.2505484457812183,
-    "accuracy": 0.5877551020408164,
-    "upsetAccuracy": 1.4257425742574257,
-    "totalUpsets": 101,
-    "predictions": 245,
+    "logLoss": 0.6932258375194225,
+    "brier": 0.250049709642343,
+    "accuracy": 0.5833333333333334,
+    "upsetAccuracy": 1.4,
+    "totalUpsets": 115,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
-        "count": 27,
-        "actualRate": 0.2962962962962963,
-        "error": 0.10370370370370374
+        "count": 28,
+        "actualRate": 0.2857142857142857,
+        "error": 0.11428571428571432
       },
       {
         "prob": 0.5,
-        "count": 185,
-        "actualRate": 0.4648648648648649,
-        "error": 0.03513513513513511
+        "count": 213,
+        "actualRate": 0.460093896713615,
+        "error": 0.039906103286385
       },
       {
         "prob": 0.6,
-        "count": 31,
-        "actualRate": 0.6451612903225806,
-        "error": 0.04516129032258065
+        "count": 33,
+        "actualRate": 0.6666666666666666,
+        "error": 0.06666666666666665
       },
       {
         "prob": 0.7,
@@ -509,8 +509,8 @@
         "error": 0.30000000000000004
       }
     ],
-    "meanPredictedProb": 0.5090311919428071,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5094522763785092,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -519,60 +519,12 @@
       "k": 32,
       "marginWeight": 0.15
     },
-    "logLoss": 0.6946720568622813,
-    "brier": 0.25076434283592647,
-    "accuracy": 0.5877551020408164,
-    "upsetAccuracy": 1.4257425742574257,
-    "totalUpsets": 101,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.3,
-        "count": 1,
-        "actualRate": 1,
-        "error": 0.7
-      },
-      {
-        "prob": 0.4,
-        "count": 27,
-        "actualRate": 0.25925925925925924,
-        "error": 0.14074074074074078
-      },
-      {
-        "prob": 0.5,
-        "count": 184,
-        "actualRate": 0.4673913043478261,
-        "error": 0.03260869565217389
-      },
-      {
-        "prob": 0.6,
-        "count": 31,
-        "actualRate": 0.6451612903225806,
-        "error": 0.04516129032258065
-      },
-      {
-        "prob": 0.7,
-        "count": 2,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5096519170749597,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "reset_per_event",
-    "engineParams": {
-      "k": 32,
-      "marginWeight": 0.2
-    },
-    "logLoss": 0.6951861599510536,
-    "brier": 0.25101794240853176,
-    "accuracy": 0.5877551020408164,
-    "upsetAccuracy": 1.4257425742574257,
-    "totalUpsets": 101,
-    "predictions": 245,
+    "logLoss": 0.6935466601675536,
+    "brier": 0.25020777368186864,
+    "accuracy": 0.5833333333333334,
+    "upsetAccuracy": 1.4,
+    "totalUpsets": 115,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.3,
@@ -588,15 +540,15 @@
       },
       {
         "prob": 0.5,
-        "count": 181,
-        "actualRate": 0.4696132596685083,
-        "error": 0.03038674033149169
+        "count": 212,
+        "actualRate": 0.46226415094339623,
+        "error": 0.037735849056603765
       },
       {
         "prob": 0.6,
         "count": 33,
-        "actualRate": 0.6363636363636364,
-        "error": 0.036363636363636376
+        "actualRate": 0.6666666666666666,
+        "error": 0.06666666666666665
       },
       {
         "prob": 0.7,
@@ -605,19 +557,67 @@
         "error": 0.30000000000000004
       }
     ],
-    "meanPredictedProb": 0.51018402108537,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5101187998037325,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "reset_per_event",
+    "engineParams": {
+      "k": 32,
+      "marginWeight": 0.2
+    },
+    "logLoss": 0.6940357652996468,
+    "brier": 0.25045005145644883,
+    "accuracy": 0.5833333333333334,
+    "upsetAccuracy": 1.4,
+    "totalUpsets": 115,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.3,
+        "count": 1,
+        "actualRate": 1,
+        "error": 0.7
+      },
+      {
+        "prob": 0.4,
+        "count": 29,
+        "actualRate": 0.2413793103448276,
+        "error": 0.15862068965517243
+      },
+      {
+        "prob": 0.5,
+        "count": 209,
+        "actualRate": 0.46411483253588515,
+        "error": 0.03588516746411485
+      },
+      {
+        "prob": 0.6,
+        "count": 35,
+        "actualRate": 0.6571428571428571,
+        "error": 0.05714285714285716
+      },
+      {
+        "prob": 0.7,
+        "count": 2,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5106932800283115,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "current",
     "seedingStrategy": "first_observed",
     "engineParams": {},
-    "logLoss": 0.6844416619397858,
-    "brier": 0.24566400586009987,
-    "accuracy": 0.6489795918367347,
-    "upsetAccuracy": 1.8488372093023255,
-    "totalUpsets": 86,
-    "predictions": 245,
+    "logLoss": 0.6848348830601415,
+    "brier": 0.24586098923643152,
+    "accuracy": 0.6594202898550725,
+    "upsetAccuracy": 1.9361702127659575,
+    "totalUpsets": 94,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -627,19 +627,19 @@
       },
       {
         "prob": 0.5,
-        "count": 193,
-        "actualRate": 0.48186528497409326,
-        "error": 0.018134715025906745
+        "count": 220,
+        "actualRate": 0.4681818181818182,
+        "error": 0.0318181818181818
       },
       {
         "prob": 0.6,
-        "count": 31,
-        "actualRate": 0.5483870967741935,
-        "error": 0.05161290322580647
+        "count": 35,
+        "actualRate": 0.6,
+        "error": 0
       }
     ],
-    "meanPredictedProb": 0.5086409777569673,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5093157205902016,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -648,96 +648,12 @@
       "k": 12,
       "marginWeight": 0.1
     },
-    "logLoss": 0.6835643182063472,
-    "brier": 0.24523336528367284,
-    "accuracy": 0.6204081632653061,
-    "upsetAccuracy": 1.6344086021505377,
-    "totalUpsets": 93,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 19,
-        "actualRate": 0.2631578947368421,
-        "error": 0.13684210526315793
-      },
-      {
-        "prob": 0.5,
-        "count": 196,
-        "actualRate": 0.47959183673469385,
-        "error": 0.020408163265306145
-      },
-      {
-        "prob": 0.6,
-        "count": 29,
-        "actualRate": 0.5517241379310345,
-        "error": 0.0482758620689655
-      },
-      {
-        "prob": 0.7,
-        "count": 1,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5098020060410305,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "first_observed",
-    "engineParams": {
-      "k": 12,
-      "marginWeight": 0.15
-    },
-    "logLoss": 0.6832022670206628,
-    "brier": 0.2450547251931699,
-    "accuracy": 0.6204081632653061,
-    "upsetAccuracy": 1.6344086021505377,
-    "totalUpsets": 93,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 19,
-        "actualRate": 0.2631578947368421,
-        "error": 0.13684210526315793
-      },
-      {
-        "prob": 0.5,
-        "count": 198,
-        "actualRate": 0.48484848484848486,
-        "error": 0.015151515151515138
-      },
-      {
-        "prob": 0.6,
-        "count": 27,
-        "actualRate": 0.5185185185185185,
-        "error": 0.08148148148148149
-      },
-      {
-        "prob": 0.7,
-        "count": 1,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5101025620722576,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "first_observed",
-    "engineParams": {
-      "k": 12,
-      "marginWeight": 0.2
-    },
-    "logLoss": 0.6832841508777854,
-    "brier": 0.2450971145804332,
-    "accuracy": 0.6122448979591837,
-    "upsetAccuracy": 1.5789473684210527,
-    "totalUpsets": 95,
-    "predictions": 245,
+    "logLoss": 0.6838058348276166,
+    "brier": 0.24535274229370702,
+    "accuracy": 0.6304347826086957,
+    "upsetAccuracy": 1.7058823529411764,
+    "totalUpsets": 102,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -747,9 +663,51 @@
       },
       {
         "prob": 0.5,
-        "count": 195,
-        "actualRate": 0.48205128205128206,
-        "error": 0.01794871794871794
+        "count": 224,
+        "actualRate": 0.4732142857142857,
+        "error": 0.0267857142857143
+      },
+      {
+        "prob": 0.6,
+        "count": 31,
+        "actualRate": 0.5806451612903226,
+        "error": 0.019354838709677358
+      },
+      {
+        "prob": 0.7,
+        "count": 1,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5103624802017267,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "first_observed",
+    "engineParams": {
+      "k": 12,
+      "marginWeight": 0.15
+    },
+    "logLoss": 0.6834428090610786,
+    "brier": 0.2451732378503103,
+    "accuracy": 0.6304347826086957,
+    "upsetAccuracy": 1.7058823529411764,
+    "totalUpsets": 102,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 20,
+        "actualRate": 0.25,
+        "error": 0.15000000000000002
+      },
+      {
+        "prob": 0.5,
+        "count": 226,
+        "actualRate": 0.4778761061946903,
+        "error": 0.022123893805309713
       },
       {
         "prob": 0.6,
@@ -764,8 +722,50 @@
         "error": 0.30000000000000004
       }
     ],
-    "meanPredictedProb": 0.5101658431176007,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5106631163313685,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "first_observed",
+    "engineParams": {
+      "k": 12,
+      "marginWeight": 0.2
+    },
+    "logLoss": 0.6835776524524175,
+    "brier": 0.24524176874726586,
+    "accuracy": 0.6231884057971014,
+    "upsetAccuracy": 1.6538461538461537,
+    "totalUpsets": 104,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 22,
+        "actualRate": 0.22727272727272727,
+        "error": 0.17272727272727276
+      },
+      {
+        "prob": 0.5,
+        "count": 222,
+        "actualRate": 0.4774774774774775,
+        "error": 0.022522522522522515
+      },
+      {
+        "prob": 0.6,
+        "count": 31,
+        "actualRate": 0.5806451612903226,
+        "error": 0.019354838709677358
+      },
+      {
+        "prob": 0.7,
+        "count": 1,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5107608401317955,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -774,108 +774,24 @@
       "k": 16,
       "marginWeight": 0.1
     },
-    "logLoss": 0.6829248361413258,
-    "brier": 0.2449216742432994,
-    "accuracy": 0.6163265306122448,
-    "upsetAccuracy": 1.6063829787234043,
-    "totalUpsets": 94,
-    "predictions": 245,
+    "logLoss": 0.6832123932862598,
+    "brier": 0.24506291813549214,
+    "accuracy": 0.6304347826086957,
+    "upsetAccuracy": 1.7058823529411764,
+    "totalUpsets": 102,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
-        "count": 23,
-        "actualRate": 0.21739130434782608,
-        "error": 0.18260869565217394
+        "count": 25,
+        "actualRate": 0.2,
+        "error": 0.2
       },
       {
         "prob": 0.5,
-        "count": 189,
-        "actualRate": 0.48677248677248675,
-        "error": 0.013227513227513255
-      },
-      {
-        "prob": 0.6,
-        "count": 32,
-        "actualRate": 0.5625,
-        "error": 0.03749999999999998
-      },
-      {
-        "prob": 0.7,
-        "count": 1,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5108046806391527,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "first_observed",
-    "engineParams": {
-      "k": 16,
-      "marginWeight": 0.15
-    },
-    "logLoss": 0.6830968609784185,
-    "brier": 0.24500881534402982,
-    "accuracy": 0.6285714285714286,
-    "upsetAccuracy": 1.6923076923076923,
-    "totalUpsets": 91,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 26,
-        "actualRate": 0.23076923076923078,
-        "error": 0.16923076923076924
-      },
-      {
-        "prob": 0.5,
-        "count": 185,
-        "actualRate": 0.4864864864864865,
-        "error": 0.013513513513513487
-      },
-      {
-        "prob": 0.6,
-        "count": 33,
-        "actualRate": 0.5757575757575758,
-        "error": 0.024242424242424176
-      },
-      {
-        "prob": 0.7,
-        "count": 1,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5112056789777272,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "first_observed",
-    "engineParams": {
-      "k": 16,
-      "marginWeight": 0.2
-    },
-    "logLoss": 0.6830535398960046,
-    "brier": 0.24498906447853816,
-    "accuracy": 0.6326530612244898,
-    "upsetAccuracy": 1.7222222222222223,
-    "totalUpsets": 90,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 27,
-        "actualRate": 0.2222222222222222,
-        "error": 0.1777777777777778
-      },
-      {
-        "prob": 0.5,
-        "count": 182,
-        "actualRate": 0.4835164835164835,
-        "error": 0.01648351648351648
+        "count": 215,
+        "actualRate": 0.4790697674418605,
+        "error": 0.020930232558139528
       },
       {
         "prob": 0.6,
@@ -890,22 +806,22 @@
         "error": 0.30000000000000004
       }
     ],
-    "meanPredictedProb": 0.511541998521,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5113351112703463,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
     "seedingStrategy": "first_observed",
     "engineParams": {
-      "k": 20,
-      "marginWeight": 0.1
+      "k": 16,
+      "marginWeight": 0.15
     },
-    "logLoss": 0.682782713280894,
-    "brier": 0.24485650511721824,
-    "accuracy": 0.636734693877551,
-    "upsetAccuracy": 1.752808988764045,
-    "totalUpsets": 89,
-    "predictions": 245,
+    "logLoss": 0.6832855924971264,
+    "brier": 0.2451012658222494,
+    "accuracy": 0.6376811594202898,
+    "upsetAccuracy": 1.76,
+    "totalUpsets": 100,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.4,
@@ -915,13 +831,187 @@
       },
       {
         "prob": 0.5,
-        "count": 176,
-        "actualRate": 0.4772727272727273,
-        "error": 0.022727272727272707
+        "count": 211,
+        "actualRate": 0.4786729857819905,
+        "error": 0.021327014218009477
       },
       {
         "prob": 0.6,
-        "count": 40,
+        "count": 36,
+        "actualRate": 0.6111111111111112,
+        "error": 0.011111111111111183
+      },
+      {
+        "prob": 0.7,
+        "count": 1,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5116748439031679,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "first_observed",
+    "engineParams": {
+      "k": 16,
+      "marginWeight": 0.2
+    },
+    "logLoss": 0.6832158149916379,
+    "brier": 0.24506795995724806,
+    "accuracy": 0.6413043478260869,
+    "upsetAccuracy": 1.7878787878787878,
+    "totalUpsets": 99,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 29,
+        "actualRate": 0.20689655172413793,
+        "error": 0.1931034482758621
+      },
+      {
+        "prob": 0.5,
+        "count": 208,
+        "actualRate": 0.47596153846153844,
+        "error": 0.024038461538461564
+      },
+      {
+        "prob": 0.6,
+        "count": 38,
+        "actualRate": 0.631578947368421,
+        "error": 0.03157894736842104
+      },
+      {
+        "prob": 0.7,
+        "count": 1,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5120170250224885,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "first_observed",
+    "engineParams": {
+      "k": 20,
+      "marginWeight": 0.1
+    },
+    "logLoss": 0.6830186472692585,
+    "brier": 0.24497280728398246,
+    "accuracy": 0.644927536231884,
+    "upsetAccuracy": 1.816326530612245,
+    "totalUpsets": 98,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 30,
+        "actualRate": 0.2,
+        "error": 0.2
+      },
+      {
+        "prob": 0.5,
+        "count": 202,
+        "actualRate": 0.47029702970297027,
+        "error": 0.02970297029702973
+      },
+      {
+        "prob": 0.6,
+        "count": 43,
+        "actualRate": 0.6511627906976745,
+        "error": 0.05116279069767449
+      },
+      {
+        "prob": 0.7,
+        "count": 1,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.512563526741507,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "first_observed",
+    "engineParams": {
+      "k": 20,
+      "marginWeight": 0.15
+    },
+    "logLoss": 0.6830371610516419,
+    "brier": 0.24498479978405593,
+    "accuracy": 0.644927536231884,
+    "upsetAccuracy": 1.816326530612245,
+    "totalUpsets": 98,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 32,
+        "actualRate": 0.1875,
+        "error": 0.21250000000000002
+      },
+      {
+        "prob": 0.5,
+        "count": 199,
+        "actualRate": 0.47738693467336685,
+        "error": 0.022613065326633153
+      },
+      {
+        "prob": 0.6,
+        "count": 44,
+        "actualRate": 0.6363636363636364,
+        "error": 0.036363636363636376
+      },
+      {
+        "prob": 0.7,
+        "count": 1,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5128086701983947,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "first_observed",
+    "engineParams": {
+      "k": 20,
+      "marginWeight": 0.2
+    },
+    "logLoss": 0.6833922030259315,
+    "brier": 0.24516239750407037,
+    "accuracy": 0.6376811594202898,
+    "upsetAccuracy": 1.76,
+    "totalUpsets": 100,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.3,
+        "count": 1,
+        "actualRate": 0,
+        "error": 0.3
+      },
+      {
+        "prob": 0.4,
+        "count": 33,
+        "actualRate": 0.21212121212121213,
+        "error": 0.1878787878787879
+      },
+      {
+        "prob": 0.5,
+        "count": 193,
+        "actualRate": 0.47668393782383417,
+        "error": 0.02331606217616583
+      },
+      {
+        "prob": 0.6,
+        "count": 48,
         "actualRate": 0.625,
         "error": 0.025000000000000022
       },
@@ -932,98 +1022,8 @@
         "error": 0.30000000000000004
       }
     ],
-    "meanPredictedProb": 0.5121233614038468,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "first_observed",
-    "engineParams": {
-      "k": 20,
-      "marginWeight": 0.15
-    },
-    "logLoss": 0.6829051170687954,
-    "brier": 0.2449204644970643,
-    "accuracy": 0.6326530612244898,
-    "upsetAccuracy": 1.7222222222222223,
-    "totalUpsets": 90,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 30,
-        "actualRate": 0.2,
-        "error": 0.2
-      },
-      {
-        "prob": 0.5,
-        "count": 173,
-        "actualRate": 0.48554913294797686,
-        "error": 0.014450867052023142
-      },
-      {
-        "prob": 0.6,
-        "count": 41,
-        "actualRate": 0.6097560975609756,
-        "error": 0.009756097560975618
-      },
-      {
-        "prob": 0.7,
-        "count": 1,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5123534214043013,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "first_observed",
-    "engineParams": {
-      "k": 20,
-      "marginWeight": 0.2
-    },
-    "logLoss": 0.6832573342641187,
-    "brier": 0.24509636913022662,
-    "accuracy": 0.6326530612244898,
-    "upsetAccuracy": 1.7222222222222223,
-    "totalUpsets": 90,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.3,
-        "count": 1,
-        "actualRate": 0,
-        "error": 0.3
-      },
-      {
-        "prob": 0.4,
-        "count": 30,
-        "actualRate": 0.2,
-        "error": 0.2
-      },
-      {
-        "prob": 0.5,
-        "count": 168,
-        "actualRate": 0.4880952380952381,
-        "error": 0.011904761904761918
-      },
-      {
-        "prob": 0.6,
-        "count": 45,
-        "actualRate": 0.6,
-        "error": 0
-      },
-      {
-        "prob": 0.7,
-        "count": 1,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5127825304719399,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.513219701972354,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -1032,12 +1032,12 @@
       "k": 24,
       "marginWeight": 0.1
     },
-    "logLoss": 0.682849547831605,
-    "brier": 0.24489587355905568,
-    "accuracy": 0.6408163265306123,
-    "upsetAccuracy": 1.7840909090909092,
-    "totalUpsets": 88,
-    "predictions": 245,
+    "logLoss": 0.6830467910256329,
+    "brier": 0.24499302448069307,
+    "accuracy": 0.644927536231884,
+    "upsetAccuracy": 1.816326530612245,
+    "totalUpsets": 98,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.3,
@@ -1047,21 +1047,21 @@
       },
       {
         "prob": 0.4,
-        "count": 30,
-        "actualRate": 0.2,
-        "error": 0.2
+        "count": 33,
+        "actualRate": 0.21212121212121213,
+        "error": 0.1878787878787879
       },
       {
         "prob": 0.5,
-        "count": 167,
-        "actualRate": 0.49101796407185627,
-        "error": 0.008982035928143728
+        "count": 191,
+        "actualRate": 0.47643979057591623,
+        "error": 0.023560209424083767
       },
       {
         "prob": 0.6,
-        "count": 46,
-        "actualRate": 0.5869565217391305,
-        "error": 0.01304347826086949
+        "count": 50,
+        "actualRate": 0.62,
+        "error": 0.020000000000000018
       },
       {
         "prob": 0.7,
@@ -1070,8 +1070,8 @@
         "error": 0.30000000000000004
       }
     ],
-    "meanPredictedProb": 0.5130836601708891,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5134819173984861,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -1080,12 +1080,12 @@
       "k": 24,
       "marginWeight": 0.15
     },
-    "logLoss": 0.6832622258179903,
-    "brier": 0.24510350069501785,
-    "accuracy": 0.6448979591836734,
-    "upsetAccuracy": 1.8160919540229885,
-    "totalUpsets": 87,
-    "predictions": 245,
+    "logLoss": 0.6834043560992942,
+    "brier": 0.24517326908860765,
+    "accuracy": 0.6485507246376812,
+    "upsetAccuracy": 1.8453608247422681,
+    "totalUpsets": 97,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.3,
@@ -1095,15 +1095,678 @@
       },
       {
         "prob": 0.4,
-        "count": 30,
+        "count": 34,
+        "actualRate": 0.23529411764705882,
+        "error": 0.1647058823529412
+      },
+      {
+        "prob": 0.5,
+        "count": 184,
+        "actualRate": 0.4673913043478261,
+        "error": 0.03260869565217389
+      },
+      {
+        "prob": 0.6,
+        "count": 56,
+        "actualRate": 0.625,
+        "error": 0.025000000000000022
+      },
+      {
+        "prob": 0.7,
+        "count": 1,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5139086414533339,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "first_observed",
+    "engineParams": {
+      "k": 24,
+      "marginWeight": 0.2
+    },
+    "logLoss": 0.683997903932574,
+    "brier": 0.24546648344580485,
+    "accuracy": 0.6521739130434783,
+    "upsetAccuracy": 1.875,
+    "totalUpsets": 96,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.3,
+        "count": 1,
+        "actualRate": 0,
+        "error": 0.3
+      },
+      {
+        "prob": 0.4,
+        "count": 39,
+        "actualRate": 0.28205128205128205,
+        "error": 0.11794871794871797
+      },
+      {
+        "prob": 0.5,
+        "count": 177,
+        "actualRate": 0.4632768361581921,
+        "error": 0.036723163841807904
+      },
+      {
+        "prob": 0.6,
+        "count": 58,
+        "actualRate": 0.6206896551724138,
+        "error": 0.020689655172413834
+      },
+      {
+        "prob": 0.7,
+        "count": 1,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5144518573862009,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "first_observed",
+    "engineParams": {
+      "k": 32,
+      "marginWeight": 0.1
+    },
+    "logLoss": 0.6843364934349151,
+    "brier": 0.24563927224132084,
+    "accuracy": 0.6376811594202898,
+    "upsetAccuracy": 1.76,
+    "totalUpsets": 100,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.3,
+        "count": 1,
+        "actualRate": 0,
+        "error": 0.3
+      },
+      {
+        "prob": 0.4,
+        "count": 45,
+        "actualRate": 0.28888888888888886,
+        "error": 0.11111111111111116
+      },
+      {
+        "prob": 0.5,
+        "count": 165,
+        "actualRate": 0.45454545454545453,
+        "error": 0.04545454545454547
+      },
+      {
+        "prob": 0.6,
+        "count": 63,
+        "actualRate": 0.6349206349206349,
+        "error": 0.03492063492063491
+      },
+      {
+        "prob": 0.7,
+        "count": 2,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5154546458240732,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "first_observed",
+    "engineParams": {
+      "k": 32,
+      "marginWeight": 0.15
+    },
+    "logLoss": 0.6850485698460766,
+    "brier": 0.24598843173605014,
+    "accuracy": 0.6413043478260869,
+    "upsetAccuracy": 1.7878787878787878,
+    "totalUpsets": 99,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.3,
+        "count": 1,
+        "actualRate": 0,
+        "error": 0.3
+      },
+      {
+        "prob": 0.4,
+        "count": 49,
+        "actualRate": 0.30612244897959184,
+        "error": 0.09387755102040818
+      },
+      {
+        "prob": 0.5,
+        "count": 159,
+        "actualRate": 0.44654088050314467,
+        "error": 0.053459119496855334
+      },
+      {
+        "prob": 0.6,
+        "count": 64,
+        "actualRate": 0.640625,
+        "error": 0.04062500000000002
+      },
+      {
+        "prob": 0.7,
+        "count": 3,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5161159222606498,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "first_observed",
+    "engineParams": {
+      "k": 32,
+      "marginWeight": 0.2
+    },
+    "logLoss": 0.6855010371225522,
+    "brier": 0.24621389078540834,
+    "accuracy": 0.6304347826086957,
+    "upsetAccuracy": 1.7058823529411764,
+    "totalUpsets": 102,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.3,
+        "count": 1,
+        "actualRate": 0,
+        "error": 0.3
+      },
+      {
+        "prob": 0.4,
+        "count": 54,
+        "actualRate": 0.3148148148148148,
+        "error": 0.0851851851851852
+      },
+      {
+        "prob": 0.5,
+        "count": 152,
+        "actualRate": 0.4473684210526316,
+        "error": 0.05263157894736842
+      },
+      {
+        "prob": 0.6,
+        "count": 66,
+        "actualRate": 0.6363636363636364,
+        "error": 0.036363636363636376
+      },
+      {
+        "prob": 0.7,
+        "count": 3,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5167322026594602,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "current",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {},
+    "logLoss": 0.6901952330351129,
+    "brier": 0.24852650671415513,
+    "accuracy": 0.5362318840579711,
+    "upsetAccuracy": 1.15625,
+    "totalUpsets": 128,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.5,
+        "count": 275,
+        "actualRate": 0.4690909090909091,
+        "error": 0.030909090909090886
+      },
+      {
+        "prob": 0.6,
+        "count": 1,
+        "actualRate": 1,
+        "error": 0.4
+      }
+    ],
+    "meanPredictedProb": 0.5022823657730175,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 12,
+      "marginWeight": 0.1
+    },
+    "logLoss": 0.6890841791830368,
+    "brier": 0.2479755764025858,
+    "accuracy": 0.5289855072463768,
+    "upsetAccuracy": 1.123076923076923,
+    "totalUpsets": 130,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 3,
+        "actualRate": 0.3333333333333333,
+        "error": 0.06666666666666671
+      },
+      {
+        "prob": 0.5,
+        "count": 260,
+        "actualRate": 0.46153846153846156,
+        "error": 0.038461538461538436
+      },
+      {
+        "prob": 0.6,
+        "count": 13,
+        "actualRate": 0.6923076923076923,
+        "error": 0.09230769230769231
+      }
+    ],
+    "meanPredictedProb": 0.5032914963725383,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 12,
+      "marginWeight": 0.15
+    },
+    "logLoss": 0.6893164666561614,
+    "brier": 0.24809188846395225,
+    "accuracy": 0.5289855072463768,
+    "upsetAccuracy": 1.123076923076923,
+    "totalUpsets": 130,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 5,
         "actualRate": 0.2,
         "error": 0.2
       },
       {
         "prob": 0.5,
-        "count": 164,
-        "actualRate": 0.4878048780487805,
-        "error": 0.012195121951219523
+        "count": 256,
+        "actualRate": 0.4609375,
+        "error": 0.0390625
+      },
+      {
+        "prob": 0.6,
+        "count": 15,
+        "actualRate": 0.7333333333333333,
+        "error": 0.1333333333333333
+      }
+    ],
+    "meanPredictedProb": 0.5035687954452145,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 12,
+      "marginWeight": 0.2
+    },
+    "logLoss": 0.6890215636794784,
+    "brier": 0.24794505458946647,
+    "accuracy": 0.5398550724637681,
+    "upsetAccuracy": 1.1732283464566928,
+    "totalUpsets": 127,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 8,
+        "actualRate": 0.25,
+        "error": 0.15000000000000002
+      },
+      {
+        "prob": 0.5,
+        "count": 245,
+        "actualRate": 0.45714285714285713,
+        "error": 0.04285714285714287
+      },
+      {
+        "prob": 0.6,
+        "count": 23,
+        "actualRate": 0.6956521739130435,
+        "error": 0.09565217391304348
+      }
+    ],
+    "meanPredictedProb": 0.503857601168595,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 16,
+      "marginWeight": 0.1
+    },
+    "logLoss": 0.6888865459003727,
+    "brier": 0.24788013929185826,
+    "accuracy": 0.5362318840579711,
+    "upsetAccuracy": 1.15625,
+    "totalUpsets": 128,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 15,
+        "actualRate": 0.3333333333333333,
+        "error": 0.06666666666666671
+      },
+      {
+        "prob": 0.5,
+        "count": 233,
+        "actualRate": 0.45493562231759654,
+        "error": 0.045064377682403456
+      },
+      {
+        "prob": 0.6,
+        "count": 28,
+        "actualRate": 0.6785714285714286,
+        "error": 0.07857142857142863
+      }
+    ],
+    "meanPredictedProb": 0.5043504864161054,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 16,
+      "marginWeight": 0.15
+    },
+    "logLoss": 0.6887390705423581,
+    "brier": 0.24780772071764173,
+    "accuracy": 0.5362318840579711,
+    "upsetAccuracy": 1.15625,
+    "totalUpsets": 128,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 20,
+        "actualRate": 0.4,
+        "error": 0
+      },
+      {
+        "prob": 0.5,
+        "count": 228,
+        "actualRate": 0.4517543859649123,
+        "error": 0.0482456140350877
+      },
+      {
+        "prob": 0.6,
+        "count": 28,
+        "actualRate": 0.6785714285714286,
+        "error": 0.07857142857142863
+      }
+    ],
+    "meanPredictedProb": 0.5048284733749082,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 16,
+      "marginWeight": 0.2
+    },
+    "logLoss": 0.6890852130286611,
+    "brier": 0.24797938516236107,
+    "accuracy": 0.532608695652174,
+    "upsetAccuracy": 1.1395348837209303,
+    "totalUpsets": 129,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 23,
+        "actualRate": 0.34782608695652173,
+        "error": 0.05217391304347829
+      },
+      {
+        "prob": 0.5,
+        "count": 223,
+        "actualRate": 0.45739910313901344,
+        "error": 0.04260089686098656
+      },
+      {
+        "prob": 0.6,
+        "count": 30,
+        "actualRate": 0.6666666666666666,
+        "error": 0.06666666666666665
+      }
+    ],
+    "meanPredictedProb": 0.5051087473942386,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 20,
+      "marginWeight": 0.1
+    },
+    "logLoss": 0.6885914612422813,
+    "brier": 0.24773732488992087,
+    "accuracy": 0.5398550724637681,
+    "upsetAccuracy": 1.1732283464566928,
+    "totalUpsets": 127,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 28,
+        "actualRate": 0.32142857142857145,
+        "error": 0.07857142857142857
+      },
+      {
+        "prob": 0.5,
+        "count": 216,
+        "actualRate": 0.4583333333333333,
+        "error": 0.041666666666666685
+      },
+      {
+        "prob": 0.6,
+        "count": 32,
+        "actualRate": 0.6875,
+        "error": 0.08750000000000002
+      }
+    ],
+    "meanPredictedProb": 0.5055109660077953,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 20,
+      "marginWeight": 0.15
+    },
+    "logLoss": 0.6887664043575165,
+    "brier": 0.24782386050709077,
+    "accuracy": 0.5362318840579711,
+    "upsetAccuracy": 1.15625,
+    "totalUpsets": 128,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 31,
+        "actualRate": 0.3870967741935484,
+        "error": 0.012903225806451646
+      },
+      {
+        "prob": 0.5,
+        "count": 213,
+        "actualRate": 0.4507042253521127,
+        "error": 0.049295774647887314
+      },
+      {
+        "prob": 0.6,
+        "count": 32,
+        "actualRate": 0.6875,
+        "error": 0.08750000000000002
+      }
+    ],
+    "meanPredictedProb": 0.5058325608106141,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 20,
+      "marginWeight": 0.2
+    },
+    "logLoss": 0.6888317393929924,
+    "brier": 0.24785776882826158,
+    "accuracy": 0.5434782608695652,
+    "upsetAccuracy": 1.1904761904761905,
+    "totalUpsets": 126,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 35,
+        "actualRate": 0.4,
+        "error": 0
+      },
+      {
+        "prob": 0.5,
+        "count": 205,
+        "actualRate": 0.45365853658536587,
+        "error": 0.04634146341463413
+      },
+      {
+        "prob": 0.6,
+        "count": 36,
+        "actualRate": 0.6388888888888888,
+        "error": 0.03888888888888886
+      }
+    ],
+    "meanPredictedProb": 0.50636337181382,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 24,
+      "marginWeight": 0.1
+    },
+    "logLoss": 0.6888221042928627,
+    "brier": 0.24785212760582032,
+    "accuracy": 0.5434782608695652,
+    "upsetAccuracy": 1.1904761904761905,
+    "totalUpsets": 126,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 40,
+        "actualRate": 0.425,
+        "error": 0.024999999999999967
+      },
+      {
+        "prob": 0.5,
+        "count": 196,
+        "actualRate": 0.45408163265306123,
+        "error": 0.04591836734693877
+      },
+      {
+        "prob": 0.6,
+        "count": 40,
+        "actualRate": 0.6,
+        "error": 0
+      }
+    ],
+    "meanPredictedProb": 0.5066223889075436,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 24,
+      "marginWeight": 0.15
+    },
+    "logLoss": 0.6890114222666656,
+    "brier": 0.24794847548240237,
+    "accuracy": 0.5471014492753623,
+    "upsetAccuracy": 1.208,
+    "totalUpsets": 125,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 42,
+        "actualRate": 0.42857142857142855,
+        "error": 0.028571428571428525
+      },
+      {
+        "prob": 0.5,
+        "count": 191,
+        "actualRate": 0.45549738219895286,
+        "error": 0.04450261780104714
+      },
+      {
+        "prob": 0.6,
+        "count": 42,
+        "actualRate": 0.5714285714285714,
+        "error": 0.02857142857142858
+      },
+      {
+        "prob": 0.7,
+        "count": 1,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5069670630484372,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 24,
+      "marginWeight": 0.2
+    },
+    "logLoss": 0.6891617707003173,
+    "brier": 0.24802211068857732,
+    "accuracy": 0.5471014492753623,
+    "upsetAccuracy": 1.208,
+    "totalUpsets": 125,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.4,
+        "count": 47,
+        "actualRate": 0.40425531914893614,
+        "error": 0.004255319148936121
+      },
+      {
+        "prob": 0.5,
+        "count": 179,
+        "actualRate": 0.45251396648044695,
+        "error": 0.04748603351955305
       },
       {
         "prob": 0.6,
@@ -1118,671 +1781,8 @@
         "error": 0.30000000000000004
       }
     ],
-    "meanPredictedProb": 0.5135129318266176,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "first_observed",
-    "engineParams": {
-      "k": 24,
-      "marginWeight": 0.2
-    },
-    "logLoss": 0.6839073233778716,
-    "brier": 0.2454214983805946,
-    "accuracy": 0.6448979591836734,
-    "upsetAccuracy": 1.8160919540229885,
-    "totalUpsets": 87,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.3,
-        "count": 1,
-        "actualRate": 0,
-        "error": 0.3
-      },
-      {
-        "prob": 0.4,
-        "count": 35,
-        "actualRate": 0.2571428571428571,
-        "error": 0.1428571428571429
-      },
-      {
-        "prob": 0.5,
-        "count": 157,
-        "actualRate": 0.4840764331210191,
-        "error": 0.015923566878980888
-      },
-      {
-        "prob": 0.6,
-        "count": 51,
-        "actualRate": 0.5882352941176471,
-        "error": 0.0117647058823529
-      },
-      {
-        "prob": 0.7,
-        "count": 1,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5141142781835301,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "first_observed",
-    "engineParams": {
-      "k": 32,
-      "marginWeight": 0.1
-    },
-    "logLoss": 0.684398277716639,
-    "brier": 0.2456694583371538,
-    "accuracy": 0.6326530612244898,
-    "upsetAccuracy": 1.7222222222222223,
-    "totalUpsets": 90,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.3,
-        "count": 1,
-        "actualRate": 0,
-        "error": 0.3
-      },
-      {
-        "prob": 0.4,
-        "count": 40,
-        "actualRate": 0.275,
-        "error": 0.125
-      },
-      {
-        "prob": 0.5,
-        "count": 146,
-        "actualRate": 0.4726027397260274,
-        "error": 0.0273972602739726
-      },
-      {
-        "prob": 0.6,
-        "count": 56,
-        "actualRate": 0.6071428571428571,
-        "error": 0.0071428571428571175
-      },
-      {
-        "prob": 0.7,
-        "count": 2,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5151349877904908,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "first_observed",
-    "engineParams": {
-      "k": 32,
-      "marginWeight": 0.15
-    },
-    "logLoss": 0.6850821364602554,
-    "brier": 0.24600457667443149,
-    "accuracy": 0.636734693877551,
-    "upsetAccuracy": 1.752808988764045,
-    "totalUpsets": 89,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.3,
-        "count": 1,
-        "actualRate": 0,
-        "error": 0.3
-      },
-      {
-        "prob": 0.4,
-        "count": 43,
-        "actualRate": 0.3023255813953488,
-        "error": 0.0976744186046512
-      },
-      {
-        "prob": 0.5,
-        "count": 141,
-        "actualRate": 0.46099290780141844,
-        "error": 0.03900709219858156
-      },
-      {
-        "prob": 0.6,
-        "count": 57,
-        "actualRate": 0.6140350877192983,
-        "error": 0.01403508771929829
-      },
-      {
-        "prob": 0.7,
-        "count": 3,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.515805001658619,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "first_observed",
-    "engineParams": {
-      "k": 32,
-      "marginWeight": 0.2
-    },
-    "logLoss": 0.6855490682302945,
-    "brier": 0.24623643447612914,
-    "accuracy": 0.6244897959183674,
-    "upsetAccuracy": 1.6630434782608696,
-    "totalUpsets": 92,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.3,
-        "count": 1,
-        "actualRate": 0,
-        "error": 0.3
-      },
-      {
-        "prob": 0.4,
-        "count": 48,
-        "actualRate": 0.3125,
-        "error": 0.08750000000000002
-      },
-      {
-        "prob": 0.5,
-        "count": 134,
-        "actualRate": 0.4626865671641791,
-        "error": 0.03731343283582089
-      },
-      {
-        "prob": 0.6,
-        "count": 59,
-        "actualRate": 0.6101694915254238,
-        "error": 0.01016949152542379
-      },
-      {
-        "prob": 0.7,
-        "count": 3,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5163847422264147,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "current",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {},
-    "logLoss": 0.6902716852523261,
-    "brier": 0.24856465517364693,
-    "accuracy": 0.5469387755102041,
-    "upsetAccuracy": 1.2072072072072073,
-    "totalUpsets": 111,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.5,
-        "count": 244,
-        "actualRate": 0.4713114754098361,
-        "error": 0.02868852459016391
-      },
-      {
-        "prob": 0.6,
-        "count": 1,
-        "actualRate": 1,
-        "error": 0.4
-      }
-    ],
-    "meanPredictedProb": 0.5020760491959723,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 12,
-      "marginWeight": 0.1
-    },
-    "logLoss": 0.6892131951379646,
-    "brier": 0.24804036798100076,
-    "accuracy": 0.5346938775510204,
-    "upsetAccuracy": 1.1491228070175439,
-    "totalUpsets": 114,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 1,
-        "actualRate": 0,
-        "error": 0.4
-      },
-      {
-        "prob": 0.5,
-        "count": 235,
-        "actualRate": 0.4723404255319149,
-        "error": 0.02765957446808509
-      },
-      {
-        "prob": 0.6,
-        "count": 9,
-        "actualRate": 0.5555555555555556,
-        "error": 0.0444444444444444
-      }
-    ],
-    "meanPredictedProb": 0.5029269139555562,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 12,
-      "marginWeight": 0.15
-    },
-    "logLoss": 0.6892657408395677,
-    "brier": 0.24806703084923282,
-    "accuracy": 0.5346938775510204,
-    "upsetAccuracy": 1.1491228070175439,
-    "totalUpsets": 114,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 3,
-        "actualRate": 0,
-        "error": 0.4
-      },
-      {
-        "prob": 0.5,
-        "count": 231,
-        "actualRate": 0.47186147186147187,
-        "error": 0.02813852813852813
-      },
-      {
-        "prob": 0.6,
-        "count": 11,
-        "actualRate": 0.6363636363636364,
-        "error": 0.036363636363636376
-      }
-    ],
-    "meanPredictedProb": 0.5032422793585047,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 12,
-      "marginWeight": 0.2
-    },
-    "logLoss": 0.6889721485643545,
-    "brier": 0.24792108655357153,
-    "accuracy": 0.5469387755102041,
-    "upsetAccuracy": 1.2072072072072073,
-    "totalUpsets": 111,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 6,
-        "actualRate": 0.16666666666666666,
-        "error": 0.23333333333333336
-      },
-      {
-        "prob": 0.5,
-        "count": 220,
-        "actualRate": 0.4681818181818182,
-        "error": 0.0318181818181818
-      },
-      {
-        "prob": 0.6,
-        "count": 19,
-        "actualRate": 0.631578947368421,
-        "error": 0.03157894736842104
-      }
-    ],
-    "meanPredictedProb": 0.5035357467081117,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 16,
-      "marginWeight": 0.1
-    },
-    "logLoss": 0.6889187756631259,
-    "brier": 0.24789755689044238,
-    "accuracy": 0.5428571428571428,
-    "upsetAccuracy": 1.1875,
-    "totalUpsets": 112,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 12,
-        "actualRate": 0.25,
-        "error": 0.15000000000000002
-      },
-      {
-        "prob": 0.5,
-        "count": 210,
-        "actualRate": 0.4714285714285714,
-        "error": 0.02857142857142858
-      },
-      {
-        "prob": 0.6,
-        "count": 23,
-        "actualRate": 0.6086956521739131,
-        "error": 0.008695652173913104
-      }
-    ],
-    "meanPredictedProb": 0.5040155430397675,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 16,
-      "marginWeight": 0.15
-    },
-    "logLoss": 0.6886977336463227,
-    "brier": 0.24778876877317954,
-    "accuracy": 0.5387755102040817,
-    "upsetAccuracy": 1.168141592920354,
-    "totalUpsets": 113,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 17,
-        "actualRate": 0.35294117647058826,
-        "error": 0.047058823529411764
-      },
-      {
-        "prob": 0.5,
-        "count": 205,
-        "actualRate": 0.4682926829268293,
-        "error": 0.031707317073170704
-      },
-      {
-        "prob": 0.6,
-        "count": 23,
-        "actualRate": 0.6086956521739131,
-        "error": 0.008695652173913104
-      }
-    ],
-    "meanPredictedProb": 0.5044932522374876,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 16,
-      "marginWeight": 0.2
-    },
-    "logLoss": 0.6890475676104948,
-    "brier": 0.24796261515427795,
-    "accuracy": 0.5387755102040817,
-    "upsetAccuracy": 1.168141592920354,
-    "totalUpsets": 113,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 19,
-        "actualRate": 0.3157894736842105,
-        "error": 0.08421052631578951
-      },
-      {
-        "prob": 0.5,
-        "count": 201,
-        "actualRate": 0.472636815920398,
-        "error": 0.027363184079601977
-      },
-      {
-        "prob": 0.6,
-        "count": 25,
-        "actualRate": 0.6,
-        "error": 0
-      }
-    ],
-    "meanPredictedProb": 0.5047974087745728,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 20,
-      "marginWeight": 0.1
-    },
-    "logLoss": 0.6886423917517952,
-    "brier": 0.24776497019631746,
-    "accuracy": 0.5428571428571428,
-    "upsetAccuracy": 1.1875,
-    "totalUpsets": 112,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 23,
-        "actualRate": 0.30434782608695654,
-        "error": 0.09565217391304348
-      },
-      {
-        "prob": 0.5,
-        "count": 195,
-        "actualRate": 0.4717948717948718,
-        "error": 0.028205128205128216
-      },
-      {
-        "prob": 0.6,
-        "count": 27,
-        "actualRate": 0.6296296296296297,
-        "error": 0.029629629629629672
-      }
-    ],
-    "meanPredictedProb": 0.5051576961867741,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 20,
-      "marginWeight": 0.15
-    },
-    "logLoss": 0.6888271852717596,
-    "brier": 0.24785714140226528,
-    "accuracy": 0.5387755102040817,
-    "upsetAccuracy": 1.168141592920354,
-    "totalUpsets": 113,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 26,
-        "actualRate": 0.38461538461538464,
-        "error": 0.015384615384615385
-      },
-      {
-        "prob": 0.5,
-        "count": 192,
-        "actualRate": 0.4635416666666667,
-        "error": 0.036458333333333315
-      },
-      {
-        "prob": 0.6,
-        "count": 27,
-        "actualRate": 0.6296296296296297,
-        "error": 0.029629629629629672
-      }
-    ],
-    "meanPredictedProb": 0.5054996882273368,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 20,
-      "marginWeight": 0.2
-    },
-    "logLoss": 0.6888488626727486,
-    "brier": 0.24787007547594858,
-    "accuracy": 0.5469387755102041,
-    "upsetAccuracy": 1.2072072072072073,
-    "totalUpsets": 111,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 30,
-        "actualRate": 0.4,
-        "error": 0
-      },
-      {
-        "prob": 0.5,
-        "count": 184,
-        "actualRate": 0.4673913043478261,
-        "error": 0.03260869565217389
-      },
-      {
-        "prob": 0.6,
-        "count": 31,
-        "actualRate": 0.5806451612903226,
-        "error": 0.019354838709677358
-      }
-    ],
-    "meanPredictedProb": 0.5060458896668548,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 24,
-      "marginWeight": 0.1
-    },
-    "logLoss": 0.6888776989066333,
-    "brier": 0.2478838225990224,
-    "accuracy": 0.5469387755102041,
-    "upsetAccuracy": 1.2072072072072073,
-    "totalUpsets": 111,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 35,
-        "actualRate": 0.42857142857142855,
-        "error": 0.028571428571428525
-      },
-      {
-        "prob": 0.5,
-        "count": 176,
-        "actualRate": 0.4659090909090909,
-        "error": 0.034090909090909116
-      },
-      {
-        "prob": 0.6,
-        "count": 34,
-        "actualRate": 0.5588235294117647,
-        "error": 0.04117647058823526
-      }
-    ],
-    "meanPredictedProb": 0.5063315601608214,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 24,
-      "marginWeight": 0.15
-    },
-    "logLoss": 0.6890616736343211,
-    "brier": 0.24797866333793223,
-    "accuracy": 0.5510204081632653,
-    "upsetAccuracy": 1.2272727272727273,
-    "totalUpsets": 110,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 37,
-        "actualRate": 0.43243243243243246,
-        "error": 0.032432432432432434
-      },
-      {
-        "prob": 0.5,
-        "count": 171,
-        "actualRate": 0.4678362573099415,
-        "error": 0.032163742690058506
-      },
-      {
-        "prob": 0.6,
-        "count": 36,
-        "actualRate": 0.5277777777777778,
-        "error": 0.07222222222222219
-      },
-      {
-        "prob": 0.7,
-        "count": 1,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5066392934364335,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 24,
-      "marginWeight": 0.2
-    },
-    "logLoss": 0.689214294543136,
-    "brier": 0.24805381163471213,
-    "accuracy": 0.5510204081632653,
-    "upsetAccuracy": 1.2272727272727273,
-    "totalUpsets": 110,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.4,
-        "count": 42,
-        "actualRate": 0.40476190476190477,
-        "error": 0.004761904761904745
-      },
-      {
-        "prob": 0.5,
-        "count": 160,
-        "actualRate": 0.46875,
-        "error": 0.03125
-      },
-      {
-        "prob": 0.6,
-        "count": 42,
-        "actualRate": 0.5476190476190477,
-        "error": 0.052380952380952306
-      },
-      {
-        "prob": 0.7,
-        "count": 1,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5071744062082091,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5074645130086011,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
@@ -1791,12 +1791,12 @@
       "k": 32,
       "marginWeight": 0.1
     },
-    "logLoss": 0.6897022202941422,
-    "brier": 0.248295028752148,
-    "accuracy": 0.563265306122449,
-    "upsetAccuracy": 1.2897196261682242,
-    "totalUpsets": 107,
-    "predictions": 245,
+    "logLoss": 0.6895351707811649,
+    "brier": 0.24820370740913397,
+    "accuracy": 0.5615942028985508,
+    "upsetAccuracy": 1.28099173553719,
+    "totalUpsets": 121,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.3,
@@ -1806,93 +1806,45 @@
       },
       {
         "prob": 0.4,
-        "count": 47,
-        "actualRate": 0.40425531914893614,
-        "error": 0.004255319148936121
+        "count": 52,
+        "actualRate": 0.40384615384615385,
+        "error": 0.0038461538461538325
       },
       {
         "prob": 0.5,
-        "count": 141,
-        "actualRate": 0.46808510638297873,
-        "error": 0.03191489361702127
+        "count": 159,
+        "actualRate": 0.4528301886792453,
+        "error": 0.047169811320754707
       },
       {
         "prob": 0.6,
-        "count": 55,
-        "actualRate": 0.5454545454545454,
-        "error": 0.054545454545454564
-      },
-      {
-        "prob": 0.7,
-        "count": 1,
-        "actualRate": 1,
-        "error": 0.30000000000000004
-      }
-    ],
-    "meanPredictedProb": 0.5082575923341742,
-    "meanActualWin": 0.47346938775510206
-  },
-  {
-    "engineName": "proposed",
-    "seedingStrategy": "continuous_1500",
-    "engineParams": {
-      "k": 32,
-      "marginWeight": 0.15
-    },
-    "logLoss": 0.6902968630137669,
-    "brier": 0.24858895180881319,
-    "accuracy": 0.5591836734693878,
-    "upsetAccuracy": 1.2685185185185186,
-    "totalUpsets": 108,
-    "predictions": 245,
-    "calibration": [
-      {
-        "prob": 0.3,
-        "count": 1,
-        "actualRate": 0,
-        "error": 0.3
-      },
-      {
-        "prob": 0.4,
-        "count": 49,
-        "actualRate": 0.3877551020408163,
-        "error": 0.01224489795918371
-      },
-      {
-        "prob": 0.5,
-        "count": 137,
-        "actualRate": 0.45985401459854014,
-        "error": 0.04014598540145986
-      },
-      {
-        "prob": 0.6,
-        "count": 56,
+        "count": 63,
         "actualRate": 0.5714285714285714,
         "error": 0.02857142857142858
       },
       {
         "prob": 0.7,
-        "count": 2,
+        "count": 1,
         "actualRate": 1,
         "error": 0.30000000000000004
       }
     ],
-    "meanPredictedProb": 0.508864978150089,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5085427793431527,
+    "meanActualWin": 0.47101449275362317
   },
   {
     "engineName": "proposed",
     "seedingStrategy": "continuous_1500",
     "engineParams": {
       "k": 32,
-      "marginWeight": 0.2
+      "marginWeight": 0.15
     },
-    "logLoss": 0.6908194042812213,
-    "brier": 0.24884295209225418,
-    "accuracy": 0.5755102040816327,
-    "upsetAccuracy": 1.3557692307692308,
-    "totalUpsets": 104,
-    "predictions": 245,
+    "logLoss": 0.6900370851060125,
+    "brier": 0.24844996279468365,
+    "accuracy": 0.5652173913043478,
+    "upsetAccuracy": 1.3,
+    "totalUpsets": 120,
+    "predictions": 276,
     "calibration": [
       {
         "prob": 0.3,
@@ -1902,21 +1854,21 @@
       },
       {
         "prob": 0.4,
-        "count": 49,
-        "actualRate": 0.3877551020408163,
-        "error": 0.01224489795918371
+        "count": 54,
+        "actualRate": 0.3888888888888889,
+        "error": 0.011111111111111127
       },
       {
         "prob": 0.5,
-        "count": 133,
-        "actualRate": 0.45864661654135336,
-        "error": 0.04135338345864664
+        "count": 154,
+        "actualRate": 0.44805194805194803,
+        "error": 0.051948051948051965
       },
       {
         "prob": 0.6,
-        "count": 60,
-        "actualRate": 0.5666666666666667,
-        "error": 0.033333333333333326
+        "count": 65,
+        "actualRate": 0.5846153846153846,
+        "error": 0.01538461538461533
       },
       {
         "prob": 0.7,
@@ -1925,7 +1877,55 @@
         "error": 0.30000000000000004
       }
     ],
-    "meanPredictedProb": 0.509532472377929,
-    "meanActualWin": 0.47346938775510206
+    "meanPredictedProb": 0.5091482271131956,
+    "meanActualWin": 0.47101449275362317
+  },
+  {
+    "engineName": "proposed",
+    "seedingStrategy": "continuous_1500",
+    "engineParams": {
+      "k": 32,
+      "marginWeight": 0.2
+    },
+    "logLoss": 0.6906351571637764,
+    "brier": 0.24873869372136764,
+    "accuracy": 0.5797101449275363,
+    "upsetAccuracy": 1.3793103448275863,
+    "totalUpsets": 116,
+    "predictions": 276,
+    "calibration": [
+      {
+        "prob": 0.3,
+        "count": 2,
+        "actualRate": 0.5,
+        "error": 0.2
+      },
+      {
+        "prob": 0.4,
+        "count": 54,
+        "actualRate": 0.3888888888888889,
+        "error": 0.011111111111111127
+      },
+      {
+        "prob": 0.5,
+        "count": 149,
+        "actualRate": 0.4429530201342282,
+        "error": 0.057046979865771785
+      },
+      {
+        "prob": 0.6,
+        "count": 69,
+        "actualRate": 0.5797101449275363,
+        "error": 0.020289855072463725
+      },
+      {
+        "prob": 0.7,
+        "count": 2,
+        "actualRate": 1,
+        "error": 0.30000000000000004
+      }
+    ],
+    "meanPredictedProb": 0.5098182889915364,
+    "meanActualWin": 0.47101449275362317
   }
 ]
