@@ -76,7 +76,7 @@ describe('RatingEngine.calculateShift', () => {
     expect(lowRatedGain).toBeGreaterThan(highRatedGain);
   });
 
-  it('mixed team loss: high-rated partner pays more than low-rated partner', () => {
+  it('mixed team loss: soft underdog means higher-rated partner pays more, but not much more', () => {
     const w = [makePlayer(1500), makePlayer(1500)];
     const l = [makePlayer(2000), makePlayer(1000)];
     const r = RatingEngine.calculateShift(w, l, 11, 9);
@@ -84,6 +84,8 @@ describe('RatingEngine.calculateShift', () => {
     const highRatedLoss = 2000 - r.updatedLosers[0].rating;
     const lowRatedLoss = 1000 - r.updatedLosers[1].rating;
     expect(highRatedLoss).toBeGreaterThan(lowRatedLoss);
+    expect(Math.abs(highRatedLoss - lowRatedLoss)).toBeLessThanOrEqual(10);
+    expect(highRatedLoss).toBeGreaterThan(0);
   });
 
   it('per-player swing: singles (K=32) >= doubles per-player (K=48 split by 2)', () => {
@@ -123,13 +125,16 @@ describe('RatingEngine.calculateShift', () => {
       makePlayer(1548, { username: 'Eddie' }),
     ];
     const r = RatingEngine.calculateShift(w, l, 11, 4);
-    // James (underdog on team) gets more credit than Shirwin (favorite on team)
+    // Underdog James gets more credit than favorite Shirwin.
     const jamesGain = r.updatedWinners[1].rating - 1529;
     const shirwinGain = r.updatedWinners[0].rating - 1632;
     expect(jamesGain).toBeGreaterThan(shirwinGain);
-    // Losers pay similar amounts (17-point rating gap is small)
+    expect(jamesGain).toBeGreaterThan(0);
+    expect(shirwinGain).toBeGreaterThan(0);
+    // Soft underdog losses: higher-rated Peejay pays slightly more.
     const peejayLoss = 1565 - r.updatedLosers[0].rating;
     const eddieLoss = 1548 - r.updatedLosers[1].rating;
+    expect(peejayLoss).toBeGreaterThan(eddieLoss);
     expect(Math.abs(peejayLoss - eddieLoss)).toBeLessThanOrEqual(2);
   });
 
@@ -145,8 +150,10 @@ describe('RatingEngine.calculateShift', () => {
     const r = RatingEngine.calculateShift(w, l, 11, 1);
     const rommelLoss = 1514 - r.updatedLosers[0].rating;
     const abbeyLoss = 1441 - r.updatedLosers[1].rating;
-    // Rommel (favorite) pays more than Abbey (underdog)
+    // Soft underdog losses: higher-rated Rommel pays slightly more.
     expect(rommelLoss).toBeGreaterThan(abbeyLoss);
+    expect(Math.abs(rommelLoss - abbeyLoss)).toBeLessThanOrEqual(2);
+    expect(rommelLoss).toBeGreaterThan(0);
   });
 
   it('CSV Match 28: Peejay+Shirwin vs Jayson+Trin 11-2 upset', () => {
@@ -161,10 +168,10 @@ describe('RatingEngine.calculateShift', () => {
     const r = RatingEngine.calculateShift(w, l, 11, 2);
     const trinLoss = 1636 - r.updatedLosers[1].rating;
     const jaysonLoss = 1400 - r.updatedLosers[0].rating;
-    // Trin (huge favorite) pays more than Jayson (huge underdog)
+    // Soft underdog losses: higher-rated Trin pays more than Jayson.
     expect(trinLoss).toBeGreaterThan(jaysonLoss);
-    expect(trinLoss).toBeGreaterThan(10);
-    expect(jaysonLoss).toBeLessThan(10);
+    expect(Math.abs(trinLoss - jaysonLoss)).toBeLessThanOrEqual(8);
+    expect(trinLoss).toBeGreaterThan(0);
   });
 
   it('CSV Match 10: Jayson+Trin vs Henri+Celine 11-2', () => {
@@ -179,7 +186,7 @@ describe('RatingEngine.calculateShift', () => {
     const r = RatingEngine.calculateShift(w, l, 11, 2);
     const jaysonGain = r.updatedWinners[0].rating - 1397;
     const trinGain = r.updatedWinners[1].rating - 1630;
-    // Jayson (huge underdog) gets more credit than Trin (huge favorite)
+    // Underdog Jayson gets more credit than favorite Trin.
     expect(jaysonGain).toBeGreaterThan(trinGain);
     expect(jaysonGain).toBeGreaterThan(10);
     expect(trinGain).toBeGreaterThan(0);

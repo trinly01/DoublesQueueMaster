@@ -210,14 +210,17 @@ function enforceOneMatchPerPlayerOnState(state: AppState) {
  * calibrated long-term while still separating players (~82% partner diff).
  *
  * Anti-carry tweak: when a player is the weaker of the two partners, their
- * share of the pool is reduced as the partner gap grows. This keeps the
- * lower-rated partner from getting a free boost when paired with a much
- * stronger teammate. Value chosen from synthetic + real-data backtesting.
+ * WIN share is reduced as the partner gap grows. This keeps the lower-rated
+ * partner from getting a free boost when paired with a much stronger teammate.
+ * Losses use a soft underdog blend: higher-rated partner pays a bit more than
+ * the lower-rated partner, but closer to equal than the old pure underdog rule.
+ * This protects the strong partner from being dragged down while keeping the
+ * ratings calibrated. Value chosen from synthetic + real-data backtesting.
  */
 const K_DOUBLES = 48;
 const K_SINGLES = 32;
 const MARGIN_WEIGHT = 0.1;
-const PARTNER_GAP_FACTOR = 0.5;
+const PARTNER_GAP_FACTOR = 0.75;
 const RATING_FLOOR = 100;
 
 /**
@@ -264,30 +267,29 @@ export const RatingEngine = {
     const expectedW = 1 / (1 + Math.pow(10, (ratingL - ratingW) / 400));
     const pool = Math.round(K * multiplier * (1 - expectedW));
 
-    // Apply anti-carry partner-gap penalty: weaker partner in a large-gap
-    // pair gets less weight, so strong players cannot pull up weak players.
-    const applyGapPenalty = (team: Player[], isWinners: boolean) =>
-      team.map((p, i) => {
-        const partner = team[(i + 1) % team.length];
-        const gap = Math.abs(partner.rating - p.rating);
-        const base = isWinners
-          ? 1 - 1 / (1 + Math.pow(10, (ratingL - p.rating) / 400))
-          : 1 / (1 + Math.pow(10, (ratingW - p.rating) / 400));
-        const weaker = p.rating < partner.rating;
-        const penalty = weaker
-          ? Math.max(0.1, 1 - (PARTNER_GAP_FACTOR * gap) / 400)
-          : 1;
-        return base * penalty;
-      });
-
-    // WINNERS: credit weight = 1 - E_individual (underdogs earn more), then
-    // reduced if the partner gap is huge (anti-carry).
-    const winnerCredits = applyGapPenalty(winners, true);
+    // WINS: anti-carry partner-gap penalty. A weaker partner in a large-gap
+    // pair gets less credit, so strong players cannot pull up weak players.
+    const winnerCredits = winners.map((p, i) => {
+      const partner = winners[(i + 1) % winners.length];
+      const gap = Math.abs(partner.rating - p.rating);
+      const base = 1 - 1 / (1 + Math.pow(10, (ratingL - p.rating) / 400));
+      const weaker = p.rating < partner.rating;
+      const penalty = weaker
+        ? Math.max(0.1, 1 - (PARTNER_GAP_FACTOR * gap) / 400)
+        : 1;
+      return base * penalty;
+    });
     const winnerGains = allocateInteger(pool, winnerCredits);
 
-    // LOSERS: blame weight = E_individual (favorites pay more), then
-    // increased if the partner gap is huge (stronger partner pays more).
-    const loserBlames = applyGapPenalty(losers, false);
+    // LOSSES: soft underdog blend. Higher-rated partner pays a bit more than the
+    // lower-rated partner, but the split is much closer to equal than the old
+    // pure underdog rule. This protects the strong partner from being dragged
+    // down while keeping some calibration accuracy.
+    const loserBlames = losers.map((p) => {
+      const expectedVsWinners =
+        1 / (1 + Math.pow(10, (ratingW - p.rating) / 400));
+      return 0.5 + 0.5 * expectedVsWinners;
+    });
     const loserLosses = allocateInteger(pool, loserBlames);
 
     const updatedWinners = winners.map((player, i) => ({
