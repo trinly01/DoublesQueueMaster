@@ -2106,7 +2106,11 @@
 
                 <q-item-section side>
                   <span class="text-caption text-grey-6">
-                    {{ new Date(item.dateCreated).toLocaleDateString() }}
+                    {{
+                      new Date(
+                        item.dateUpdated || item.dateCreated,
+                      ).toLocaleDateString()
+                    }}
                   </span>
                 </q-item-section>
               </q-item>

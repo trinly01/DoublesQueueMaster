@@ -185,6 +185,8 @@ export interface FeedbackEntry {
   club: string;
   dateCreated: string;
   date_created?: string;
+  dateUpdated?: string;
+  date_updated?: string;
 }
 
 /**
@@ -206,13 +208,20 @@ export async function getPlayerFeedback(
           'comments',
           'club',
           'date_created',
+          'date_updated',
         ],
-        sort: ['-date_created'],
+        sort: ['-date_updated', '-date_created'],
       }),
     );
     return (result as FeedbackEntry[]).map((r) => ({
       ...r,
       dateCreated: r.dateCreated || r.date_created || new Date().toISOString(),
+      dateUpdated:
+        r.dateUpdated ||
+        r.date_updated ||
+        r.dateCreated ||
+        r.date_created ||
+        new Date().toISOString(),
     }));
   } catch (err) {
     console.error('getPlayerFeedback error:', err);
@@ -276,13 +285,20 @@ export async function getClubFeedback(
           'comments',
           'club',
           'date_created',
+          'date_updated',
         ],
-        sort: ['-date_created'],
+        sort: ['-date_updated', '-date_created'],
       }),
     );
     const entries = (result as FeedbackEntry[]).map((r) => ({
       ...r,
       dateCreated: r.dateCreated || r.date_created || new Date().toISOString(),
+      dateUpdated:
+        r.dateUpdated ||
+        r.date_updated ||
+        r.dateCreated ||
+        r.date_created ||
+        new Date().toISOString(),
     }));
     const enriched = await Promise.all(
       entries.map(async (entry) => {
