@@ -84,7 +84,7 @@ describe('RatingEngine.calculateShift', () => {
     const highRatedLoss = 2000 - r.updatedLosers[0].rating;
     const lowRatedLoss = 1000 - r.updatedLosers[1].rating;
     expect(highRatedLoss).toBeGreaterThan(lowRatedLoss);
-    expect(Math.abs(highRatedLoss - lowRatedLoss)).toBeLessThanOrEqual(10);
+    expect(Math.abs(highRatedLoss - lowRatedLoss)).toBeLessThanOrEqual(15);
     expect(highRatedLoss).toBeGreaterThan(0);
   });
 

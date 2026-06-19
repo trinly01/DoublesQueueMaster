@@ -1,0 +1,247 @@
+[
+  {
+    "engine": "Gap 0.5 win + softUnderdog75 loss",
+    "romel": 13,
+    "calMae": 0.03297101449275362,
+    "partnerDiff": 0.7343453510436433,
+    "logLoss": 0.6844212585194545
+  },
+  {
+    "engine": "Gap 0.5 win + softUnderdog50 loss",
+    "romel": 13,
+    "calMae": 0.03333333333333333,
+    "partnerDiff": 0.6776061776061776,
+    "logLoss": 0.6846506827552982
+  },
+  {
+    "engine": "Gap 0.5 win + softUnderdog25 loss",
+    "romel": 14,
+    "calMae": 0.03369565217391307,
+    "partnerDiff": 0.6302681992337165,
+    "logLoss": 0.6848624551388018
+  },
+  {
+    "engine": "Gap 0.75 win + softUnderdog75 loss",
+    "romel": 11,
+    "calMae": 0.034057971014492774,
+    "partnerDiff": 0.666030534351145,
+    "logLoss": 0.6846199796121012
+  },
+  {
+    "engine": "Gap 0.5 win + ratingProp loss",
+    "romel": 14,
+    "calMae": 0.03405797101449279,
+    "partnerDiff": 0.6441005802707931,
+    "logLoss": 0.6846800285873645
+  },
+  {
+    "engine": "Gap 0.75 win + softUnderdog50 loss",
+    "romel": 11,
+    "calMae": 0.034420289855072464,
+    "partnerDiff": 0.6103646833013435,
+    "logLoss": 0.684739963353621
+  },
+  {
+    "engine": "Gap 0.75 win + equalSplit loss",
+    "romel": 13,
+    "calMae": 0.03514492753623189,
+    "partnerDiff": 0.5662878787878788,
+    "logLoss": 0.6847676174061151
+  },
+  {
+    "engine": "Gap 0.75 win + ratingProp loss",
+    "romel": 12,
+    "calMae": 0.0351449275362319,
+    "partnerDiff": 0.578544061302682,
+    "logLoss": 0.6846629548344942
+  },
+  {
+    "engine": "Gap 0.5 win + equalSplit loss",
+    "romel": 15,
+    "calMae": 0.035869565217391326,
+    "partnerDiff": 0.6476190476190476,
+    "logLoss": 0.6849331889065595
+  },
+  {
+    "engine": "Gap 0.75 win + softUnderdog25 loss",
+    "romel": 12,
+    "calMae": 0.03913043478260867,
+    "partnerDiff": 0.5738963531669866,
+    "logLoss": 0.6846635989724222
+  },
+  {
+    "engine": "Gap 1 win + equalSplit loss",
+    "romel": 12,
+    "calMae": 0.0394927536231884,
+    "partnerDiff": 0.5,
+    "logLoss": 0.6850058400678348
+  },
+  {
+    "engine": "Gap 1 win + ratingProp loss",
+    "romel": 11,
+    "calMae": 0.0394927536231884,
+    "partnerDiff": 0.5,
+    "logLoss": 0.6849219550306839
+  },
+  {
+    "engine": "Gap 1 win + softUnderdog25 loss",
+    "romel": 11,
+    "calMae": 0.0394927536231884,
+    "partnerDiff": 0.47884615384615387,
+    "logLoss": 0.6848625265483259
+  },
+  {
+    "engine": "Gap 1 win + softUnderdog50 loss",
+    "romel": 10,
+    "calMae": 0.0431159420289855,
+    "partnerDiff": 0.5308880308880309,
+    "logLoss": 0.684858348165801
+  },
+  {
+    "engine": "Gap 1.25 win + equalSplit loss",
+    "romel": 9,
+    "calMae": 0.04384057971014491,
+    "partnerDiff": 0.5295238095238095,
+    "logLoss": 0.6852592340248008
+  },
+  {
+    "engine": "Gap 1 win + softUnderdog75 loss",
+    "romel": 10,
+    "calMae": 0.04384057971014492,
+    "partnerDiff": 0.5804597701149425,
+    "logLoss": 0.6846317879668065
+  },
+  {
+    "engine": "Gap 1.5 win + equalSplit loss",
+    "romel": 7,
+    "calMae": 0.04420289855072462,
+    "partnerDiff": 0.5916030534351145,
+    "logLoss": 0.6851703851509385
+  },
+  {
+    "engine": "Gap 1.25 win + softUnderdog75 loss",
+    "romel": 7,
+    "calMae": 0.04710144927536232,
+    "partnerDiff": 0.6242884250474383,
+    "logLoss": 0.6848558351298919
+  },
+  {
+    "engine": "Gap 1.75 win + softUnderdog75 loss",
+    "romel": 1,
+    "calMae": 0.05036231884057973,
+    "partnerDiff": 0.7424242424242424,
+    "logLoss": 0.6850861275470772
+  },
+  {
+    "engine": "Gap 1.5 win + ratingProp loss",
+    "romel": 6,
+    "calMae": 0.05181159420289853,
+    "partnerDiff": 0.623574144486692,
+    "logLoss": 0.6849851535828644
+  },
+  {
+    "engine": "Gap 1.5 win + softUnderdog25 loss",
+    "romel": 6,
+    "calMae": 0.05181159420289853,
+    "partnerDiff": 0.5988593155893536,
+    "logLoss": 0.6850314450092918
+  },
+  {
+    "engine": "Gap 1.25 win + ratingProp loss",
+    "romel": 8,
+    "calMae": 0.05181159420289854,
+    "partnerDiff": 0.5456273764258555,
+    "logLoss": 0.6849835889346915
+  },
+  {
+    "engine": "Gap 1.5 win + softUnderdog75 loss",
+    "romel": 5,
+    "calMae": 0.05181159420289854,
+    "partnerDiff": 0.6888045540796964,
+    "logLoss": 0.6847888588340071
+  },
+  {
+    "engine": "Gap 1.25 win + softUnderdog50 loss",
+    "romel": 7,
+    "calMae": 0.05181159420289856,
+    "partnerDiff": 0.5695238095238095,
+    "logLoss": 0.6848468379103033
+  },
+  {
+    "engine": "Gap 1.5 win + softUnderdog50 loss",
+    "romel": 5,
+    "calMae": 0.05181159420289856,
+    "partnerDiff": 0.6368821292775665,
+    "logLoss": 0.6851075396763143
+  },
+  {
+    "engine": "Gap 1.25 win + softUnderdog25 loss",
+    "romel": 8,
+    "calMae": 0.05217391304347827,
+    "partnerDiff": 0.5085714285714286,
+    "logLoss": 0.6849406626561066
+  },
+  {
+    "engine": "Gap 2 win + softUnderdog75 loss",
+    "romel": 1,
+    "calMae": 0.05543478260869565,
+    "partnerDiff": 0.7622641509433963,
+    "logLoss": 0.6850563137291651
+  },
+  {
+    "engine": "Gap 1.75 win + equalSplit loss",
+    "romel": 3,
+    "calMae": 0.056884057971014486,
+    "partnerDiff": 0.6221374045801527,
+    "logLoss": 0.6853673640898281
+  },
+  {
+    "engine": "Gap 1.75 win + softUnderdog50 loss",
+    "romel": 1,
+    "calMae": 0.05942028985507247,
+    "partnerDiff": 0.6843100189035917,
+    "logLoss": 0.6854478231254553
+  },
+  {
+    "engine": "Gap 2 win + softUnderdog50 loss",
+    "romel": 1,
+    "calMae": 0.05942028985507247,
+    "partnerDiff": 0.7145557655954632,
+    "logLoss": 0.6853519388591718
+  },
+  {
+    "engine": "Gap 2 win + softUnderdog25 loss",
+    "romel": 2,
+    "calMae": 0.06014492753623188,
+    "partnerDiff": 0.6603415559772297,
+    "logLoss": 0.6853556836369448
+  },
+  {
+    "engine": "Gap 1.75 win + softUnderdog25 loss",
+    "romel": 2,
+    "calMae": 0.06340579710144925,
+    "partnerDiff": 0.6325757575757576,
+    "logLoss": 0.6855572101221571
+  },
+  {
+    "engine": "Gap 2 win + ratingProp loss",
+    "romel": 2,
+    "calMae": 0.06340579710144925,
+    "partnerDiff": 0.6939163498098859,
+    "logLoss": 0.6853264032619739
+  },
+  {
+    "engine": "Gap 1.75 win + ratingProp loss",
+    "romel": 2,
+    "calMae": 0.063768115942029,
+    "partnerDiff": 0.6622641509433962,
+    "logLoss": 0.6854693905227537
+  },
+  {
+    "engine": "Gap 2 win + equalSplit loss",
+    "romel": 3,
+    "calMae": 0.06521739130434785,
+    "partnerDiff": 0.6382575757575758,
+    "logLoss": 0.6853911982640627
+  }
+]
