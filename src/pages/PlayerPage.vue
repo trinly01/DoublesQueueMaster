@@ -9,7 +9,13 @@
       bordered
     >
       <template v-if="!loading">
-        <q-card-section class="text-center q-pb-md">
+        <PlayerFeedbackButton
+          v-if="currentUserId"
+          :player-id="currentUserId"
+          :sticky="false"
+        />
+
+        <q-card-section class="text-center q-pb-md" style="padding-top: 42px">
           <q-avatar size="100px" class="shadow-3 q-mb-md relative-position">
             <img v-if="avatarUrl" :src="avatarUrl" alt="Player Avatar" />
             <q-icon v-else name="person" size="60px" color="grey-5" />
@@ -144,12 +150,11 @@
             </div>
             <div class="col-4 col-md-3">
               <q-btn
-                color="primary"
                 label="Join"
+                color="accent"
                 @click="joinClub"
                 :disable="!clubId"
-                class="full-width join-btn"
-                dense
+                class="full-width"
               />
             </div>
           </div>
@@ -170,16 +175,18 @@
         <q-card-actions align="center" class="q-mt-sm q-gutter-sm">
           <q-btn
             outline
-            color="primary"
+            color="accent"
             label="Edit Profile"
             icon="edit"
+            size="sm"
             rounded
-            class="edit-btn"
             @click="showEditProfileDialog = true"
           />
           <q-btn
             unelevated
-            color="negative"
+            size="sm"
+            outline
+            color="grey-7"
             label="Logout"
             icon="logout"
             rounded
@@ -886,6 +893,7 @@ import { useRouter } from 'vue-router';
 import { useQuasar, LocalStorage } from 'quasar';
 import { useNotify } from 'src/composables/useNotify';
 import { likhaClient } from 'src/boot/likha';
+import PlayerFeedbackButton from 'src/components/PlayerFeedbackButton.vue';
 import {
   readItems,
   readUsers,

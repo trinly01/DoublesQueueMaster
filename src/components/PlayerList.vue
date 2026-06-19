@@ -13,6 +13,7 @@
         :is-in-match="player.isInMatch"
         :sort-by="sortBy"
         @click="$emit('playerClick', player)"
+        @avatarClick="$emit('playerAvatarClick', $event)"
         @edit="$emit('playerEdit', $event)"
         @remove="$emit('playerRemove', $event)"
         @requeue="$emit('playerRequeue', $event)"
@@ -151,6 +152,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 defineEmits<{
   playerClick: [player: Player];
+  playerAvatarClick: [player: Player];
   playerEdit: [player: Player];
   playerRemove: [username: string];
   playerRequeue: [username: string];
