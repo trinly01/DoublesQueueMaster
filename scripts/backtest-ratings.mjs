@@ -368,7 +368,7 @@ function gapAdjustedDeltas(winners, losers, sW, sL, { k, mw, gapFactor }) {
   const mult = 1 + mw * Math.log(1 + Math.abs(sW - sL));
   const pool = Math.round(k * mult * (1 - expected(rW, rL)));
 
-  const adjust = (arr, isWinners) =>
+  const adjust = (arr, isWinners, applyPenalty) =>
     arr.map((p, i) => {
       const partner = arr[(i + 1) % arr.length];
       const gap = Math.abs(partner.rating - p.rating);
@@ -377,12 +377,48 @@ function gapAdjustedDeltas(winners, losers, sW, sL, { k, mw, gapFactor }) {
         : expected(p.rating, rW);
       // If I'm the weaker partner, shrink my share as the partner gap grows
       const weaker = p.rating < partner.rating;
-      const penalty = weaker ? Math.max(0.1, 1 - (gapFactor * gap) / 400) : 1;
+      const penalty =
+        applyPenalty && weaker ? Math.max(0.1, 1 - (gapFactor * gap) / 400) : 1;
       return base * penalty;
     });
 
-  const wWeights = adjust(winners, true);
-  const lWeights = adjust(losers, false);
+  const wWeights = adjust(winners, true, true);
+  const lWeights = adjust(losers, false, true);
+  const wd = allocateInteger(pool, wWeights);
+  const ld = allocateInteger(pool, lWeights).map((x) => -x);
+  return { wd, ld };
+}
+
+// zero-sum gap-adjusted (winners only): reduce underdog credit when partner gap is
+// large, but keep normal underdog-credit/favorite-blame for losers. This prevents
+// the weak partner from being immune to losses.
+function gapAdjustedWinOnlyDeltas(
+  winners,
+  losers,
+  sW,
+  sL,
+  { k, mw, gapFactor },
+) {
+  const rW = arithmeticMean(winners);
+  const rL = arithmeticMean(losers);
+  const mult = 1 + mw * Math.log(1 + Math.abs(sW - sL));
+  const pool = Math.round(k * mult * (1 - expected(rW, rL)));
+
+  const adjust = (arr, isWinners, applyPenalty) =>
+    arr.map((p, i) => {
+      const partner = arr[(i + 1) % arr.length];
+      const gap = Math.abs(partner.rating - p.rating);
+      const base = isWinners
+        ? 1 - expected(p.rating, rL)
+        : expected(p.rating, rW);
+      const weaker = p.rating < partner.rating;
+      const penalty =
+        applyPenalty && weaker ? Math.max(0.1, 1 - (gapFactor * gap) / 400) : 1;
+      return base * penalty;
+    });
+
+  const wWeights = adjust(winners, true, true);
+  const lWeights = adjust(losers, false, false);
   const wd = allocateInteger(pool, wWeights);
   const ld = allocateInteger(pool, lWeights).map((x) => -x);
   return { wd, ld };
@@ -396,6 +432,72 @@ function ratingProportionalDeltas(winners, losers, sW, sL, { k, mw }) {
   const pool = Math.round(k * mult * (1 - expected(rW, rL)));
   const wWeights = winners.map((p) => p.rating);
   const lWeights = losers.map((p) => p.rating);
+  const wd = allocateInteger(pool, wWeights);
+  const ld = allocateInteger(pool, lWeights).map((x) => -x);
+  return { wd, ld };
+}
+
+// Hybrid: anti-carry gap-adjusted credit on wins, but a configurable loss rule.
+function gapWinCustomLossDeltas(
+  winners,
+  losers,
+  sW,
+  sL,
+  { k, mw, gapFactor, lossMode },
+) {
+  const rW = arithmeticMean(winners);
+  const rL = arithmeticMean(losers);
+  const mult = 1 + mw * Math.log(1 + Math.abs(sW - sL));
+  const pool = Math.round(k * mult * (1 - expected(rW, rL)));
+
+  const adjustWin = (team) =>
+    team.map((p, i) => {
+      const partner = team[(i + 1) % team.length];
+      const gap = Math.abs(partner.rating - p.rating);
+      const base = 1 - expected(p.rating, rL);
+      const weaker = p.rating < partner.rating;
+      const penalty = weaker ? Math.max(0.1, 1 - (gapFactor * gap) / 400) : 1;
+      return base * penalty;
+    });
+
+  const wWeights = adjustWin(winners);
+
+  let lWeights;
+  if (lossMode === 'equalSplit') {
+    lWeights = losers.map(() => 1);
+  } else if (lossMode === 'ratingProportional') {
+    lWeights = losers.map((p) => p.rating);
+  } else if (lossMode === 'softUnderdog') {
+    // Blend equal-split with underdog-credit: higher-rated player pays a bit
+    // more, but the split is closer to equal than pure underdog credit.
+    lWeights = losers.map((p) => 0.5 + 0.5 * expected(p.rating, rW));
+  } else {
+    // underdogCredit = favorite pays more
+    lWeights = losers.map((p) => expected(p.rating, rW));
+  }
+
+  const wd = allocateInteger(pool, wWeights);
+  const ld = allocateInteger(pool, lWeights).map((x) => -x);
+  return { wd, ld };
+}
+
+// zero-sum field-relative proportional: each player's share is proportional to
+// their rating relative to the average of the other three players on the court.
+// This makes the strongest player get more credit and the weakest player get less.
+function fieldRelativeProportionalDeltas(winners, losers, sW, sL, { k, mw }) {
+  const rW = arithmeticMean(winners);
+  const rL = arithmeticMean(losers);
+  const mult = 1 + mw * Math.log(1 + Math.abs(sW - sL));
+  const pool = Math.round(k * mult * (1 - expected(rW, rL)));
+
+  const all = [...winners, ...losers];
+  const avgOthers = (p) =>
+    (all.reduce((s, x) => s + x.rating, 0) - p.rating) / (all.length - 1);
+
+  // Weight = player's rating relative to the rest of the field. Stronger than
+  // the field => bigger share; weaker than the field => smaller share.
+  const wWeights = winners.map((p) => p.rating / avgOthers(p));
+  const lWeights = losers.map((p) => p.rating / avgOthers(p));
   const wd = allocateInteger(pool, wWeights);
   const ld = allocateInteger(pool, lWeights).map((x) => -x);
   return { wd, ld };
@@ -569,7 +671,72 @@ function runFairnessAnalysis(sortedMatches) {
       gapAdjustedDeltas,
       { k: 48, mw: 0.1, gapFactor: 2.0 },
     ],
+    [
+      'ZERO-SUM gapAdjust 0.5 winOnly k48',
+      gapAdjustedWinOnlyDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.5 },
+    ],
+    [
+      'ZERO-SUM gapAdjust 0.75 winOnly k48',
+      gapAdjustedWinOnlyDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75 },
+    ],
+    [
+      'ZERO-SUM gapAdjust 1.0 winOnly k48',
+      gapAdjustedWinOnlyDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0 },
+    ],
+    [
+      'ZERO-SUM gapWin 0.75 ratingPropLoss k48',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75, lossMode: 'ratingProportional' },
+    ],
+    [
+      'ZERO-SUM gapWin 1.0 ratingPropLoss k48',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0, lossMode: 'ratingProportional' },
+    ],
+    [
+      'ZERO-SUM gapWin 1.5 ratingPropLoss k48',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.5, lossMode: 'ratingProportional' },
+    ],
+    [
+      'ZERO-SUM gapWin 0.75 equalSplitLoss k48',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75, lossMode: 'equalSplit' },
+    ],
+    [
+      'ZERO-SUM gapWin 1.0 equalSplitLoss k48',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0, lossMode: 'equalSplit' },
+    ],
+    [
+      'ZERO-SUM gapWin 1.5 equalSplitLoss k48',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.5, lossMode: 'equalSplit' },
+    ],
+    [
+      'ZERO-SUM gapWin 0.75 softUnderdogLoss k48',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75, lossMode: 'softUnderdog' },
+    ],
+    [
+      'ZERO-SUM gapWin 1.0 softUnderdogLoss k48',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0, lossMode: 'softUnderdog' },
+    ],
+    [
+      'ZERO-SUM gapWin 1.5 softUnderdogLoss k48',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.5, lossMode: 'softUnderdog' },
+    ],
     ['ZERO-SUM ratingProp k48', ratingProportionalDeltas, { k: 48, mw: 0.1 }],
+    [
+      'ZERO-SUM fieldRelProp k48',
+      fieldRelativeProportionalDeltas,
+      { k: 48, mw: 0.1 },
+    ],
     ['CURRENT pooled harmonic', currentDeltas, {}],
   ];
   const rows = configs.map(([label, fn, params]) =>
@@ -728,7 +895,72 @@ function analyzeCarryComplaint() {
     ],
     ['Gap-adjusted 1.0', gapAdjustedDeltas, { k: 48, mw: 0.1, gapFactor: 1.0 }],
     ['Gap-adjusted 2.0', gapAdjustedDeltas, { k: 48, mw: 0.1, gapFactor: 2.0 }],
+    [
+      'Gap-adjusted 0.5 win-only',
+      gapAdjustedWinOnlyDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.5 },
+    ],
+    [
+      'Gap-adjusted 0.75 win-only',
+      gapAdjustedWinOnlyDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75 },
+    ],
+    [
+      'Gap-adjusted 1.0 win-only',
+      gapAdjustedWinOnlyDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0 },
+    ],
+    [
+      'Gap 0.75 win + ratingProp loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75, lossMode: 'ratingProportional' },
+    ],
+    [
+      'Gap 1.0 win + ratingProp loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0, lossMode: 'ratingProportional' },
+    ],
+    [
+      'Gap 1.5 win + ratingProp loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.5, lossMode: 'ratingProportional' },
+    ],
+    [
+      'Gap 0.75 win + equalSplit loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75, lossMode: 'equalSplit' },
+    ],
+    [
+      'Gap 1.0 win + equalSplit loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0, lossMode: 'equalSplit' },
+    ],
+    [
+      'Gap 1.5 win + equalSplit loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.5, lossMode: 'equalSplit' },
+    ],
+    [
+      'Gap 0.75 win + softUnderdog loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75, lossMode: 'softUnderdog' },
+    ],
+    [
+      'Gap 1.0 win + softUnderdog loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0, lossMode: 'softUnderdog' },
+    ],
+    [
+      'Gap 1.5 win + softUnderdog loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.5, lossMode: 'softUnderdog' },
+    ],
     ['Rating-proportional', ratingProportionalDeltas, { k: 48, mw: 0.1 }],
+    [
+      'Field-relative proportional',
+      fieldRelativeProportionalDeltas,
+      { k: 48, mw: 0.1 },
+    ],
   ];
 
   console.log('\n\n=== CARRY COMPLAINT ANALYSIS (6/18 event) ===');
@@ -816,33 +1048,154 @@ function simulateScenarios() {
     ],
     ['Gap-adjusted 1.0', gapAdjustedDeltas, { k: 48, mw: 0.1, gapFactor: 1.0 }],
     ['Gap-adjusted 2.0', gapAdjustedDeltas, { k: 48, mw: 0.1, gapFactor: 2.0 }],
+    [
+      'Gap-adjusted 0.5 win-only',
+      gapAdjustedWinOnlyDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.5 },
+    ],
+    [
+      'Gap-adjusted 0.75 win-only',
+      gapAdjustedWinOnlyDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75 },
+    ],
+    [
+      'Gap-adjusted 1.0 win-only',
+      gapAdjustedWinOnlyDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0 },
+    ],
+    [
+      'Gap 0.75 win + ratingProp loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75, lossMode: 'ratingProportional' },
+    ],
+    [
+      'Gap 1.0 win + ratingProp loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0, lossMode: 'ratingProportional' },
+    ],
+    [
+      'Gap 1.5 win + ratingProp loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.5, lossMode: 'ratingProportional' },
+    ],
+    [
+      'Gap 0.75 win + equalSplit loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75, lossMode: 'equalSplit' },
+    ],
+    [
+      'Gap 1.0 win + equalSplit loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0, lossMode: 'equalSplit' },
+    ],
+    [
+      'Gap 1.5 win + equalSplit loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.5, lossMode: 'equalSplit' },
+    ],
+    [
+      'Gap 0.75 win + softUnderdog loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 0.75, lossMode: 'softUnderdog' },
+    ],
+    [
+      'Gap 1.0 win + softUnderdog loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.0, lossMode: 'softUnderdog' },
+    ],
+    [
+      'Gap 1.5 win + softUnderdog loss',
+      gapWinCustomLossDeltas,
+      { k: 48, mw: 0.1, gapFactor: 1.5, lossMode: 'softUnderdog' },
+    ],
     ['Rating-proportional', ratingProportionalDeltas, { k: 48, mw: 0.1 }],
+    [
+      'Field-relative proportional',
+      fieldRelativeProportionalDeltas,
+      { k: 48, mw: 0.1 },
+    ],
   ];
 
-  const scenarios = [
-    // description, p1, p2, opp1, opp2, scoreW, scoreL
-    ['weak+strong vs balanced, upset win', 1300, 1700, 1500, 1500, 11, 9],
-    ['weak+strong vs balanced, blowout upset', 1300, 1700, 1500, 1500, 11, 1],
-    ['weak+strong vs balanced, close loss', 1300, 1700, 1500, 1500, 9, 11],
-    ['weak+strong vs strong, upset win', 1300, 1700, 1700, 1700, 11, 9],
-    ['balanced vs balanced, win', 1500, 1500, 1500, 1500, 11, 9],
-    ['balanced vs weak, expected win', 1500, 1500, 1300, 1300, 11, 3],
-    ['strong vs weak, expected win', 1700, 1700, 1300, 1300, 11, 3],
-    ['strong+weak vs strong+weak, win', 1700, 1300, 1600, 1400, 11, 9],
-    ['huge gap partner vs balanced, win', 1200, 1800, 1500, 1500, 11, 9],
-    [
-      'huge gap partner vs balanced, blowout win',
-      1200,
-      1800,
-      1500,
-      1500,
-      11,
-      2,
-    ],
-    ['huge gap partner vs balanced, loss', 1200, 1800, 1500, 1500, 5, 11],
-    ['weak+weak vs strong+strong, upset win', 1300, 1300, 1700, 1700, 11, 9],
-    ['strong+strong vs weak+weak, blowout win', 1700, 1700, 1300, 1300, 11, 1],
+  // Generate a comprehensive scenario grid: all team archetypes vs all
+  // opponent archetypes, with both win and loss outcomes.
+  const teamArchetypes = [
+    { label: 'balanced', p1: 1500, p2: 1500 },
+    { label: 'weak+strong', p1: 1300, p2: 1700 },
+    { label: 'huge gap', p1: 1200, p2: 1800 },
+    { label: 'weak+weak', p1: 1300, p2: 1300 },
+    { label: 'strong+strong', p1: 1700, p2: 1700 },
   ];
+
+  const scenarios = [];
+  for (const team of teamArchetypes) {
+    for (const opp of teamArchetypes) {
+      const teamAvg = (team.p1 + team.p2) / 2;
+      const oppAvg = (opp.p1 + opp.p2) / 2;
+      if (teamAvg < oppAvg) {
+        // Underdog team wins = upset
+        scenarios.push([
+          `${team.label} vs ${opp.label}, upset win`,
+          team.p1,
+          team.p2,
+          opp.p1,
+          opp.p2,
+          11,
+          9,
+        ]);
+        // Underdog team loses = expected loss
+        scenarios.push([
+          `${team.label} vs ${opp.label}, expected loss`,
+          team.p1,
+          team.p2,
+          opp.p1,
+          opp.p2,
+          9,
+          11,
+        ]);
+      } else if (teamAvg > oppAvg) {
+        // Favorite team wins = expected win
+        scenarios.push([
+          `${team.label} vs ${opp.label}, expected win`,
+          team.p1,
+          team.p2,
+          opp.p1,
+          opp.p2,
+          11,
+          3,
+        ]);
+        // Favorite team loses = upset loss
+        scenarios.push([
+          `${team.label} vs ${opp.label}, upset loss`,
+          team.p1,
+          team.p2,
+          opp.p1,
+          opp.p2,
+          9,
+          11,
+        ]);
+      } else {
+        // Evenly matched
+        scenarios.push([
+          `${team.label} vs ${opp.label}, close win`,
+          team.p1,
+          team.p2,
+          opp.p1,
+          opp.p2,
+          11,
+          9,
+        ]);
+        scenarios.push([
+          `${team.label} vs ${opp.label}, close loss`,
+          team.p1,
+          team.p2,
+          opp.p1,
+          opp.p2,
+          9,
+          11,
+        ]);
+      }
+    }
+  }
 
   const allResults = [];
 
@@ -907,6 +1260,7 @@ function simulateScenarios() {
         o2,
         sW,
         sL,
+        teamWon,
         p1Change,
         p2Change,
         carryScore,
