@@ -14,6 +14,8 @@
         :user-id="player.userId"
         :dupr-id="player.duprId"
         size="md"
+        class="cursor-pointer"
+        @click.stop="$emit('avatarClick', player)"
       />
       <PlayerAvatar
         v-else
@@ -24,6 +26,8 @@
         :dupr-id="player.duprId"
         :image-url="player.avatar"
         size="md"
+        class="cursor-pointer"
+        @click.stop="$emit('avatarClick', player)"
         @image-error="handleAvatarError"
       />
     </q-item-section>
@@ -171,6 +175,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 defineEmits<{
   click: [player: Player];
+  avatarClick: [player: Player];
   edit: [player: Player];
   remove: [username: string];
   requeue: [username: string];

@@ -318,6 +318,7 @@
                     "
                     :empty-action="!searchPlayers"
                     @player-edit="openEditPlayerDialog"
+                    @player-avatar-click="openPlayerReportDialog"
                     @player-remove="removePlayer"
                     @player-requeue="requeuePlayer"
                     @empty-action="showAddPlayerDialog = true"
@@ -682,6 +683,7 @@
                       "
                       :empty-action="!searchPlayers"
                       @player-edit="openEditPlayerDialog"
+                      @player-avatar-click="openPlayerReportDialog"
                       @player-remove="removePlayer"
                       @player-requeue="requeuePlayer"
                       @empty-action="showAddPlayerDialog = true"
@@ -1542,6 +1544,7 @@
       <!-- Settings Dialog -->
       <q-dialog v-model="showSettingsDialog" :maximized="$q.screen.lt.md">
         <q-card
+          flat
           class="bg-white"
           style="
             max-width: 800px;
@@ -1560,10 +1563,13 @@
               :options="[
                 { label: 'Matchmaking', value: 'matchmaking' },
                 { label: 'Club', value: 'club' },
+                { label: 'Feedback', value: 'feedback' },
               ]"
               color="grey-5"
               toggle-color="accent"
               spread
+              dense
+              size="sm"
               class="full-width"
             />
           </div>
@@ -2022,6 +2028,91 @@
             </div>
           </div>
 
+          <div
+            v-else-if="settingsTab === 'feedback'"
+            class="q-pa-md q-pt-lg"
+            style="flex: 1; overflow-y: auto"
+          >
+            <div v-if="clubFeedbackLoading" class="flex flex-center q-py-lg">
+              <q-spinner color="primary" size="40px" />
+            </div>
+
+            <div
+              v-else-if="clubFeedback.length === 0"
+              class="text-center q-py-lg text-grey-6"
+            >
+              <q-icon name="inbox" size="48px" />
+              <div class="text-h6 q-mt-sm">No feedback yet</div>
+            </div>
+
+            <q-list separator v-else>
+              <q-item
+                v-for="item in clubFeedback"
+                :key="item.id"
+                :class="item.type === 'report' ? 'bg-red-1' : 'bg-green-1'"
+              >
+                <q-item-section avatar>
+                  <q-icon
+                    :name="
+                      item.type === 'report' ? 'report_problem' : 'thumb_up'
+                    "
+                    :color="item.type === 'report' ? 'negative' : 'positive'"
+                    size="28px"
+                  />
+                </q-item-section>
+
+                <q-item-section>
+                  <q-item-label class="text-weight-medium">
+                    {{ item.type === 'report' ? 'Report by' : 'Kudos by' }}
+                    {{ item.reporterName || 'Unknown' }}
+                    <span
+                      v-if="item.reporterUsername"
+                      class="text-caption text-grey-6"
+                    >
+                      (@{{ item.reporterUsername }})
+                    </span>
+                  </q-item-label>
+                  <q-item-label caption class="text-grey-7">
+                    <span class="text-grey-7">To:</span>
+                    {{ item.playerName || 'Unknown' }}
+                    <span
+                      v-if="item.playerUsername"
+                      class="text-caption text-grey-6"
+                    >
+                      (@{{ item.playerUsername }})
+                    </span>
+                  </q-item-label>
+                  <q-item-label class="q-gutter-xs q-mt-sm">
+                    <q-chip
+                      v-for="reason in getClubFeedbackReasons(item)"
+                      :key="reason.key"
+                      dense
+                      size="sm"
+                      :icon="reason.icon"
+                      :color="item.type === 'report' ? 'negative' : 'positive'"
+                      text-color="white"
+                    >
+                      {{ reason.label }}
+                    </q-chip>
+                  </q-item-label>
+                  <q-item-label
+                    v-if="item.comments"
+                    caption
+                    class="q-mt-sm text-grey-8"
+                  >
+                    {{ item.comments }}
+                  </q-item-label>
+                </q-item-section>
+
+                <q-item-section side>
+                  <span class="text-caption text-grey-6">
+                    {{ new Date(item.dateCreated).toLocaleDateString() }}
+                  </span>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </div>
+
           <!-- Footer Actions -->
           <q-separator />
           <q-card-actions align="right" class="q-pa-md">
@@ -2034,6 +2125,14 @@
           </q-card-actions>
         </q-card>
       </q-dialog>
+
+      <!-- Player Report/Commend Dialog -->
+      <PlayerReportDialog
+        v-model="showPlayerReportDialog"
+        :target-player="reportTargetPlayer"
+        :current-user-id="currentUserId"
+        :club-id="currentClubUUID"
+      />
 
       <!-- Manual Match Selection Dialog -->
       <q-dialog
@@ -2897,9 +2996,17 @@ import TeamArrangement from '../components/TeamArrangement.vue';
 import PlayerList from '../components/PlayerList.vue';
 import PlayerCard from '../components/PlayerCard.vue';
 import PlayerAvatar from '../components/PlayerAvatar.vue';
+import PlayerReportDialog from '../components/PlayerReportDialog.vue';
 import PayBanner from '../components/PayBanner.vue';
 import EmptyState from '../components/EmptyState.vue';
 import DialogHeader from '../components/DialogHeader.vue';
+import {
+  getClubFeedback,
+  COMMEND_ITEMS,
+  REPORT_ITEMS,
+  type ClubFeedbackEntry,
+  type ReportItem,
+} from '../services/playerReport';
 import MatchCard from '../components/MatchCard.vue';
 import MatchResult from '../components/MatchResult.vue';
 import {
@@ -4684,7 +4791,9 @@ watch(showAddPlayerDialog, (open) => {
   }
 });
 const showSettingsDialog = ref(false);
-const settingsTab = ref<'matchmaking' | 'club'>('matchmaking');
+const settingsTab = ref<'matchmaking' | 'club' | 'feedback'>('matchmaking');
+const clubFeedback = ref<ClubFeedbackEntry[]>([]);
+const clubFeedbackLoading = ref(false);
 const showMatchResultDialog = ref(false);
 const showMatchEditDialog = ref(false);
 const showReplacePlayerDialog = ref(false);
@@ -4721,10 +4830,53 @@ watch(activeMobileTab, (tab) => {
   LocalStorage.set('active_tab', tab);
 });
 
+function getClubFeedbackCacheKey(): string {
+  return `club_feedback_cache_${currentClubUUID.value}`;
+}
+
+function loadCachedClubFeedback(): ClubFeedbackEntry[] | null {
+  const raw = LocalStorage.getItem(getClubFeedbackCacheKey());
+  if (!raw) return null;
+  try {
+    return Array.isArray(raw) ? (raw as ClubFeedbackEntry[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedClubFeedback(items: ClubFeedbackEntry[]) {
+  LocalStorage.set(getClubFeedbackCacheKey(), items);
+}
+
+async function loadClubFeedback() {
+  if (!currentClubUUID.value) return;
+  const cached = loadCachedClubFeedback();
+  if (cached) {
+    clubFeedback.value = cached;
+    clubFeedbackLoading.value = false;
+  } else {
+    clubFeedbackLoading.value = true;
+  }
+  const fresh = await getClubFeedback(currentClubUUID.value);
+  clubFeedback.value = fresh;
+  saveCachedClubFeedback(fresh);
+  clubFeedbackLoading.value = false;
+}
+
+function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
+  const source = item.type === 'report' ? REPORT_ITEMS : COMMEND_ITEMS;
+  return item.content.items
+    .map((key) => source.find((i) => i.key === key))
+    .filter((i): i is ReportItem => !!i);
+}
+
 // Fetch latest members/admins when opening the Club settings tab
 watch(settingsTab, (tab) => {
   if (tab === 'club') {
     void refreshClubMembers();
+  }
+  if (tab === 'feedback') {
+    void loadClubFeedback();
   }
 });
 
@@ -4792,6 +4944,8 @@ const queueReturnMethod = computed<
 // Edit player state
 const showEditPlayerDialog = ref(false);
 const editingPlayer = ref<Player | null>(null);
+const showPlayerReportDialog = ref(false);
+const reportTargetPlayer = ref<Player | null>(null);
 const editPlayerName = ref<string | null>(null);
 const editPlayerLevel = ref<1 | 2 | 3 | null>(null);
 const autoSortQueue = computed<boolean>({
@@ -7251,6 +7405,11 @@ const openEditPlayerDialog = (player: Player) => {
   showEditPlayerDialog.value = true;
 };
 
+const openPlayerReportDialog = (player: Player) => {
+  reportTargetPlayer.value = player;
+  showPlayerReportDialog.value = true;
+};
+
 const savePlayerEdit = () => {
   if (
     !editingPlayer.value ||
@@ -8293,6 +8452,21 @@ const savePlayerEdit = () => {
   .players-card .mobile-card-content,
   .matches-card .mobile-card-content {
     min-height: 280px;
+  }
+}
+
+// Feedback list ellipsis styling
+.feedback-list {
+  .q-item__section--main {
+    min-width: 0;
+  }
+
+  .q-item__label.text-weight-medium,
+  .q-item__label.text-grey-7,
+  .q-item__label.text-grey-8 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 </style>
