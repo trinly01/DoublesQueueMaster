@@ -56,6 +56,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { LocalStorage } from 'quasar';
 import { getPlayerFeedback } from 'src/services/playerReport';
 import PlayerFeedbackDialog from './PlayerFeedbackDialog.vue';
 
@@ -70,11 +71,10 @@ const unreadCount = ref(0);
 const readKey = computed(() => `feedback_read_${props.playerId}`);
 
 function getReadIds(): string[] {
-  const raw = localStorage.getItem(readKey.value);
+  const raw = LocalStorage.getItem(readKey.value);
   if (!raw) return [];
   try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(raw) ? (raw as string[]) : [];
   } catch {
     return [];
   }
