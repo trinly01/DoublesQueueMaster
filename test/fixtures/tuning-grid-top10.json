@@ -1,0 +1,218 @@
+{
+  "byCalMae": [
+    {
+      "engine": "Gap 0.5 win + underdog loss",
+      "romel": 11,
+      "calMae": 0.03152173913043478,
+      "partnerDiff": 0.789272030651341,
+      "logLoss": 0.6841585982054639
+    },
+    {
+      "engine": "Gap 0.5 win + softUnderdog75 loss",
+      "romel": 13,
+      "calMae": 0.03297101449275362,
+      "partnerDiff": 0.7343453510436433,
+      "logLoss": 0.6844212585194545
+    },
+    {
+      "engine": "Gap 0.5 win + softUnderdog50 loss",
+      "romel": 13,
+      "calMae": 0.03333333333333333,
+      "partnerDiff": 0.6776061776061776,
+      "logLoss": 0.6846506827552982
+    },
+    {
+      "engine": "Gap 0.5 win + softUnderdog25 loss",
+      "romel": 14,
+      "calMae": 0.03369565217391307,
+      "partnerDiff": 0.6302681992337165,
+      "logLoss": 0.6848624551388018
+    },
+    {
+      "engine": "Gap 0.75 win + softUnderdog75 loss",
+      "romel": 11,
+      "calMae": 0.034057971014492774,
+      "partnerDiff": 0.666030534351145,
+      "logLoss": 0.6846199796121012
+    },
+    {
+      "engine": "Gap 0.5 win + ratingProp loss",
+      "romel": 14,
+      "calMae": 0.03405797101449279,
+      "partnerDiff": 0.6441005802707931,
+      "logLoss": 0.6846800285873645
+    },
+    {
+      "engine": "Gap 0.75 win + softUnderdog50 loss",
+      "romel": 11,
+      "calMae": 0.034420289855072464,
+      "partnerDiff": 0.6103646833013435,
+      "logLoss": 0.684739963353621
+    },
+    {
+      "engine": "Gap 0.75 win + equalSplit loss",
+      "romel": 13,
+      "calMae": 0.03514492753623189,
+      "partnerDiff": 0.5662878787878788,
+      "logLoss": 0.6847676174061151
+    },
+    {
+      "engine": "Gap 0.75 win + ratingProp loss",
+      "romel": 12,
+      "calMae": 0.0351449275362319,
+      "partnerDiff": 0.578544061302682,
+      "logLoss": 0.6846629548344942
+    },
+    {
+      "engine": "Gap 0.5 win + equalSplit loss",
+      "romel": 15,
+      "calMae": 0.035869565217391326,
+      "partnerDiff": 0.6476190476190476,
+      "logLoss": 0.6849331889065595
+    }
+  ],
+  "byCarry": [
+    {
+      "engine": "Gap 2 win + underdog loss",
+      "romel": -8,
+      "calMae": 0.05289855072463766,
+      "partnerDiff": 0.8197343453510436,
+      "logLoss": 0.6842607159989251
+    },
+    {
+      "engine": "Gap 2 win + softUnderdog50 loss",
+      "romel": -6,
+      "calMae": 0.07210144927536233,
+      "partnerDiff": 0.7410207939508506,
+      "logLoss": 0.6854217320398706
+    },
+    {
+      "engine": "Gap 2 win + softUnderdog75 loss",
+      "romel": -6,
+      "calMae": 0.06775362318840579,
+      "partnerDiff": 0.769811320754717,
+      "logLoss": 0.6848402500294306
+    },
+    {
+      "engine": "Gap 2 win + ratingProp loss",
+      "romel": -5,
+      "calMae": 0.06884057971014491,
+      "partnerDiff": 0.713472485768501,
+      "logLoss": 0.685460493509141
+    },
+    {
+      "engine": "Gap 2 win + softUnderdog25 loss",
+      "romel": -5,
+      "calMae": 0.06884057971014491,
+      "partnerDiff": 0.6963946869070209,
+      "logLoss": 0.6852915433154785
+    },
+    {
+      "engine": "Gap 2 win + equalSplit loss",
+      "romel": -4,
+      "calMae": 0.06956521739130435,
+      "partnerDiff": 0.696969696969697,
+      "logLoss": 0.6855734480212228
+    },
+    {
+      "engine": "Gap 1.75 win + underdog loss",
+      "romel": -3,
+      "calMae": 0.048913043478260886,
+      "partnerDiff": 0.7784090909090909,
+      "logLoss": 0.6844573572291497
+    },
+    {
+      "engine": "Gap 1.75 win + softUnderdog50 loss",
+      "romel": 0,
+      "calMae": 0.06630434782608696,
+      "partnerDiff": 0.6799242424242424,
+      "logLoss": 0.6854253960900679
+    },
+    {
+      "engine": "Gap 1.75 win + softUnderdog75 loss",
+      "romel": 0,
+      "calMae": 0.055072463768115955,
+      "partnerDiff": 0.7410207939508506,
+      "logLoss": 0.6849939584047352
+    },
+    {
+      "engine": "Gap 1.75 win + ratingProp loss",
+      "romel": 1,
+      "calMae": 0.06666666666666667,
+      "partnerDiff": 0.6471698113207547,
+      "logLoss": 0.6854549497791511
+    }
+  ],
+  "byPartnerDiff": [
+    {
+      "engine": "Gap 2 win + underdog loss",
+      "romel": -8,
+      "calMae": 0.05289855072463766,
+      "partnerDiff": 0.8197343453510436,
+      "logLoss": 0.6842607159989251
+    },
+    {
+      "engine": "Gap 0.5 win + underdog loss",
+      "romel": 11,
+      "calMae": 0.03152173913043478,
+      "partnerDiff": 0.789272030651341,
+      "logLoss": 0.6841585982054639
+    },
+    {
+      "engine": "Gap 1.75 win + underdog loss",
+      "romel": -3,
+      "calMae": 0.048913043478260886,
+      "partnerDiff": 0.7784090909090909,
+      "logLoss": 0.6844573572291497
+    },
+    {
+      "engine": "Gap 2 win + softUnderdog75 loss",
+      "romel": -6,
+      "calMae": 0.06775362318840579,
+      "partnerDiff": 0.769811320754717,
+      "logLoss": 0.6848402500294306
+    },
+    {
+      "engine": "Gap 1.5 win + underdog loss",
+      "romel": 2,
+      "calMae": 0.042391304347826085,
+      "partnerDiff": 0.7528735632183908,
+      "logLoss": 0.6840780373123991
+    },
+    {
+      "engine": "Gap 1.75 win + softUnderdog75 loss",
+      "romel": 0,
+      "calMae": 0.055072463768115955,
+      "partnerDiff": 0.7410207939508506,
+      "logLoss": 0.6849939584047352
+    },
+    {
+      "engine": "Gap 2 win + softUnderdog50 loss",
+      "romel": -6,
+      "calMae": 0.07210144927536233,
+      "partnerDiff": 0.7410207939508506,
+      "logLoss": 0.6854217320398706
+    },
+    {
+      "engine": "Gap 0.5 win + softUnderdog75 loss",
+      "romel": 13,
+      "calMae": 0.03297101449275362,
+      "partnerDiff": 0.7343453510436433,
+      "logLoss": 0.6844212585194545
+    },
+    {
+      "engine": "Gap 0.75 win + underdog loss",
+      "romel": 9,
+      "calMae": 0.03695652173913044,
+      "partnerDiff": 0.734225621414914,
+      "logLoss": 0.6840902637061906
+    },
+    {
+      "engine": "Gap 2 win + ratingProp loss",
+      "romel": -5,
+      "calMae": 0.06884057971014491,
+      "partnerDiff": 0.713472485768501,
+      "logLoss": 0.685460493509141
+    }
+  ]
+}

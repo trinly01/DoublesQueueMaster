@@ -207,18 +207,18 @@
     ]
   },
   {
-    "engine": "Gap 0.75 win + ratingProp loss",
+    "engine": "Gap 0.5 win + equalSplit loss",
     "players": [
       {
         "name": "EddieWow Datuin jr",
-        "net": -14,
+        "net": -15,
         "h2hNet": -27,
         "matches": 7
       },
       {
         "name": "romel saclolo",
-        "net": 12,
-        "h2hNet": 28,
+        "net": 15,
+        "h2hNet": 29,
         "matches": 5
       },
       {
@@ -230,18 +230,64 @@
     ]
   },
   {
-    "engine": "Gap 1.0 win + ratingProp loss",
+    "engine": "Gap 0.5 win + ratingProp loss",
     "players": [
       {
         "name": "EddieWow Datuin jr",
-        "net": -13,
+        "net": -15,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 14,
+        "h2hNet": 29,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 0.5 win + underdog loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -17,
         "h2hNet": -27,
         "matches": 7
       },
       {
         "name": "romel saclolo",
         "net": 11,
-        "h2hNet": 27,
+        "h2hNet": 29,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 8,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 0.5 win + softUnderdog25 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -15,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 14,
+        "h2hNet": 29,
         "matches": 5
       },
       {
@@ -253,18 +299,41 @@
     ]
   },
   {
-    "engine": "Gap 1.5 win + ratingProp loss",
+    "engine": "Gap 0.5 win + softUnderdog50 loss",
     "players": [
       {
         "name": "EddieWow Datuin jr",
-        "net": -11,
+        "net": -16,
         "h2hNet": -27,
         "matches": 7
       },
       {
         "name": "romel saclolo",
-        "net": 6,
-        "h2hNet": 25,
+        "net": 13,
+        "h2hNet": 29,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 0.5 win + softUnderdog75 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -16,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 13,
+        "h2hNet": 29,
         "matches": 5
       },
       {
@@ -299,7 +368,122 @@
     ]
   },
   {
-    "engine": "Gap 1.0 win + equalSplit loss",
+    "engine": "Gap 0.75 win + ratingProp loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -14,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 12,
+        "h2hNet": 28,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 0.75 win + underdog loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -16,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 9,
+        "h2hNet": 28,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 8,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 0.75 win + softUnderdog25 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -14,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 12,
+        "h2hNet": 28,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 0.75 win + softUnderdog50 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -15,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 11,
+        "h2hNet": 28,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 0.75 win + softUnderdog75 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -15,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 11,
+        "h2hNet": 28,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1 win + equalSplit loss",
     "players": [
       {
         "name": "EddieWow Datuin jr",
@@ -311,6 +495,259 @@
         "name": "romel saclolo",
         "net": 12,
         "h2hNet": 27,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1 win + ratingProp loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -13,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 11,
+        "h2hNet": 27,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1 win + underdog loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -15,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 8,
+        "h2hNet": 27,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 8,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1 win + softUnderdog25 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -13,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 11,
+        "h2hNet": 27,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1 win + softUnderdog50 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -14,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 10,
+        "h2hNet": 27,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1 win + softUnderdog75 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -14,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 10,
+        "h2hNet": 27,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.25 win + equalSplit loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -12,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 9,
+        "h2hNet": 26,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.25 win + ratingProp loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -12,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 8,
+        "h2hNet": 26,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.25 win + underdog loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -14,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 5,
+        "h2hNet": 26,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 8,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.25 win + softUnderdog25 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -12,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 8,
+        "h2hNet": 26,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.25 win + softUnderdog50 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -13,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 7,
+        "h2hNet": 26,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.25 win + softUnderdog75 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -13,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 7,
+        "h2hNet": 26,
         "matches": 5
       },
       {
@@ -345,18 +782,18 @@
     ]
   },
   {
-    "engine": "Gap 0.75 win + softUnderdog loss",
+    "engine": "Gap 1.5 win + ratingProp loss",
     "players": [
       {
         "name": "EddieWow Datuin jr",
-        "net": -15,
+        "net": -11,
         "h2hNet": -27,
         "matches": 7
       },
       {
         "name": "romel saclolo",
-        "net": 11,
-        "h2hNet": 28,
+        "net": 6,
+        "h2hNet": 25,
         "matches": 5
       },
       {
@@ -368,18 +805,41 @@
     ]
   },
   {
-    "engine": "Gap 1.0 win + softUnderdog loss",
+    "engine": "Gap 1.5 win + underdog loss",
     "players": [
       {
         "name": "EddieWow Datuin jr",
-        "net": -14,
+        "net": -13,
         "h2hNet": -27,
         "matches": 7
       },
       {
         "name": "romel saclolo",
-        "net": 10,
-        "h2hNet": 27,
+        "net": 2,
+        "h2hNet": 24,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 8,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.5 win + softUnderdog25 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -11,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 6,
+        "h2hNet": 25,
         "matches": 5
       },
       {
@@ -391,7 +851,7 @@
     ]
   },
   {
-    "engine": "Gap 1.5 win + softUnderdog loss",
+    "engine": "Gap 1.5 win + softUnderdog50 loss",
     "players": [
       {
         "name": "EddieWow Datuin jr",
@@ -403,6 +863,305 @@
         "name": "romel saclolo",
         "net": 5,
         "h2hNet": 25,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.5 win + softUnderdog75 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -12,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 5,
+        "h2hNet": 25,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.75 win + equalSplit loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -10,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 3,
+        "h2hNet": 23,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 10,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.75 win + ratingProp loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -10,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 2,
+        "h2hNet": 23,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.75 win + underdog loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -12,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": -1,
+        "h2hNet": 23,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 8,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.75 win + softUnderdog25 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -10,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 2,
+        "h2hNet": 23,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.75 win + softUnderdog50 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -11,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 1,
+        "h2hNet": 23,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 1.75 win + softUnderdog75 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -11,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 1,
+        "h2hNet": 23,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 2 win + equalSplit loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -9,
+        "h2hNet": -28,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 3,
+        "h2hNet": 23,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 10,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 2 win + ratingProp loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -10,
+        "h2hNet": -28,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 2,
+        "h2hNet": 23,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 2 win + underdog loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -11,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": -1,
+        "h2hNet": 23,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 8,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 2 win + softUnderdog25 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -10,
+        "h2hNet": -28,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 2,
+        "h2hNet": 23,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 2 win + softUnderdog50 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -11,
+        "h2hNet": -28,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 1,
+        "h2hNet": 23,
+        "matches": 5
+      },
+      {
+        "name": "Rommel Sandoval",
+        "net": 9,
+        "h2hNet": 0,
+        "matches": 6
+      }
+    ]
+  },
+  {
+    "engine": "Gap 2 win + softUnderdog75 loss",
+    "players": [
+      {
+        "name": "EddieWow Datuin jr",
+        "net": -10,
+        "h2hNet": -27,
+        "matches": 7
+      },
+      {
+        "name": "romel saclolo",
+        "net": 1,
+        "h2hNet": 23,
         "matches": 5
       },
       {

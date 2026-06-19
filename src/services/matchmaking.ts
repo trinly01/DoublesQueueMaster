@@ -212,16 +212,22 @@ function enforceOneMatchPerPlayerOnState(state: AppState) {
  * Anti-carry tweak: when a player is the weaker of the two partners, their
  * WIN share is reduced as the partner gap grows. This keeps the lower-rated
  * partner from getting a free boost when paired with a much stronger teammate.
- * Losses use a soft underdog blend: higher-rated partner pays a bit more than
- * the lower-rated partner, but closer to equal than the old pure underdog rule.
- * This protects the strong partner from being dragged down while keeping the
- * ratings calibrated. Value chosen from synthetic + real-data backtesting.
+ * Losses use a 75/25 soft underdog blend: mostly underdog-credit, but with some
+ * equal-split protection so the strong partner is not dragged down too far.
+ * A partner ratio cap (MAX_PARTNER_RATIO) prevents extreme partner gaps from
+ * creating huge swings. This keeps the ratings calibrated while protecting
+ * strong partners. Values chosen from synthetic + real-data backtesting.
  */
 const K_DOUBLES = 48;
 const K_SINGLES = 32;
 const MARGIN_WEIGHT = 0.1;
 const PARTNER_GAP_FACTOR = 0.75;
+const LOSS_UNDERDOG_BLEND = 0.75;
 const RATING_FLOOR = 100;
+// Cap the ratio between any two partners' rating changes so huge gaps don't
+// create extreme swings. A value of 2.0 means the strong partner can never get
+// more than 2x the weak partner's gain/loss.
+const MAX_PARTNER_RATIO = 2.0;
 
 /**
  * Distribute an integer `total` across `weights` proportionally, guaranteeing
@@ -243,6 +249,17 @@ const allocateInteger = (total: number, weights: number[]): number[] => {
   const result = [...floors];
   for (let k = 0; k < remainder; k++) result[order[k % order.length].i] += 1;
   return result;
+};
+
+// Prevent huge partner-gaps from creating extreme point swings. If the largest
+// weight is more than MAX_PARTNER_RATIO times the smallest, lift the smallest
+// weight so the ratio is capped.
+const capWeights = (weights: number[], maxRatio: number): number[] => {
+  if (weights.length < 2) return weights;
+  const max = Math.max(...weights);
+  if (max <= 0) return weights;
+  const minAllowed = max / maxRatio;
+  return weights.map((w) => Math.max(w, minAllowed));
 };
 
 export const RatingEngine = {
@@ -279,18 +296,23 @@ export const RatingEngine = {
         : 1;
       return base * penalty;
     });
-    const winnerGains = allocateInteger(pool, winnerCredits);
+    const winnerGains = allocateInteger(
+      pool,
+      capWeights(winnerCredits, MAX_PARTNER_RATIO),
+    );
 
     // LOSSES: soft underdog blend. Higher-rated partner pays a bit more than the
-    // lower-rated partner, but the split is much closer to equal than the old
-    // pure underdog rule. This protects the strong partner from being dragged
-    // down while keeping some calibration accuracy.
+    // lower-rated partner, but the split is closer to equal than the old pure
+    // underdog rule. blend = 0 => equal split; blend = 1 => pure underdog.
     const loserBlames = losers.map((p) => {
       const expectedVsWinners =
         1 / (1 + Math.pow(10, (ratingW - p.rating) / 400));
-      return 0.5 + 0.5 * expectedVsWinners;
+      return 1 - LOSS_UNDERDOG_BLEND + LOSS_UNDERDOG_BLEND * expectedVsWinners;
     });
-    const loserLosses = allocateInteger(pool, loserBlames);
+    const loserLosses = allocateInteger(
+      pool,
+      capWeights(loserBlames, MAX_PARTNER_RATIO),
+    );
 
     const updatedWinners = winners.map((player, i) => ({
       ...player,
