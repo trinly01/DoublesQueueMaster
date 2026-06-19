@@ -144,6 +144,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
+import { useNotify } from 'src/composables/useNotify';
 import PlayerAvatar from './PlayerAvatar.vue';
 import {
   COMMEND_ITEMS,
@@ -173,6 +174,7 @@ const emit = defineEmits<{
 }>();
 
 const $q = useQuasar();
+const { notify } = useNotify();
 
 const activeType = ref<ReportType>('commend');
 const selectedItems = ref<string[]>([]);
@@ -219,12 +221,12 @@ watch(activeType, () => {
 
 async function submit() {
   if (!props.targetPlayer?.userId || !props.currentUserId || !props.clubId) {
-    $q.notify({ color: 'negative', message: 'Missing required information' });
+    notify({ color: 'negative', message: 'Missing required information' });
     return;
   }
 
   if (selectedItems.value.length === 0) {
-    $q.notify({ color: 'warning', message: 'Select at least one reason' });
+    notify({ color: 'warning', message: 'Select at least one reason' });
     return;
   }
 
@@ -240,7 +242,7 @@ async function submit() {
   submitting.value = false;
 
   if (result.success) {
-    $q.notify({
+    notify({
       color: 'positive',
       message:
         activeType.value === 'report'
@@ -250,7 +252,7 @@ async function submit() {
     emit('submitted');
     close();
   } else {
-    $q.notify({ color: 'negative', message: result.error });
+    notify({ color: 'negative', message: result.error });
   }
 }
 </script>
