@@ -76,67 +76,102 @@
       </q-item-label>
     </q-item-section>
 
-    <q-item-section side v-if="showActions || $slots.actions">
+    <q-item-section side>
       <div class="row items-center">
-        <slot name="actions" :player="player">
-          <q-btn
-            flat
-            round
-            color="primary"
-            @click.stop="$emit('edit', player)"
-            icon="edit"
-            size="xs"
+        <q-btn
+          v-if="showFeedbackButton"
+          flat
+          dense
+          round
+          color="positive"
+          @click.stop="$emit('commend', player)"
+          icon="thumb_up"
+          size="md"
+        >
+          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+            >Commend</q-tooltip
           >
-            <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-              >Edit</q-tooltip
-            >
-          </q-btn>
-          <q-btn
-            flat
-            round
-            color="negative"
-            @click.stop="$emit('remove', player.username)"
-            icon="delete"
-            size="xs"
+        </q-btn>
+        <q-btn
+          v-if="showFeedbackButton"
+          flat
+          round
+          color="negative"
+          @click.stop="$emit('report', player)"
+          icon="thumb_down"
+          size="sm"
+        >
+          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+            >Report</q-tooltip
           >
-            <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-              >Remove</q-tooltip
+        </q-btn>
+        <template v-if="showActions || $slots.actions">
+          <slot name="actions" :player="player">
+            <q-btn
+              flat
+              round
+              color="primary"
+              @click.stop="$emit('edit', player)"
+              icon="edit"
+              size="xs"
             >
-          </q-btn>
-          <q-btn
-            flat
-            round
-            color="accent"
-            @click.stop="$emit('requeue', player.username)"
-            icon="input"
-            size="xs"
-            :disable="isInQueue || isInMatch"
-          >
-            <q-tooltip
-              anchor="top middle"
-              self="bottom middle"
-              :offset="[8, 8]"
-              v-if="isInQueue"
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Edit</q-tooltip
+              >
+            </q-btn>
+            <q-btn
+              flat
+              round
+              color="negative"
+              @click.stop="$emit('remove', player.username)"
+              icon="delete"
+              size="xs"
             >
-              Already in queue
-            </q-tooltip>
-            <q-tooltip
-              anchor="top middle"
-              self="bottom middle"
-              :offset="[8, 8]"
-              v-else-if="isInMatch"
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Remove</q-tooltip
+              >
+            </q-btn>
+            <q-btn
+              flat
+              round
+              color="accent"
+              @click.stop="$emit('requeue', player.username)"
+              icon="input"
+              size="xs"
+              :disable="isInQueue || isInMatch"
             >
-              In match
-            </q-tooltip>
-            <q-tooltip
-              anchor="top middle"
-              self="bottom middle"
-              :offset="[8, 8]"
-              v-else
-              >Add to queue</q-tooltip
-            >
-          </q-btn>
-        </slot>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                v-if="isInQueue"
+              >
+                Already in queue
+              </q-tooltip>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                v-else-if="isInMatch"
+              >
+                In match
+              </q-tooltip>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                v-else
+                >Add to queue</q-tooltip
+              >
+            </q-btn>
+          </slot>
+        </template>
       </div>
     </q-item-section>
   </q-item>
@@ -158,6 +193,7 @@ interface Props {
   showAvatar?: boolean;
   showActions?: boolean;
   showQueueTime?: boolean;
+  showFeedbackButton?: boolean;
   isSelected?: boolean;
   isInQueue?: boolean;
   isInMatch?: boolean;
@@ -168,6 +204,7 @@ const props = withDefaults(defineProps<Props>(), {
   showAvatar: true,
   showActions: true,
   showQueueTime: false,
+  showFeedbackButton: true,
   isSelected: false,
   isInQueue: false,
   isInMatch: false,
@@ -176,6 +213,8 @@ const props = withDefaults(defineProps<Props>(), {
 defineEmits<{
   click: [player: Player];
   avatarClick: [player: Player];
+  commend: [player: Player];
+  report: [player: Player];
   edit: [player: Player];
   remove: [username: string];
   requeue: [username: string];

@@ -80,7 +80,8 @@ export const COMMEND_ITEMS: ReportItem[] = [
   {
     key: 'great_hustle',
     label: 'Great Hustle',
-    description: 'Always quick to retrieve dead balls to keep the game moving.',
+    description:
+      'Chases down every shot with energy and never gives up on a point.',
     icon: 'directions_run',
   },
   {

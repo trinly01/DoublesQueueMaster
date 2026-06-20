@@ -152,6 +152,19 @@
                 round
                 dense
               >
+                <q-badge
+                  v-if="unreadClubFeedbackCount > 0"
+                  color="negative"
+                  floating
+                  rounded
+                  style="top: -4px; right: -4px"
+                >
+                  {{
+                    unreadClubFeedbackCount > 99
+                      ? '99+'
+                      : unreadClubFeedbackCount
+                  }}
+                </q-badge>
                 <q-tooltip
                   anchor="top middle"
                   self="bottom middle"
@@ -305,6 +318,7 @@
                     :sort-by="sortBy"
                     :show-actions="isCurrentUserAdmin"
                     :show-requeue-button="isCurrentUserAdmin"
+                    :show-feedback-button="!isCurrentUserAdmin"
                     :empty-icon="'people'"
                     :empty-title="
                       searchPlayers
@@ -319,6 +333,10 @@
                     :empty-action="!searchPlayers"
                     @player-edit="openEditPlayerDialog"
                     @player-avatar-click="openPlayerReportDialog"
+                    @player-commend="
+                      (p) => openPlayerReportDialog(p, 'commend')
+                    "
+                    @player-report="(p) => openPlayerReportDialog(p, 'report')"
                     @player-remove="removePlayer"
                     @player-requeue="requeuePlayer"
                     @empty-action="showAddPlayerDialog = true"
@@ -368,9 +386,15 @@
                     :is-in-queue="true"
                     :show-actions="isCurrentUserAdmin"
                     :show-requeue-button="false"
+                    :show-feedback-button="!isCurrentUserAdmin"
                     :empty-icon="'queue'"
                     :empty-title="'Queue is empty'"
                     :empty-subtitle="'Add players to start generating matches'"
+                    @player-avatar-click="openPlayerReportDialog"
+                    @player-commend="
+                      (p) => openPlayerReportDialog(p, 'commend')
+                    "
+                    @player-report="(p) => openPlayerReportDialog(p, 'report')"
                     @player-remove="removeFromQueue"
                   />
                 </div>
@@ -670,6 +694,7 @@
                       :sort-by="sortBy"
                       :show-actions="isCurrentUserAdmin"
                       :show-requeue-button="isCurrentUserAdmin"
+                      :show-feedback-button="!isCurrentUserAdmin"
                       :empty-icon="'people'"
                       :empty-title="
                         searchPlayers
@@ -684,6 +709,12 @@
                       :empty-action="!searchPlayers"
                       @player-edit="openEditPlayerDialog"
                       @player-avatar-click="openPlayerReportDialog"
+                      @player-commend="
+                        (p) => openPlayerReportDialog(p, 'commend')
+                      "
+                      @player-report="
+                        (p) => openPlayerReportDialog(p, 'report')
+                      "
                       @player-remove="removePlayer"
                       @player-requeue="requeuePlayer"
                       @empty-action="showAddPlayerDialog = true"
@@ -730,9 +761,17 @@
                       :is-in-queue="true"
                       :show-actions="isCurrentUserAdmin"
                       :show-requeue-button="false"
+                      :show-feedback-button="!isCurrentUserAdmin"
                       :empty-icon="'queue'"
                       :empty-title="'Queue is empty'"
                       :empty-subtitle="'Add players to start generating matches'"
+                      @player-avatar-click="openPlayerReportDialog"
+                      @player-commend="
+                        (p) => openPlayerReportDialog(p, 'commend')
+                      "
+                      @player-report="
+                        (p) => openPlayerReportDialog(p, 'report')
+                      "
                       @player-remove="removeFromQueue"
                     />
                   </div>
@@ -1558,20 +1597,53 @@
           <DialogHeader title="Settings" icon="settings" />
 
           <div class="q-px-md q-pt-md">
-            <q-btn-toggle
-              v-model="settingsTab"
-              :options="[
-                { label: 'Matchmaking', value: 'matchmaking' },
-                { label: 'Club', value: 'club' },
-                { label: 'Feedback', value: 'feedback' },
-              ]"
-              color="grey-5"
-              toggle-color="accent"
-              spread
-              dense
-              size="sm"
-              class="full-width"
-            />
+            <q-btn-group spread class="full-width z-top">
+              <q-btn
+                flat
+                color="accent"
+                :class="
+                  settingsTab === 'matchmaking' ? 'bg-accent text-white' : ''
+                "
+                label="Matchmaking"
+                dense
+                size="sm"
+                @click="settingsTab = 'matchmaking'"
+              />
+              <q-btn
+                flat
+                color="accent"
+                :class="settingsTab === 'club' ? 'bg-accent text-white' : ''"
+                label="Club"
+                dense
+                size="sm"
+                @click="settingsTab = 'club'"
+              />
+              <q-btn
+                flat
+                color="accent"
+                :class="
+                  settingsTab === 'feedback' ? 'bg-accent text-white' : ''
+                "
+                dense
+                size="sm"
+                @click="settingsTab = 'feedback'"
+              >
+                Feedback
+                <q-badge
+                  v-if="unreadClubFeedbackCount > 0"
+                  color="negative"
+                  floating
+                  rounded
+                  style="top: -4px; right: -4px"
+                >
+                  {{
+                    unreadClubFeedbackCount > 99
+                      ? '99+'
+                      : unreadClubFeedbackCount
+                  }}
+                </q-badge>
+              </q-btn>
+            </q-btn-group>
           </div>
 
           <div
@@ -2136,6 +2208,7 @@
         :target-player="reportTargetPlayer"
         :current-user-id="currentUserId"
         :club-id="currentClubUUID"
+        :initial-type="reportInitialType"
       />
 
       <!-- Manual Match Selection Dialog -->
@@ -4723,6 +4796,7 @@ onMounted(async () => {
   const clubId = route.params['clubId'] as string;
   if (clubId) {
     await loadClubData(clubId);
+    void loadClubFeedback();
     // Auto-join if not a member (lazy join: works offline if cached, joins when online)
     if (
       !isCurrentUserMember.value &&
@@ -4798,6 +4872,28 @@ const showSettingsDialog = ref(false);
 const settingsTab = ref<'matchmaking' | 'club' | 'feedback'>('matchmaking');
 const clubFeedback = ref<ClubFeedbackEntry[]>([]);
 const clubFeedbackLoading = ref(false);
+const clubFeedbackReadKey = computed(
+  () => `club_feedback_read_${currentClubUUID.value}`,
+);
+
+function getClubFeedbackReadIds(): string[] {
+  const raw = LocalStorage.getItem(clubFeedbackReadKey.value);
+  if (!raw) return [];
+  try {
+    return Array.isArray(raw) ? (raw as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveClubFeedbackReadIds(ids: string[]) {
+  LocalStorage.set(clubFeedbackReadKey.value, ids);
+}
+
+const unreadClubFeedbackCount = computed(() => {
+  const readIds = new Set(getClubFeedbackReadIds());
+  return clubFeedback.value.filter((item) => !readIds.has(item.id)).length;
+});
 const showMatchResultDialog = ref(false);
 const showMatchEditDialog = ref(false);
 const showReplacePlayerDialog = ref(false);
@@ -4881,6 +4977,9 @@ watch(settingsTab, (tab) => {
   }
   if (tab === 'feedback') {
     void loadClubFeedback();
+    const readIds = new Set(getClubFeedbackReadIds());
+    clubFeedback.value.forEach((item) => readIds.add(item.id));
+    saveClubFeedbackReadIds([...readIds]);
   }
 });
 
@@ -4950,6 +5049,7 @@ const showEditPlayerDialog = ref(false);
 const editingPlayer = ref<Player | null>(null);
 const showPlayerReportDialog = ref(false);
 const reportTargetPlayer = ref<Player | null>(null);
+const reportInitialType = ref<'report' | 'commend'>('commend');
 const editPlayerName = ref<string | null>(null);
 const editPlayerLevel = ref<1 | 2 | 3 | null>(null);
 const autoSortQueue = computed<boolean>({
@@ -7409,8 +7509,12 @@ const openEditPlayerDialog = (player: Player) => {
   showEditPlayerDialog.value = true;
 };
 
-const openPlayerReportDialog = (player: Player) => {
+const openPlayerReportDialog = (
+  player: Player,
+  type: 'report' | 'commend' = 'commend',
+) => {
   reportTargetPlayer.value = player;
+  reportInitialType.value = type;
   showPlayerReportDialog.value = true;
 };
 
