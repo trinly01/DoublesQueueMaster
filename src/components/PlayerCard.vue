@@ -79,7 +79,7 @@
     <q-item-section side>
       <div class="row items-center">
         <q-btn
-          v-if="showFeedbackButton"
+          v-if="showFeedbackButton && !isSelf"
           flat
           dense
           round
@@ -93,7 +93,7 @@
           >
         </q-btn>
         <q-btn
-          v-if="showFeedbackButton"
+          v-if="showFeedbackButton && !isSelf"
           flat
           round
           color="negative"
@@ -190,6 +190,7 @@ type Player = BasePlayer & {
 
 interface Props {
   player: Player;
+  currentUserId?: string;
   showAvatar?: boolean;
   showActions?: boolean;
   showQueueTime?: boolean;
@@ -201,6 +202,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  currentUserId: '',
   showAvatar: true,
   showActions: true,
   showQueueTime: false,
@@ -219,6 +221,14 @@ defineEmits<{
   remove: [username: string];
   requeue: [username: string];
 }>();
+
+const isSelf = computed(() => {
+  return (
+    !!props.currentUserId &&
+    !!props.player.userId &&
+    props.currentUserId === props.player.userId
+  );
+});
 
 const queueBgClass = computed(() => {
   if (props.player.queueType === 'WINNERS') return 'bg-green-1';

@@ -5,6 +5,7 @@
         v-for="player in displayPlayers"
         :key="player.username"
         :player="player"
+        :current-user-id="currentUserId"
         :show-avatar="showAvatar"
         :show-actions="showActions"
         :show-queue-time="showQueueTime"
@@ -117,6 +118,7 @@ type Player = BasePlayer & {
 
 interface Props {
   players: Player[];
+  currentUserId?: string;
   showAvatar?: boolean;
   showActions?: boolean;
   showQueueTime?: boolean;
@@ -137,6 +139,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  currentUserId: '',
   showAvatar: true,
   showActions: true,
   showQueueTime: false,
