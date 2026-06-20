@@ -315,6 +315,7 @@
                   </div>
                   <PlayerList
                     :players="displayPlayers"
+                    :current-user-id="currentUserId"
                     :sort-by="sortBy"
                     :show-actions="isCurrentUserAdmin"
                     :show-requeue-button="isCurrentUserAdmin"
@@ -381,6 +382,7 @@
                 <div class="card-content">
                   <PlayerList
                     :players="queue"
+                    :current-user-id="currentUserId"
                     :show-position="true"
                     :show-queue-time="true"
                     :is-in-queue="true"
@@ -624,7 +626,7 @@
                 <q-card-section class="q-pa-none">
                   <div class="card-content mobile-card-content">
                     <!-- Mobile controls in a compact header -->
-                    <div class="q-pa-md q-pb-sm">
+                    <div class="q-pa-sm q-pb-sm">
                       <div class="row items-center justify-between">
                         <q-select
                           v-model="sortBy"
@@ -691,6 +693,7 @@
                     </div>
                     <PlayerList
                       :players="displayPlayers"
+                      :current-user-id="currentUserId"
                       :sort-by="sortBy"
                       :show-actions="isCurrentUserAdmin"
                       :show-requeue-button="isCurrentUserAdmin"
@@ -756,6 +759,7 @@
                     </div>
                     <PlayerList
                       :players="queue"
+                      :current-user-id="currentUserId"
                       :show-position="true"
                       :show-queue-time="true"
                       :is-in-queue="true"
