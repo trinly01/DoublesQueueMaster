@@ -46,17 +46,22 @@
             </div>
           </div>
 
-          <q-btn-toggle
-            v-model="activeType"
-            spread
-            class="full-width"
-            color="grey-5"
-            toggle-color="accent"
-            :options="[
-              { label: 'Report', value: 'report' },
-              { label: 'Commend', value: 'commend' },
-            ]"
-          />
+          <q-btn-group spread class="full-width">
+            <q-btn
+              flat
+              color="accent"
+              :class="activeType === 'report' ? 'bg-accent text-white' : ''"
+              label="Report"
+              @click="activeType = 'report'"
+            />
+            <q-btn
+              flat
+              color="accent"
+              :class="activeType === 'commend' ? 'bg-accent text-white' : ''"
+              label="Commend"
+              @click="activeType = 'commend'"
+            />
+          </q-btn-group>
 
           <div class="text-subtitle2 text-grey-8">
             <q-icon
@@ -166,6 +171,7 @@ const props = defineProps<{
   targetPlayer?: Player | null;
   currentUserId: string;
   clubId: string;
+  initialType?: ReportType;
 }>();
 
 const emit = defineEmits<{
@@ -197,7 +203,7 @@ const isSelf = computed(
 );
 
 function reset() {
-  activeType.value = 'commend';
+  activeType.value = props.initialType || 'commend';
   selectedItems.value = [];
   comments.value = '';
 }

@@ -284,26 +284,60 @@
             </q-card-section>
 
             <div class="q-px-md q-pt-md">
-              <q-btn-toggle
-                v-model="activeTab"
-                :options="[
-                  {
-                    label: 'Rating',
-                    value: 'history',
-                    icon: 'trending_up',
-                  },
-                  { label: 'Matches', value: 'matches', icon: 'sports_tennis' },
-                  { label: 'Partners', value: 'partners', icon: 'groups' },
-                  { label: 'Rivals', value: 'rivals', icon: 'sports_kabaddi' },
-                  { label: 'Clutch', value: 'clutch', icon: 'bolt' },
-                ]"
-                color="grey-5"
-                toggle-color="accent"
-                spread
-                dense
-                size="sm"
-                class="full-width"
-              />
+              <q-btn-group dense spread>
+                <q-btn
+                  flat
+                  color="accent"
+                  :class="activeTab === 'history' ? 'bg-accent text-white' : ''"
+                  icon="trending_up"
+                  label="Rating"
+                  dense
+                  size="sm"
+                  @click="activeTab = 'history'"
+                />
+                <q-btn
+                  flat
+                  color="accent"
+                  :class="activeTab === 'matches' ? 'bg-accent text-white' : ''"
+                  icon="sports_tennis"
+                  label="Matches"
+                  dense
+                  size="sm"
+                  @click="activeTab = 'matches'"
+                />
+                <q-btn
+                  flat
+                  color="accent"
+                  :class="
+                    activeTab === 'partners' ? 'bg-accent text-white' : ''
+                  "
+                  icon="groups"
+                  label="Partners"
+                  dense
+                  size="sm"
+                  @click="activeTab = 'partners'"
+                />
+                <q-btn
+                  flat
+                  color="accent"
+                  :class="activeTab === 'rivals' ? 'bg-accent text-white' : ''"
+                  icon="sports_kabaddi"
+                  label="Rivals"
+                  dense
+                  size="sm"
+                  @click="activeTab = 'rivals'"
+                />
+                <q-btn
+                  flat
+                  color="accent"
+                  :class="activeTab === 'clutch' ? 'bg-accent text-white' : ''"
+                  icon="bolt"
+                  label="Clutch"
+                  dense
+                  size="sm"
+                  @click="activeTab = 'clutch'"
+                />
+              </q-btn-group>
             </div>
 
             <div
@@ -674,27 +708,32 @@
             </q-card-section>
 
             <div class="q-px-md q-pt-md">
-              <q-btn-toggle
-                v-model="leaderboardTab"
-                :options="[
-                  {
-                    label: 'Global',
-                    value: 'global',
-                    icon: 'public',
-                  },
-                  {
-                    label: 'From Matches',
-                    value: 'matches',
-                    icon: 'sports_tennis',
-                  },
-                ]"
-                color="grey-5"
-                toggle-color="accent"
-                spread
-                dense
-                size="sm"
-                class="full-width"
-              />
+              <q-btn-group spread class="full-width">
+                <q-btn
+                  flat
+                  color="accent"
+                  :class="
+                    leaderboardTab === 'global' ? 'bg-accent text-white' : ''
+                  "
+                  icon="public"
+                  label="Global"
+                  dense
+                  size="sm"
+                  @click="leaderboardTab = 'global'"
+                />
+                <q-btn
+                  flat
+                  color="accent"
+                  :class="
+                    leaderboardTab === 'matches' ? 'bg-accent text-white' : ''
+                  "
+                  icon="sports_tennis"
+                  label="From Matches"
+                  dense
+                  size="sm"
+                  @click="leaderboardTab = 'matches'"
+                />
+              </q-btn-group>
             </div>
 
             <q-card-section

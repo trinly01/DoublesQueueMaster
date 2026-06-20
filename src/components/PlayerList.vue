@@ -8,12 +8,15 @@
         :show-avatar="showAvatar"
         :show-actions="showActions"
         :show-queue-time="showQueueTime"
+        :show-feedback-button="showFeedbackButton"
         :is-selected="isPlayerSelected(player)"
         :is-in-queue="player.isInQueue"
         :is-in-match="player.isInMatch"
         :sort-by="sortBy"
         @click="$emit('playerClick', player)"
         @avatarClick="$emit('playerAvatarClick', $event)"
+        @commend="$emit('playerCommend', $event)"
+        @report="$emit('playerReport', $event)"
         @edit="$emit('playerEdit', $event)"
         @remove="$emit('playerRemove', $event)"
         @requeue="$emit('playerRequeue', $event)"
@@ -23,7 +26,7 @@
             :color="getPositionColor(playerItem)"
             text-color="white"
             size="sm"
-            class="q-mr-sm"
+            class="q-mx-sm"
           >
             {{ getPlayerPosition(playerItem) }}
           </q-avatar>
@@ -121,6 +124,7 @@ interface Props {
   isInQueue?: boolean;
   isInMatch?: boolean;
   showRequeueButton?: boolean;
+  showFeedbackButton?: boolean;
   emptyIcon?: string;
   emptyTitle?: string;
   emptySubtitle?: string;
@@ -140,6 +144,7 @@ const props = withDefaults(defineProps<Props>(), {
   isInQueue: false,
   isInMatch: false,
   showRequeueButton: true,
+  showFeedbackButton: true,
   emptyIcon: 'people',
   emptyTitle: 'No players found',
   emptySubtitle: 'Add players to get started',
@@ -153,6 +158,8 @@ const props = withDefaults(defineProps<Props>(), {
 defineEmits<{
   playerClick: [player: Player];
   playerAvatarClick: [player: Player];
+  playerCommend: [player: Player];
+  playerReport: [player: Player];
   playerEdit: [player: Player];
   playerRemove: [username: string];
   playerRequeue: [username: string];
@@ -197,12 +204,16 @@ const isPlayerSelected = (player: Player): boolean => {
 };
 
 const getPlayerPosition = (player: Player): number => {
-  return props.players.findIndex((p) => p.username === player.username) + 1;
+  const playerType = player.queueType || 'GENERAL';
+  const sameType = props.players.filter(
+    (p) => (p.queueType || 'GENERAL') === playerType,
+  );
+  return sameType.findIndex((p) => p.username === player.username) + 1;
 };
 
 const getPositionColor = (player: Player): string => {
-  if (player.queueType === 'WINNERS') return 'positive';
-  if (player.queueType === 'LOSERS') return 'negative';
+  if (player.queueType === 'WINNERS') return 'teal';
+  if (player.queueType === 'LOSERS') return 'deep-orange';
   return 'accent';
 };
 </script>
