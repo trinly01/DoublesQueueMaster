@@ -269,7 +269,7 @@
 
         <!-- Player Stats Dialog -->
         <q-dialog v-model="showHistoryDialog">
-          <q-card style="width: 480px; max-width: 90vw; max-height: 80vh">
+          <q-card style="width: 480px; max-width: 90vw; max-height: 95vh">
             <q-card-section class="row items-center q-pb-none">
               <div class="text-h6">Player Stats</div>
               <q-space />
@@ -342,8 +342,8 @@
 
             <div
               v-if="activeTab === 'history'"
-              class="q-pa-md"
-              style="max-height: 60vh; overflow-y: auto"
+              class="q-px-md q-pt-md q-pb-sm"
+              style="max-height: 78vh; overflow-y: auto"
             >
               <div v-if="ratingVelocity" class="row q-col-gutter-sm q-mb-md">
                 <div class="col-6">
@@ -410,8 +410,8 @@
 
             <div
               v-else-if="activeTab === 'matches'"
-              class="q-pa-md"
-              style="max-height: 60vh; overflow-y: auto"
+              class="q-px-md q-pt-md q-pb-sm"
+              style="max-height: 78vh; overflow-y: auto"
             >
               <div
                 ref="matchesChartRef"
@@ -443,8 +443,8 @@
 
             <div
               v-else-if="activeTab === 'partners'"
-              class="q-pa-md"
-              style="max-height: 60vh; overflow-y: auto"
+              class="q-px-md q-pt-md q-pb-sm"
+              style="max-height: 78vh; overflow-y: auto"
             >
               <PayBanner
                 v-if="isPaymentExpired"
@@ -529,8 +529,8 @@
 
             <div
               v-else-if="activeTab === 'rivals'"
-              class="q-pa-md"
-              style="max-height: 60vh; overflow-y: auto"
+              class="q-px-md q-pt-md q-pb-sm"
+              style="max-height: 78vh; overflow-y: auto"
             >
               <PayBanner
                 v-if="isPaymentExpired"
@@ -615,8 +615,8 @@
 
             <div
               v-if="activeTab === 'clutch'"
-              class="q-pa-md"
-              style="max-height: 60vh; overflow-y: auto"
+              class="q-px-md q-pt-md q-pb-sm"
+              style="max-height: 78vh; overflow-y: auto"
             >
               <PayBanner
                 v-if="isPaymentExpired"
@@ -693,7 +693,7 @@
 
         <!-- Leaderboard Dialog -->
         <q-dialog v-model="showLeaderboardDialog">
-          <q-card style="width: 480px; max-width: 90vw; max-height: 80vh">
+          <q-card style="width: 480px; max-width: 90vw; max-height: 95vh">
             <q-card-section class="row items-center q-pb-none">
               <div class="text-h6">Leaderboard</div>
               <q-space />
@@ -707,7 +707,54 @@
               </q-btn>
             </q-card-section>
 
-            <div class="q-px-md q-pt-md">
+            <div class="q-px-md q-pt-sm">
+              <div class="row q-gutter-xs q-mb-sm justify-center">
+                <q-chip dense color="grey-6" text-color="white" size="xs">
+                  Beginner
+                  <q-tooltip
+                    anchor="top middle"
+                    self="bottom middle"
+                    :offset="[8, 8]"
+                    >Rating below 1450</q-tooltip
+                  >
+                </q-chip>
+                <q-chip dense color="blue-6" text-color="white" size="xs">
+                  Intermediate
+                  <q-tooltip
+                    anchor="top middle"
+                    self="bottom middle"
+                    :offset="[8, 8]"
+                    >Rating 1450 – 1599</q-tooltip
+                  >
+                </q-chip>
+                <q-chip dense color="green-6" text-color="white" size="xs">
+                  Advanced
+                  <q-tooltip
+                    anchor="top middle"
+                    self="bottom middle"
+                    :offset="[8, 8]"
+                    >Rating 1600 – 1799</q-tooltip
+                  >
+                </q-chip>
+                <q-chip dense color="amber-7" text-color="white" size="xs">
+                  Expert
+                  <q-tooltip
+                    anchor="top middle"
+                    self="bottom middle"
+                    :offset="[8, 8]"
+                    >Rating 1800 – 1999</q-tooltip
+                  >
+                </q-chip>
+                <q-chip dense color="red-7" text-color="white" size="xs">
+                  Pro
+                  <q-tooltip
+                    anchor="top middle"
+                    self="bottom middle"
+                    :offset="[8, 8]"
+                    >Rating 2000+</q-tooltip
+                  >
+                </q-chip>
+              </div>
               <q-btn-group spread class="full-width">
                 <q-btn
                   flat
@@ -737,8 +784,8 @@
             </div>
 
             <q-card-section
-              class="q-pa-md"
-              style="max-height: 60vh; overflow-y: auto"
+              class="q-px-md q-pt-xs q-pb-md"
+              style="max-height: 78vh; overflow-y: auto"
             >
               <div v-if="leaderboardLoading" class="flex flex-center q-py-md">
                 <q-spinner color="accent" size="32px" />
@@ -750,7 +797,10 @@
                 >
                   <q-item-section avatar>
                     <div class="row items-center no-wrap" style="gap: 8px">
-                      <div class="text-h6 text-weight-bold text-grey-5">
+                      <div
+                        class="text-h6 text-weight-bold text-grey-5 text-right"
+                        style="min-width: 24px"
+                      >
                         {{ idx + 1 }}
                       </div>
                       <PlayerAvatar
