@@ -239,29 +239,40 @@ export const generateCourtOptions = (
   }));
 };
 
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
 /**
- * Format an ISO date to a readable string: "Jun 17 9:30 PM"
+ * Format an ISO date to a readable date string: "17 Jun '26"
+ */
+export const formatDateOnly = (iso: string): string => {
+  const d = new Date(iso);
+  const year = String(d.getFullYear()).slice(-2);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} '${year}`;
+};
+
+/**
+ * Format an ISO date to a readable string: "17 Jun '26, 8:22 PM"
  */
 export const formatDate = (iso: string): string => {
   const d = new Date(iso);
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
+  const year = String(d.getFullYear()).slice(-2);
   let h = d.getHours();
   const ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12 || 12;
-  return `${months[d.getMonth()]} ${d.getDate()} ${h}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} '${year}, ${h}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
 };
 
 /**

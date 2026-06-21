@@ -2182,11 +2182,7 @@
 
                 <q-item-section side>
                   <span class="text-caption text-grey-6">
-                    {{
-                      new Date(
-                        item.dateUpdated || item.dateCreated,
-                      ).toLocaleDateString()
-                    }}
+                    {{ formatDateOnly(item.dateUpdated || item.dateCreated) }}
                   </span>
                 </q-item-section>
               </q-item>
@@ -2260,6 +2256,7 @@
                     :player="player"
                     :isSelected="isPlayerSelected(player)"
                     :showActions="true"
+                    :show-feedback-button="false"
                     @click="togglePlayerSelection(player)"
                     class="player-selection-item cursor-pointer"
                   >
@@ -3091,6 +3088,7 @@ import {
 import MatchCard from '../components/MatchCard.vue';
 import MatchResult from '../components/MatchResult.vue';
 import {
+  formatDateOnly,
   getLevelColor,
   getLevelIcon,
   getRatingColor,

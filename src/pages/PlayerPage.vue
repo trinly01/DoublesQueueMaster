@@ -384,7 +384,7 @@
                 >
                   <q-item-section>
                     <q-item-label caption class="text-grey">{{
-                      event.day
+                      formatDateOnly(event.day)
                     }}</q-item-label>
                     <q-item-label class="text-weight-medium">
                       <span class="text-positive">{{ event.wins }}W</span>
@@ -957,6 +957,7 @@ import {
   getRatingColor,
   getRatingCategory,
   formatDate,
+  formatDateOnly,
   wilsonLowerBound,
 } from 'src/utils/playerHelpers';
 
