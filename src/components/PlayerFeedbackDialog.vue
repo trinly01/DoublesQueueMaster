@@ -93,11 +93,7 @@
 
             <q-item-section side>
               <span class="text-caption text-grey-6">
-                {{
-                  new Date(
-                    item.dateUpdated || item.dateCreated,
-                  ).toLocaleDateString()
-                }}
+                {{ formatDateOnly(item.dateUpdated || item.dateCreated) }}
               </span>
             </q-item-section>
           </q-item>
@@ -115,6 +111,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useQuasar, LocalStorage } from 'quasar';
+import { formatDateOnly } from 'src/utils/playerHelpers';
 import {
   COMMEND_ITEMS,
   REPORT_ITEMS,
