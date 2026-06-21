@@ -53,26 +53,26 @@ export const getLevelColor = (level: 1 | 2 | 3): string => {
 
 /**
  * Get the color for a player rating.
- * Tiers: Novice, Low Intermediate, High Intermediate, Advanced, Expert.
+ * Tiers: Beginner, Intermediate, Advanced, Expert, Pro.
  */
 export const getRatingColor = (rating: number): string => {
-  if (rating < 1450) return 'grey-6'; // Novice
-  if (rating < 1600) return 'blue-6'; // Low Intermediate
-  if (rating < 1800) return 'green-6'; // High Intermediate
-  if (rating < 2000) return 'amber-7'; // Advanced
-  return 'red-7'; // Expert
+  if (rating < 1450) return 'grey-6'; // Beginner
+  if (rating < 1600) return 'blue-6'; // Intermediate
+  if (rating < 1800) return 'green-6'; // Advanced
+  if (rating < 2000) return 'amber-7'; // Expert
+  return 'red-7'; // Pro
 };
 
 /**
  * Get the category name for a player rating.
- * Tiers: Novice, Low Intermediate, High Intermediate, Advanced, Expert.
+ * Tiers: Beginner, Intermediate, Advanced, Expert, Pro.
  */
 export const getRatingCategory = (rating: number): string => {
-  if (rating < 1450) return 'Novice';
-  if (rating < 1600) return 'Low Intermediate';
-  if (rating < 1800) return 'High Intermediate';
-  if (rating < 2000) return 'Advanced';
-  return 'Expert';
+  if (rating < 1450) return 'Beginner';
+  if (rating < 1600) return 'Intermediate';
+  if (rating < 1800) return 'Advanced';
+  if (rating < 2000) return 'Expert';
+  return 'Pro';
 };
 
 /**
