@@ -3618,7 +3618,7 @@ const goHome = () => {
 };
 
 const copyClubLink = async () => {
-  const shareUrl = `https://dink.zyberlab.com/?r=${encodeURIComponent(route.path)}`;
+  const shareUrl = `${window.location.origin}?r=${encodeURIComponent(route.path)}`;
   if (navigator.share) {
     try {
       await navigator.share({
