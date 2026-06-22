@@ -13,7 +13,7 @@ export interface Player {
   firstName?: string; // First name from Directus
   lastName?: string; // Last name from Directus
   level: 1 | 2 | 3; // Added for manual matchmaking and UI labels
-  rating: number; // Defaults to 1500
+  rating: number; // Defaults to 1450
   matchesPlayed: number; // Defaults to 0
   wins: number;
   losses: number;
@@ -340,9 +340,9 @@ export const RatingEngine = {
 
 // Pure Harmonic Mean (heavily weights the weakest player)
 export const computeHarmonicMean = (team: Player[]): number => {
-  if (team.length === 0) return 1500;
+  if (team.length === 0) return 1450;
   const sumReciprocal = team.reduce(
-    (sum, p) => sum + 1 / Math.max(1, p.rating || 1500),
+    (sum, p) => sum + 1 / Math.max(1, p.rating || 1450),
     0,
   );
   return team.length / sumReciprocal;
@@ -350,8 +350,8 @@ export const computeHarmonicMean = (team: Player[]): number => {
 
 // Pure Arithmetic Mean (simple average)
 export const computeArithmeticMean = (team: Player[]): number => {
-  if (team.length === 0) return 1500;
-  return team.reduce((sum, p) => sum + (p.rating || 1500), 0) / team.length;
+  if (team.length === 0) return 1450;
+  return team.reduce((sum, p) => sum + (p.rating || 1450), 0) / team.length;
 };
 
 // Softened Harmonic Mean of team ratings (60% harmonic + 40% arithmetic)
@@ -937,7 +937,7 @@ export class LocalMatchmakingSystem {
       this.state.players[normalizedUsername] = {
         username: normalizedUsername,
         level: level,
-        rating: 1500,
+        rating: 1450,
         matchesPlayed: 0,
         wins: 0,
         losses: 0,
@@ -1017,8 +1017,8 @@ export class LocalMatchmakingSystem {
 
     const sortFn = (a: QueueEntry, b: QueueEntry) => {
       if (isStrictBalance) {
-        const ratingA = this.state.players[a.username]?.rating ?? 1500;
-        const ratingB = this.state.players[b.username]?.rating ?? 1500;
+        const ratingA = this.state.players[a.username]?.rating ?? 1450;
+        const ratingB = this.state.players[b.username]?.rating ?? 1450;
         if (ratingA !== ratingB) return ratingB - ratingA;
         return a.enteredAt - b.enteredAt;
       }

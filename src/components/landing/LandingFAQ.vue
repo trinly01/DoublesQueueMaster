@@ -31,42 +31,53 @@ const faqs = [
   {
     question: 'How does my rating work?',
     answer:
-      "You start at 1500. Every match updates your rating using an Elo-based algorithm. Wins push you up, losses pull you down. The shift size depends on your opponent's strength and the score margin.",
+      'Everyone starts at 1450. After each match, your rating goes up or down based on whether you won, how strong your opponents were, and the score margin. A blowout win (11-2) moves your rating more than a close game (11-9). Doubles matches use a bigger swing than singles, so your rating settles faster.',
   },
   {
-    question: 'Why did I get an uneven match?',
+    question: 'What are the rating levels?',
     answer:
-      'Early on, your rating is volatile (K-factor = 40) while the system learns your skill level. We also balance teams by harmonic mean — pairing a 1600 + 1400 against two 1500s, not two 1500s vs a 1600 and a 1400.',
+      'DinkMatch shows five skill levels based on your rating: Beginner (below 1450), Intermediate (1450+), Advanced (1600+), Expert (1800+), and Pro (2000+). Your level is shown as a colored chip next to your name and on the club leaderboard.',
   },
   {
-    question: 'When will my rating stabilize?',
+    question: 'How does auto-matchmaking work?',
     answer:
-      'As you move further from 1500, your K-factor drops: within 50 points → K=40 (high volatility), 50–100 points → K=30 (medium), 100+ points → K=20 (stable). More matches = more accurate rating = fairer pairings.',
+      'The club admin picks a matchmaking style. Fair Balance (default) always picks the most even teams. Strict Balance does the same but only for one round, then switches back. Balance First and Balanced Variety try to keep games close while also mixing up partners and opponents so you do not play the same people every time. Variety First focuses on new matchups. You can also switch to Manual Match and hand-pick teams.',
   },
   {
-    question: 'Does the score margin matter or just win/loss?',
+    question:
+      "What's the difference between General, Winners, and Losers queue?",
     answer:
-      'Both. An 11-2 win gives a bigger rating boost than 11-9. The algorithm uses a multiplier = 1 + |score difference| × 0.05. Close competitive games minimize rating swings.',
+      'General Queue is the default line — everyone starts here. Winners Queue is for players coming off a win (so winners can play winners). Losers Queue is for players coming off a loss. The admin can set how winners and losers re-enter the queue: jump to the front (fairness), go to the back (end of queue), or somewhere in between (smart position).',
   },
   {
-    question: 'Why did I lose rating when my partner played badly?',
+    question: 'How do I get picked for the next match?',
     answer:
-      "In doubles, rating shift is proportionally distributed by your rating share on the team. If you're the higher-rated player, you gain more on wins — but also lose more on losses. You carry more of the rating burden.",
+      'It depends on the queue order the admin sets. First in Line means the longest-waiting players go first. Less Played First gives priority to people who have played fewer games that day. The queue also respects bracket order — General players are picked before Winners, and Winners before Losers.',
   },
   {
-    question: 'What is the rating history chart?',
+    question: 'Can I pick my own team or court?',
     answer:
-      'Your profile shows a line chart of wins, losses, and rating over time by day. Click your rating chip to view it.',
+      'Yes — tap "Manual Match" to choose exactly who plays. For doubles, you can pick 4 players, then use "Balance Teams" to auto-sort by skill, "Shuffle" for random teams, or tap two players to swap them. A live balance indicator shows how even the teams are and each side\'s chance to win. Then pick a court and start the match.',
+  },
+  {
+    question: 'Why did I lose more rating than my partner?',
+    answer:
+      "In doubles, the higher-rated player carries more of the result. If you are the stronger player on your team, you gain more on wins — but you also lose more on losses. This prevents a strong player from pulling up a weak partner's rating unfairly.",
+  },
+  {
+    question: 'What stats can I see on my profile?',
+    answer:
+      'Your profile has five tabs: Rating shows a chart of your rating over time. Matches lists every game you have played. Partners shows who you win most with and your record together. Rivals shows your head-to-head against opponents. Clutch filters games decided by 2 points or less, so you can see how you perform under pressure.',
+  },
+  {
+    question: 'What are the leaderboards?',
+    answer:
+      'Global leaderboard shows the top-rated players across all clubs. From Matches shows top players from events and clubs you have actually played in. Tap the trophy icon on your profile to view them.',
   },
   {
     question: 'Is this connected to DUPR?',
     answer:
-      "No — this is DinkMatch's internal rating system. But you can export completed matches as a DUPR-ready CSV for bulk upload. Add your DUPR ID in your profile to include it in exports.",
-  },
-  {
-    question: 'Can I reset my rating?',
-    answer:
-      'Ratings are per-club and stay with your account. If the club admin resets match data, ratings reset too.',
+      'No — DinkMatch uses its own rating system. However, the club admin can export all completed matches as a DUPR-ready CSV file for bulk upload. Add your DUPR ID in your profile so it gets included in the export.',
   },
 ];
 </script>

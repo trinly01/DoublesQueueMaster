@@ -64,7 +64,7 @@
         <q-chip
           v-if="!sortBy || sortBy !== 'winRate'"
           :label="player.rating"
-          :color="getRatingColor(player.rating ?? 1500)"
+          :color="getRatingColor(player.rating ?? 1450)"
           text-color="white"
           size="xs"
           dense

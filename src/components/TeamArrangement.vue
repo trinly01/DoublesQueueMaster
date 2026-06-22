@@ -106,7 +106,7 @@
                       self="bottom middle"
                       :offset="[8, 8]"
                       >{{ player.firstName || player.username }} - Rating
-                      {{ player.rating || 1500 }} - Position
+                      {{ player.rating || 1450 }} - Position
                       {{ index + 1 }}</q-tooltip
                     >
                   </q-avatar>
@@ -131,8 +131,8 @@
                     @{{ player.username }}
                   </q-item-label>
                   <q-chip
-                    :label="player.rating || 1500"
-                    :color="getRatingColor(player.rating || 1500)"
+                    :label="player.rating || 1450"
+                    :color="getRatingColor(player.rating || 1450)"
                     text-color="white"
                     size="xs"
                     dense
@@ -213,7 +213,7 @@
                       self="bottom middle"
                       :offset="[8, 8]"
                       >{{ player.firstName || player.username }} - Rating
-                      {{ player.rating || 1500 }} - Position
+                      {{ player.rating || 1450 }} - Position
                       {{ index + 1 }}</q-tooltip
                     >
                   </q-avatar>
@@ -238,8 +238,8 @@
                     @{{ player.username }}
                   </q-item-label>
                   <q-chip
-                    :label="player.rating || 1500"
-                    :color="getRatingColor(player.rating || 1500)"
+                    :label="player.rating || 1450"
+                    :color="getRatingColor(player.rating || 1450)"
                     text-color="white"
                     size="xs"
                     dense
