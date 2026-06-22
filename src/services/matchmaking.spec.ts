@@ -88,7 +88,7 @@ describe('RatingEngine.calculateShift', () => {
     expect(highRatedLoss).toBeGreaterThan(0);
   });
 
-  it('per-player swing: singles (K=32) >= doubles per-player (K=48 split by 2)', () => {
+  it('per-player swing: singles (K=24) equals doubles per-player (K=48 split by 2)', () => {
     const sW = [makePlayer(1500)];
     const sL = [makePlayer(1500)];
     const dW = [makePlayer(1500), makePlayer(1500)];
@@ -99,9 +99,10 @@ describe('RatingEngine.calculateShift', () => {
 
     const sGain = singles.updatedWinners[0].rating - 1500;
     const dGain = doubles.updatedWinners[0].rating - 1500;
-    // Singles puts the full pool on one player; doubles splits a larger pool
-    // across two, so per-player singles change is still the larger one.
-    expect(sGain).toBeGreaterThanOrEqual(dGain);
+    // K_SINGLES=24 means the full singles pool is 24, divided by 2 players.
+    // K_DOUBLES=48 means the doubles pool is 48, divided by 4 players.
+    // Both formats yield ~12 points per player for an even close match.
+    expect(Math.abs(sGain - dGain)).toBeLessThanOrEqual(2);
   });
 
   it('floor hit: rating clamps at 100, never negative', () => {

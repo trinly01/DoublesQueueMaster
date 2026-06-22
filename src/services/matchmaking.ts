@@ -219,7 +219,7 @@ function enforceOneMatchPerPlayerOnState(state: AppState) {
  * strong partners. Values chosen from synthetic + real-data backtesting.
  */
 const K_DOUBLES = 48;
-const K_SINGLES = 32;
+const K_SINGLES = 24;
 const MARGIN_WEIGHT = 0.1;
 const PARTNER_GAP_FACTOR = 0.75;
 const LOSS_UNDERDOG_BLEND = 0.75;
