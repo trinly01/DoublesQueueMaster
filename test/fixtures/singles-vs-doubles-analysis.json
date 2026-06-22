@@ -1,0 +1,2766 @@
+{
+  "eventDatePrefix": "2026-06-22",
+  "kDoubles": 48,
+  "gridResults": [
+    {
+      "kSingles": 16,
+      "avgSingles": 7.8076923076923075,
+      "avgDoubles": 12.6875,
+      "ratio": 0.6153846153846154,
+      "singlesMatches": 26,
+      "doublesMatches": 16,
+      "topSinglesSwings": [
+        {
+          "score": "7-5",
+          "avgSwing": 14,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Hazel Eslabra",
+              "before": 1403,
+              "change": 14,
+              "after": 1417
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1633,
+              "change": -14,
+              "after": 1619
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 13,
+          "maxSwing": 13,
+          "winners": [
+            {
+              "name": "Luv Boado",
+              "before": 1426,
+              "change": 13,
+              "after": 1439
+            }
+          ],
+          "losers": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1635,
+              "change": -13,
+              "after": 1622
+            }
+          ]
+        },
+        {
+          "score": "7-4",
+          "avgSwing": 11,
+          "maxSwing": 11,
+          "winners": [
+            {
+              "name": "James Manganaan",
+              "before": 1456,
+              "change": 11,
+              "after": 1467
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1521,
+              "change": -11,
+              "after": 1510
+            }
+          ]
+        },
+        {
+          "score": "7-1",
+          "avgSwing": 10,
+          "maxSwing": 10,
+          "winners": [
+            {
+              "name": "Boyet Castillo",
+              "before": 1529,
+              "change": 10,
+              "after": 1539
+            }
+          ],
+          "losers": [
+            {
+              "name": "RC TERSOL",
+              "before": 1552,
+              "change": -10,
+              "after": 1542
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 10,
+          "maxSwing": 10,
+          "winners": [
+            {
+              "name": "Joven Eslabra",
+              "before": 1546,
+              "change": 10,
+              "after": 1556
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1619,
+              "change": -10,
+              "after": 1609
+            }
+          ]
+        },
+        {
+          "score": "7-1",
+          "avgSwing": 9,
+          "maxSwing": 9,
+          "winners": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1393,
+              "change": 9,
+              "after": 1402
+            }
+          ],
+          "losers": [
+            {
+              "name": "Sandro Quinto",
+              "before": 1362,
+              "change": -9,
+              "after": 1353
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 9,
+          "maxSwing": 9,
+          "winners": [
+            {
+              "name": "Henri Querimit",
+              "before": 1474,
+              "change": 9,
+              "after": 1483
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1510,
+              "change": -9,
+              "after": 1501
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 9,
+          "maxSwing": 9,
+          "winners": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1396,
+              "change": 9,
+              "after": 1405
+            }
+          ],
+          "losers": [
+            {
+              "name": "Hazel Eslabra",
+              "before": 1417,
+              "change": -9,
+              "after": 1408
+            }
+          ]
+        },
+        {
+          "score": "7-3",
+          "avgSwing": 9,
+          "maxSwing": 9,
+          "winners": [
+            {
+              "name": "romel saclolo",
+              "before": 1564,
+              "change": 9,
+              "after": 1573
+            }
+          ],
+          "losers": [
+            {
+              "name": "RC TERSOL",
+              "before": 1546,
+              "change": -9,
+              "after": 1537
+            }
+          ]
+        },
+        {
+          "score": "15-3",
+          "avgSwing": 8,
+          "maxSwing": 8,
+          "winners": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1622,
+              "change": 8,
+              "after": 1630
+            }
+          ],
+          "losers": [
+            {
+              "name": "romel saclolo",
+              "before": 1562,
+              "change": -8,
+              "after": 1554
+            }
+          ]
+        }
+      ],
+      "topDoublesSwings": [
+        {
+          "score": "15-11",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1569,
+              "change": 14,
+              "after": 1583
+            },
+            {
+              "name": "RC TERSOL",
+              "before": 1528,
+              "change": 14,
+              "after": 1542
+            }
+          ],
+          "losers": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1607,
+              "change": -15,
+              "after": 1592
+            },
+            {
+              "name": "James Manganaan",
+              "before": 1502,
+              "change": -13,
+              "after": 1489
+            }
+          ]
+        },
+        {
+          "score": "11-5",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1511,
+              "change": 13,
+              "after": 1524
+            },
+            {
+              "name": "Jayson Hazim",
+              "before": 1389,
+              "change": 15,
+              "after": 1404
+            }
+          ],
+          "losers": [
+            {
+              "name": "Luv Boado",
+              "before": 1473,
+              "change": -15,
+              "after": 1458
+            },
+            {
+              "name": "Sandro Quinto",
+              "before": 1399,
+              "change": -13,
+              "after": 1386
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Ednalyn Pasaoa",
+              "before": 1541,
+              "change": 12,
+              "after": 1553
+            },
+            {
+              "name": "Henri Querimit",
+              "before": 1453,
+              "change": 14,
+              "after": 1467
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1404,
+              "change": -11,
+              "after": 1393
+            },
+            {
+              "name": "Joven Eslabra",
+              "before": 1551,
+              "change": -15,
+              "after": 1536
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13.5,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "RC TERSOL",
+              "before": 1539,
+              "change": 13,
+              "after": 1552
+            },
+            {
+              "name": "Arvin Cabanlig",
+              "before": 1444,
+              "change": 14,
+              "after": 1458
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1536,
+              "change": -15,
+              "after": 1521
+            },
+            {
+              "name": "Luv Boado",
+              "before": 1444,
+              "change": -12,
+              "after": 1432
+            }
+          ]
+        },
+        {
+          "score": "11-7",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Tristan Soriano",
+              "before": 1592,
+              "change": 14,
+              "after": 1606
+            },
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1608,
+              "change": 14,
+              "after": 1622
+            }
+          ],
+          "losers": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1619,
+              "change": -15,
+              "after": 1604
+            },
+            {
+              "name": "romel saclolo",
+              "before": 1575,
+              "change": -13,
+              "after": 1562
+            }
+          ]
+        },
+        {
+          "score": "11-7",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Henri Querimit",
+              "before": 1452,
+              "change": 13,
+              "after": 1465
+            },
+            {
+              "name": "Abbey Victor Querimit",
+              "before": 1447,
+              "change": 13,
+              "after": 1460
+            }
+          ],
+          "losers": [
+            {
+              "name": "Arvin Cabanlig",
+              "before": 1469,
+              "change": -14,
+              "after": 1455
+            },
+            {
+              "name": "Shane Malapit",
+              "before": 1377,
+              "change": -12,
+              "after": 1365
+            }
+          ]
+        },
+        {
+          "score": "11-9",
+          "avgSwing": 13.5,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1592,
+              "change": 13,
+              "after": 1605
+            },
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1583,
+              "change": 14,
+              "after": 1597
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1634,
+              "change": -14,
+              "after": 1620
+            },
+            {
+              "name": "Ednalyn Pasaoa",
+              "before": 1554,
+              "change": -13,
+              "after": 1541
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Shane Malapit",
+              "before": 1356,
+              "change": 14,
+              "after": 1370
+            },
+            {
+              "name": "Jel Manganaan",
+              "before": 1524,
+              "change": 12,
+              "after": 1536
+            }
+          ],
+          "losers": [
+            {
+              "name": "Sandro Quinto",
+              "before": 1386,
+              "change": -12,
+              "after": 1374
+            },
+            {
+              "name": "Luv Boado",
+              "before": 1458,
+              "change": -14,
+              "after": 1444
+            }
+          ]
+        },
+        {
+          "score": "11-5",
+          "avgSwing": 13.5,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Trin BOADO",
+              "before": 1620,
+              "change": 13,
+              "after": 1633
+            },
+            {
+              "name": "Celine Maquiling",
+              "before": 1605,
+              "change": 14,
+              "after": 1619
+            }
+          ],
+          "losers": [
+            {
+              "name": "Tristan Soriano",
+              "before": 1606,
+              "change": -14,
+              "after": 1592
+            },
+            {
+              "name": "romel saclolo",
+              "before": 1588,
+              "change": -13,
+              "after": 1575
+            }
+          ]
+        },
+        {
+          "score": "11-4",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1618,
+              "change": 12,
+              "after": 1630
+            },
+            {
+              "name": "Abbey Victor Querimit",
+              "before": 1472,
+              "change": 14,
+              "after": 1486
+            }
+          ],
+          "losers": [
+            {
+              "name": "Boyet Castillo",
+              "before": 1546,
+              "change": -14,
+              "after": 1532
+            },
+            {
+              "name": "Dimple Bascon",
+              "before": 1469,
+              "change": -12,
+              "after": 1457
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kSingles": 20,
+      "avgSingles": 9.846153846153847,
+      "avgDoubles": 12.6875,
+      "ratio": 0.7760515346722243,
+      "singlesMatches": 26,
+      "doublesMatches": 16,
+      "topSinglesSwings": [
+        {
+          "score": "7-5",
+          "avgSwing": 18,
+          "maxSwing": 18,
+          "winners": [
+            {
+              "name": "Hazel Eslabra",
+              "before": 1401,
+              "change": 18,
+              "after": 1419
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1633,
+              "change": -18,
+              "after": 1615
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 17,
+          "maxSwing": 17,
+          "winners": [
+            {
+              "name": "Luv Boado",
+              "before": 1424,
+              "change": 17,
+              "after": 1441
+            }
+          ],
+          "losers": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1639,
+              "change": -17,
+              "after": 1622
+            }
+          ]
+        },
+        {
+          "score": "7-4",
+          "avgSwing": 13,
+          "maxSwing": 13,
+          "winners": [
+            {
+              "name": "James Manganaan",
+              "before": 1456,
+              "change": 13,
+              "after": 1469
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1521,
+              "change": -13,
+              "after": 1508
+            }
+          ]
+        },
+        {
+          "score": "7-1",
+          "avgSwing": 13,
+          "maxSwing": 13,
+          "winners": [
+            {
+              "name": "Boyet Castillo",
+              "before": 1529,
+              "change": 13,
+              "after": 1542
+            }
+          ],
+          "losers": [
+            {
+              "name": "RC TERSOL",
+              "before": 1552,
+              "change": -13,
+              "after": 1539
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 13,
+          "maxSwing": 13,
+          "winners": [
+            {
+              "name": "Joven Eslabra",
+              "before": 1545,
+              "change": 13,
+              "after": 1558
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1615,
+              "change": -13,
+              "after": 1602
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 12,
+          "maxSwing": 12,
+          "winners": [
+            {
+              "name": "Henri Querimit",
+              "before": 1476,
+              "change": 12,
+              "after": 1488
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1508,
+              "change": -12,
+              "after": 1496
+            }
+          ]
+        },
+        {
+          "score": "7-1",
+          "avgSwing": 11,
+          "maxSwing": 11,
+          "winners": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1393,
+              "change": 11,
+              "after": 1404
+            }
+          ],
+          "losers": [
+            {
+              "name": "Sandro Quinto",
+              "before": 1362,
+              "change": -11,
+              "after": 1351
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 11,
+          "maxSwing": 11,
+          "winners": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1397,
+              "change": 11,
+              "after": 1408
+            }
+          ],
+          "losers": [
+            {
+              "name": "Hazel Eslabra",
+              "before": 1419,
+              "change": -11,
+              "after": 1408
+            }
+          ]
+        },
+        {
+          "score": "7-3",
+          "avgSwing": 11,
+          "maxSwing": 11,
+          "winners": [
+            {
+              "name": "romel saclolo",
+              "before": 1565,
+              "change": 11,
+              "after": 1576
+            }
+          ],
+          "losers": [
+            {
+              "name": "RC TERSOL",
+              "before": 1545,
+              "change": -11,
+              "after": 1534
+            }
+          ]
+        },
+        {
+          "score": "15-3",
+          "avgSwing": 10,
+          "maxSwing": 10,
+          "winners": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1622,
+              "change": 10,
+              "after": 1632
+            }
+          ],
+          "losers": [
+            {
+              "name": "romel saclolo",
+              "before": 1562,
+              "change": -10,
+              "after": 1552
+            }
+          ]
+        }
+      ],
+      "topDoublesSwings": [
+        {
+          "score": "15-11",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1569,
+              "change": 14,
+              "after": 1583
+            },
+            {
+              "name": "RC TERSOL",
+              "before": 1528,
+              "change": 14,
+              "after": 1542
+            }
+          ],
+          "losers": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1607,
+              "change": -15,
+              "after": 1592
+            },
+            {
+              "name": "James Manganaan",
+              "before": 1502,
+              "change": -13,
+              "after": 1489
+            }
+          ]
+        },
+        {
+          "score": "11-5",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1511,
+              "change": 13,
+              "after": 1524
+            },
+            {
+              "name": "Jayson Hazim",
+              "before": 1389,
+              "change": 15,
+              "after": 1404
+            }
+          ],
+          "losers": [
+            {
+              "name": "Luv Boado",
+              "before": 1473,
+              "change": -15,
+              "after": 1458
+            },
+            {
+              "name": "Sandro Quinto",
+              "before": 1399,
+              "change": -13,
+              "after": 1386
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Ednalyn Pasaoa",
+              "before": 1541,
+              "change": 12,
+              "after": 1553
+            },
+            {
+              "name": "Henri Querimit",
+              "before": 1453,
+              "change": 14,
+              "after": 1467
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1404,
+              "change": -11,
+              "after": 1393
+            },
+            {
+              "name": "Joven Eslabra",
+              "before": 1551,
+              "change": -15,
+              "after": 1536
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13.5,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "RC TERSOL",
+              "before": 1539,
+              "change": 13,
+              "after": 1552
+            },
+            {
+              "name": "Arvin Cabanlig",
+              "before": 1444,
+              "change": 14,
+              "after": 1458
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1536,
+              "change": -15,
+              "after": 1521
+            },
+            {
+              "name": "Luv Boado",
+              "before": 1444,
+              "change": -12,
+              "after": 1432
+            }
+          ]
+        },
+        {
+          "score": "11-7",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Tristan Soriano",
+              "before": 1592,
+              "change": 14,
+              "after": 1606
+            },
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1608,
+              "change": 14,
+              "after": 1622
+            }
+          ],
+          "losers": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1619,
+              "change": -15,
+              "after": 1604
+            },
+            {
+              "name": "romel saclolo",
+              "before": 1575,
+              "change": -13,
+              "after": 1562
+            }
+          ]
+        },
+        {
+          "score": "11-7",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Henri Querimit",
+              "before": 1452,
+              "change": 13,
+              "after": 1465
+            },
+            {
+              "name": "Abbey Victor Querimit",
+              "before": 1447,
+              "change": 13,
+              "after": 1460
+            }
+          ],
+          "losers": [
+            {
+              "name": "Arvin Cabanlig",
+              "before": 1469,
+              "change": -14,
+              "after": 1455
+            },
+            {
+              "name": "Shane Malapit",
+              "before": 1377,
+              "change": -12,
+              "after": 1365
+            }
+          ]
+        },
+        {
+          "score": "11-9",
+          "avgSwing": 13.5,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1592,
+              "change": 13,
+              "after": 1605
+            },
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1583,
+              "change": 14,
+              "after": 1597
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1634,
+              "change": -14,
+              "after": 1620
+            },
+            {
+              "name": "Ednalyn Pasaoa",
+              "before": 1554,
+              "change": -13,
+              "after": 1541
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Shane Malapit",
+              "before": 1356,
+              "change": 14,
+              "after": 1370
+            },
+            {
+              "name": "Jel Manganaan",
+              "before": 1524,
+              "change": 12,
+              "after": 1536
+            }
+          ],
+          "losers": [
+            {
+              "name": "Sandro Quinto",
+              "before": 1386,
+              "change": -12,
+              "after": 1374
+            },
+            {
+              "name": "Luv Boado",
+              "before": 1458,
+              "change": -14,
+              "after": 1444
+            }
+          ]
+        },
+        {
+          "score": "11-5",
+          "avgSwing": 13.5,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Trin BOADO",
+              "before": 1620,
+              "change": 13,
+              "after": 1633
+            },
+            {
+              "name": "Celine Maquiling",
+              "before": 1605,
+              "change": 14,
+              "after": 1619
+            }
+          ],
+          "losers": [
+            {
+              "name": "Tristan Soriano",
+              "before": 1606,
+              "change": -14,
+              "after": 1592
+            },
+            {
+              "name": "romel saclolo",
+              "before": 1588,
+              "change": -13,
+              "after": 1575
+            }
+          ]
+        },
+        {
+          "score": "11-4",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1621,
+              "change": 12,
+              "after": 1633
+            },
+            {
+              "name": "Abbey Victor Querimit",
+              "before": 1469,
+              "change": 14,
+              "after": 1483
+            }
+          ],
+          "losers": [
+            {
+              "name": "Boyet Castillo",
+              "before": 1551,
+              "change": -14,
+              "after": 1537
+            },
+            {
+              "name": "Dimple Bascon",
+              "before": 1467,
+              "change": -12,
+              "after": 1455
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kSingles": 24,
+      "avgSingles": 11.692307692307692,
+      "avgDoubles": 12.65625,
+      "ratio": 0.9238366571699904,
+      "singlesMatches": 26,
+      "doublesMatches": 16,
+      "topSinglesSwings": [
+        {
+          "score": "7-5",
+          "avgSwing": 21,
+          "maxSwing": 21,
+          "winners": [
+            {
+              "name": "Hazel Eslabra",
+              "before": 1399,
+              "change": 21,
+              "after": 1420
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1633,
+              "change": -21,
+              "after": 1612
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 20,
+          "maxSwing": 20,
+          "winners": [
+            {
+              "name": "Luv Boado",
+              "before": 1423,
+              "change": 20,
+              "after": 1443
+            }
+          ],
+          "losers": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1642,
+              "change": -20,
+              "after": 1622
+            }
+          ]
+        },
+        {
+          "score": "7-4",
+          "avgSwing": 16,
+          "maxSwing": 16,
+          "winners": [
+            {
+              "name": "James Manganaan",
+              "before": 1456,
+              "change": 16,
+              "after": 1472
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1521,
+              "change": -16,
+              "after": 1505
+            }
+          ]
+        },
+        {
+          "score": "7-1",
+          "avgSwing": 15,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Boyet Castillo",
+              "before": 1529,
+              "change": 15,
+              "after": 1544
+            }
+          ],
+          "losers": [
+            {
+              "name": "RC TERSOL",
+              "before": 1552,
+              "change": -15,
+              "after": 1537
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 15,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Joven Eslabra",
+              "before": 1546,
+              "change": 15,
+              "after": 1561
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1612,
+              "change": -15,
+              "after": 1597
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 14,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Henri Querimit",
+              "before": 1478,
+              "change": 14,
+              "after": 1492
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1505,
+              "change": -14,
+              "after": 1491
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 14,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1397,
+              "change": 14,
+              "after": 1411
+            }
+          ],
+          "losers": [
+            {
+              "name": "Hazel Eslabra",
+              "before": 1420,
+              "change": -14,
+              "after": 1406
+            }
+          ]
+        },
+        {
+          "score": "7-1",
+          "avgSwing": 13,
+          "maxSwing": 13,
+          "winners": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1393,
+              "change": 13,
+              "after": 1406
+            }
+          ],
+          "losers": [
+            {
+              "name": "Sandro Quinto",
+              "before": 1362,
+              "change": -13,
+              "after": 1349
+            }
+          ]
+        },
+        {
+          "score": "7-3",
+          "avgSwing": 13,
+          "maxSwing": 13,
+          "winners": [
+            {
+              "name": "romel saclolo",
+              "before": 1565,
+              "change": 13,
+              "after": 1578
+            }
+          ],
+          "losers": [
+            {
+              "name": "RC TERSOL",
+              "before": 1544,
+              "change": -13,
+              "after": 1531
+            }
+          ]
+        },
+        {
+          "score": "15-3",
+          "avgSwing": 12,
+          "maxSwing": 12,
+          "winners": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1622,
+              "change": 12,
+              "after": 1634
+            }
+          ],
+          "losers": [
+            {
+              "name": "romel saclolo",
+              "before": 1562,
+              "change": -12,
+              "after": 1550
+            }
+          ]
+        }
+      ],
+      "topDoublesSwings": [
+        {
+          "score": "15-11",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1569,
+              "change": 14,
+              "after": 1583
+            },
+            {
+              "name": "RC TERSOL",
+              "before": 1528,
+              "change": 14,
+              "after": 1542
+            }
+          ],
+          "losers": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1607,
+              "change": -15,
+              "after": 1592
+            },
+            {
+              "name": "James Manganaan",
+              "before": 1502,
+              "change": -13,
+              "after": 1489
+            }
+          ]
+        },
+        {
+          "score": "11-5",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1511,
+              "change": 13,
+              "after": 1524
+            },
+            {
+              "name": "Jayson Hazim",
+              "before": 1389,
+              "change": 15,
+              "after": 1404
+            }
+          ],
+          "losers": [
+            {
+              "name": "Luv Boado",
+              "before": 1473,
+              "change": -15,
+              "after": 1458
+            },
+            {
+              "name": "Sandro Quinto",
+              "before": 1399,
+              "change": -13,
+              "after": 1386
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Ednalyn Pasaoa",
+              "before": 1541,
+              "change": 12,
+              "after": 1553
+            },
+            {
+              "name": "Henri Querimit",
+              "before": 1453,
+              "change": 14,
+              "after": 1467
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1404,
+              "change": -11,
+              "after": 1393
+            },
+            {
+              "name": "Joven Eslabra",
+              "before": 1551,
+              "change": -15,
+              "after": 1536
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13.5,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "RC TERSOL",
+              "before": 1539,
+              "change": 13,
+              "after": 1552
+            },
+            {
+              "name": "Arvin Cabanlig",
+              "before": 1444,
+              "change": 14,
+              "after": 1458
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1536,
+              "change": -15,
+              "after": 1521
+            },
+            {
+              "name": "Luv Boado",
+              "before": 1444,
+              "change": -12,
+              "after": 1432
+            }
+          ]
+        },
+        {
+          "score": "11-7",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Tristan Soriano",
+              "before": 1592,
+              "change": 14,
+              "after": 1606
+            },
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1608,
+              "change": 14,
+              "after": 1622
+            }
+          ],
+          "losers": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1619,
+              "change": -15,
+              "after": 1604
+            },
+            {
+              "name": "romel saclolo",
+              "before": 1575,
+              "change": -13,
+              "after": 1562
+            }
+          ]
+        },
+        {
+          "score": "11-7",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Henri Querimit",
+              "before": 1452,
+              "change": 13,
+              "after": 1465
+            },
+            {
+              "name": "Abbey Victor Querimit",
+              "before": 1447,
+              "change": 13,
+              "after": 1460
+            }
+          ],
+          "losers": [
+            {
+              "name": "Arvin Cabanlig",
+              "before": 1469,
+              "change": -14,
+              "after": 1455
+            },
+            {
+              "name": "Shane Malapit",
+              "before": 1377,
+              "change": -12,
+              "after": 1365
+            }
+          ]
+        },
+        {
+          "score": "11-9",
+          "avgSwing": 13.5,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1592,
+              "change": 13,
+              "after": 1605
+            },
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1583,
+              "change": 14,
+              "after": 1597
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1634,
+              "change": -14,
+              "after": 1620
+            },
+            {
+              "name": "Ednalyn Pasaoa",
+              "before": 1554,
+              "change": -13,
+              "after": 1541
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Shane Malapit",
+              "before": 1356,
+              "change": 14,
+              "after": 1370
+            },
+            {
+              "name": "Jel Manganaan",
+              "before": 1524,
+              "change": 12,
+              "after": 1536
+            }
+          ],
+          "losers": [
+            {
+              "name": "Sandro Quinto",
+              "before": 1386,
+              "change": -12,
+              "after": 1374
+            },
+            {
+              "name": "Luv Boado",
+              "before": 1458,
+              "change": -14,
+              "after": 1444
+            }
+          ]
+        },
+        {
+          "score": "11-5",
+          "avgSwing": 13.5,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Trin BOADO",
+              "before": 1620,
+              "change": 13,
+              "after": 1633
+            },
+            {
+              "name": "Celine Maquiling",
+              "before": 1605,
+              "change": 14,
+              "after": 1619
+            }
+          ],
+          "losers": [
+            {
+              "name": "Tristan Soriano",
+              "before": 1606,
+              "change": -14,
+              "after": 1592
+            },
+            {
+              "name": "romel saclolo",
+              "before": 1588,
+              "change": -13,
+              "after": 1575
+            }
+          ]
+        },
+        {
+          "score": "11-4",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1623,
+              "change": 12,
+              "after": 1635
+            },
+            {
+              "name": "Abbey Victor Querimit",
+              "before": 1467,
+              "change": 14,
+              "after": 1481
+            }
+          ],
+          "losers": [
+            {
+              "name": "Boyet Castillo",
+              "before": 1555,
+              "change": -14,
+              "after": 1541
+            },
+            {
+              "name": "Dimple Bascon",
+              "before": 1465,
+              "change": -12,
+              "after": 1453
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kSingles": 28,
+      "avgSingles": 13.76923076923077,
+      "avgDoubles": 12.65625,
+      "ratio": 1.0879392212725547,
+      "singlesMatches": 26,
+      "doublesMatches": 16,
+      "topSinglesSwings": [
+        {
+          "score": "7-5",
+          "avgSwing": 25,
+          "maxSwing": 25,
+          "winners": [
+            {
+              "name": "Hazel Eslabra",
+              "before": 1397,
+              "change": 25,
+              "after": 1422
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1633,
+              "change": -25,
+              "after": 1608
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 24,
+          "maxSwing": 24,
+          "winners": [
+            {
+              "name": "Luv Boado",
+              "before": 1421,
+              "change": 24,
+              "after": 1445
+            }
+          ],
+          "losers": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1646,
+              "change": -24,
+              "after": 1622
+            }
+          ]
+        },
+        {
+          "score": "7-4",
+          "avgSwing": 19,
+          "maxSwing": 19,
+          "winners": [
+            {
+              "name": "James Manganaan",
+              "before": 1456,
+              "change": 19,
+              "after": 1475
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1521,
+              "change": -19,
+              "after": 1502
+            }
+          ]
+        },
+        {
+          "score": "7-1",
+          "avgSwing": 18,
+          "maxSwing": 18,
+          "winners": [
+            {
+              "name": "Boyet Castillo",
+              "before": 1529,
+              "change": 18,
+              "after": 1547
+            }
+          ],
+          "losers": [
+            {
+              "name": "RC TERSOL",
+              "before": 1552,
+              "change": -18,
+              "after": 1534
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 18,
+          "maxSwing": 18,
+          "winners": [
+            {
+              "name": "Joven Eslabra",
+              "before": 1546,
+              "change": 18,
+              "after": 1564
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1608,
+              "change": -18,
+              "after": 1590
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 16,
+          "maxSwing": 16,
+          "winners": [
+            {
+              "name": "Henri Querimit",
+              "before": 1480,
+              "change": 16,
+              "after": 1496
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1502,
+              "change": -16,
+              "after": 1486
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 16,
+          "maxSwing": 16,
+          "winners": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1397,
+              "change": 16,
+              "after": 1413
+            }
+          ],
+          "losers": [
+            {
+              "name": "Hazel Eslabra",
+              "before": 1422,
+              "change": -16,
+              "after": 1406
+            }
+          ]
+        },
+        {
+          "score": "15-3",
+          "avgSwing": 15,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1622,
+              "change": 15,
+              "after": 1637
+            }
+          ],
+          "losers": [
+            {
+              "name": "romel saclolo",
+              "before": 1562,
+              "change": -15,
+              "after": 1547
+            }
+          ]
+        },
+        {
+          "score": "7-1",
+          "avgSwing": 15,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1393,
+              "change": 15,
+              "after": 1408
+            }
+          ],
+          "losers": [
+            {
+              "name": "Sandro Quinto",
+              "before": 1362,
+              "change": -15,
+              "after": 1347
+            }
+          ]
+        },
+        {
+          "score": "7-3",
+          "avgSwing": 15,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "romel saclolo",
+              "before": 1565,
+              "change": 15,
+              "after": 1580
+            }
+          ],
+          "losers": [
+            {
+              "name": "RC TERSOL",
+              "before": 1542,
+              "change": -15,
+              "after": 1527
+            }
+          ]
+        }
+      ],
+      "topDoublesSwings": [
+        {
+          "score": "15-11",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1569,
+              "change": 14,
+              "after": 1583
+            },
+            {
+              "name": "RC TERSOL",
+              "before": 1528,
+              "change": 14,
+              "after": 1542
+            }
+          ],
+          "losers": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1607,
+              "change": -15,
+              "after": 1592
+            },
+            {
+              "name": "James Manganaan",
+              "before": 1502,
+              "change": -13,
+              "after": 1489
+            }
+          ]
+        },
+        {
+          "score": "11-5",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1511,
+              "change": 13,
+              "after": 1524
+            },
+            {
+              "name": "Jayson Hazim",
+              "before": 1389,
+              "change": 15,
+              "after": 1404
+            }
+          ],
+          "losers": [
+            {
+              "name": "Luv Boado",
+              "before": 1473,
+              "change": -15,
+              "after": 1458
+            },
+            {
+              "name": "Sandro Quinto",
+              "before": 1399,
+              "change": -13,
+              "after": 1386
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Ednalyn Pasaoa",
+              "before": 1541,
+              "change": 12,
+              "after": 1553
+            },
+            {
+              "name": "Henri Querimit",
+              "before": 1453,
+              "change": 14,
+              "after": 1467
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1404,
+              "change": -11,
+              "after": 1393
+            },
+            {
+              "name": "Joven Eslabra",
+              "before": 1551,
+              "change": -15,
+              "after": 1536
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13.5,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "RC TERSOL",
+              "before": 1539,
+              "change": 13,
+              "after": 1552
+            },
+            {
+              "name": "Arvin Cabanlig",
+              "before": 1444,
+              "change": 14,
+              "after": 1458
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1536,
+              "change": -15,
+              "after": 1521
+            },
+            {
+              "name": "Luv Boado",
+              "before": 1444,
+              "change": -12,
+              "after": 1432
+            }
+          ]
+        },
+        {
+          "score": "11-7",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Tristan Soriano",
+              "before": 1592,
+              "change": 14,
+              "after": 1606
+            },
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1608,
+              "change": 14,
+              "after": 1622
+            }
+          ],
+          "losers": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1619,
+              "change": -15,
+              "after": 1604
+            },
+            {
+              "name": "romel saclolo",
+              "before": 1575,
+              "change": -13,
+              "after": 1562
+            }
+          ]
+        },
+        {
+          "score": "11-7",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Henri Querimit",
+              "before": 1452,
+              "change": 13,
+              "after": 1465
+            },
+            {
+              "name": "Abbey Victor Querimit",
+              "before": 1447,
+              "change": 13,
+              "after": 1460
+            }
+          ],
+          "losers": [
+            {
+              "name": "Arvin Cabanlig",
+              "before": 1469,
+              "change": -14,
+              "after": 1455
+            },
+            {
+              "name": "Shane Malapit",
+              "before": 1377,
+              "change": -12,
+              "after": 1365
+            }
+          ]
+        },
+        {
+          "score": "11-9",
+          "avgSwing": 13.5,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1592,
+              "change": 13,
+              "after": 1605
+            },
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1583,
+              "change": 14,
+              "after": 1597
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1634,
+              "change": -14,
+              "after": 1620
+            },
+            {
+              "name": "Ednalyn Pasaoa",
+              "before": 1554,
+              "change": -13,
+              "after": 1541
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Shane Malapit",
+              "before": 1356,
+              "change": 14,
+              "after": 1370
+            },
+            {
+              "name": "Jel Manganaan",
+              "before": 1524,
+              "change": 12,
+              "after": 1536
+            }
+          ],
+          "losers": [
+            {
+              "name": "Sandro Quinto",
+              "before": 1386,
+              "change": -12,
+              "after": 1374
+            },
+            {
+              "name": "Luv Boado",
+              "before": 1458,
+              "change": -14,
+              "after": 1444
+            }
+          ]
+        },
+        {
+          "score": "11-5",
+          "avgSwing": 13.5,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Trin BOADO",
+              "before": 1620,
+              "change": 13,
+              "after": 1633
+            },
+            {
+              "name": "Celine Maquiling",
+              "before": 1605,
+              "change": 14,
+              "after": 1619
+            }
+          ],
+          "losers": [
+            {
+              "name": "Tristan Soriano",
+              "before": 1606,
+              "change": -14,
+              "after": 1592
+            },
+            {
+              "name": "romel saclolo",
+              "before": 1588,
+              "change": -13,
+              "after": 1575
+            }
+          ]
+        },
+        {
+          "score": "11-4",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1626,
+              "change": 12,
+              "after": 1638
+            },
+            {
+              "name": "Abbey Victor Querimit",
+              "before": 1465,
+              "change": 14,
+              "after": 1479
+            }
+          ],
+          "losers": [
+            {
+              "name": "Boyet Castillo",
+              "before": 1559,
+              "change": -14,
+              "after": 1545
+            },
+            {
+              "name": "Dimple Bascon",
+              "before": 1464,
+              "change": -12,
+              "after": 1452
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kSingles": 32,
+      "avgSingles": 15.538461538461538,
+      "avgDoubles": 12.65625,
+      "ratio": 1.227730294396961,
+      "singlesMatches": 26,
+      "doublesMatches": 16,
+      "topSinglesSwings": [
+        {
+          "score": "7-5",
+          "avgSwing": 28,
+          "maxSwing": 28,
+          "winners": [
+            {
+              "name": "Hazel Eslabra",
+              "before": 1396,
+              "change": 28,
+              "after": 1424
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1633,
+              "change": -28,
+              "after": 1605
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 27,
+          "maxSwing": 27,
+          "winners": [
+            {
+              "name": "Luv Boado",
+              "before": 1420,
+              "change": 27,
+              "after": 1447
+            }
+          ],
+          "losers": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1649,
+              "change": -27,
+              "after": 1622
+            }
+          ]
+        },
+        {
+          "score": "7-4",
+          "avgSwing": 22,
+          "maxSwing": 22,
+          "winners": [
+            {
+              "name": "James Manganaan",
+              "before": 1456,
+              "change": 22,
+              "after": 1478
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1521,
+              "change": -22,
+              "after": 1499
+            }
+          ]
+        },
+        {
+          "score": "7-1",
+          "avgSwing": 20,
+          "maxSwing": 20,
+          "winners": [
+            {
+              "name": "Boyet Castillo",
+              "before": 1529,
+              "change": 20,
+              "after": 1549
+            }
+          ],
+          "losers": [
+            {
+              "name": "RC TERSOL",
+              "before": 1552,
+              "change": -20,
+              "after": 1532
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 20,
+          "maxSwing": 20,
+          "winners": [
+            {
+              "name": "Joven Eslabra",
+              "before": 1545,
+              "change": 20,
+              "after": 1565
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1605,
+              "change": -20,
+              "after": 1585
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 18,
+          "maxSwing": 18,
+          "winners": [
+            {
+              "name": "Henri Querimit",
+              "before": 1481,
+              "change": 18,
+              "after": 1499
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1499,
+              "change": -18,
+              "after": 1481
+            }
+          ]
+        },
+        {
+          "score": "7-6",
+          "avgSwing": 18,
+          "maxSwing": 18,
+          "winners": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1398,
+              "change": 18,
+              "after": 1416
+            }
+          ],
+          "losers": [
+            {
+              "name": "Hazel Eslabra",
+              "before": 1424,
+              "change": -18,
+              "after": 1406
+            }
+          ]
+        },
+        {
+          "score": "15-3",
+          "avgSwing": 17,
+          "maxSwing": 17,
+          "winners": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1622,
+              "change": 17,
+              "after": 1639
+            }
+          ],
+          "losers": [
+            {
+              "name": "romel saclolo",
+              "before": 1562,
+              "change": -17,
+              "after": 1545
+            }
+          ]
+        },
+        {
+          "score": "7-1",
+          "avgSwing": 17,
+          "maxSwing": 17,
+          "winners": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1393,
+              "change": 17,
+              "after": 1410
+            }
+          ],
+          "losers": [
+            {
+              "name": "Sandro Quinto",
+              "before": 1362,
+              "change": -17,
+              "after": 1345
+            }
+          ]
+        },
+        {
+          "score": "7-3",
+          "avgSwing": 17,
+          "maxSwing": 17,
+          "winners": [
+            {
+              "name": "romel saclolo",
+              "before": 1565,
+              "change": 17,
+              "after": 1582
+            }
+          ],
+          "losers": [
+            {
+              "name": "RC TERSOL",
+              "before": 1541,
+              "change": -17,
+              "after": 1524
+            }
+          ]
+        }
+      ],
+      "topDoublesSwings": [
+        {
+          "score": "15-11",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1569,
+              "change": 14,
+              "after": 1583
+            },
+            {
+              "name": "RC TERSOL",
+              "before": 1528,
+              "change": 14,
+              "after": 1542
+            }
+          ],
+          "losers": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1607,
+              "change": -15,
+              "after": 1592
+            },
+            {
+              "name": "James Manganaan",
+              "before": 1502,
+              "change": -13,
+              "after": 1489
+            }
+          ]
+        },
+        {
+          "score": "11-5",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1511,
+              "change": 13,
+              "after": 1524
+            },
+            {
+              "name": "Jayson Hazim",
+              "before": 1389,
+              "change": 15,
+              "after": 1404
+            }
+          ],
+          "losers": [
+            {
+              "name": "Luv Boado",
+              "before": 1473,
+              "change": -15,
+              "after": 1458
+            },
+            {
+              "name": "Sandro Quinto",
+              "before": 1399,
+              "change": -13,
+              "after": 1386
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Ednalyn Pasaoa",
+              "before": 1541,
+              "change": 12,
+              "after": 1553
+            },
+            {
+              "name": "Henri Querimit",
+              "before": 1453,
+              "change": 14,
+              "after": 1467
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jayson Hazim",
+              "before": 1404,
+              "change": -11,
+              "after": 1393
+            },
+            {
+              "name": "Joven Eslabra",
+              "before": 1551,
+              "change": -15,
+              "after": 1536
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13.5,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "RC TERSOL",
+              "before": 1539,
+              "change": 13,
+              "after": 1552
+            },
+            {
+              "name": "Arvin Cabanlig",
+              "before": 1444,
+              "change": 14,
+              "after": 1458
+            }
+          ],
+          "losers": [
+            {
+              "name": "Jel Manganaan",
+              "before": 1536,
+              "change": -15,
+              "after": 1521
+            },
+            {
+              "name": "Luv Boado",
+              "before": 1444,
+              "change": -12,
+              "after": 1432
+            }
+          ]
+        },
+        {
+          "score": "11-7",
+          "avgSwing": 14,
+          "maxSwing": 15,
+          "winners": [
+            {
+              "name": "Tristan Soriano",
+              "before": 1592,
+              "change": 14,
+              "after": 1606
+            },
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1608,
+              "change": 14,
+              "after": 1622
+            }
+          ],
+          "losers": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1619,
+              "change": -15,
+              "after": 1604
+            },
+            {
+              "name": "romel saclolo",
+              "before": 1575,
+              "change": -13,
+              "after": 1562
+            }
+          ]
+        },
+        {
+          "score": "11-7",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Henri Querimit",
+              "before": 1452,
+              "change": 13,
+              "after": 1465
+            },
+            {
+              "name": "Abbey Victor Querimit",
+              "before": 1447,
+              "change": 13,
+              "after": 1460
+            }
+          ],
+          "losers": [
+            {
+              "name": "Arvin Cabanlig",
+              "before": 1469,
+              "change": -14,
+              "after": 1455
+            },
+            {
+              "name": "Shane Malapit",
+              "before": 1377,
+              "change": -12,
+              "after": 1365
+            }
+          ]
+        },
+        {
+          "score": "11-9",
+          "avgSwing": 13.5,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1592,
+              "change": 13,
+              "after": 1605
+            },
+            {
+              "name": "EddieWow Datuin jr",
+              "before": 1583,
+              "change": 14,
+              "after": 1597
+            }
+          ],
+          "losers": [
+            {
+              "name": "Trin BOADO",
+              "before": 1634,
+              "change": -14,
+              "after": 1620
+            },
+            {
+              "name": "Ednalyn Pasaoa",
+              "before": 1554,
+              "change": -13,
+              "after": 1541
+            }
+          ]
+        },
+        {
+          "score": "11-8",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Shane Malapit",
+              "before": 1356,
+              "change": 14,
+              "after": 1370
+            },
+            {
+              "name": "Jel Manganaan",
+              "before": 1524,
+              "change": 12,
+              "after": 1536
+            }
+          ],
+          "losers": [
+            {
+              "name": "Sandro Quinto",
+              "before": 1386,
+              "change": -12,
+              "after": 1374
+            },
+            {
+              "name": "Luv Boado",
+              "before": 1458,
+              "change": -14,
+              "after": 1444
+            }
+          ]
+        },
+        {
+          "score": "11-5",
+          "avgSwing": 13.5,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Trin BOADO",
+              "before": 1620,
+              "change": 13,
+              "after": 1633
+            },
+            {
+              "name": "Celine Maquiling",
+              "before": 1605,
+              "change": 14,
+              "after": 1619
+            }
+          ],
+          "losers": [
+            {
+              "name": "Tristan Soriano",
+              "before": 1606,
+              "change": -14,
+              "after": 1592
+            },
+            {
+              "name": "romel saclolo",
+              "before": 1588,
+              "change": -13,
+              "after": 1575
+            }
+          ]
+        },
+        {
+          "score": "11-4",
+          "avgSwing": 13,
+          "maxSwing": 14,
+          "winners": [
+            {
+              "name": "Celine Maquiling",
+              "before": 1630,
+              "change": 12,
+              "after": 1642
+            },
+            {
+              "name": "Abbey Victor Querimit",
+              "before": 1462,
+              "change": 14,
+              "after": 1476
+            }
+          ],
+          "losers": [
+            {
+              "name": "Boyet Castillo",
+              "before": 1563,
+              "change": -14,
+              "after": 1549
+            },
+            {
+              "name": "Dimple Bascon",
+              "before": 1462,
+              "change": -12,
+              "after": 1450
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
