@@ -31,7 +31,7 @@ const faqs = [
   {
     question: 'How does my rating work?',
     answer:
-      'Everyone starts at 1450. After each match, your rating goes up or down based on whether you won, how strong your opponents were, and the score margin. A blowout win (11-2) moves your rating more than a close game (11-9). Doubles matches use a bigger swing than singles, so your rating settles faster.',
+      'Everyone starts at 1450. After each match, your rating goes up or down based on whether you won, how strong your opponents were, and the score margin. A blowout win (11-2) moves your rating more than a close game (11-9). Singles and doubles now move your rating by the same amount per player, so playing either format affects your rating equally.',
   },
   {
     question: 'What are the rating levels?',
@@ -62,7 +62,7 @@ const faqs = [
   {
     question: 'Why did I lose more rating than my partner?',
     answer:
-      "In doubles, the higher-rated player carries more of the result. If you are the stronger player on your team, you gain more on wins — but you also lose more on losses. This prevents a strong player from pulling up a weak partner's rating unfairly.",
+      "In doubles, the higher-rated player pays slightly more on losses and earns slightly more on wins. The split is soft — the strong partner does not carry the full result, but they do take a modestly larger share. This keeps a strong player from pulling up a weak partner's rating unfairly.",
   },
   {
     question: 'What stats can I see on my profile?',
