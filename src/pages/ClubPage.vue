@@ -1234,8 +1234,8 @@
                         }}
                       </q-item-label>
                       <q-chip
-                        :label="member.rating || 1500"
-                        :color="getRatingColor(member.rating || 1500)"
+                        :label="member.rating || 1450"
+                        :color="getRatingColor(member.rating || 1450)"
                         text-color="white"
                         size="xs"
                         dense
@@ -1949,8 +1949,8 @@
                           member.firstName || member.username || 'Unknown'
                         }}</q-item-label>
                         <q-chip
-                          :label="member.rating ?? 1500"
-                          :color="getRatingColor(member.rating ?? 1500)"
+                          :label="member.rating ?? 1450"
+                          :color="getRatingColor(member.rating ?? 1450)"
                           text-color="white"
                           size="xs"
                           dense
@@ -2028,8 +2028,8 @@
                           member.firstName || member.username || 'Unknown'
                         }}</q-item-label>
                         <q-chip
-                          :label="member.rating ?? 1500"
-                          :color="getRatingColor(member.rating ?? 1500)"
+                          :label="member.rating ?? 1450"
+                          :color="getRatingColor(member.rating ?? 1450)"
                           text-color="white"
                           size="xs"
                           dense
@@ -2572,7 +2572,7 @@
                         >
                         <q-chip
                           :label="player.rating"
-                          :color="getRatingColor(player.rating ?? 1500)"
+                          :color="getRatingColor(player.rating ?? 1450)"
                           text-color="white"
                           size="xs"
                           dense
@@ -2679,7 +2679,7 @@
                         >
                         <q-chip
                           :label="player.rating"
-                          :color="getRatingColor(player.rating ?? 1500)"
+                          :color="getRatingColor(player.rating ?? 1450)"
                           text-color="white"
                           size="xs"
                           dense
@@ -2909,7 +2909,7 @@
                     >
                     <q-chip
                       :label="player.rating"
-                      :color="getRatingColor(player.rating ?? 1500)"
+                      :color="getRatingColor(player.rating ?? 1450)"
                       text-color="white"
                       size="xs"
                       dense
@@ -4144,7 +4144,7 @@ const loadClubData = async (clubId: string) => {
                 const userRating =
                   typeof user.rating === 'number' ? user.rating : undefined;
                 existingPlayer.rating =
-                  userRating || existingPlayer.rating || 1500;
+                  userRating || existingPlayer.rating || 1450;
                 if (dbTs > 0) existingPlayer.ratingUpdatedAt = dbTs;
                 existingPlayer.updatedAt = Date.now();
               }
@@ -5611,7 +5611,7 @@ const createBalancedMatch = (players: Player[]): Player[] => {
 
   // Sort players by rating for better team balancing
   const sortedPlayers = [...players].sort(
-    (a, b) => (a.rating || 1500) - (b.rating || 1500),
+    (a, b) => (a.rating || 1450) - (b.rating || 1450),
   );
 
   // Generate all possible team combinations
@@ -5622,8 +5622,8 @@ const createBalancedMatch = (players: Player[]): Player[] => {
     const team1 = combination.team1;
     const team2 = combination.team2;
 
-    const team1Skill = team1.reduce((sum, p) => sum + (p.rating || 1500), 0);
-    const team2Skill = team2.reduce((sum, p) => sum + (p.rating || 1500), 0);
+    const team1Skill = team1.reduce((sum, p) => sum + (p.rating || 1450), 0);
+    const team2Skill = team2.reduce((sum, p) => sum + (p.rating || 1450), 0);
     const difference = Math.abs(team1Skill - team2Skill);
 
     return {
@@ -6493,7 +6493,7 @@ const confirmRemoveMember = (
   const player = MatchmakingApp.state.players[name];
   const isActive = !!player && !player.deletedAt;
   const activeStats = isActive
-    ? `Games: ${player.matchesPlayed || 0} | Rating: ${player.rating || 1500}`
+    ? `Games: ${player.matchesPlayed || 0} | Rating: ${player.rating || 1450}`
     : '';
   const ratingLine = rating ? `Rating: ${rating}` : '';
   const message = [

@@ -464,7 +464,7 @@
                     <PlayerAvatar
                       :name="row.name"
                       :username="row.username"
-                      :color="getRatingColor(row.rating ?? 1500)"
+                      :color="getRatingColor(row.rating ?? 1450)"
                       :image-url="row.avatar"
                       :dupr-id="row.duprId"
                       size="32px"
@@ -550,7 +550,7 @@
                     <PlayerAvatar
                       :name="row.name"
                       :username="row.username"
-                      :color="getRatingColor(row.rating ?? 1500)"
+                      :color="getRatingColor(row.rating ?? 1450)"
                       :image-url="row.avatar"
                       :dupr-id="row.duprId"
                       size="32px"

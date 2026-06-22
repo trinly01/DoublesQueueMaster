@@ -69,7 +69,7 @@ export class PlayerProfileService {
       lastName: saved?.lastName || '',
       email: saved?.email || '',
       username: saved?.username || '',
-      rating: saved?.rating ?? 1500,
+      rating: saved?.rating ?? 1450,
       duprId: saved?.duprId || '',
       avatar: saved?.avatar || '',
       lastPayment: saved?.lastPayment || '',
@@ -112,7 +112,7 @@ export class PlayerProfileService {
       const user = await likhaClient.request(readMe());
       if (user) {
         const userObj = user as Record<string, unknown>;
-        let rating = 1500;
+        let rating = 1450;
 
         if (typeof userObj.rating === 'number') {
           rating = userObj.rating;
@@ -225,7 +225,7 @@ export class PlayerProfileService {
     this.state.lastName = '';
     this.state.email = '';
     this.state.username = '';
-    this.state.rating = 1500;
+    this.state.rating = 1450;
     this.state.duprId = '';
     this.state.avatar = '';
     this.state.lastModified = 0;
