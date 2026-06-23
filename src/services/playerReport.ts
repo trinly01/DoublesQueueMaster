@@ -1,4 +1,4 @@
-import { likhaClient } from 'src/boot/likha';
+import { likhaClient } from 'src/services/likhaClient';
 import {
   createItem,
   readItems,

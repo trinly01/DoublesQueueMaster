@@ -3060,7 +3060,7 @@
 import { MatchmakingApp, mergeAppState } from '../services/matchmaking';
 import type { Player, AppState } from '../services/matchmaking';
 import { readItems, updateItem, readMe } from '@likha-erp/likha-sdk';
-import { likhaClient } from 'src/boot/likha';
+import { likhaClient } from 'src/services/likhaClient';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
 import { useAuth } from 'src/composables/useAuth';
 import { usePayment } from 'src/composables/usePayment';

@@ -155,7 +155,7 @@ import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useNotify } from 'src/composables/useNotify';
-import { likhaClient } from 'src/boot/likha';
+import { likhaClient } from 'src/services/likhaClient';
 import { passwordReset } from '@likha-erp/likha-sdk';
 
 const route = useRoute();

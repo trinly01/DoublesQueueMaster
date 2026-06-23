@@ -212,7 +212,7 @@
 import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed } from 'vue';
 import { useNotify } from 'src/composables/useNotify';
-import { likhaClient } from 'src/boot/likha';
+import { likhaClient } from 'src/services/likhaClient';
 import { registerUser } from '@likha-erp/likha-sdk';
 
 const firstName = ref('');

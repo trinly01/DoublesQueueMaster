@@ -117,7 +117,7 @@
 import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed } from 'vue';
 
-import { likhaClient } from 'src/boot/likha';
+import { likhaClient } from 'src/services/likhaClient';
 import { passwordRequest } from '@likha-erp/likha-sdk';
 
 const email = ref('');

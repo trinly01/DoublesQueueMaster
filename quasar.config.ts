@@ -56,7 +56,23 @@ export default configure((/* ctx */) => {
       // polyfillModulePreload: true,
       distDir: 'docs',
 
-      // extendViteConf (viteConf) {},
+      extendViteConf(viteConf) {
+        viteConf.build = viteConf.build || {};
+        viteConf.build.rollupOptions = {
+          ...viteConf.build.rollupOptions,
+          output: {
+            ...(viteConf.build.rollupOptions?.output || {}),
+            manualChunks: (id: string) => {
+              if (id.includes('node_modules/@likha-erp/likha-sdk')) {
+                return 'likha-sdk';
+              }
+              if (id.includes('node_modules')) {
+                return 'vendor';
+              }
+            },
+          },
+        };
+      },
       // viteVuePluginOptions: {},
 
       vitePlugins: [

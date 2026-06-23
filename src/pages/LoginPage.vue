@@ -180,7 +180,7 @@ import logoUrl from 'src/assets/queue master logo.png';
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useNotify } from 'src/composables/useNotify';
-import { likhaClient } from 'src/boot/likha';
+import { likhaClient } from 'src/services/likhaClient';
 import { registerUserVerify } from '@likha-erp/likha-sdk';
 
 const email = ref('');

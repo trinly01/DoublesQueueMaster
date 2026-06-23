@@ -1,6 +1,6 @@
 import { LocalStorage } from 'quasar';
 import type { Router } from 'vue-router';
-import { likhaClient } from 'src/boot/likha';
+import { likhaClient } from 'src/services/likhaClient';
 import { PlayerProfile } from 'src/services/playerProfile';
 import { useNotify } from 'src/composables/useNotify';
 
