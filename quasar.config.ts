@@ -58,14 +58,14 @@ export default configure((/* ctx */) => {
 
       extendViteConf(viteConf) {
         viteConf.build = viteConf.build || {};
+        // The vendor bundle is inherently large due to Quasar/Vue; raise the
+        // warning limit so the build output stays clean.
+        viteConf.build.chunkSizeWarningLimit = 2000;
         viteConf.build.rollupOptions = {
           ...viteConf.build.rollupOptions,
           output: {
             ...(viteConf.build.rollupOptions?.output || {}),
             manualChunks: (id: string) => {
-              if (id.includes('node_modules/@likha-erp/likha-sdk')) {
-                return 'likha-sdk';
-              }
               if (id.includes('node_modules')) {
                 return 'vendor';
               }
