@@ -981,7 +981,7 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar, LocalStorage } from 'quasar';
 import { useNotify } from 'src/composables/useNotify';
-import { likhaClient } from 'src/boot/likha';
+import { likhaClient } from 'src/services/likhaClient';
 import PlayerFeedbackButton from 'src/components/PlayerFeedbackButton.vue';
 import {
   readItems,

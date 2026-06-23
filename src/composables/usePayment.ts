@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { likhaClient } from 'src/boot/likha';
+import { likhaClient } from 'src/services/likhaClient';
 import { readItems } from '@likha-erp/likha-sdk';
 
 export function usePayment() {

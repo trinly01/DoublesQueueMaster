@@ -1,6 +1,6 @@
 import { reactive } from 'vue';
 import { LocalStorage } from 'quasar';
-import { likhaClient } from 'src/boot/likha';
+import { likhaClient } from 'src/services/likhaClient';
 import { readMe, readItems } from '@likha-erp/likha-sdk';
 export interface RatingEvent {
   day: string;
