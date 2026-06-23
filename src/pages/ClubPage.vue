@@ -6161,13 +6161,14 @@ const clearQueue = () => {
     },
     persistent: true,
   }).onOk(() => {
-    // Tombstone all queue entries before clearing (for cross-admin sync)
+    // Tombstone all queue entries so deletions propagate across admins.
+    // Keep the tombstoned entries in the array (do not wipe the array) —
+    // otherwise a stale admin's live queue would resurrect on the next sync.
     const now = Date.now();
     MatchmakingApp.state.queues.forEach((q) => {
       q.deletedAt = now;
       q.updatedAt = now;
     });
-    MatchmakingApp.state.queues = [];
     MatchmakingApp.persist();
 
     notify({
