@@ -7,7 +7,9 @@
           For open play
         </div>
         <h1 class="hero-title">Open play, the way it should be.</h1>
-        <h2 class="hero-subline">No more "walking paddle" magic &#128517;</h2>
+        <h2 class="hero-subline">
+          No more "walking&nbsp;paddle" magic&nbsp;&#128517;
+        </h2>
         <p class="hero-subtitle">
           You deserve a great game every time you step on the court. DinkMatch
           replaces the stress of the rack with a smart queue that makes fair,
@@ -107,7 +109,7 @@ $brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   font-weight: 700;
   color: #ffd86b;
   margin: 0 0 1rem;
-  text-wrap: balance;
+  line-height: 1.2;
 }
 
 .hero-accent {
