@@ -1,209 +1,158 @@
 <template>
   <q-page class="flex flex-center register-page">
     <q-card class="q-pa-lg register-card shadow-4" bordered>
-      <template v-if="!registeredSuccessfully">
-        <q-card-section class="text-center q-pb-sm q-pt-none">
-          <img
-            :src="logoUrl"
-            alt="Logo"
-            class="brand-logo q-mb-none"
-            style="height: 48px"
-          />
-          <div
-            class="text-h4 text-weight-bold text-primary brand-title q-mb-xs"
-          >
-            DinkMatch
-          </div>
-          <div class="text-subtitle1 text-grey-7">
-            Sign up for a player account
-          </div>
-        </q-card-section>
+      <q-card-section class="text-center q-pb-sm q-pt-none">
+        <img
+          :src="logoUrl"
+          alt="Logo"
+          class="brand-logo q-mb-none"
+          style="height: 48px"
+        />
+        <div class="text-h4 text-weight-bold text-primary brand-title q-mb-xs">
+          DinkMatch
+        </div>
+        <div class="text-subtitle1 text-grey-7">
+          Sign up for a player account
+        </div>
+      </q-card-section>
 
-        <q-card-section>
-          <q-form @submit="onSubmit">
-            <div class="row q-col-gutter-sm">
-              <div class="col-12 col-sm-6">
-                <q-input
-                  filled
-                  v-model="firstName"
-                  label="First Name"
-                  lazy-rules
-                  :rules="[
-                    (val) => (val && val.trim().length > 0) || 'Required',
-                  ]"
-                  color="primary"
-                  dense
-                  hide-bottom-space
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="person" color="primary" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12 col-sm-6">
-                <q-input
-                  filled
-                  v-model="lastName"
-                  label="Last Name"
-                  lazy-rules
-                  :rules="[
-                    (val) => (val && val.trim().length > 0) || 'Required',
-                  ]"
-                  color="primary"
-                  dense
-                  hide-bottom-space
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="person" color="primary" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12">
-                <q-input
-                  filled
-                  v-model="email"
-                  type="email"
-                  label="Email Address"
-                  lazy-rules
-                  :rules="[
-                    (val) => !!val || 'Please enter your email',
-                    (val) =>
-                      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) ||
-                      'Please enter a valid email',
-                  ]"
-                  color="primary"
-                  dense
-                  hide-bottom-space
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="email" color="primary" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12">
-                <q-input
-                  filled
-                  v-model="password"
-                  type="password"
-                  label="Password"
-                  lazy-rules
-                  :rules="[
-                    (val) =>
-                      (val && val.length >= 8) ||
-                      'Password must be at least 8 characters',
-                  ]"
-                  color="primary"
-                  dense
-                  hide-bottom-space
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="lock" color="primary" />
-                  </template>
-                </q-input>
-              </div>
-
-              <div class="col-12">
-                <q-input
-                  filled
-                  v-model="confirmPassword"
-                  type="password"
-                  label="Confirm Password"
-                  lazy-rules
-                  :rules="[
-                    (val) => val === password || 'Passwords do not match',
-                  ]"
-                  color="primary"
-                  dense
-                  hide-bottom-space
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="lock" color="primary" />
-                  </template>
-                </q-input>
-              </div>
-            </div>
-
-            <div class="q-mt-sm">
-              <q-btn
-                label="Sign Up"
-                type="submit"
+      <q-card-section>
+        <q-form @submit="onSubmit">
+          <div class="row q-col-gutter-sm">
+            <div class="col-12 col-sm-6">
+              <q-input
+                filled
+                v-model="firstName"
+                label="First Name"
+                lazy-rules
+                :rules="[(val) => (val && val.trim().length > 0) || 'Required']"
                 color="primary"
-                size="lg"
-                class="full-width register-btn"
-                :loading="loading"
-                :disable="!isFormValid"
-                unelevated
-                rounded
-              />
-            </div>
-
-            <div class="text-center q-mt-md">
-              <span class="text-grey-7">Already have an account? </span>
-              <router-link
-                to="/login"
-                class="text-primary text-weight-bold text-decoration-none"
-                >Sign In</router-link
-              >
-            </div>
-
-            <div class="text-center q-mt-sm">
-              <q-btn
-                flat
                 dense
-                no-caps
-                color="grey-6"
-                icon="arrow_back"
-                label="Back to home"
-                to="/"
-              />
+                hide-bottom-space
+              >
+                <template v-slot:prepend>
+                  <q-icon name="person" color="primary" />
+                </template>
+              </q-input>
             </div>
-          </q-form>
-        </q-card-section>
-      </template>
 
-      <!-- Registration Success State -->
-      <template v-else>
-        <q-card-section class="text-center q-pa-lg">
-          <q-icon
-            name="mark_email_unread"
-            color="primary"
-            size="80px"
-            class="q-mb-md"
-          />
-          <div
-            class="text-h5 text-weight-bold text-primary brand-title q-mb-md"
-          >
-            Verify Your Email
+            <div class="col-12 col-sm-6">
+              <q-input
+                filled
+                v-model="lastName"
+                label="Last Name"
+                lazy-rules
+                :rules="[(val) => (val && val.trim().length > 0) || 'Required']"
+                color="primary"
+                dense
+                hide-bottom-space
+              >
+                <template v-slot:prepend>
+                  <q-icon name="person" color="primary" />
+                </template>
+              </q-input>
+            </div>
+
+            <div class="col-12">
+              <q-input
+                filled
+                v-model="email"
+                type="email"
+                label="Email Address"
+                lazy-rules
+                :rules="[
+                  (val) => !!val || 'Please enter your email',
+                  (val) =>
+                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) ||
+                    'Please enter a valid email',
+                ]"
+                color="primary"
+                dense
+                hide-bottom-space
+              >
+                <template v-slot:prepend>
+                  <q-icon name="email" color="primary" />
+                </template>
+              </q-input>
+            </div>
+
+            <div class="col-12">
+              <q-input
+                filled
+                v-model="password"
+                type="password"
+                label="Password"
+                lazy-rules
+                :rules="[
+                  (val) =>
+                    (val && val.length >= 8) ||
+                    'Password must be at least 8 characters',
+                ]"
+                color="primary"
+                dense
+                hide-bottom-space
+              >
+                <template v-slot:prepend>
+                  <q-icon name="lock" color="primary" />
+                </template>
+              </q-input>
+            </div>
+
+            <div class="col-12">
+              <q-input
+                filled
+                v-model="confirmPassword"
+                type="password"
+                label="Confirm Password"
+                lazy-rules
+                :rules="[(val) => val === password || 'Passwords do not match']"
+                color="primary"
+                dense
+                hide-bottom-space
+              >
+                <template v-slot:prepend>
+                  <q-icon name="lock" color="primary" />
+                </template>
+              </q-input>
+            </div>
           </div>
-          <p class="text-body1 text-grey-8">
-            Registration submitted successfully! We have sent a confirmation
-            link to your email address:
-          </p>
-          <p class="text-subtitle1 text-weight-bold text-primary q-mb-lg">
-            {{ email }}
-          </p>
-          <q-banner
-            class="bg-blue-1 text-blue-9 rounded-borders q-mb-xl text-left"
-          >
-            <template v-slot:avatar>
-              <q-icon name="info" color="primary" />
-            </template>
-            Please check your inbox (and spam folder) for the verification email
-            to complete your registration.
-          </q-banner>
-          <q-btn
-            label="Back to Login"
-            color="primary"
-            class="full-width register-btn"
-            to="/login"
-            unelevated
-            rounded
-          />
-        </q-card-section>
-      </template>
+
+          <div class="q-mt-sm">
+            <q-btn
+              label="Sign Up"
+              type="submit"
+              color="primary"
+              size="lg"
+              class="full-width register-btn"
+              :loading="loading"
+              :disable="!isFormValid"
+              unelevated
+              rounded
+            />
+          </div>
+
+          <div class="text-center q-mt-md">
+            <span class="text-grey-7">Already have an account? </span>
+            <router-link
+              to="/login"
+              class="text-primary text-weight-bold text-decoration-none"
+              >Sign In</router-link
+            >
+          </div>
+
+          <div class="text-center q-mt-sm">
+            <q-btn
+              flat
+              dense
+              no-caps
+              color="grey-6"
+              icon="arrow_back"
+              label="Back to home"
+              to="/"
+            />
+          </div>
+        </q-form>
+      </q-card-section>
     </q-card>
   </q-page>
 </template>
@@ -211,6 +160,7 @@
 <script setup lang="ts">
 import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useNotify } from 'src/composables/useNotify';
 import { likhaClient } from 'src/services/likhaClient';
 import { registerUser } from '@likha-erp/likha-sdk';
@@ -222,7 +172,6 @@ const password = ref('');
 const confirmPassword = ref('');
 
 const loading = ref(false);
-const registeredSuccessfully = ref(false);
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -235,6 +184,8 @@ const isFormValid = computed(
     password.value === confirmPassword.value,
 );
 const { notify } = useNotify();
+const router = useRouter();
+const route = useRoute();
 
 const onSubmit = async () => {
   loading.value = true;
@@ -249,14 +200,20 @@ const onSubmit = async () => {
       }),
     );
 
+    await likhaClient.login({
+      email: email.value,
+      password: password.value,
+    });
+
     notify({
       color: 'positive',
       textColor: 'white',
       icon: 'check_circle',
-      message: 'Account created! Verification email sent.',
+      message: 'Account created! You are now logged in.',
     });
 
-    registeredSuccessfully.value = true;
+    const redirect = route.query.redirect;
+    router.push(typeof redirect === 'string' ? redirect : '/profile');
   } catch (err) {
     const error = err as { errors?: { message?: string }[] };
     let errorMessage = 'An error occurred during registration.';
