@@ -4,20 +4,46 @@
       <div class="col-12 col-md-7 hero-copy">
         <div class="hero-badge">
           <q-icon name="sports_tennis" size="18px" class="q-mr-xs" />
-          Pickleball Matchmaking
+          For open play
         </div>
-        <h1 class="hero-title">
-          Smart matchmaking for pickleball &mdash;
-          <span class="hero-accent">singles &amp; doubles</span>
-        </h1>
+        <h1 class="hero-title">Open play, the way it should be.</h1>
+        <h2 class="hero-subline">No more "walking paddle" magic &#128517;</h2>
         <p class="hero-subtitle">
-          DinkMatch builds skill-balanced games from your open-play queue in seconds. Less standing around, more dinking.
+          You deserve a great game every time you step on the court. DinkMatch
+          replaces the stress of the rack with a smart queue that makes fair,
+          balanced, and fun matches for everyone.
         </p>
         <div class="row q-gutter-md q-mt-lg items-center">
-          <q-btn unelevated rounded no-caps size="lg" color="accent" icon-right="arrow_forward" label="Get Started" @click="goRegister" />
-          <q-btn outline rounded no-caps size="lg" color="white" label="Login" @click="goLogin" />
+          <q-btn
+            unelevated
+            rounded
+            no-caps
+            size="lg"
+            color="accent"
+            icon-right="arrow_forward"
+            label="Start free"
+            @click="goRegister"
+          />
+          <q-btn
+            outline
+            rounded
+            no-caps
+            size="lg"
+            color="white"
+            label="Login"
+            @click="goLogin"
+          />
         </div>
-        <q-btn flat no-caps color="white" class="q-mt-md try-link" icon="bolt" label="Try Open Play — no account needed" @click="goOpenPlay" />
+        <q-btn
+          flat
+          no-caps
+          color="white"
+          class="q-mt-md try-link"
+          icon="bolt"
+          label="Try it now — no sign up"
+          @click="goOpenPlay"
+        />
+        <p class="hero-trust q-mt-md">No walking paddles. Just fair games.</p>
       </div>
       <div class="col-12 col-md-5 flex flex-center hero-visual">
         <div class="paddle-ball">
@@ -72,7 +98,16 @@ $brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   font-size: clamp(2rem, 5vw, 3.25rem);
   font-weight: 800;
   line-height: 1.1;
+  margin: 0 0 0.5rem;
+  text-wrap: balance;
+}
+
+.hero-subline {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 700;
+  color: #ffd86b;
   margin: 0 0 1rem;
+  text-wrap: balance;
 }
 
 .hero-accent {
@@ -84,10 +119,19 @@ $brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   max-width: 540px;
   color: rgba(255, 255, 255, 0.9);
   margin: 0;
+  text-wrap: balance;
 }
 
-.try-link {
-  text-decoration: underline;
+.try-link :deep(.q-btn__content > span.block) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.85) !important;
+  padding-bottom: 2px !important;
+}
+
+.hero-trust {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0.75rem 0 0;
+  text-wrap: balance;
 }
 
 .hero-visual {
@@ -120,8 +164,13 @@ $brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-14px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
 }
 
 @media (max-width: 599px) {
