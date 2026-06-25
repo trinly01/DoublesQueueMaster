@@ -26,6 +26,7 @@ export interface Player {
   createdAt?: number; // Epoch ms when player was first created (for checkpoint purge)
   avatar?: string; // Avatar URL from Directus
   deletedAt?: number; // Epoch ms of deletion (tombstone). If present, player is logically deleted.
+  addedAt?: number; // Epoch ms when player was last made live (add / re-add). Analogous to QueueEntry.queuedAt; decides resurrection vs tombstone.
   history?: {
     playedWith: Record<string, number>;
     playedAgainst: Record<string, number>;
@@ -949,12 +950,14 @@ export class LocalMatchmakingSystem {
         createdAt: Date.now(),
         updatedAt: Date.now(),
         statsUpdatedAt: Date.now(),
+        addedAt: Date.now(),
         ...extra,
       };
     } else {
       // if they do exist, just update the level and clear any tombstone
       this.state.players[normalizedUsername].level = level;
       delete this.state.players[normalizedUsername].deletedAt;
+      this.state.players[normalizedUsername].addedAt = Date.now();
       this.state.players[normalizedUsername].updatedAt = Date.now();
       this.state.lastModified = Date.now();
       // merge any new profile fields (e.g. firstName, avatar, userId)
@@ -1560,18 +1563,36 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   }
 
   // Handle player deletions using tombstone (deletedAt) instead of top-level lastModified.
+  // A tombstone wins when deletedAt is newer than the latest (re-)add time (addedAt),
+  // mirroring the queue queuedAt vs deletedAt logic. This prevents a stale live copy
+  // with a coincidentally high updatedAt (e.g., from a stat/rating/avatar change) from
+  // resurrecting over a newer deletion. Re-add still works because a fresh addedAt beats
+  // the old deletedAt.
   for (const username of Object.keys(mergedPlayers)) {
     const lp = localPlayers[username];
     const sp = serverPlayers[username];
     const localDeleted = lp?.deletedAt ?? 0;
     const serverDeleted = sp?.deletedAt ?? 0;
     if (localDeleted > 0 || serverDeleted > 0) {
-      const localTime = Math.max(lp?.updatedAt ?? 0, localDeleted);
-      const serverTime = Math.max(sp?.updatedAt ?? 0, serverDeleted);
-      const winner = localTime > serverTime ? lp! : sp!;
-      const loser = localTime > serverTime ? sp! : lp!;
+      const liveAddedAt = Math.max(
+        lp && !lp.deletedAt ? (lp.addedAt ?? lp.createdAt ?? 0) : 0,
+        sp && !sp.deletedAt ? (sp.addedAt ?? sp.createdAt ?? 0) : 0,
+      );
+      const tombDeletedAt = Math.max(localDeleted, serverDeleted);
 
-      // Even if the tombstone/liveness winner is chosen by updatedAt,
+      let winner: Player;
+      let loser: Player;
+      if (tombDeletedAt > liveAddedAt) {
+        // Remove happened after the latest (re-)add: tombstone wins
+        winner = localDeleted > serverDeleted ? lp! : sp!;
+        loser = localDeleted > serverDeleted ? sp! : lp!;
+      } else {
+        // (Re-)add happened after the latest removal: live copy wins
+        winner = lp && !lp.deletedAt ? lp : sp!;
+        loser = winner === lp ? sp! : lp!;
+      }
+
+      // Even if the tombstone/liveness winner is chosen by addedAt/deletedAt,
       // still overlay fresher stats from the loser if available.
       const winnerStatsAt = winner.statsUpdatedAt ?? 0;
       const loserStatsAt = loser.statsUpdatedAt ?? 0;

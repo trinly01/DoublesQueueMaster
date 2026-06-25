@@ -954,6 +954,7 @@ describe('mergeAppState — player consistency', () => {
           losses: 2,
           statsUpdatedAt: 3000,
           updatedAt: 1000,
+          addedAt: 1000,
         }),
       },
       lastModified: 1000,
@@ -963,6 +964,105 @@ describe('mergeAppState — player consistency', () => {
     expect(alice?.deletedAt).toBe(2000);
     expect(alice?.matchesPlayed).toBe(6);
     expect(alice?.wins).toBe(4);
+  });
+
+  it('player delete propagates over a stale live copy with high updatedAt', () => {
+    // Server tombstones the player. A stale offline admin holds a live copy whose
+    // updatedAt got bumped by an unrelated edit. The deletion must still win.
+    const local = makeState({
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          matchesPlayed: 6,
+          wins: 4,
+          losses: 2,
+          statsUpdatedAt: 3000,
+          updatedAt: 5000,
+          addedAt: 1000,
+        }),
+      },
+      lastModified: 5000,
+    });
+    const server = makeState({
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          matchesPlayed: 5,
+          wins: 3,
+          losses: 2,
+          updatedAt: 1000,
+          addedAt: 1000,
+          deletedAt: 2000,
+        }),
+      },
+      lastModified: 2000,
+    });
+    const merged = mergeAppState(local, server);
+    expect(merged.players.alice?.deletedAt).toBe(2000);
+    // Fresher stats from the local live copy should still be overlaid.
+    expect(merged.players.alice?.matchesPlayed).toBe(6);
+    expect(merged.players.alice?.wins).toBe(4);
+  });
+
+  it('player re-add after deletion beats a stale tombstone', () => {
+    // Server still has the old tombstone, but local re-added the player, so
+    // addedAt is newer than deletedAt. Live copy should win.
+    const local = makeState({
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          matchesPlayed: 6,
+          wins: 4,
+          losses: 2,
+          updatedAt: 3000,
+          addedAt: 3000,
+        }),
+      },
+      lastModified: 3000,
+    });
+    const server = makeState({
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          matchesPlayed: 5,
+          wins: 3,
+          losses: 2,
+          updatedAt: 1000,
+          addedAt: 1000,
+          deletedAt: 2000,
+        }),
+      },
+      lastModified: 2000,
+    });
+    const merged = mergeAppState(local, server);
+    expect(merged.players.alice?.deletedAt).toBeUndefined();
+    expect(merged.players.alice?.matchesPlayed).toBe(6);
+  });
+
+  it('player re-add with old addedAt still loses to a newer deletion', () => {
+    const local = makeState({
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          updatedAt: 3000,
+          addedAt: 1000,
+        }),
+      },
+      lastModified: 3000,
+    });
+    const server = makeState({
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          updatedAt: 1000,
+          addedAt: 1000,
+          deletedAt: 2000,
+        }),
+      },
+      lastModified: 2000,
+    });
+    const merged = mergeAppState(local, server);
+    expect(merged.players.alice?.deletedAt).toBe(2000);
   });
 
   it('concurrent rating change: higher ratingUpdatedAt wins', () => {
