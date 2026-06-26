@@ -1,0 +1,21 @@
+﻿
+=== TEAM RATING METRIC COMPARISON ===
+Data: 276 doubles matches from CSV
+
+--- Predictive performance on real doubles matches ---
+| Metric        | Accuracy | logLoss | Brier  | calMAE |
+|---------------|----------|---------|--------|--------|
+| arithmetic    |   63.0% | 0.6723 | 0.2397 | 0.0765 |
+| harmonic      |   62.7% | 0.6727 | 0.2399 | 0.0866 |
+| softHarmonic  |   62.7% | 0.6725 | 0.2398 | 0.0879 |
+
+--- 2000 + 1000 vs 1500 + 1500 expected win probabilities ---
+| Metric        | Team A rating | Team B rating | P(A wins) |
+|---------------|---------------|---------------|-----------|
+| arithmetic    |          1500 |          1500 |     50.0% |
+| harmonic      |          1333 |          1500 |     27.7% |
+| softHarmonic  |          1400 |          1500 |     36.0% |
+
+--- Interpretation ---
+Lowest logLoss on real doubles data: arithmetic (0.6723)
+Lowest calibration error: arithmetic (0.0765)

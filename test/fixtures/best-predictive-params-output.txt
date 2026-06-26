@@ -1,0 +1,39 @@
+=== BEST PREDICTIVE PARAMETERS (new CSV) ===
+Doubles matches evaluated: 387
+
+Best logLoss: 0.6764
+  kS36 kD64 mw0.15 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_underdog
+
+Best Brier: 0.2418
+  kS36 kD64 mw0.15 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_underdog
+
+Best calibration: 0.0128
+  kS36 kD56 mw0.05 gf0.5 lb1 mpr4 softHarmonic w_underdog l_underdog
+
+--- Top 25 by logLoss ---
+Rank  Config                                      logLoss  Brier    calMAE   Predictions
+   1  kS20 kD64 mw0.15 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_softUnderdog 0.6764 0.2418   0.0251         387
+   2  kS20 kD64 mw0.15 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_underdog 0.6764 0.2418   0.0251         387
+   3  kS24 kD64 mw0.15 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_softUnderdog 0.6764 0.2418   0.0251         387
+   4  kS24 kD64 mw0.15 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_underdog 0.6764 0.2418   0.0251         387
+   5  kS30 kD64 mw0.15 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_softUnderdog 0.6764 0.2418   0.0251         387
+   6  kS30 kD64 mw0.15 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_underdog 0.6764 0.2418   0.0251         387
+   7  kS36 kD64 mw0.15 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_softUnderdog 0.6764 0.2418   0.0251         387
+   8  kS36 kD64 mw0.15 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_underdog 0.6764 0.2418   0.0251         387
+   9  kS20 kD64 mw0.15 gf0.5 lb1 mpr4 arithmetic w_antiCarry l_softUnderdog 0.6764 0.2418   0.0251         387
+  10  kS20 kD64 mw0.15 gf0.5 lb1 mpr4 arithmetic w_antiCarry l_underdog 0.6764 0.2418   0.0251         387
+  11  kS24 kD64 mw0.15 gf0.5 lb1 mpr4 arithmetic w_antiCarry l_softUnderdog 0.6764 0.2418   0.0251         387
+  12  kS24 kD64 mw0.15 gf0.5 lb1 mpr4 arithmetic w_antiCarry l_underdog 0.6764 0.2418   0.0251         387
+  13  kS30 kD64 mw0.15 gf0.5 lb1 mpr4 arithmetic w_antiCarry l_softUnderdog 0.6764 0.2418   0.0251         387
+  14  kS30 kD64 mw0.15 gf0.5 lb1 mpr4 arithmetic w_antiCarry l_underdog 0.6764 0.2418   0.0251         387
+  15  kS36 kD64 mw0.15 gf0.5 lb1 mpr4 arithmetic w_antiCarry l_softUnderdog 0.6764 0.2418   0.0251         387
+  16  kS36 kD64 mw0.15 gf0.5 lb1 mpr4 arithmetic w_antiCarry l_underdog 0.6764 0.2418   0.0251         387
+  17  kS20 kD64 mw0.15 gf0.5 lb1 mpr2 softHarmonic w_antiCarry l_softUnderdog 0.6765 0.2418   0.0287         387
+  18  kS20 kD64 mw0.15 gf0.5 lb1 mpr2 softHarmonic w_antiCarry l_underdog 0.6765 0.2418   0.0287         387
+  19  kS24 kD64 mw0.15 gf0.5 lb1 mpr2 softHarmonic w_antiCarry l_softUnderdog 0.6765 0.2418   0.0287         387
+  20  kS24 kD64 mw0.15 gf0.5 lb1 mpr2 softHarmonic w_antiCarry l_underdog 0.6765 0.2418   0.0287         387
+  21  kS30 kD64 mw0.15 gf0.5 lb1 mpr2 softHarmonic w_antiCarry l_softUnderdog 0.6765 0.2418   0.0287         387
+  22  kS30 kD64 mw0.15 gf0.5 lb1 mpr2 softHarmonic w_antiCarry l_underdog 0.6765 0.2418   0.0287         387
+  23  kS36 kD64 mw0.15 gf0.5 lb1 mpr2 softHarmonic w_antiCarry l_softUnderdog 0.6765 0.2418   0.0287         387
+  24  kS36 kD64 mw0.15 gf0.5 lb1 mpr2 softHarmonic w_antiCarry l_underdog 0.6765 0.2418   0.0287         387
+  25  kS20 kD64 mw0.15 gf0.5 lb1 mpr4 softHarmonic w_antiCarry l_softUnderdog 0.6765 0.2419   0.0287         387

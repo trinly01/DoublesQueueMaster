@@ -15,6 +15,7 @@ export interface DirectusCompletedMatch {
   match_type: string;
   team_a: {
     username: string;
+    userId?: string;
     name?: string;
     firstName?: string;
     lastName?: string;
@@ -25,6 +26,7 @@ export interface DirectusCompletedMatch {
   }[];
   team_b: {
     username: string;
+    userId?: string;
     name?: string;
     firstName?: string;
     lastName?: string;
@@ -37,6 +39,18 @@ export interface DirectusCompletedMatch {
   team_b_score: number;
   completed_at: string;
   started_at?: string;
+  club: string;
+  players?: {
+    id: number;
+    directus_users_id?: {
+      id: string;
+      username?: string;
+      first_name?: string;
+      last_name?: string;
+      rating?: number;
+      avatar?: string;
+    };
+  }[];
 }
 
 export interface UserProfile {
@@ -162,9 +176,9 @@ export class PlayerProfileService {
               filter: {
                 players: { directus_users_id: { _eq: this.state.id } },
               },
-              fields: ['*'],
+              fields: ['*', 'club.id', 'players.directus_users_id.*'],
               sort: ['-completed_at'],
-              limit: 50,
+              limit: 250,
             }),
           );
 

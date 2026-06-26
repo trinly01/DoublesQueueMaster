@@ -101,81 +101,174 @@
                 Smart queue matchmaking
               </p>
             </div>
-            <div class="col-auto row items-center q-gutter-sm">
-              <q-btn
+            <div class="col-auto">
+              <q-fab
                 color="white"
-                icon="share"
-                @click="copyClubLink"
+                text-color="white"
+                icon="menu"
+                direction="down"
                 flat
-                round
-                dense
+                padding="sm"
               >
-                <q-tooltip
-                  anchor="top middle"
-                  self="bottom middle"
-                  :offset="[8, 8]"
-                  >Copy club link</q-tooltip
+                <q-fab-action
+                  color="white"
+                  text-color="primary"
+                  icon="emoji_events"
+                  @click="showLeaderboardDialog = true"
                 >
-              </q-btn>
-              <q-spinner
-                v-if="isCurrentUserAdmin && hasPendingCloudSync"
-                color="white"
-                size="20px"
-              />
-              <q-btn
-                v-if="isCurrentUserAdmin"
-                :color="ttsEnabled ? 'white' : 'amber-4'"
-                :icon="ttsEnabled ? 'volume_up' : 'volume_off'"
-                :class="{ 'speaking-pulse': isSpeaking }"
-                @click="
-                  ttsEnabled
-                    ? ((ttsEnabled = false), clearSpeechQueue())
-                    : (ttsEnabled = true)
-                "
-                flat
-                round
-                dense
-              >
-                <q-tooltip
-                  anchor="top middle"
-                  self="bottom middle"
-                  :offset="[8, 8]"
-                  >{{ ttsEnabled ? 'Mute voice' : 'Unmute voice' }}</q-tooltip
+                  <q-tooltip
+                    anchor="center left"
+                    self="center right"
+                    :offset="[8, 0]"
+                    >Leaderboard</q-tooltip
+                  >
+                </q-fab-action>
+                <q-fab-action
+                  color="white"
+                  text-color="primary"
+                  icon="share"
+                  @click="copyClubLink"
                 >
-              </q-btn>
-              <q-btn
-                v-if="isCurrentUserAdmin"
-                color="white"
-                icon="settings"
-                @click="showSettingsDialog = true"
-                flat
-                round
-                dense
-              >
-                <q-badge
-                  v-if="unreadClubFeedbackCount > 0"
-                  color="negative"
-                  floating
-                  rounded
-                  style="top: -4px; right: -4px"
+                  <q-tooltip
+                    anchor="center left"
+                    self="center right"
+                    :offset="[8, 0]"
+                    >Share</q-tooltip
+                  >
+                </q-fab-action>
+                <q-fab-action
+                  v-if="isCurrentUserAdmin"
+                  :color="ttsEnabled ? 'white' : 'amber-4'"
+                  :text-color="ttsEnabled ? 'primary' : 'white'"
+                  :icon="ttsEnabled ? 'volume_up' : 'volume_off'"
+                  :class="{ 'speaking-pulse': isSpeaking }"
+                  @click="
+                    ttsEnabled
+                      ? ((ttsEnabled = false), clearSpeechQueue())
+                      : (ttsEnabled = true)
+                  "
                 >
-                  {{
-                    unreadClubFeedbackCount > 99
-                      ? '99+'
-                      : unreadClubFeedbackCount
-                  }}
-                </q-badge>
-                <q-tooltip
-                  anchor="top middle"
-                  self="bottom middle"
-                  :offset="[8, 8]"
-                  >Settings</q-tooltip
+                  <q-tooltip
+                    anchor="center left"
+                    self="center right"
+                    :offset="[8, 0]"
+                    >{{ ttsEnabled ? 'Mute' : 'Unmute' }}</q-tooltip
+                  >
+                </q-fab-action>
+                <q-fab-action
+                  v-if="isCurrentUserAdmin"
+                  color="white"
+                  text-color="primary"
+                  icon="settings"
+                  @click="showSettingsDialog = true"
                 >
-              </q-btn>
+                  <q-badge
+                    v-if="unreadClubFeedbackCount > 0"
+                    color="negative"
+                    floating
+                    rounded
+                    style="top: -4px; right: -4px"
+                  >
+                    {{
+                      unreadClubFeedbackCount > 99
+                        ? '99+'
+                        : unreadClubFeedbackCount
+                    }}
+                  </q-badge>
+                  <q-tooltip
+                    anchor="center left"
+                    self="center right"
+                    :offset="[8, 0]"
+                    >Settings</q-tooltip
+                  >
+                </q-fab-action>
+              </q-fab>
             </div>
           </div>
         </div>
+        <q-ajax-bar
+          v-if="isCurrentUserAdmin"
+          ref="syncAjaxBar"
+          position="top"
+          color="amber-4"
+          size="3px"
+        />
       </div>
+
+      <q-dialog v-model="showLeaderboardDialog">
+        <q-card style="min-width: 320px; max-width: 90vw">
+          <q-card-section class="row items-center q-pb-none">
+            <div class="text-h6">Club Leaderboard</div>
+            <q-space />
+            <q-btn icon="close" flat round dense v-close-popup />
+          </q-card-section>
+          <q-card-section
+            class="q-px-md q-pt-xs q-pb-md"
+            style="max-height: 78vh; overflow-y: auto"
+          >
+            <div v-if="clubLeaderboardLoading" class="flex flex-center q-py-md">
+              <q-spinner color="accent" size="32px" />
+            </div>
+            <q-list separator v-else-if="clubLeaderboard.length">
+              <q-item
+                v-for="(player, idx) in clubLeaderboard"
+                :key="player.username"
+                :class="player.winRate >= 50 ? 'bg-green-1' : 'bg-red-1'"
+              >
+                <q-item-section avatar>
+                  <div class="row items-center no-wrap" style="gap: 8px">
+                    <div
+                      class="text-h6 text-weight-bold text-grey-5 text-right"
+                      style="min-width: 24px"
+                    >
+                      {{ idx + 1 }}
+                    </div>
+                    <PlayerAvatar
+                      :name="player.firstName"
+                      :username="player.username"
+                      :color="getRatingColor(player.rating || 1450)"
+                      :image-url="player.avatar"
+                      size="32px"
+                      :index="idx"
+                    />
+                  </div>
+                </q-item-section>
+                <q-item-section class="col">
+                  <q-item-label class="text-weight-medium ellipsis">
+                    {{ player.firstName || player.username }}
+                  </q-item-label>
+                  <q-item-label caption class="ellipsis"
+                    >@{{ player.username }}</q-item-label
+                  >
+                </q-item-section>
+                <q-item-section side class="text-right">
+                  <q-chip
+                    :color="getRatingColor(player.rating || 1450)"
+                    text-color="white"
+                    size="sm"
+                    dense
+                    class="text-weight-bold q-mb-xs"
+                  >
+                    {{ player.score }}
+                  </q-chip>
+                  <div class="text-caption">
+                    <span class="text-grey-10">{{ player.games }}G</span>
+                    <span class="text-green text-weight-bold q-ml-xs"
+                      >{{ player.wins || 0 }}W</span
+                    >
+                    <span class="text-red-10 q-ml-xs"
+                      >{{ player.losses || 0 }}L</span
+                    >
+                  </div>
+                </q-item-section>
+              </q-item>
+            </q-list>
+            <div v-else class="text-center text-grey q-py-md">
+              No completed matches yet.
+            </div>
+          </q-card-section>
+        </q-card>
+      </q-dialog>
 
       <div class="container q-pa-md">
         <q-banner
@@ -3085,14 +3178,17 @@ import {
   type ClubFeedbackEntry,
   type ReportItem,
 } from '../services/playerReport';
+import { type DirectusCompletedMatch } from '../services/playerProfile';
 import MatchCard from '../components/MatchCard.vue';
 import MatchResult from '../components/MatchResult.vue';
 import {
+  resolveAvatarUrl,
   formatDateOnly,
   getLevelColor,
   getLevelIcon,
   getRatingColor,
 } from '../utils/playerHelpers';
+import { replayMatches } from '../utils/ratingReplay';
 import { computeWinProbability } from '../services/matchmaking';
 import { buildDuprCsv, downloadDuprCsv } from '../utils/duprExport';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -3376,6 +3472,7 @@ const clubMembers = ref<
     id: string;
     username?: string;
     firstName?: string;
+    lastName?: string;
     email?: string;
     rating?: number;
     level?: 1 | 2 | 3;
@@ -3655,9 +3752,14 @@ const copyClubLink = async () => {
 // Cloud sync state
 const isOnline = ref(navigator.onLine);
 const hasPendingCloudSync = ref(false);
+const syncAjaxBar = ref<{ start: () => void; stop: () => void } | null>(null);
 // The server's matchmaking.lastModified that our local state was last PUSHED to.
 // Used as an optimistic-concurrency token: set ONLY after a successful write.
 const lastSyncedServerTimestamp = ref(0);
+watch(hasPendingCloudSync, (pending) => {
+  if (pending) syncAjaxBar.value?.start();
+  else syncAjaxBar.value?.stop();
+});
 const getLastSyncedKey = (clubId: string) => `last_synced_ts_${clubId}`;
 const loadLastSyncedTimestamp = (clubId: string) => {
   const saved = LocalStorage.getItem(getLastSyncedKey(clubId)) as number | null;
@@ -3811,6 +3913,7 @@ const loadClubData = async (clubId: string) => {
       currentClubUUID.value = club.id;
       clubName.value = club.name || clubId;
       MatchmakingApp.state.clubId = clubId;
+      MatchmakingApp.state.clubUUID = club.id;
 
       clubStatus.value = club.status || 'published';
 
@@ -4055,6 +4158,15 @@ const loadClubData = async (clubId: string) => {
             club.appState.uiSettings.matchesFilterBy;
         }
       }
+      // Ensure the club UUID is always present after any server state merge
+      if (currentClubUUID.value) {
+        MatchmakingApp.state.clubUUID = currentClubUUID.value;
+        // Backfill club on any completed matches that were created without it
+        MatchmakingApp.state.completedMatches.forEach((m) => {
+          if (!m.club) m.club = currentClubUUID.value;
+        });
+      }
+
       MatchmakingApp.persist();
 
       // Update our concurrency token to the server's version so subsequent syncs
@@ -4253,6 +4365,7 @@ const loadClubData = async (clubId: string) => {
     > | null;
     if (cached && Object.keys(cached).length > 0) {
       currentClubId.value = clubId;
+      MatchmakingApp.state.clubId = clubId;
 
       // Restore club metadata for admin detection
       const meta = LocalStorage.getItem(`club_meta_${clubId}`) as {
@@ -4262,6 +4375,7 @@ const loadClubData = async (clubId: string) => {
       } | null;
       if (meta) {
         currentClubUUID.value = meta.clubUUID || '';
+        MatchmakingApp.state.clubUUID = meta.clubUUID || '';
         clubAdminIds.value = new Set(meta.adminIds || []);
         clubMembers.value = meta.members || [];
         isCurrentUserMember.value =
@@ -4472,6 +4586,12 @@ const performCloudSync = async (skipServerMerge = false) => {
     // 5. Stamp, push to cloud, persist locally, and advance our base version.
     const stamp = Date.now();
     MatchmakingApp.state.lastModified = stamp;
+    MatchmakingApp.state.clubUUID = currentClubUUID.value;
+    if (currentClubUUID.value) {
+      MatchmakingApp.state.completedMatches.forEach((m) => {
+        if (!m.club) m.club = currentClubUUID.value;
+      });
+    }
 
     console.log(
       '[cloudSync] pushing — queues:',
@@ -4871,7 +4991,164 @@ watch(showAddPlayerDialog, (open) => {
   }
 });
 const showSettingsDialog = ref(false);
+const showLeaderboardDialog = ref(false);
 const settingsTab = ref<'matchmaking' | 'club' | 'feedback'>('matchmaking');
+
+type ClubLeaderboardEntry = {
+  id: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  rating: number;
+  avatar?: string;
+  wins: number;
+  losses: number;
+  games: number;
+  score: number;
+  winRate: number;
+};
+
+const clubLeaderboard = ref<ClubLeaderboardEntry[]>([]);
+const clubLeaderboardLoading = ref(false);
+
+const getClubLeaderboardCacheKey = () =>
+  `club_leaderboard_${currentClubUUID.value}`;
+const loadCachedClubLeaderboard = () => {
+  const raw = LocalStorage.getItem(getClubLeaderboardCacheKey());
+  if (!raw) return false;
+  try {
+    const cached = raw as {
+      data: ClubLeaderboardEntry[];
+      timestamp: number;
+    };
+    if (
+      cached &&
+      Array.isArray(cached.data) &&
+      Date.now() - cached.timestamp < 5 * 60 * 1000
+    ) {
+      clubLeaderboard.value = cached.data;
+      return true;
+    }
+  } catch (e) {
+    console.error('Failed to load cached club leaderboard:', e);
+  }
+  return false;
+};
+const saveCachedClubLeaderboard = () => {
+  LocalStorage.set(getClubLeaderboardCacheKey(), {
+    data: clubLeaderboard.value,
+    timestamp: Date.now(),
+  });
+};
+
+const fetchClubLeaderboard = async () => {
+  if (!currentClubUUID.value || clubLeaderboardLoading.value) return;
+  const cached = loadCachedClubLeaderboard();
+  clubLeaderboardLoading.value = !cached || clubLeaderboard.value.length === 0;
+  try {
+    const matches = (await likhaClient.request(
+      readItems('completed_match', {
+        filter: { club: { _eq: currentClubUUID.value } },
+        fields: ['*', 'players.directus_users_id.*'],
+        sort: ['-completed_at'],
+        limit: 500,
+      }),
+    )) as DirectusCompletedMatch[];
+
+    // Replay matches chronologically using the same algorithm as the rating script.
+    const replayed = replayMatches(
+      [...matches].reverse().map((m) => ({
+        teamAScore: m.team_a_score,
+        teamBScore: m.team_b_score,
+        teamA: (m.team_a || []).map((p) => ({
+          username: p.username,
+          name: p.firstName,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          rating: p.rating,
+          avatar: p.avatar,
+        })),
+        teamB: (m.team_b || []).map((p) => ({
+          username: p.username,
+          name: p.firstName,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          rating: p.rating,
+          avatar: p.avatar,
+        })),
+      })),
+    );
+
+    // Build registered-user info map from the players junction.
+    const userMap = new Map<
+      string,
+      {
+        firstName: string;
+        lastName: string;
+        avatar?: string;
+      }
+    >();
+    for (const m of matches) {
+      for (const jp of m.players || []) {
+        const user = jp.directus_users_id;
+        if (!user?.username) continue;
+        userMap.set(user.username, {
+          firstName: user.first_name || user.username,
+          lastName: user.last_name || '',
+          avatar: resolveAvatarUrl(user.avatar),
+        });
+      }
+    }
+
+    const memberMap = new Map(clubMembers.value.map((m) => [m.username, m]));
+    const list = Object.values(replayed)
+      .filter((p) => userMap.has(p.username))
+      .map((p) => {
+        const user = userMap.get(p.username);
+        const member = memberMap.get(p.username);
+        return {
+          id: member?.id || p.username,
+          username: p.username,
+          firstName: member?.firstName || user?.firstName || p.firstName,
+          lastName: member?.lastName || user?.lastName || p.lastName,
+          rating: p.rating,
+          avatar: resolveAvatarUrl(member?.avatar || user?.avatar || p.avatar),
+          wins: p.wins,
+          losses: p.losses,
+          games: p.matchesPlayed,
+          score: Math.round(p.rating),
+          winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
+        };
+      });
+    const sorted = list.sort(
+      (a, b) => b.score - a.score || (b.rating || 1450) - (a.rating || 1450),
+    );
+    clubLeaderboard.value = sorted.slice(0, 20);
+    saveCachedClubLeaderboard();
+    console.log(
+      '[fetchClubLeaderboard] matches:',
+      matches.length,
+      'players:',
+      list.length,
+      'leaderboard:',
+      clubLeaderboard.value,
+    );
+  } catch (err) {
+    console.error('Failed to fetch club leaderboard:', err);
+    if (!cached || clubLeaderboard.value.length === 0) {
+      clubLeaderboard.value = [];
+    }
+  } finally {
+    clubLeaderboardLoading.value = false;
+  }
+};
+
+watch(showLeaderboardDialog, (open) => {
+  if (open) {
+    fetchClubLeaderboard();
+  }
+});
+
 const clubFeedback = ref<ClubFeedbackEntry[]>([]);
 const clubFeedbackLoading = ref(false);
 const clubFeedbackReadKey = computed(
@@ -5928,6 +6205,11 @@ const completeMatch = () => {
 
   const scoreA = Number(teamAScore.value) || 0;
   const scoreB = Number(teamBScore.value) || 0;
+
+  // Ensure the completed match is tagged with the current club UUID
+  if (currentClubUUID.value && !MatchmakingApp.state.clubUUID) {
+    MatchmakingApp.state.clubUUID = currentClubUUID.value;
+  }
 
   if (scoreA === scoreB) {
     notify({
@@ -7632,6 +7914,16 @@ const savePlayerEdit = () => {
   color: white;
   padding: 1rem 0;
   margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.club-sync-bar {
+  position: absolute !important;
+  top: auto !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 10;
 }
 
 // Column header gradients matching the header theme

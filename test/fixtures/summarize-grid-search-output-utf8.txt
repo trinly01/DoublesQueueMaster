@@ -1,0 +1,75 @@
+﻿
+--- TOP 10 RESET-PER-EVENT (best fair for tournaments) ---
++----+----------------------------------------------------------------------------------------+---------------------+--------------------+---------------------+---------------------+-------------+----------+
+| #  | Engine                                                                                 | composite           | logLoss            | brier               | calMAE              | partnerDiff | absDrift |
++----+----------------------------------------------------------------------------------------+---------------------+--------------------+---------------------+---------------------+-------------+----------+
+|  1 | reset_per_event softHarmonic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.25 lb1 mpr2   | 0.41569115555780123 | 0.6771601972581583 | 0.24209676269808472 | 0.05217391304347825 |       83.3% |        0 |
+|  2 | reset_per_event softHarmonic antiCarry underdog kD64 kS20 mw0.15 gf0.25 lb1 mpr2       | 0.41569115555780123 | 0.6771601972581583 | 0.24209676269808472 | 0.05217391304347825 |       83.3% |        0 |
+|  3 | reset_per_event softHarmonic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.25 lb1 mpr4   | 0.41569115555780123 | 0.6771601972581583 | 0.24209676269808472 | 0.05217391304347825 |       83.3% |        0 |
+|  4 | reset_per_event softHarmonic antiCarry underdog kD64 kS20 mw0.15 gf0.25 lb1 mpr4       | 0.41569115555780123 | 0.6771601972581583 | 0.24209676269808472 | 0.05217391304347825 |       83.3% |        0 |
+|  5 | reset_per_event softHarmonic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.25 lb1 mpr999 | 0.41569115555780123 | 0.6771601972581583 | 0.24209676269808472 | 0.05217391304347825 |       83.3% |        0 |
+|  6 | reset_per_event softHarmonic antiCarry underdog kD64 kS20 mw0.15 gf0.25 lb1 mpr999     | 0.41569115555780123 | 0.6771601972581583 | 0.24209676269808472 | 0.05217391304347825 |       83.3% |        0 |
+|  7 | reset_per_event softHarmonic antiCarry softUnderdog kD64 kS24 mw0.15 gf0.25 lb1 mpr2   | 0.41569115555780123 | 0.6771601972581583 | 0.24209676269808472 | 0.05217391304347825 |       83.3% |        0 |
+|  8 | reset_per_event softHarmonic antiCarry underdog kD64 kS24 mw0.15 gf0.25 lb1 mpr2       | 0.41569115555780123 | 0.6771601972581583 | 0.24209676269808472 | 0.05217391304347825 |       83.3% |        0 |
+|  9 | reset_per_event softHarmonic antiCarry softUnderdog kD64 kS24 mw0.15 gf0.25 lb1 mpr4   | 0.41569115555780123 | 0.6771601972581583 | 0.24209676269808472 | 0.05217391304347825 |       83.3% |        0 |
+| 10 | reset_per_event softHarmonic antiCarry underdog kD64 kS24 mw0.15 gf0.25 lb1 mpr4       | 0.41569115555780123 | 0.6771601972581583 | 0.24209676269808472 | 0.05217391304347825 |       83.3% |        0 |
++----+----------------------------------------------------------------------------------------+---------------------+--------------------+---------------------+---------------------+-------------+----------+
+
+--- TOP 10 FIRST-OBSERVED (uses existing player ratings) ---
++----+------------------------------------------------------------------------------------+---------------------+--------------------+---------------------+----------------------+-------------+----------+
+| #  | Engine                                                                             | composite           | logLoss            | brier               | calMAE               | partnerDiff | absDrift |
++----+------------------------------------------------------------------------------------+---------------------+--------------------+---------------------+----------------------+-------------+----------+
+|  1 | first_observed arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.5 lb1 mpr4   | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  2 | first_observed arithmetic antiCarry underdog kD64 kS20 mw0.15 gf0.5 lb1 mpr4       | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  3 | first_observed arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.5 lb1 mpr999 | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  4 | first_observed arithmetic antiCarry underdog kD64 kS20 mw0.15 gf0.5 lb1 mpr999     | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  5 | first_observed arithmetic antiCarry softUnderdog kD64 kS24 mw0.15 gf0.5 lb1 mpr4   | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  6 | first_observed arithmetic antiCarry underdog kD64 kS24 mw0.15 gf0.5 lb1 mpr4       | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  7 | first_observed arithmetic antiCarry softUnderdog kD64 kS24 mw0.15 gf0.5 lb1 mpr999 | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  8 | first_observed arithmetic antiCarry underdog kD64 kS24 mw0.15 gf0.5 lb1 mpr999     | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  9 | first_observed arithmetic antiCarry softUnderdog kD64 kS28 mw0.15 gf0.5 lb1 mpr4   | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+| 10 | first_observed arithmetic antiCarry underdog kD64 kS28 mw0.15 gf0.5 lb1 mpr4       | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
++----+------------------------------------------------------------------------------------+---------------------+--------------------+---------------------+----------------------+-------------+----------+
+
+--- TOP 5 PREDICTIVE (reset_per_event) ---
++---+--------------------------------------------------------------------------------------+--------------------+---------------------+---------------------+-------------+
+| # | Engine                                                                               | logLoss            | brier               | calMAE              | partnerDiff |
++---+--------------------------------------------------------------------------------------+--------------------+---------------------+---------------------+-------------+
+| 1 | reset_per_event arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.75 lb0 mpr2   | 0.6766168674451476 | 0.24184126594447042 | 0.06231884057971017 |       52.8% |
+| 2 | reset_per_event arithmetic antiCarry underdog kD64 kS20 mw0.15 gf0.75 lb0 mpr2       | 0.6766168674451476 | 0.24184126594447042 | 0.06231884057971017 |       52.8% |
+| 3 | reset_per_event arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.75 lb0 mpr4   | 0.6766168674451476 | 0.24184126594447042 | 0.06231884057971017 |       52.8% |
+| 4 | reset_per_event arithmetic antiCarry underdog kD64 kS20 mw0.15 gf0.75 lb0 mpr4       | 0.6766168674451476 | 0.24184126594447042 | 0.06231884057971017 |       52.8% |
+| 5 | reset_per_event arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.75 lb0 mpr999 | 0.6766168674451476 | 0.24184126594447042 | 0.06231884057971017 |       52.8% |
++---+--------------------------------------------------------------------------------------+--------------------+---------------------+---------------------+-------------+
+
+--- TOP 5 PREDICTIVE (first_observed) ---
++---+----------------------------------------------------------------------------------+--------------------+---------------------+--------------------+-------------+
+| # | Engine                                                                           | logLoss            | brier               | calMAE             | partnerDiff |
++---+----------------------------------------------------------------------------------+--------------------+---------------------+--------------------+-------------+
+| 1 | first_observed arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf1 lb1 mpr4   | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+| 2 | first_observed arithmetic antiCarry underdog kD64 kS20 mw0.15 gf1 lb1 mpr4       | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+| 3 | first_observed arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf1 lb1 mpr999 | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+| 4 | first_observed arithmetic antiCarry underdog kD64 kS20 mw0.15 gf1 lb1 mpr999     | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+| 5 | first_observed arithmetic antiCarry softUnderdog kD64 kS24 mw0.15 gf1 lb1 mpr4   | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
++---+----------------------------------------------------------------------------------+--------------------+---------------------+--------------------+-------------+
+
+--- CURRENT PRODUCTION CONFIG ---
++-----------------------+--------------------------------------------------------------------------------------+-----------+---------+--------+--------+-------------+----------+
+| Role                  | Engine                                                                               | composite | logLoss | brier  | calMAE | partnerDiff | absDrift |
++-----------------------+--------------------------------------------------------------------------------------+-----------+---------+--------+--------+-------------+----------+
+| PROD (first_observed) | first_observed arithmetic antiCarry softUnderdog kD48 kS24 mw0.1 gf0.75 lb0.75 mpr2  |    0.3231 |  0.6714 | 0.2392 | 0.0580 |       70.1% |   0.0000 |
+| PROD (reset/event)    | reset_per_event arithmetic antiCarry softUnderdog kD48 kS24 mw0.1 gf0.75 lb0.75 mpr2 |    0.6213 |  0.6806 | 0.2438 | 0.0529 |       51.7% |   0.0000 |
++-----------------------+--------------------------------------------------------------------------------------+-----------+---------+--------+--------+-------------+----------+
+
+=== FINAL RECOMMENDATION ===
+Best fair tournament engine (reset per event): reset_per_event softHarmonic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.25 lb1 mpr2
+  logLoss=0.6772 brier=0.2421 calMAE=0.0522 partnerDiff=83.3% absDrift=0.0000
+
+Best engine using existing ratings (first_observed): first_observed arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.5 lb1 mpr4
+  logLoss=0.6685 brier=0.2378 calMAE=0.0500 partnerDiff=89.5% absDrift=0.0000
+
+Best predictive (reset per event): reset_per_event arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.75 lb0 mpr2
+  logLoss=0.6766 brier=0.2418 calMAE=0.0623
+
+Best predictive (first_observed): first_observed arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf1 lb1 mpr4
+  logLoss=0.6679 brier=0.2375 calMAE=0.0678

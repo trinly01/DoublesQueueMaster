@@ -87,7 +87,7 @@ describe('RatingEngine.calculateShift', () => {
     expect(lowRatedGain).toBeGreaterThan(highRatedGain);
   });
 
-  it('mixed team loss: soft underdog means higher-rated partner pays more, but not much more', () => {
+  it('mixed team loss: underdog means higher-rated partner pays more', () => {
     const w = [makePlayer(1500), makePlayer(1500)];
     const l = [makePlayer(2000), makePlayer(1000)];
     const r = RatingEngine.calculateShift(w, l, 11, 9);
@@ -95,11 +95,11 @@ describe('RatingEngine.calculateShift', () => {
     const highRatedLoss = 2000 - r.updatedLosers[0].rating;
     const lowRatedLoss = 1000 - r.updatedLosers[1].rating;
     expect(highRatedLoss).toBeGreaterThan(lowRatedLoss);
-    expect(Math.abs(highRatedLoss - lowRatedLoss)).toBeLessThanOrEqual(15);
+    expect(Math.abs(highRatedLoss - lowRatedLoss)).toBeLessThanOrEqual(30);
     expect(highRatedLoss).toBeGreaterThan(0);
   });
 
-  it('per-player swing: singles (K=24) equals doubles per-player (K=48 split by 2)', () => {
+  it('per-player swing: singles (K=36) equals doubles per-player (K=64 split by 4)', () => {
     const sW = [makePlayer(1500)];
     const sL = [makePlayer(1500)];
     const dW = [makePlayer(1500), makePlayer(1500)];
@@ -110,9 +110,9 @@ describe('RatingEngine.calculateShift', () => {
 
     const sGain = singles.updatedWinners[0].rating - 1500;
     const dGain = doubles.updatedWinners[0].rating - 1500;
-    // K_SINGLES=24 means the full singles pool is 24, divided by 2 players.
-    // K_DOUBLES=48 means the doubles pool is 48, divided by 4 players.
-    // Both formats yield ~12 points per player for an even close match.
+    // K_SINGLES=36 means the full singles pool is ~20, divided by 2 players.
+    // K_DOUBLES=64 means the doubles pool is ~35, divided by 4 players.
+    // Both formats yield ~10 points per player for an even close match.
     expect(Math.abs(sGain - dGain)).toBeLessThanOrEqual(2);
   });
 
@@ -162,9 +162,9 @@ describe('RatingEngine.calculateShift', () => {
     const r = RatingEngine.calculateShift(w, l, 11, 1);
     const rommelLoss = 1514 - r.updatedLosers[0].rating;
     const abbeyLoss = 1441 - r.updatedLosers[1].rating;
-    // Soft underdog losses: higher-rated Rommel pays slightly more.
+    // Underdog losses: higher-rated Rommel pays more.
     expect(rommelLoss).toBeGreaterThan(abbeyLoss);
-    expect(Math.abs(rommelLoss - abbeyLoss)).toBeLessThanOrEqual(2);
+    expect(Math.abs(rommelLoss - abbeyLoss)).toBeLessThanOrEqual(5);
     expect(rommelLoss).toBeGreaterThan(0);
   });
 
@@ -180,9 +180,9 @@ describe('RatingEngine.calculateShift', () => {
     const r = RatingEngine.calculateShift(w, l, 11, 2);
     const trinLoss = 1636 - r.updatedLosers[1].rating;
     const jaysonLoss = 1400 - r.updatedLosers[0].rating;
-    // Soft underdog losses: higher-rated Trin pays more than Jayson.
+    // Underdog losses: higher-rated Trin pays more than Jayson.
     expect(trinLoss).toBeGreaterThan(jaysonLoss);
-    expect(Math.abs(trinLoss - jaysonLoss)).toBeLessThanOrEqual(8);
+    expect(Math.abs(trinLoss - jaysonLoss)).toBeLessThanOrEqual(15);
     expect(trinLoss).toBeGreaterThan(0);
   });
 
@@ -216,7 +216,7 @@ describe('RatingEngine.calculateShift', () => {
     expect(weakGain).toBeGreaterThan(strongGain);
     // Anti-carry: the gap penalty keeps the difference reasonable. With the
     // old pure underdog model the weak partner would have taken most of the pool.
-    expect(weakGain - strongGain).toBeLessThan(10);
+    expect(weakGain - strongGain).toBeLessThan(15);
   });
 });
 
@@ -273,6 +273,7 @@ const makeCompletedMatch = (
   teamBScore: 9,
   completedAt: 2000,
   updatedAt: 2000,
+  club: 'test-club-uuid',
   ...overrides,
 });
 
@@ -524,6 +525,7 @@ describe('mergeAppState — queue deletion / resurrection', () => {
           teamBScore: 9,
           completedAt: 2000,
           updatedAt: 2000,
+          club: 'test-club-uuid',
         },
       ],
       lastModified: 2000,

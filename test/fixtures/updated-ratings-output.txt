@@ -1,0 +1,221 @@
+=== UPDATED PLAYER RATINGS ===
+Matches processed: 440
+Players: 102
+
+Config: K_SINGLES=36, K_DOUBLES=64, marginWeight=0.15, partnerGapFactor=0.5, lossUnderdogBlend=1, maxPartnerRatio=2, teamMetric=arithmetic
+
+--- TIER DISTRIBUTION ---
+Beginner (<1400):      19
+Intermediate (1400-1699): 82
+Advanced (1700-1899):  1
+Expert (1900-2099):    0
+Pro (2100+):           0
+
+--- LEADERBOARD ---
+  #  Player                        Username                        Rating   Initial       Δ     G     W     L
+  1  SHIRWIN DELA CUADRA           shirwin.delacuadra#7la            1706      1450    +256    20    19     1
+  2  EddieWow Datuin jr            jundatuin#r7c                     1603      1450    +153    96    54    42
+  3  Mac Flores                    flores2flores78#j0q               1587      1450    +137    23    15     8
+  4  Gab Saturnino                 gabrielsaturnino101495#zg4        1580      1450    +130    14    11     3
+  5  Franks                        Franks                            1579      1450    +129     9     8     1
+  6  Jhem Fabular                  fjhemcarlo#xac                    1566      1450    +116    12     9     3
+  7  Tristan Soriano               stannot16#5qp                     1566      1450    +116    15    11     4
+  8  Cristobal Eslabra             crisnrose556#ois                  1557      1450    +107    23    14     9
+  9  Trin BOADO                    trinmar.boado                     1555      1450    +105    59    37    22
+ 10  Jimboy Carlos                 mantappancing29#gk1               1555      1450    +105    15    11     4
+ 11  Celine Maquiling              jocelynmaquiling17#w0q            1551      1450    +101    94    53    41
+ 12  Rommel Sandoval               rommeldagaragsandoval#jj1         1545      1450     +95    39    21    18
+ 13  Joven Eslabra                 shanjm89#nuh                      1544      1450     +94    48    27    21
+ 14  Ferjel Joy Celes              ferjeljoyceles#ej2                1543      1450     +93     5     5     0
+ 15  Froi O                        felcar40#r8l                      1528      1450     +78     4     4     0
+ 16  Lenz Gachallan                gachallanf#mpr                    1521      1450     +71    15    10     5
+ 17  Elijah Lomo                   elijahlomo#rut                    1520      1450     +70     6     5     1
+ 18  Boyet Castillo                boyet.castillo74#p2l              1505      1450     +55    26    15    11
+ 19  Jeyster De Vera               deveramoy410#dx8                  1500      1450     +50    20    12     8
+ 20  Bentot Catalan                punkyou03#tmz                     1497      1450     +47    23    14     9
+ 21  JERRY Dela Cruz               jerrydelacruz338#2by              1496      1450     +46     7     5     2
+ 22  Shem Quiatchon                shemv.quiatchon#myh               1494      1450     +44     4     3     1
+ 23  John Rey Samson               samsonjohnrey#c8c                 1489      1450     +39     6     4     2
+ 24  Erica Giecha Ejona            ericagiecha#9tn                   1488      1450     +38     4     3     1
+ 25  franz pasaoa                  franzpasaoa7#l9g                  1486      1450     +36     2     2     0
+ 26  Maria Patricia Manansala      ohitstricia07#2hk                 1485      1450     +35    25    14    11
+ 27  John Cezar Bragasin           abenezer26#o9t                    1483      1450     +33     5     3     2
+ 28  Peejay Sandoval               sandoval.peejay02#pjf             1478      1450     +28    50    24    26
+ 29  fsdf                          fsdf                              1476      1450     +26     1     1     0
+ 30  sdf                           sdf                               1476      1450     +26     1     1     0
+ 31  Player4                       Player4                           1472      1450     +22     1     1     0
+ 32  Jayson Hazim                  jaysonfitnesszone#40l             1470      1450     +20    52    26    26
+ 33  Lucille                       Lucille                           1469      1450     +19     5     3     2
+ 34  Player7                       Player7                           1468      1450     +18     5     3     2
+ 35  Mica                          Mica                              1468      1450     +18     3     2     1
+ 36  Player8                       Player8                           1467      1450     +17     1     1     0
+ 37  Nickolai Ventura              nickolaiventura#oph               1464      1450     +14     3     2     1
+ 38  Imms                          Imms                              1463      1450     +13     5     3     2
+ 39  Mitch Sharif                  georannie42#bzh                   1460      1450     +10     7     4     3
+ 40  Jel Manganaan                 jelenamanganaan1012#zv5           1459      1450      +9    50    27    23
+ 41  Henri Querimit                querimithenri015#jcd              1458      1450      +8    42    21    21
+ 42  Dominic Andrada               nico.andrada#2a2                  1456      1450      +6    36    16    20
+ 43  Player6                       Player6                           1456      1450      +6     4     2     2
+ 44  Aira Jane Perez               airajanegp1998#nkz                1456      1450      +6     4     2     2
+ 45  Player9                       Player9                           1454      1450      +4     2     1     1
+ 46  Seyong                        Seyong                            1451      1450      +1     4     2     2
+ 47  Rosalyn                       Rosalyn                           1448      1450      -2     2     1     1
+ 48  Fina                          Fina                              1448      1450      -2     2     1     1
+ 49  Arvin Cabanlig                arvin.cabanlig#g97                1447      1450      -3    14     7     7
+ 50  Casie                         Casie                             1446      1450      -4     4     2     2
+ 51  Triane Soriano                sorianotriane#689                 1446      1450      -4    11     5     6
+ 52  Sheree Villegas               shereevillegas28#v55              1444      1450      -6     8     4     4
+ 53  Ednalyn Pasaoa                pasaoaednalyn830#flz              1442      1450      -8    27    12    15
+ 54  Jecs                          Jecs                              1440      1450     -10     4     2     2
+ 55  RC TERSOL                     rc.tersol001#vi5                  1437      1450     -13    46    23    23
+ 56  Jur                           Jur                               1437      1450     -13     6     3     3
+ 57  Abbey Victor Querimit         abvicquerimit#m4g                 1437      1450     -13    46    22    24
+ 58  Jayster                       Jayster                           1435      1450     -15     5     2     3
+ 59  Mike                          Mike                              1434      1450     -16     3     1     2
+ 60  Franks Sarmiento              michaelfrankssarmiento#oeu        1434      1450     -16     1     0     1
+ 61  romel saclolo                 lemorsaclolo#dxo                  1433      1450     -17    42    22    20
+ 62  Luv Boado                     lovely.boado24#5lh                1433      1450     -17    57    26    31
+ 63  Rosalie                       Rosalie                           1432      1450     -18     1     0     1
+ 64  Player3                       Player3                           1429      1450     -21     1     0     1
+ 65  Player2                       Player2                           1429      1450     -21     1     0     1
+ 66  sdsd                          sdsd                              1428      1450     -22     1     0     1
+ 67  Mark Jecson Joves             jecs008#7mn                       1428      1450     -22     5     2     3
+ 68  Player13                      Player13                          1427      1450     -23     1     0     1
+ 69  She                           She                               1427      1450     -23     3     1     2
+ 70  Matthew Brian Munar           matthewbrian05.munar#x23          1427      1450     -23    13     6     7
+ 71  5                             5                                 1426      1450     -24     1     0     1
+ 72  4                             4                                 1424      1450     -26     1     0     1
+ 73  Calic Sandoval                calicsandoval#m9y                 1424      1450     -26    17     8     9
+ 74  Jun Fabia                     fabiajun62#1y1                    1422      1450     -28     5     2     3
+ 75  Tonii                         Tonii                             1421      1450     -29     3     1     2
+ 76  Joseph Cirineo                danjosephcirineo15#afu            1417      1450     -33     5     2     3
+ 77  panzer owning                 daryllworld1#bnh                  1413      1450     -37     2     0     2
+ 78  Dee Cee                       dexterclauna#op3                  1410      1450     -40    39    19    20
+ 79  Beverly Disu                  beverlydisu2021#tz4               1410      1450     -40    34    14    20
+ 80  Player5                       Player5                           1409      1450     -41     2     0     2
+ 81  Khenjie                       Khenjie                           1409      1450     -41     2     0     2
+ 82  Hazel Eslabra                 hazelhiquiana22#890               1405      1450     -45    32    13    19
+ 83  Josue Munar                   josuemunar1#302                   1400      1450     -50    15     7     8
+ 84  Dimple Bascon                 lykamariebascon#v9b               1399      1450     -51    23    10    13
+ 85  Mitch                         Mitch                             1398      1450     -52     7     2     5
+ 86  Imz                           Imz                               1392      1450     -58    10     3     7
+ 87  Michaella Erfe                shirokupower#5nn                  1392      1450     -58     3     0     3
+ 88  Lucille Regatcho              lucilleregatcho#vbq               1380      1450     -70     3     0     3
+ 89  James Manganaan               jamesmanganaan1808#1xb            1377      1450     -73    68    30    38
+ 90  Anton Catalan                 antonrafaelcatalan#71o            1369      1450     -81    22     9    13
+ 91  Joshua pepito Palaylay        joshuapepitopalaylay#nr8          1369      1450     -81     6     1     5
+ 92  Imma Candilosas               immacandilosas12#wlj              1368      1450     -82     4     0     4
+ 93  Kenji                         Kenji                             1366      1450     -84     7     1     6
+ 94  Grace Estayo                  gracebackupmail#2t9               1360      1450     -90    10     2     8
+ 95  Sherwin Saingan               sherwin.paolo4#mio                1352      1450     -98     5     0     5
+ 96  Francis Cariño                carinofrancis79#jgq               1344      1450    -106    11     2     9
+ 97  Pepito                        Pepito                            1336      1450    -114     6     0     6
+ 98  Tj Eslabra                    Timdev0421#tru                    1335      1450    -115    22     7    15
+ 99  Cassie                        Cassie                            1304      1450    -146    14     3    11
+100  Rosalie Eslabra               rosenrafncara#69g                 1272      1450    -178    20     4    16
+101  Shane Malapit                 arnold_malapit3773#6h9            1267      1450    -183    41    11    30
+102  Sandro Quinto                 sandroquinto1107#fhh              1262      1450    -188    13     1    12
+
+--- PER-PLAYER RATINGS (alphabetical) ---
+4                              4                              rating=  1424 initial=  1450 Δ=   -26 G=  1 W=  0 L=  1
+5                              5                              rating=  1426 initial=  1450 Δ=   -24 G=  1 W=  0 L=  1
+Abbey Victor Querimit          abvicquerimit#m4g              rating=  1437 initial=  1450 Δ=   -13 G= 46 W= 22 L= 24
+Aira Jane Perez                airajanegp1998#nkz             rating=  1456 initial=  1450 Δ=    +6 G=  4 W=  2 L=  2
+Anton Catalan                  antonrafaelcatalan#71o         rating=  1369 initial=  1450 Δ=   -81 G= 22 W=  9 L= 13
+Arvin Cabanlig                 arvin.cabanlig#g97             rating=  1447 initial=  1450 Δ=    -3 G= 14 W=  7 L=  7
+Bentot Catalan                 punkyou03#tmz                  rating=  1497 initial=  1450 Δ=   +47 G= 23 W= 14 L=  9
+Beverly Disu                   beverlydisu2021#tz4            rating=  1410 initial=  1450 Δ=   -40 G= 34 W= 14 L= 20
+Boyet Castillo                 boyet.castillo74#p2l           rating=  1505 initial=  1450 Δ=   +55 G= 26 W= 15 L= 11
+Calic Sandoval                 calicsandoval#m9y              rating=  1424 initial=  1450 Δ=   -26 G= 17 W=  8 L=  9
+Casie                          Casie                          rating=  1446 initial=  1450 Δ=    -4 G=  4 W=  2 L=  2
+Cassie                         Cassie                         rating=  1304 initial=  1450 Δ=  -146 G= 14 W=  3 L= 11
+Celine Maquiling               jocelynmaquiling17#w0q         rating=  1551 initial=  1450 Δ=  +101 G= 94 W= 53 L= 41
+Cristobal Eslabra              crisnrose556#ois               rating=  1557 initial=  1450 Δ=  +107 G= 23 W= 14 L=  9
+Dee Cee                        dexterclauna#op3               rating=  1410 initial=  1450 Δ=   -40 G= 39 W= 19 L= 20
+Dimple Bascon                  lykamariebascon#v9b            rating=  1399 initial=  1450 Δ=   -51 G= 23 W= 10 L= 13
+Dominic Andrada                nico.andrada#2a2               rating=  1456 initial=  1450 Δ=    +6 G= 36 W= 16 L= 20
+EddieWow Datuin jr             jundatuin#r7c                  rating=  1603 initial=  1450 Δ=  +153 G= 96 W= 54 L= 42
+Ednalyn Pasaoa                 pasaoaednalyn830#flz           rating=  1442 initial=  1450 Δ=    -8 G= 27 W= 12 L= 15
+Elijah Lomo                    elijahlomo#rut                 rating=  1520 initial=  1450 Δ=   +70 G=  6 W=  5 L=  1
+Erica Giecha Ejona             ericagiecha#9tn                rating=  1488 initial=  1450 Δ=   +38 G=  4 W=  3 L=  1
+Ferjel Joy Celes               ferjeljoyceles#ej2             rating=  1543 initial=  1450 Δ=   +93 G=  5 W=  5 L=  0
+Fina                           Fina                           rating=  1448 initial=  1450 Δ=    -2 G=  2 W=  1 L=  1
+Francis Cariño                 carinofrancis79#jgq            rating=  1344 initial=  1450 Δ=  -106 G= 11 W=  2 L=  9
+Franks                         Franks                         rating=  1579 initial=  1450 Δ=  +129 G=  9 W=  8 L=  1
+Franks Sarmiento               michaelfrankssarmiento#oeu     rating=  1434 initial=  1450 Δ=   -16 G=  1 W=  0 L=  1
+franz pasaoa                   franzpasaoa7#l9g               rating=  1486 initial=  1450 Δ=   +36 G=  2 W=  2 L=  0
+Froi O                         felcar40#r8l                   rating=  1528 initial=  1450 Δ=   +78 G=  4 W=  4 L=  0
+fsdf                           fsdf                           rating=  1476 initial=  1450 Δ=   +26 G=  1 W=  1 L=  0
+Gab Saturnino                  gabrielsaturnino101495#zg4     rating=  1580 initial=  1450 Δ=  +130 G= 14 W= 11 L=  3
+Grace Estayo                   gracebackupmail#2t9            rating=  1360 initial=  1450 Δ=   -90 G= 10 W=  2 L=  8
+Hazel Eslabra                  hazelhiquiana22#890            rating=  1405 initial=  1450 Δ=   -45 G= 32 W= 13 L= 19
+Henri Querimit                 querimithenri015#jcd           rating=  1458 initial=  1450 Δ=    +8 G= 42 W= 21 L= 21
+Imma Candilosas                immacandilosas12#wlj           rating=  1368 initial=  1450 Δ=   -82 G=  4 W=  0 L=  4
+Imms                           Imms                           rating=  1463 initial=  1450 Δ=   +13 G=  5 W=  3 L=  2
+Imz                            Imz                            rating=  1392 initial=  1450 Δ=   -58 G= 10 W=  3 L=  7
+James Manganaan                jamesmanganaan1808#1xb         rating=  1377 initial=  1450 Δ=   -73 G= 68 W= 30 L= 38
+Jayson Hazim                   jaysonfitnesszone#40l          rating=  1470 initial=  1450 Δ=   +20 G= 52 W= 26 L= 26
+Jayster                        Jayster                        rating=  1435 initial=  1450 Δ=   -15 G=  5 W=  2 L=  3
+Jecs                           Jecs                           rating=  1440 initial=  1450 Δ=   -10 G=  4 W=  2 L=  2
+Jel Manganaan                  jelenamanganaan1012#zv5        rating=  1459 initial=  1450 Δ=    +9 G= 50 W= 27 L= 23
+JERRY Dela Cruz                jerrydelacruz338#2by           rating=  1496 initial=  1450 Δ=   +46 G=  7 W=  5 L=  2
+Jeyster De Vera                deveramoy410#dx8               rating=  1500 initial=  1450 Δ=   +50 G= 20 W= 12 L=  8
+Jhem Fabular                   fjhemcarlo#xac                 rating=  1566 initial=  1450 Δ=  +116 G= 12 W=  9 L=  3
+Jimboy Carlos                  mantappancing29#gk1            rating=  1555 initial=  1450 Δ=  +105 G= 15 W= 11 L=  4
+John Cezar Bragasin            abenezer26#o9t                 rating=  1483 initial=  1450 Δ=   +33 G=  5 W=  3 L=  2
+John Rey Samson                samsonjohnrey#c8c              rating=  1489 initial=  1450 Δ=   +39 G=  6 W=  4 L=  2
+Joseph Cirineo                 danjosephcirineo15#afu         rating=  1417 initial=  1450 Δ=   -33 G=  5 W=  2 L=  3
+Joshua pepito Palaylay         joshuapepitopalaylay#nr8       rating=  1369 initial=  1450 Δ=   -81 G=  6 W=  1 L=  5
+Josue Munar                    josuemunar1#302                rating=  1400 initial=  1450 Δ=   -50 G= 15 W=  7 L=  8
+Joven Eslabra                  shanjm89#nuh                   rating=  1544 initial=  1450 Δ=   +94 G= 48 W= 27 L= 21
+Jun Fabia                      fabiajun62#1y1                 rating=  1422 initial=  1450 Δ=   -28 G=  5 W=  2 L=  3
+Jur                            Jur                            rating=  1437 initial=  1450 Δ=   -13 G=  6 W=  3 L=  3
+Kenji                          Kenji                          rating=  1366 initial=  1450 Δ=   -84 G=  7 W=  1 L=  6
+Khenjie                        Khenjie                        rating=  1409 initial=  1450 Δ=   -41 G=  2 W=  0 L=  2
+Lenz Gachallan                 gachallanf#mpr                 rating=  1521 initial=  1450 Δ=   +71 G= 15 W= 10 L=  5
+Lucille                        Lucille                        rating=  1469 initial=  1450 Δ=   +19 G=  5 W=  3 L=  2
+Lucille Regatcho               lucilleregatcho#vbq            rating=  1380 initial=  1450 Δ=   -70 G=  3 W=  0 L=  3
+Luv Boado                      lovely.boado24#5lh             rating=  1433 initial=  1450 Δ=   -17 G= 57 W= 26 L= 31
+Mac Flores                     flores2flores78#j0q            rating=  1587 initial=  1450 Δ=  +137 G= 23 W= 15 L=  8
+Maria Patricia Manansala       ohitstricia07#2hk              rating=  1485 initial=  1450 Δ=   +35 G= 25 W= 14 L= 11
+Mark Jecson Joves              jecs008#7mn                    rating=  1428 initial=  1450 Δ=   -22 G=  5 W=  2 L=  3
+Matthew Brian Munar            matthewbrian05.munar#x23       rating=  1427 initial=  1450 Δ=   -23 G= 13 W=  6 L=  7
+Mica                           Mica                           rating=  1468 initial=  1450 Δ=   +18 G=  3 W=  2 L=  1
+Michaella Erfe                 shirokupower#5nn               rating=  1392 initial=  1450 Δ=   -58 G=  3 W=  0 L=  3
+Mike                           Mike                           rating=  1434 initial=  1450 Δ=   -16 G=  3 W=  1 L=  2
+Mitch                          Mitch                          rating=  1398 initial=  1450 Δ=   -52 G=  7 W=  2 L=  5
+Mitch Sharif                   georannie42#bzh                rating=  1460 initial=  1450 Δ=   +10 G=  7 W=  4 L=  3
+Nickolai Ventura               nickolaiventura#oph            rating=  1464 initial=  1450 Δ=   +14 G=  3 W=  2 L=  1
+panzer owning                  daryllworld1#bnh               rating=  1413 initial=  1450 Δ=   -37 G=  2 W=  0 L=  2
+Peejay Sandoval                sandoval.peejay02#pjf          rating=  1478 initial=  1450 Δ=   +28 G= 50 W= 24 L= 26
+Pepito                         Pepito                         rating=  1336 initial=  1450 Δ=  -114 G=  6 W=  0 L=  6
+Player13                       Player13                       rating=  1427 initial=  1450 Δ=   -23 G=  1 W=  0 L=  1
+Player2                        Player2                        rating=  1429 initial=  1450 Δ=   -21 G=  1 W=  0 L=  1
+Player3                        Player3                        rating=  1429 initial=  1450 Δ=   -21 G=  1 W=  0 L=  1
+Player4                        Player4                        rating=  1472 initial=  1450 Δ=   +22 G=  1 W=  1 L=  0
+Player5                        Player5                        rating=  1409 initial=  1450 Δ=   -41 G=  2 W=  0 L=  2
+Player6                        Player6                        rating=  1456 initial=  1450 Δ=    +6 G=  4 W=  2 L=  2
+Player7                        Player7                        rating=  1468 initial=  1450 Δ=   +18 G=  5 W=  3 L=  2
+Player8                        Player8                        rating=  1467 initial=  1450 Δ=   +17 G=  1 W=  1 L=  0
+Player9                        Player9                        rating=  1454 initial=  1450 Δ=    +4 G=  2 W=  1 L=  1
+RC TERSOL                      rc.tersol001#vi5               rating=  1437 initial=  1450 Δ=   -13 G= 46 W= 23 L= 23
+romel saclolo                  lemorsaclolo#dxo               rating=  1433 initial=  1450 Δ=   -17 G= 42 W= 22 L= 20
+Rommel Sandoval                rommeldagaragsandoval#jj1      rating=  1545 initial=  1450 Δ=   +95 G= 39 W= 21 L= 18
+Rosalie                        Rosalie                        rating=  1432 initial=  1450 Δ=   -18 G=  1 W=  0 L=  1
+Rosalie Eslabra                rosenrafncara#69g              rating=  1272 initial=  1450 Δ=  -178 G= 20 W=  4 L= 16
+Rosalyn                        Rosalyn                        rating=  1448 initial=  1450 Δ=    -2 G=  2 W=  1 L=  1
+Sandro Quinto                  sandroquinto1107#fhh           rating=  1262 initial=  1450 Δ=  -188 G= 13 W=  1 L= 12
+sdf                            sdf                            rating=  1476 initial=  1450 Δ=   +26 G=  1 W=  1 L=  0
+sdsd                           sdsd                           rating=  1428 initial=  1450 Δ=   -22 G=  1 W=  0 L=  1
+Seyong                         Seyong                         rating=  1451 initial=  1450 Δ=    +1 G=  4 W=  2 L=  2
+Shane Malapit                  arnold_malapit3773#6h9         rating=  1267 initial=  1450 Δ=  -183 G= 41 W= 11 L= 30
+She                            She                            rating=  1427 initial=  1450 Δ=   -23 G=  3 W=  1 L=  2
+Shem Quiatchon                 shemv.quiatchon#myh            rating=  1494 initial=  1450 Δ=   +44 G=  4 W=  3 L=  1
+Sheree Villegas                shereevillegas28#v55           rating=  1444 initial=  1450 Δ=    -6 G=  8 W=  4 L=  4
+Sherwin Saingan                sherwin.paolo4#mio             rating=  1352 initial=  1450 Δ=   -98 G=  5 W=  0 L=  5
+SHIRWIN DELA CUADRA            shirwin.delacuadra#7la         rating=  1706 initial=  1450 Δ=  +256 G= 20 W= 19 L=  1
+Tj Eslabra                     Timdev0421#tru                 rating=  1335 initial=  1450 Δ=  -115 G= 22 W=  7 L= 15
+Tonii                          Tonii                          rating=  1421 initial=  1450 Δ=   -29 G=  3 W=  1 L=  2
+Triane Soriano                 sorianotriane#689              rating=  1446 initial=  1450 Δ=    -4 G= 11 W=  5 L=  6
+Trin BOADO                     trinmar.boado                  rating=  1555 initial=  1450 Δ=  +105 G= 59 W= 37 L= 22
+Tristan Soriano                stannot16#5qp                  rating=  1566 initial=  1450 Δ=  +116 G= 15 W= 11 L=  4

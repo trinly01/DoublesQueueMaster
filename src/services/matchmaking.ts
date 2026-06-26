@@ -64,6 +64,7 @@ export interface CompletedMatchPlayer {
   username: string;
   name?: string; // firstName + lastName, for display in CSV
   duprId?: string;
+  userId?: string; // Directus user ID for junction records
   firstName?: string;
   lastName?: string;
   level?: 1 | 2 | 3;
@@ -81,6 +82,7 @@ export interface CompletedMatch {
   startedAt?: number; // Epoch ms when match began
   completedAt: number; // Epoch ms
   updatedAt: number; // Epoch ms (LWW)
+  club: string; // Directus club UUID
 }
 
 export interface AppState {
@@ -114,7 +116,8 @@ export interface AppState {
   queuesResetAt?: number; // Epoch ms — drops queue entries entered before this checkpoint
   matchesResetAt?: number; // Epoch ms — drops matches created before this checkpoint
   lastModified?: number;
-  clubId?: string; // Which club this local state belongs to
+  clubId?: string; // Which club this local state belongs to (slug)
+  clubUUID?: string; // Directus club UUID
 }
 
 const STORAGE_KEY = 'matchmaking_state';
@@ -285,25 +288,24 @@ export function enforceOneMatchPerCourtOnState(state: AppState) {
  *
  * Constants chosen by backtesting 245 real doubles matches on calibration
  * (calMAE), partner-differentiation, and long-term rating conservation:
- * - K_DOUBLES = 48, K_SINGLES = 32
- * - MARGIN_WEIGHT = 0.1 (log-elastic, not linear)
+ * - K_DOUBLES = 64, K_SINGLES = 36
+ * - MARGIN_WEIGHT = 0.15 (log-elastic, not linear)
  * High K is safe here precisely because the model is zero-sum: ratings stay
  * calibrated long-term while still separating players (~82% partner diff).
  *
  * Anti-carry tweak: when a player is the weaker of the two partners, their
  * WIN share is reduced as the partner gap grows. This keeps the lower-rated
  * partner from getting a free boost when paired with a much stronger teammate.
- * Losses use a 75/25 soft underdog blend: mostly underdog-credit, but with some
- * equal-split protection so the strong partner is not dragged down too far.
+ * Losses use a pure underdog blend: the higher-rated partner loses more.
  * A partner ratio cap (MAX_PARTNER_RATIO) prevents extreme partner gaps from
  * creating huge swings. This keeps the ratings calibrated while protecting
  * strong partners. Values chosen from synthetic + real-data backtesting.
  */
-const K_DOUBLES = 48;
-const K_SINGLES = 24;
-const MARGIN_WEIGHT = 0.1;
-const PARTNER_GAP_FACTOR = 0.75;
-const LOSS_UNDERDOG_BLEND = 0.75;
+const K_DOUBLES = 64;
+const K_SINGLES = 36;
+const MARGIN_WEIGHT = 0.15;
+const PARTNER_GAP_FACTOR = 0.5;
+const LOSS_UNDERDOG_BLEND = 1.0;
 const RATING_FLOOR = 100;
 // Cap the ratio between any two partners' rating changes so huge gaps don't
 // create extreme swings. A value of 2.0 means the strong partner can never get
@@ -666,6 +668,7 @@ export class LocalMatchmakingSystem {
     if (initialState.lastModified === undefined)
       initialState.lastModified = Date.now();
     if (initialState.clubId === undefined) initialState.clubId = '';
+    if (initialState.clubUUID === undefined) initialState.clubUUID = '';
 
     this.state = reactive(initialState);
   }
@@ -906,6 +909,7 @@ export class LocalMatchmakingSystem {
     this.state.settingsUpdatedAt = now;
     this.state.lastModified = now;
     this.state.clubId = '';
+    this.state.clubUUID = '';
     this.saveState();
   }
 
@@ -1188,7 +1192,7 @@ export class LocalMatchmakingSystem {
     teamAScore: number,
     teamBScore: number,
     returnMethod: string = 'end_of_queue',
-  ) {
+  ): CompletedMatch | undefined {
     const matchIndex = this.state.activeMatches.findIndex(
       (m) => !m.deletedAt && m.matchId === matchId,
     );
@@ -1261,6 +1265,7 @@ export class LocalMatchmakingSystem {
         username: p.username,
         name: getFullName(p),
         duprId: p.duprId,
+        userId: p.userId,
         firstName: p.firstName,
         lastName: p.lastName,
         level: p.level,
@@ -1271,6 +1276,7 @@ export class LocalMatchmakingSystem {
         username: p.username,
         name: getFullName(p),
         duprId: p.duprId,
+        userId: p.userId,
         firstName: p.firstName,
         lastName: p.lastName,
         level: p.level,
@@ -1282,7 +1288,14 @@ export class LocalMatchmakingSystem {
       startedAt: match.startedAt,
       completedAt: now,
       updatedAt: now,
+      club: this.state.clubUUID || '',
     };
+    console.log(
+      '[reportMatchScore] completed match clubUUID:',
+      this.state.clubUUID,
+      'completedMatch:',
+      completedMatch,
+    );
     this.state.completedMatches.push(completedMatch);
 
     let winnerEnteredAt = Date.now();
@@ -1349,6 +1362,7 @@ export class LocalMatchmakingSystem {
     this.state.activeMatches[matchIndex].updatedAt = Date.now();
 
     this.saveState();
+    return completedMatch;
   }
 
   public persist() {

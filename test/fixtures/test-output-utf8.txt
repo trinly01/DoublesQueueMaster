@@ -1,0 +1,293 @@
+﻿
+> dinkmatch@0.0.1 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.9 [39m[90mC:/Users/trinm/Documents/GitHub/DoublesQueueMaster[39m
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue deletion / resurrection[2m > [22m[2ma removed player (tombstone on server) does NOT resurrect from a stale live local copy
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue deletion / resurrection[2m > [22m[2mthe deletion tombstone is RETAINED in the merged state so it propagates durably
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue deletion / resurrection[2m > [22m[2man intentional re-queue (newer queuedAt) DOES override an older tombstone
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue deletion / resurrection[2m > [22m[2ma cancelled match (tombstone on server) does NOT resurrect from a stale live local copy
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue deletion / resurrection[2m > [22m[2ma completed match does not resurrect from stale admin because completedMatches guard re-tombstones it
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue deletion / resurrection[2m > [22m[2ma cancelled match tombstone does NOT pull players out of the queue
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue consistency[2m > [22m[2mconcurrent add of same user in different queueTypes yields one live entry
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue consistency[2m > [22m[2madd-then-remove across admins: later removal wins
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue consistency[2m > [22m[2mremove-then-add across admins: later add wins
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue consistency[2m > [22m[2mclock-skew guard: stale live entry with high updatedAt but old queuedAt does not beat newer tombstone
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue consistency[2m > [22m[2menteredAt=0 sentinel (fairness_first) is not purged by checkpoint logic
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m0[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue consistency[2m > [22m[2mclear-queue tombstones propagate and stale live entries do not resurrect
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö queue consistency[2m > [22m[2mqueue XOR match: a player placed in a match on B is removed from queue on A
+[22m[39m[mergeAppState] local queues: [33m2[39m server queues: [33m0[39m merged queues: [33m2[39m after removing players in matches: [33m0[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö match consistency[2m > [22m[2mconcurrent distinct matches with disjoint players both survive
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö match consistency[2m > [22m[2msame player in two concurrent matches keeps only one; other players return to queue
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: server
+[enforceOneMatchPerPlayer] Removed 1 conflicting match(es), returned players to queue
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö match consistency[2m > [22m[2mcompleted match on server wins over in-progress stale copy; ratings are not re-applied
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö match consistency[2m > [22m[2mmatch created offline on A + different match completed on B both survive
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö match consistency[2m > [22m[2mmatch reset checkpoint purges old matches; tombstoned-after-reset survives
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö player consistency[2m > [22m[2mplayer delete vs edit: later deletion wins, but fresher stats are overlaid
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö player consistency[2m > [22m[2mplayer delete propagates over a stale live copy with high updatedAt
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö player consistency[2m > [22m[2mplayer re-add after deletion beats a stale tombstone
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö player consistency[2m > [22m[2mplayer re-add with old addedAt still loses to a newer deletion
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö player consistency[2m > [22m[2mconcurrent rating change: higher ratingUpdatedAt wins
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö player consistency[2m > [22m[2mconcurrent stats change: higher statsUpdatedAt wins
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö player consistency[2m > [22m[2mper-field independence: avatar edit does not clobber fresher stats
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö player consistency[2m > [22m[2mplayer reset checkpoint purges old players; tombstoned/statted-after-reset survive
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö reset / checkpoint consistency[2m > [22m[2mpartial session reset via checkpoints carries across admins
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö reset / checkpoint consistency[2m > [22m[2mpre-reset stale offline data is purged; post-reset data survives
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö reset / checkpoint consistency[2m > [22m[2mcompletedMatches epoch reset drops old completed matches
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö convergence & multi-admin healing[2m > [22m[2mmerging is order-independent for disjoint edits (commutative on normalized live state)
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m2[39m after removing players in matches: [33m0[39m winning side: server
+[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m2[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö convergence & multi-admin healing[2m > [22m[2mmerging is idempotent: re-merging the same state reaches a fixed point
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: server
+[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö convergence & multi-admin healing[2m > [22m[2mthree-admin offline divergence converges after pairwise exchanges
+[22m[39m[mergeAppState] local queues: [33m4[39m server queues: [33m4[39m merged queues: [33m4[39m after removing players in matches: [33m4[39m winning side: server
+[mergeAppState] local queues: [33m4[39m server queues: [33m4[39m merged queues: [33m4[39m after removing players in matches: [33m4[39m winning side: server
+[mergeAppState] local queues: [33m4[39m server queues: [33m4[39m merged queues: [33m4[39m after removing players in matches: [33m4[39m winning side: server
+[enforceOneMatchPerPlayer] Removed 1 conflicting match(es), returned players to queue
+[mergeAppState] local queues: [33m4[39m server queues: [33m4[39m merged queues: [33m4[39m after removing players in matches: [33m4[39m winning side: local
+[mergeAppState] local queues: [33m4[39m server queues: [33m4[39m merged queues: [33m4[39m after removing players in matches: [33m4[39m winning side: server
+[mergeAppState] local queues: [33m4[39m server queues: [33m4[39m merged queues: [33m4[39m after removing players in matches: [33m4[39m winning side: local
+[mergeAppState] local queues: [33m4[39m server queues: [33m4[39m merged queues: [33m4[39m after removing players in matches: [33m4[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö convergence & multi-admin healing[2m > [22m[2mfull lifecycle split across two admins converges and satisfies invariants
+[22m[39m[mergeAppState] local queues: [33m2[39m server queues: [33m2[39m merged queues: [33m2[39m after removing players in matches: [33m2[39m winning side: local
+[mergeAppState] local queues: [33m2[39m server queues: [33m2[39m merged queues: [33m2[39m after removing players in matches: [33m2[39m winning side: server
+[mergeAppState] local queues: [33m2[39m server queues: [33m2[39m merged queues: [33m2[39m after removing players in matches: [33m2[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö convergence & multi-admin healing[2m > [22m[2mrepeated re-merges do not oscillate between tombstone and live (stability)
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö merge algebra[2m > [22m[2mmerging is associative: merge(merge(a,b),c) equals merge(a,merge(b,c))
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m0[39m winning side: server
+[mergeAppState] local queues: [33m0[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m0[39m winning side: server
+[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m2[39m after removing players in matches: [33m2[39m winning side: server
+[mergeAppState] local queues: [33m1[39m server queues: [33m2[39m merged queues: [33m2[39m after removing players in matches: [33m0[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö merge algebra[2m > [22m[2mdouble-completion of same match keeps one completed record and does not double-apply stats
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö merge algebra[2m > [22m[2mmatch tombstone beats stale live copy even with high updatedAt clock skew
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö merge algebra[2m > [22m[2mlive-vs-live same match uses updatedAt LWW (documented limitation)
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö button actions x offline multi-admin[2m > [22m[2mClear Matches: tombstones are retained and no stale live match resurrects
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m0[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö button actions x offline multi-admin[2m > [22m[2mClear Queue: cleared players do not resurrect from stale admin
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö button actions x offline multi-admin[2m > [22m[2mReset Session: checkpoint purge + stat reset propagate over stale offline data
+[22m[39m[mergeAppState] local queues: [33m0[39m server queues: [33m1[39m merged queues: [33m0[39m after removing players in matches: [33m0[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö button actions x offline multi-admin[2m > [22m[2mReset Session: post-reset offline add survives while pre-reset entries are purged
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m1[39m merged queues: [33m1[39m after removing players in matches: [33m1[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö lower-value merge gaps[2m > [22m[2mqueue ordering and priority is preserved after merge
+[22m[39m[mergeAppState] local queues: [33m2[39m server queues: [33m1[39m merged queues: [33m3[39m after removing players in matches: [33m3[39m winning side: server
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö lower-value merge gaps[2m > [22m[2mreset checkpoint boundary: pre-checkpoint entries purged, post-checkpoint entries survive
+[22m[39m[mergeAppState] local queues: [33m1[39m server queues: [33m2[39m merged queues: [33m2[39m after removing players in matches: [33m2[39m winning side: local
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö pure state enforcement helpers[2m > [22m[2menforceOneMatchPerCourtOnState keeps newest startedAt and requeues losers
+[22m[39m[enforceOneMatchPerCourt] Removed 1 conflicting match(es) from courts, returned players to queue
+
+[90mstdout[2m | src/services/matchmaking.spec.ts[2m > [22m[2mmergeAppState ΓÇö pure state enforcement helpers[2m > [22m[2menforceOneMatchPerCourtOnState requeues players only in the losing match
+[22m[39m[enforceOneMatchPerCourt] Removed 1 conflicting match(es) from courts, returned players to queue
+
+ [31mΓ¥»[39m src/services/matchmaking.spec.ts [2m([22m[2m64 tests[22m[2m | [22m[31m4 failed[39m[2m)[22m[32m 47[2mms[22m[39m
+     [32mΓ£ô[39m winners gain and losers lose (zero-sum)[32m 2[2mms[22m[39m
+     [32mΓ£ô[39m blowout moves ratings more than a close game[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m big upset: underdogs gain large; favorites lose large (zero-sum)[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m mixed team win: low-rated partner gets more credit than high-rated partner[32m 0[2mms[22m[39m
+[31m     [31m├ù[31m mixed team loss: soft underdog means higher-rated partner pays more, but not much more[39m[32m 6[2mms[22m[39m
+     [32mΓ£ô[39m per-player swing: singles (K=24) equals doubles per-player (K=48 split by 2)[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m floor hit: rating clamps at 100, never negative[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m CSV Match 6: Shirwin+James vs Peejay+Eddie 11-4[32m 0[2mms[22m[39m
+[31m     [31m├ù[31m CSV Match 18: Dimple+Luv vs Rommel+Abbey 11-1 upset[39m[32m 1[2mms[22m[39m
+[31m     [31m├ù[31m CSV Match 28: Peejay+Shirwin vs Jayson+Trin 11-2 upset[39m[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m CSV Match 10: Jayson+Trin vs Henri+Celine 11-2[32m 0[2mms[22m[39m
+[31m     [31m├ù[31m anti-carry: weak partner in huge gap pair gets less credit than before, but still more than strong partner[39m[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m a removed player (tombstone on server) does NOT resurrect from a stale live local copy[32m 2[2mms[22m[39m
+     [32mΓ£ô[39m the deletion tombstone is RETAINED in the merged state so it propagates durably[32m 1[2mms[22m[39m
+     [32mΓ£ô[39m an intentional re-queue (newer queuedAt) DOES override an older tombstone[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m a cancelled match (tombstone on server) does NOT resurrect from a stale live local copy[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m a completed match does not resurrect from stale admin because completedMatches guard re-tombstones it[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m a cancelled match tombstone does NOT pull players out of the queue[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m concurrent add of same user in different queueTypes yields one live entry[32m 1[2mms[22m[39m
+     [32mΓ£ô[39m add-then-remove across admins: later removal wins[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m remove-then-add across admins: later add wins[32m 1[2mms[22m[39m
+     [32mΓ£ô[39m clock-skew guard: stale live entry with high updatedAt but old queuedAt does not beat newer tombstone[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m enteredAt=0 sentinel (fairness_first) is not purged by checkpoint logic[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m clear-queue tombstones propagate and stale live entries do not resurrect[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m queue XOR match: a player placed in a match on B is removed from queue on A[32m 1[2mms[22m[39m
+     [32mΓ£ô[39m concurrent distinct matches with disjoint players both survive[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m same player in two concurrent matches keeps only one; other players return to queue[32m 1[2mms[22m[39m
+     [32mΓ£ô[39m completed match on server wins over in-progress stale copy; ratings are not re-applied[32m 1[2mms[22m[39m
+     [32mΓ£ô[39m match created offline on A + different match completed on B both survive[32m 1[2mms[22m[39m
+     [32mΓ£ô[39m match reset checkpoint purges old matches; tombstoned-after-reset survives[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m player delete vs edit: later deletion wins, but fresher stats are overlaid[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m player delete propagates over a stale live copy with high updatedAt[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m player re-add after deletion beats a stale tombstone[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m player re-add with old addedAt still loses to a newer deletion[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m concurrent rating change: higher ratingUpdatedAt wins[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m concurrent stats change: higher statsUpdatedAt wins[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m per-field independence: avatar edit does not clobber fresher stats[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m player reset checkpoint purges old players; tombstoned/statted-after-reset survive[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m local full reset (newer empty state) overwrites server[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m remote full reset (newer empty server) is adopted[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m partial session reset via checkpoints carries across admins[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m pre-reset stale offline data is purged; post-reset data survives[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m completedMatches epoch reset drops old completed matches[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m merging is order-independent for disjoint edits (commutative on normalized live state)[32m 9[2mms[22m[39m
+     [32mΓ£ô[39m merging is idempotent: re-merging the same state reaches a fixed point[32m 1[2mms[22m[39m
+     [32mΓ£ô[39m three-admin offline divergence converges after pairwise exchanges[32m 1[2mms[22m[39m
+     [32mΓ£ô[39m full lifecycle split across two admins converges and satisfies invariants[32m 1[2mms[22m[39m
+     [32mΓ£ô[39m repeated re-merges do not oscillate between tombstone and live (stability)[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m merging is associative: merge(merge(a,b),c) equals merge(a,merge(b,c))[32m 1[2mms[22m[39m
+     [32mΓ£ô[39m double-completion of same match keeps one completed record and does not double-apply stats[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m match tombstone beats stale live copy even with high updatedAt clock skew[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m live-vs-live same match uses updatedAt LWW (documented limitation)[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m Clear Matches: tombstones are retained and no stale live match resurrects[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m Clear Queue: cleared players do not resurrect from stale admin[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m Reset Session: checkpoint purge + stat reset propagate over stale offline data[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m Reset Session: post-reset offline add survives while pre-reset entries are purged[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m Reset All: newer empty state overwrites stale admin data[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m Reset All: re-merging stale admin does not resurrect data after adoption[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m settings LWW: higher settingsUpdatedAt wins as a block[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m queue ordering and priority is preserved after merge[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m reset checkpoint boundary: pre-checkpoint entries purged, post-checkpoint entries survive[32m 2[2mms[22m[39m
+     [32mΓ£ô[39m enforceOneMatchPerCourtOnState keeps newest startedAt and requeues losers[32m 1[2mms[22m[39m
+     [32mΓ£ô[39m enforceOneMatchPerCourtOnState requeues players only in the losing match[32m 0[2mms[22m[39m
+     [32mΓ£ô[39m gcTombstones removes only tombstones older than 7 days[32m 0[2mms[22m[39m
+node.exe : 
+At C:\nvm4w\nodejs\npm.ps1:29 char:3
++   & $NODE_EXE $NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[31mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[39m[1m[41m Failed Tests 4 [49m[22m[31mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[39m
+
+[41m[1m FAIL [22m[49m src/services/matchmaking.spec.ts[2m > [22mRatingEngine.calculateShift[2m > [22mmixed team loss: soft underdog means higher-rated partner pays more, but not much more
+[31m[1mAssertionError[22m: expected 23 to be less than or equal to 15[39m
+[36m [2mΓ¥»[22m src/services/matchmaking.spec.ts:[2m98:52[22m[39m
+    [90m 96|[39m     [35mconst[39m lowRatedLoss [33m=[39m [34m1000[39m [33m-[39m r[33m.[39mupdatedLosers[[34m1[39m][33m.[39mrating[33m;[39m
+    [90m 97|[39m     [34mexpect[39m(highRatedLoss)[33m.[39m[34mtoBeGreaterThan[39m(lowRatedLoss)[33m;[39m
+    [90m 98|[39m     expect(Math.abs(highRatedLoss - lowRatedLoss)).toBeLessThanOrEqualΓÇª
+    [90m   |[39m                                                    [31m^[39m
+    [90m 99|[39m     [34mexpect[39m(highRatedLoss)[33m.[39m[34mtoBeGreaterThan[39m([34m0[39m)[33m;[39m
+    [90m100|[39m   })[33m;[39m
+
+[31m[2mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[1/4]ΓÄ»[22m[39m
+
+[41m[1m FAIL [22m[49m src/services/matchmaking.spec.ts[2m > [22mRatingEngine.calculateShift[2m > [22mCSV Match 18: Dimple+Luv vs Rommel+Abbey 11-1 upset
+[31m[1mAssertionError[22m: expected 4 to be less than or equal to 2[39m
+[36m [2mΓ¥»[22m src/services/matchmaking.spec.ts:[2m167:46[22m[39m
+    [90m165|[39m     [90m// Soft underdog losses: higher-rated Rommel pays slightly more.[39m
+    [90m166|[39m     [34mexpect[39m(rommelLoss)[33m.[39m[34mtoBeGreaterThan[39m(abbeyLoss)[33m;[39m
+    [90m167|[39m     [34mexpect[39m([33mMath[39m[33m.[39m[34mabs[39m(rommelLoss [33m-[39m abbeyLoss))[33m.[39m[34mtoBeLessThanOrEqual[39m([34m2[39m)[33m;[39m
+    [90m   |[39m                                              [31m^[39m
+    [90m168|[39m     [34mexpect[39m(rommelLoss)[33m.[39m[34mtoBeGreaterThan[39m([34m0[39m)[33m;[39m
+    [90m169|[39m   })[33m;[39m
+
+[31m[2mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[2/4]ΓÄ»[22m[39m
+
+[41m[1m FAIL [22m[49m src/services/matchmaking.spec.ts[2m > [22mRatingEngine.calculateShift[2m > [22mCSV Match 28: Peejay+Shirwin vs Jayson+Trin 11-2 upset
+[31m[1mAssertionError[22m: expected 13 to be less than or equal to 8[39m
+[36m [2mΓ¥»[22m src/services/matchmaking.spec.ts:[2m185:45[22m[39m
+    [90m183|[39m     [90m// Soft underdog losses: higher-rated Trin pays more than Jayson.[39m
+    [90m184|[39m     [34mexpect[39m(trinLoss)[33m.[39m[34mtoBeGreaterThan[39m(jaysonLoss)[33m;[39m
+    [90m185|[39m     [34mexpect[39m([33mMath[39m[33m.[39m[34mabs[39m(trinLoss [33m-[39m jaysonLoss))[33m.[39m[34mtoBeLessThanOrEqual[39m([34m8[39m)[33m;[39m
+    [90m   |[39m                                             [31m^[39m
+    [90m186|[39m     [34mexpect[39m(trinLoss)[33m.[39m[34mtoBeGreaterThan[39m([34m0[39m)[33m;[39m
+    [90m187|[39m   })[33m;[39m
+
+[31m[2mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[3/4]ΓÄ»[22m[39m
+
+[41m[1m FAIL [22m[49m src/services/matchmaking.spec.ts[2m > [22mRatingEngine.calculateShift[2m > [22manti-carry: weak partner in huge gap pair gets less credit than before, but still more than strong partner
+[31m[1mAssertionError[22m: expected 11 to be less than 10[39m
+[36m [2mΓ¥»[22m src/services/matchmaking.spec.ts:[2m219:35[22m[39m
+    [90m217|[39m     // Anti-carry: the gap penalty keeps the difference reasonable. WiΓÇª
+    [90m218|[39m     // old pure underdog model the weak partner would have taken most ΓÇª
+    [90m219|[39m     [34mexpect[39m(weakGain [33m-[39m strongGain)[33m.[39m[34mtoBeLessThan[39m([34m10[39m)[33m;[39m
+    [90m   |[39m                                   [31m^[39m
+    [90m220|[39m   })[33m;[39m
+    [90m221|[39m })[33m;[39m
+
+[31m[2mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[4/4]ΓÄ»[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m4 failed[39m[22m[2m | [22m[1m[32m60 passed[39m[22m[90m (64)[39m
+[2m   Start at [22m 17:58:52
+[2m   Duration [22m 548ms[2m (transform 121ms, setup 0ms, import 286ms, tests 47ms, environment 0ms)[22m
+

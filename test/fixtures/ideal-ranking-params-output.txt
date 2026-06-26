@@ -1,0 +1,42 @@
+=== IDEAL RANKING PARAMETER SEARCH ===
+Grid size: 768
+Ideal order: shirwin.delacuadra#7la > gabrielsaturnino101495#zg4 > trinmar.boado > flores2flores78#j0q > stannot16#5qp > fjhemcarlo#xac > mantappancing29#gk1 > sandoval.peejay02#pjf > jundatuin#r7c
+
+Top 10 configs by ranking match (lower score = better)
+Score = inversions + 10*eddieAbove. Max inversions = 36. eddieAbove = how many ideal-top-8 players EddieWow is ranked above.
+
+Rank  Config                                      Inv  EddieAbove  Ranks (ideal players 1-9)
+   1  kS24 kD48 mw0.05 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_softUnderdog   7           7  1 3 4 5 6 7 8 9 2
+   2  kS24 kD48 mw0.05 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_underdog   7           7  1 3 4 5 6 7 8 9 2
+   3  kS24 kD48 mw0.05 gf0.5 lb1 mpr2 softHarmonic w_antiCarry l_softUnderdog   7           7  1 3 4 5 6 7 8 9 2
+   4  kS24 kD48 mw0.05 gf0.5 lb1 mpr2 softHarmonic w_antiCarry l_underdog   7           7  1 3 4 5 6 7 8 9 2
+   5  kS24 kD48 mw0.05 gf0.5 lb1 mpr4 arithmetic w_antiCarry l_softUnderdog   7           7  1 3 4 5 6 7 8 9 2
+   6  kS24 kD48 mw0.05 gf0.5 lb1 mpr4 arithmetic w_antiCarry l_underdog   7           7  1 3 4 5 6 7 8 9 2
+   7  kS24 kD48 mw0.05 gf0.5 lb1 mpr4 softHarmonic w_antiCarry l_softUnderdog   7           7  1 3 4 5 6 7 8 9 2
+   8  kS24 kD48 mw0.05 gf0.5 lb1 mpr4 softHarmonic w_antiCarry l_underdog   7           7  1 3 4 5 6 7 8 9 2
+   9  kS24 kD48 mw0.1 gf0.5 lb1 mpr2 softHarmonic w_antiCarry l_softUnderdog   7           7  1 3 4 5 6 7 8 9 2
+  10  kS24 kD48 mw0.1 gf0.5 lb1 mpr2 softHarmonic w_antiCarry l_underdog   7           7  1 3 4 5 6 7 8 9 2
+
+--- Best config details ---
+Config: kS24 kD48 mw0.05 gf0.5 lb1 mpr2 arithmetic w_antiCarry l_softUnderdog
+JSON: {
+  "kSingles": 24,
+  "kDoubles": 48,
+  "marginWeight": 0.05,
+  "partnerGapFactor": 0.5,
+  "lossUnderdogBlend": 1,
+  "maxPartnerRatio": 2,
+  "teamMetric": "arithmetic",
+  "winnerMode": "antiCarry",
+  "loserMode": "softUnderdog"
+}
+Computed ranks for ideal players:
+  1. shirwin.delacuadra#7la => rank 1
+  2. gabrielsaturnino101495#zg4 => rank 3
+  3. trinmar.boado => rank 4
+  4. flores2flores78#j0q => rank 5
+  5. stannot16#5qp => rank 6
+  6. fjhemcarlo#xac => rank 7
+  7. mantappancing29#gk1 => rank 8
+  8. sandoval.peejay02#pjf => rank 9
+  9. jundatuin#r7c => rank 2

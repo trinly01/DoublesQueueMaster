@@ -56,10 +56,10 @@ export const getLevelColor = (level: 1 | 2 | 3): string => {
  * Tiers: Beginner, Intermediate, Advanced, Expert, Pro.
  */
 export const getRatingColor = (rating: number): string => {
-  if (rating < 1450) return 'grey-6'; // Beginner
-  if (rating < 1600) return 'blue-6'; // Intermediate
-  if (rating < 1800) return 'green-6'; // Advanced
-  if (rating < 2000) return 'amber-7'; // Expert
+  if (rating < 1400) return 'grey-6'; // Beginner
+  if (rating < 1700) return 'blue-6'; // Intermediate
+  if (rating < 1900) return 'green-6'; // Advanced
+  if (rating < 2100) return 'amber-7'; // Expert
   return 'red-7'; // Pro
 };
 
@@ -68,10 +68,10 @@ export const getRatingColor = (rating: number): string => {
  * Tiers: Beginner, Intermediate, Advanced, Expert, Pro.
  */
 export const getRatingCategory = (rating: number): string => {
-  if (rating < 1450) return 'Beginner';
-  if (rating < 1600) return 'Intermediate';
-  if (rating < 1800) return 'Advanced';
-  if (rating < 2000) return 'Expert';
+  if (rating < 1400) return 'Beginner';
+  if (rating < 1700) return 'Intermediate';
+  if (rating < 1900) return 'Advanced';
+  if (rating < 2100) return 'Expert';
   return 'Pro';
 };
 
@@ -291,4 +291,28 @@ export const wilsonLowerBound = (successes: number, total: number): number => {
       z * Math.sqrt((p * (1 - p) + z2 / (4 * total)) / total)) /
     (1 + z2 / total)
   );
+};
+
+/**
+ * Composite leaderboard score based on rating and win/loss record.
+ * Formula: 0.6 * rating + 50 * (wins - losses) / sqrt(wins + losses)
+ */
+export const computeCompositeScore = (
+  rating: number,
+  wins: number,
+  losses: number,
+): number => {
+  const games = wins + losses;
+  if (games === 0) return 0;
+  return 0.6 * rating + (50 * (wins - losses)) / Math.sqrt(games);
+};
+
+export const resolveAvatarUrl = (
+  avatar?: string | null,
+  baseUrl = 'https://dink-it.zyberlab.com',
+): string | undefined => {
+  if (!avatar) return undefined;
+  const s = String(avatar);
+  if (s.startsWith('http://') || s.startsWith('https://')) return s;
+  return `${baseUrl}/assets/${s}`;
 };
