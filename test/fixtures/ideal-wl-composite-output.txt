@@ -1,0 +1,29 @@
+=== W/L COMPOSITE SCORE SEARCH ===
+Formula: score = rating + alpha*W - beta*L
+
+Top 10 combos by ranking match
+Alpha  Beta  Inv  EddieAbove  Ranks (ideal players 1-9)
+  0.0   8.0    7            0  1 3 65 8 6 5 9 87 88
+  0.0   8.5    8            0  1 3 65 9 6 5 8 88 90
+  0.0   9.0    8            0  1 3 67 9 6 5 8 88 94
+  0.0   9.5    8            0  1 3 69 9 6 5 8 88 95
+  0.0  10.0    8            0  1 3 69 10 7 5 8 88 97
+  0.0  10.5    8            0  1 3 71 10 7 5 8 89 97
+  0.0  11.0    8            0  1 3 73 11 7 5 8 89 97
+  0.0  11.5    8            0  1 3 75 11 7 5 8 91 98
+  0.0  12.0    8            0  1 3 77 11 7 5 9 92 98
+  0.0  12.5    8            0  1 4 77 11 7 5 9 92 98
+
+--- Best composite formula ---
+score = rating + 0.0*W - 8.0*L
+Inversions: 7, EddieAbove: 0
+Computed ranks for ideal players:
+  1. shirwin.delacuadra#7la => rank 1
+  2. gabrielsaturnino101495#zg4 => rank 3
+  3. trinmar.boado => rank 65
+  4. flores2flores78#j0q => rank 8
+  5. stannot16#5qp => rank 6
+  6. fjhemcarlo#xac => rank 5
+  7. mantappancing29#gk1 => rank 9
+  8. sandoval.peejay02#pjf => rank 87
+  9. jundatuin#r7c => rank 88

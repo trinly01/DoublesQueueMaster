@@ -1,0 +1,111 @@
+﻿Loaded 276 doubles matches
+Total configurations to test: 46080
+  5000/46080 done (4.4s)
+  10000/46080 done (8.5s)
+  15000/46080 done (12.6s)
+  20000/46080 done (16.8s)
+  25000/46080 done (21.2s)
+  30000/46080 done (25.4s)
+  35000/46080 done (32.7s)
+  40000/46080 done (39.2s)
+  45000/46080 done (47.3s)
+
+--- TOP 20 OVERALL (balanced composite) ---
++----+------------------------------------------------------------------------------------+---------------------+--------------------+---------------------+----------------------+-------------+----------+
+| #  | Engine                                                                             | composite           | logLoss            | brier               | calMAE               | partnerDiff | absDrift |
++----+------------------------------------------------------------------------------------+---------------------+--------------------+---------------------+----------------------+-------------+----------+
+|  1 | first_observed arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.5 lb1 mpr4   | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  2 | first_observed arithmetic antiCarry underdog kD64 kS20 mw0.15 gf0.5 lb1 mpr4       | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  3 | first_observed arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf0.5 lb1 mpr999 | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  4 | first_observed arithmetic antiCarry underdog kD64 kS20 mw0.15 gf0.5 lb1 mpr999     | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  5 | first_observed arithmetic antiCarry softUnderdog kD64 kS24 mw0.15 gf0.5 lb1 mpr4   | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  6 | first_observed arithmetic antiCarry underdog kD64 kS24 mw0.15 gf0.5 lb1 mpr4       | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  7 | first_observed arithmetic antiCarry softUnderdog kD64 kS24 mw0.15 gf0.5 lb1 mpr999 | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  8 | first_observed arithmetic antiCarry underdog kD64 kS24 mw0.15 gf0.5 lb1 mpr999     | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+|  9 | first_observed arithmetic antiCarry softUnderdog kD64 kS28 mw0.15 gf0.5 lb1 mpr4   | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+| 10 | first_observed arithmetic antiCarry underdog kD64 kS28 mw0.15 gf0.5 lb1 mpr4       | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+| 11 | first_observed arithmetic antiCarry softUnderdog kD64 kS28 mw0.15 gf0.5 lb1 mpr999 | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+| 12 | first_observed arithmetic antiCarry underdog kD64 kS28 mw0.15 gf0.5 lb1 mpr999     | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+| 13 | first_observed arithmetic antiCarry softUnderdog kD64 kS32 mw0.15 gf0.5 lb1 mpr4   | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+| 14 | first_observed arithmetic antiCarry underdog kD64 kS32 mw0.15 gf0.5 lb1 mpr4       | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+| 15 | first_observed arithmetic antiCarry softUnderdog kD64 kS32 mw0.15 gf0.5 lb1 mpr999 | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+| 16 | first_observed arithmetic antiCarry underdog kD64 kS32 mw0.15 gf0.5 lb1 mpr999     | 0.12520664646210444 | 0.6684593940150654 | 0.23779462106811294 | 0.050000000000000024 |       89.5% |        0 |
+| 17 | first_observed softHarmonic underdog softUnderdog kD64 kS20 mw0.1 gf0.25 lb1 mpr2  | 0.12554799633591093 | 0.6693807035594171 | 0.23824599025948864 | 0.046739130434782616 |       91.5% |        0 |
+| 18 | first_observed softHarmonic underdog underdog kD64 kS20 mw0.1 gf0.25 lb1 mpr2      | 0.12554799633591093 | 0.6693807035594171 | 0.23824599025948864 | 0.046739130434782616 |       91.5% |        0 |
+| 19 | first_observed softHarmonic underdog softUnderdog kD64 kS20 mw0.1 gf0.5 lb1 mpr2   | 0.12554799633591093 | 0.6693807035594171 | 0.23824599025948864 | 0.046739130434782616 |       91.5% |        0 |
+| 20 | first_observed softHarmonic underdog underdog kD64 kS20 mw0.1 gf0.5 lb1 mpr2       | 0.12554799633591093 | 0.6693807035594171 | 0.23824599025948864 | 0.046739130434782616 |       91.5% |        0 |
++----+------------------------------------------------------------------------------------+---------------------+--------------------+---------------------+----------------------+-------------+----------+
+
+--- TOP 10 BY PREDICTIVE (logLoss) ---
++----+----------------------------------------------------------------------------------+--------------------+---------------------+--------------------+-------------+
+| #  | Engine                                                                           | logLoss            | brier               | calMAE             | partnerDiff |
++----+----------------------------------------------------------------------------------+--------------------+---------------------+--------------------+-------------+
+|  1 | first_observed arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf1 lb1 mpr4   | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+|  2 | first_observed arithmetic antiCarry underdog kD64 kS20 mw0.15 gf1 lb1 mpr4       | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+|  3 | first_observed arithmetic antiCarry softUnderdog kD64 kS20 mw0.15 gf1 lb1 mpr999 | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+|  4 | first_observed arithmetic antiCarry underdog kD64 kS20 mw0.15 gf1 lb1 mpr999     | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+|  5 | first_observed arithmetic antiCarry softUnderdog kD64 kS24 mw0.15 gf1 lb1 mpr4   | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+|  6 | first_observed arithmetic antiCarry underdog kD64 kS24 mw0.15 gf1 lb1 mpr4       | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+|  7 | first_observed arithmetic antiCarry softUnderdog kD64 kS24 mw0.15 gf1 lb1 mpr999 | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+|  8 | first_observed arithmetic antiCarry underdog kD64 kS24 mw0.15 gf1 lb1 mpr999     | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+|  9 | first_observed arithmetic antiCarry softUnderdog kD64 kS28 mw0.15 gf1 lb1 mpr4   | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
+| 10 | first_observed arithmetic antiCarry underdog kD64 kS28 mw0.15 gf1 lb1 mpr4       | 0.6678826310060408 | 0.23751603930645945 | 0.0677536231884058 |       72.7% |
++----+----------------------------------------------------------------------------------+--------------------+---------------------+--------------------+-------------+
+
+--- TOP 10 BY CALIBRATION (calMAE) ---
++----+--------------------------------------------------------------------------------------+---------------------+--------------------+-------------+
+| #  | Engine                                                                               | calMAE              | logLoss            | partnerDiff |
++----+--------------------------------------------------------------------------------------+---------------------+--------------------+-------------+
+|  1 | first_observed softHarmonic underdog softUnderdog kD40 kS20 mw0.05 gf0.25 lb0 mpr2   | 0.03478260869565217 | 0.6736660545031818 |       68.4% |
+|  2 | first_observed softHarmonic underdog underdog kD40 kS20 mw0.05 gf0.25 lb0 mpr2       | 0.03478260869565217 | 0.6736660545031818 |       68.4% |
+|  3 | first_observed softHarmonic underdog softUnderdog kD40 kS20 mw0.05 gf0.25 lb0 mpr4   | 0.03478260869565217 | 0.6736660545031818 |       68.4% |
+|  4 | first_observed softHarmonic underdog underdog kD40 kS20 mw0.05 gf0.25 lb0 mpr4       | 0.03478260869565217 | 0.6736660545031818 |       68.4% |
+|  5 | first_observed softHarmonic underdog softUnderdog kD40 kS20 mw0.05 gf0.25 lb0 mpr999 | 0.03478260869565217 | 0.6736660545031818 |       68.4% |
+|  6 | first_observed softHarmonic underdog underdog kD40 kS20 mw0.05 gf0.25 lb0 mpr999     | 0.03478260869565217 | 0.6736660545031818 |       68.4% |
+|  7 | first_observed softHarmonic underdog softUnderdog kD40 kS20 mw0.05 gf0.5 lb0 mpr2    | 0.03478260869565217 | 0.6736660545031818 |       68.4% |
+|  8 | first_observed softHarmonic underdog underdog kD40 kS20 mw0.05 gf0.5 lb0 mpr2        | 0.03478260869565217 | 0.6736660545031818 |       68.4% |
+|  9 | first_observed softHarmonic underdog softUnderdog kD40 kS20 mw0.05 gf0.5 lb0 mpr4    | 0.03478260869565217 | 0.6736660545031818 |       68.4% |
+| 10 | first_observed softHarmonic underdog underdog kD40 kS20 mw0.05 gf0.5 lb0 mpr4        | 0.03478260869565217 | 0.6736660545031818 |       68.4% |
++----+--------------------------------------------------------------------------------------+---------------------+--------------------+-------------+
+
+--- TOP 10 BY PARTNER DIFFERENTIATION ---
++----+------------------------------------------------------------------------------------+-------------+----------------------+--------------------+
+| #  | Engine                                                                             | partnerDiff | calMAE               | logLoss            |
++----+------------------------------------------------------------------------------------+-------------+----------------------+--------------------+
+|  1 | first_observed softHarmonic underdog softUnderdog kD64 kS20 mw0.15 gf0.25 lb1 mpr2 |       93.4% | 0.061594202898550734 | 0.6688899095472003 |
+|  2 | first_observed softHarmonic underdog underdog kD64 kS20 mw0.15 gf0.25 lb1 mpr2     |       93.4% | 0.061594202898550734 | 0.6688899095472003 |
+|  3 | first_observed softHarmonic underdog softUnderdog kD64 kS20 mw0.15 gf0.5 lb1 mpr2  |       93.4% | 0.061594202898550734 | 0.6688899095472003 |
+|  4 | first_observed softHarmonic underdog underdog kD64 kS20 mw0.15 gf0.5 lb1 mpr2      |       93.4% | 0.061594202898550734 | 0.6688899095472003 |
+|  5 | first_observed softHarmonic underdog softUnderdog kD64 kS20 mw0.15 gf0.75 lb1 mpr2 |       93.4% | 0.061594202898550734 | 0.6688899095472003 |
+|  6 | first_observed softHarmonic underdog underdog kD64 kS20 mw0.15 gf0.75 lb1 mpr2     |       93.4% | 0.061594202898550734 | 0.6688899095472003 |
+|  7 | first_observed softHarmonic underdog softUnderdog kD64 kS20 mw0.15 gf1 lb1 mpr2    |       93.4% | 0.061594202898550734 | 0.6688899095472003 |
+|  8 | first_observed softHarmonic underdog underdog kD64 kS20 mw0.15 gf1 lb1 mpr2        |       93.4% | 0.061594202898550734 | 0.6688899095472003 |
+|  9 | first_observed softHarmonic underdog softUnderdog kD64 kS24 mw0.15 gf0.25 lb1 mpr2 |       93.4% | 0.061594202898550734 | 0.6688899095472003 |
+| 10 | first_observed softHarmonic underdog underdog kD64 kS24 mw0.15 gf0.25 lb1 mpr2     |       93.4% | 0.061594202898550734 | 0.6688899095472003 |
++----+------------------------------------------------------------------------------------+-------------+----------------------+--------------------+
+
+--- TOP 10 BY LONG-TERM HEALTH ---
++----+-----------------------------------------------------------------------------------------+---------------------+---------------------+-------------------+-------------+
+| #  | Engine                                                                                  | health              | calMAE              | ratingStd         | partnerDiff |
++----+-----------------------------------------------------------------------------------------+---------------------+---------------------+-------------------+-------------+
+|  1 | first_observed softHarmonic underdog softUnderdog kD40 kS20 mw0.05 gf0.25 lb0.75 mpr2   | 0.10511006168583993 | 0.03586956521739131 | 51.23573500676243 |       77.9% |
+|  2 | first_observed softHarmonic underdog underdog kD40 kS20 mw0.05 gf0.25 lb0.75 mpr2       | 0.10511006168583993 | 0.03586956521739131 | 51.23573500676243 |       77.9% |
+|  3 | first_observed softHarmonic underdog softUnderdog kD40 kS20 mw0.05 gf0.25 lb0.75 mpr4   | 0.10511006168583993 | 0.03586956521739131 | 51.23573500676243 |       77.9% |
+|  4 | first_observed softHarmonic underdog underdog kD40 kS20 mw0.05 gf0.25 lb0.75 mpr4       | 0.10511006168583993 | 0.03586956521739131 | 51.23573500676243 |       77.9% |
+|  5 | first_observed softHarmonic underdog softUnderdog kD40 kS20 mw0.05 gf0.25 lb0.75 mpr999 | 0.10511006168583993 | 0.03586956521739131 | 51.23573500676243 |       77.9% |
+|  6 | first_observed softHarmonic underdog underdog kD40 kS20 mw0.05 gf0.25 lb0.75 mpr999     | 0.10511006168583993 | 0.03586956521739131 | 51.23573500676243 |       77.9% |
+|  7 | first_observed softHarmonic underdog softUnderdog kD40 kS20 mw0.05 gf0.5 lb0.75 mpr2    | 0.10511006168583993 | 0.03586956521739131 | 51.23573500676243 |       77.9% |
+|  8 | first_observed softHarmonic underdog underdog kD40 kS20 mw0.05 gf0.5 lb0.75 mpr2        | 0.10511006168583993 | 0.03586956521739131 | 51.23573500676243 |       77.9% |
+|  9 | first_observed softHarmonic underdog softUnderdog kD40 kS20 mw0.05 gf0.5 lb0.75 mpr4    | 0.10511006168583993 | 0.03586956521739131 | 51.23573500676243 |       77.9% |
+| 10 | first_observed softHarmonic underdog underdog kD40 kS20 mw0.05 gf0.5 lb0.75 mpr4        | 0.10511006168583993 | 0.03586956521739131 | 51.23573500676243 |       77.9% |
++----+-----------------------------------------------------------------------------------------+---------------------+---------------------+-------------------+-------------+
+
+=== RECOMMENDATION ===
+Best overall: first_observed arithmetic antiCarry underdog kD64 kS32 mw0.15 gf0.5 lb1 mpr999
+  logLoss=0.6685 brier=0.2378 calMAE=0.0500 partnerDiff=89.5% absDrift=0.0000
+Best long-term health: first_observed softHarmonic underdog underdog kD40 kS32 mw0.05 gf1 lb0.75 mpr999
+  calMAE=0.0359 ratingStd=51.2 partnerDiff=77.9%
+Best predictive: first_observed arithmetic antiCarry underdog kD64 kS32 mw0.15 gf1 lb1 mpr999
+  logLoss=0.6679 accuracy=63.8%
+
+Full results written to C:\Users\trinm\Documents\GitHub\DoublesQueueMaster\test\fixtures\full-grid-search-results.json

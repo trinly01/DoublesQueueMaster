@@ -1,0 +1,141 @@
+﻿
+=== RATING ALGORITHM COMPARISON ===
+
+Data: completed_matches_combined.csv (doubles) + 6/22 singles event
+Metrics: logLoss, Brier, calibration MAE, zero-sum drift, partner differentiation
+
+--- TOP 10 BY PREDICTIVE ACCURACY (logLoss) ---
++----+--------------------------------------+---------+--------+--------+-------------+
+| #  | Engine                               | logLoss | Brier  | calMAE | partnerDiff |
++----+--------------------------------------+---------+--------+--------+-------------+
+|  1 | perPlayer arith k20 mw0.5            |  0.6776 | 0.2423 | 0.0533 |       83.5% |
+|  2 | perPlayer arith k32 mw0.1            |  0.6778 | 0.2424 | 0.0525 |       87.6% |
+|  3 | ZERO-SUM perPlayer k56 mw0.1         |  0.6794 | 0.2432 | 0.0475 |       76.3% |
+|  4 | ZERO-SUM perPlayer k40 mw0.3         |  0.6798 | 0.2434 | 0.0496 |       72.5% |
+|  5 | perPlayer arith k20 mw0.3            |  0.6800 | 0.2435 | 0.0457 |       75.4% |
+|  6 | ZERO-SUM gapWin 2 equalSplit k48     |  0.6801 | 0.2435 | 0.0612 |       58.5% |
+|  7 | ZERO-SUM gapWin 1.75 equalSplit k48  |  0.6802 | 0.2436 | 0.0612 |       55.3% |
+|  8 | ZERO-SUM gapWin 1.5 equalSplit k48   |  0.6802 | 0.2436 | 0.0612 |       52.1% |
+|  9 | ZERO-SUM gapWin 1.25 equalSplit k48  |  0.6802 | 0.2436 | 0.0583 |       49.2% |
+| 10 | ZERO-SUM gapWin 2 softUnderdog25 k48 |  0.6804 | 0.2437 | 0.0616 |       58.1% |
++----+--------------------------------------+---------+--------+--------+-------------+
+
+--- TOP 10 BY CALIBRATION (calMAE) ---
++----+---------------------------------------+--------+---------+-------------+----------+
+| #  | Engine                                | calMAE | logLoss | partnerDiff | absDrift |
++----+---------------------------------------+--------+---------+-------------+----------+
+|  1 | CURRENT pooled harmonic               | 0.0322 |  0.6883 |       48.0% |   0.0000 |
+|  2 | ZERO-SUM perPlayer k20 mw0.1          | 0.0355 |  0.6874 |       46.1% |   0.0000 |
+|  3 | IMPLEMENTED perPlayer arith k20 mw0.1 | 0.0395 |  0.6826 |       64.9% |   0.2717 |
+|  4 | perPlayer HARMONIC k20 mw0.1          | 0.0395 |  0.6826 |       64.9% |   0.2754 |
+|  5 | ZERO-SUM perPlayer k40 mw0.1          | 0.0395 |  0.6825 |       68.0% |   0.0000 |
+|  6 | perPlayer arith k20 mw0.3             | 0.0457 |  0.6800 |       75.4% |   0.2935 |
+|  7 | ZERO-SUM perPlayer k30 mw0.1          | 0.0460 |  0.6847 |       55.2% |   0.0000 |
+|  8 | ZERO-SUM perPlayer k56 mw0.1          | 0.0475 |  0.6794 |       76.3% |   0.0000 |
+|  9 | ZERO-SUM perPlayer k40 mw0.3          | 0.0496 |  0.6798 |       72.5% |   0.0000 |
+| 10 | ZERO-SUM perPlayer k48 mw0.1          | 0.0500 |  0.6808 |       71.2% |   0.0000 |
++----+---------------------------------------+--------+---------+-------------+----------+
+
+--- TOP 10 BY PARTNER DIFFERENTIATION ---
++----+--------------------------------+-------------+--------+---------+----------+
+| #  | Engine                         | partnerDiff | calMAE | logLoss | absDrift |
++----+--------------------------------+-------------+--------+---------+----------+
+|  1 | perPlayer arith k32 mw0.1      |       87.6% | 0.0525 |  0.6778 |   0.3732 |
+|  2 | perPlayer arith k20 mw0.5      |       83.5% | 0.0533 |  0.6776 |   0.3152 |
+|  3 | ZERO-SUM gapAdjust 2.0 k48     |       78.7% | 0.0558 |  0.6808 |   0.0000 |
+|  4 | ZERO-SUM perPlayer k56 mw0.1   |       76.3% | 0.0475 |  0.6794 |   0.0000 |
+|  5 | perPlayer arith k20 mw0.3      |       75.4% | 0.0457 |  0.6800 |   0.2935 |
+|  6 | ZERO-SUM perPlayer k40 mw0.3   |       72.5% | 0.0496 |  0.6798 |   0.0000 |
+|  7 | ZERO-SUM perPlayer k48 mw0.1   |       71.2% | 0.0500 |  0.6808 |   0.0000 |
+|  8 | ZERO-SUM perPlayer k40 mw0.2   |       69.2% | 0.0500 |  0.6812 |   0.0000 |
+|  9 | ZERO-SUM gapWin 2 underdog k48 |       69.2% | 0.0554 |  0.6804 |   0.0000 |
+| 10 | ZERO-SUM perPlayer k40 mw0.1   |       68.0% | 0.0395 |  0.6825 |   0.0000 |
++----+--------------------------------+-------------+--------+---------+----------+
+
+--- TOP 15 OVERALL (balanced composite) ---
++----+------------------------------------+-----------+---------+--------+--------+-------------+----------+
+| #  | Engine                             | composite | logLoss | Brier  | calMAE | partnerDiff | absDrift |
++----+------------------------------------+-----------+---------+--------+--------+-------------+----------+
+|  1 | ZERO-SUM perPlayer k56 mw0.1       |    0.2447 |  0.6794 | 0.2432 | 0.0475 |       76.3% |   0.0000 |
+|  2 | ZERO-SUM perPlayer k40 mw0.3       |    0.2915 |  0.6798 | 0.2434 | 0.0496 |       72.5% |   0.0000 |
+|  3 | perPlayer arith k20 mw0.5          |    0.3204 |  0.6776 | 0.2423 | 0.0533 |       83.5% |   0.3152 |
+|  4 | perPlayer arith k32 mw0.1          |    0.3313 |  0.6778 | 0.2424 | 0.0525 |       87.6% |   0.3732 |
+|  5 | ZERO-SUM perPlayer k40 mw0.1       |    0.3353 |  0.6825 | 0.2447 | 0.0395 |       68.0% |   0.0000 |
+|  6 | ZERO-SUM perPlayer k48 mw0.1       |    0.3431 |  0.6808 | 0.2439 | 0.0500 |       71.2% |   0.0000 |
+|  7 | ZERO-SUM gapAdjust 2.0 k48         |    0.3645 |  0.6808 | 0.2439 | 0.0558 |       78.7% |   0.0000 |
+|  8 | ZERO-SUM perPlayer k40 mw0.2       |    0.3653 |  0.6812 | 0.2440 | 0.0500 |       69.2% |   0.0000 |
+|  9 | perPlayer arith k20 mw0.3          |    0.3745 |  0.6800 | 0.2435 | 0.0457 |       75.4% |   0.2935 |
+| 10 | ZERO-SUM gapWin 2 underdog k48     |    0.3801 |  0.6804 | 0.2437 | 0.0554 |       69.2% |   0.0000 |
+| 11 | ZERO-SUM gapAdjust 0.5 winOnly k48 |    0.3840 |  0.6807 | 0.2438 | 0.0525 |       64.2% |   0.0000 |
+| 12 | ZERO-SUM gapWin 0.5 underdog k48   |    0.3840 |  0.6807 | 0.2438 | 0.0525 |       64.2% |   0.0000 |
+| 13 | ZERO-SUM gapAdjust 0.5 k48         |    0.3869 |  0.6808 | 0.2439 | 0.0529 |       65.6% |   0.0000 |
+| 14 | ZERO-SUM gapWin 1.75 underdog k48  |    0.3923 |  0.6804 | 0.2437 | 0.0554 |       66.2% |   0.0000 |
+| 15 | ZERO-SUM gapAdjust 0.75 k48        |    0.3945 |  0.6808 | 0.2438 | 0.0525 |       62.3% |   0.0000 |
++----+------------------------------------+-----------+---------+--------+--------+-------------+----------+
+
+--- BASELINE COMPARISON ---
++---------------+---------------------------------------+---------+--------+--------+-------------+----------+---------+----------------------+
+| Role          | Engine                                | logLoss | Brier  | calMAE | partnerDiff | absDrift | zeroSum | Note                 |
++---------------+---------------------------------------+---------+--------+--------+-------------+----------+---------+----------------------+
+| CURRENT       | CURRENT pooled harmonic               |  0.6883 | 0.2476 | 0.0322 |       48.0% |   0.0000 |     yes | baseline             |
+| IMPLEMENTED   | IMPLEMENTED perPlayer arith k20 mw0.1 |  0.6826 | 0.2447 | 0.0395 |       64.9% |   0.2717 |      no | tiny drift           |
+| BEST FAIR     | ZERO-SUM perPlayer k56 mw0.1          |  0.6794 | 0.2432 | 0.0475 |       76.3% |   0.0000 |     yes | short-term composite |
+| BEST LONGTERM | ZERO-SUM perPlayer k48 mw0.1          |       - |      - | 0.0297 |       82.4% |        - |     yes | long-term composite  |
+| BEST PREDICT  | proposed first_observed k=20 mw=0.1   |  0.6830 | 0.2450 |      - |           - |        - |      no | highest accuracy     |
++---------------+---------------------------------------+---------+--------+--------+-------------+----------+---------+----------------------+
+
+--- TOP 10 LONG-TERM HEALTH (calMAE + drift + spread) ---
++----+----------------------------------------+-------------+--------+------------+-----------+-------------+
+| #  | Engine                                 | ltComposite | calMAE | totalDrift | ratingStd | partnerDiff |
++----+----------------------------------------+-------------+--------+------------+-----------+-------------+
+|  1 | ZERO-SUM perPlayer k48 mw0.1           |      0.0480 | 0.0297 |          0 |      44.0 |       82.4% |
+|  2 | ZERO-SUM gapAdjust 0.5 winOnly k48     |      0.0964 | 0.0315 |          0 |      45.7 |       78.9% |
+|  3 | ZERO-SUM gapWin 0.5 underdog k48       |      0.0964 | 0.0315 |          0 |      45.7 |       78.9% |
+|  4 | ZERO-SUM perPlayer k56 mw0.1           |      0.1040 | 0.0312 |          0 |      49.6 |       86.5% |
+|  5 | ZERO-SUM gapAdjust 0.5 k48             |      0.1423 | 0.0370 |          0 |      44.5 |       80.1% |
+|  6 | ZERO-SUM gapWin 0.5 softUnderdog75 k48 |      0.1430 | 0.0330 |          0 |      47.1 |       73.4% |
+|  7 | ZERO-SUM perPlayer k40 mw0.3           |      0.1692 | 0.0391 |          0 |      46.9 |       86.2% |
+|  8 | ZERO-SUM gapWin 0.5 softUnderdog50 k48 |      0.1719 | 0.0333 |          0 |      47.7 |       67.8% |
+|  9 | ZERO-SUM perPlayer k40 mw0.2           |      0.1773 | 0.0428 |          0 |      42.4 |       83.2% |
+| 10 | ZERO-SUM gapAdjust 0.75 winOnly k48    |      0.1848 | 0.0370 |          0 |      46.7 |       73.4% |
++----+----------------------------------------+-------------+--------+------------+-----------+-------------+
+
+--- BEST BY BACKTEST (predictive, all seedings) ---
++---+--------------------------------------+---------+--------+----------+----------+--------+
+| # | Engine                               | logLoss | Brier  | accuracy | upsetAcc | upsets |
++---+--------------------------------------+---------+--------+----------+----------+--------+
+| 1 | proposed first_observed k=20 mw=0.1  |  0.6830 | 0.2450 |    64.5% |   181.6% |     98 |
+| 2 | proposed first_observed k=20 mw=0.15 |  0.6830 | 0.2450 |    64.5% |   181.6% |     98 |
+| 3 | proposed first_observed k=24 mw=0.1  |  0.6830 | 0.2450 |    64.5% |   181.6% |     98 |
+| 4 | proposed first_observed k=16 mw=0.1  |  0.6832 | 0.2451 |    63.0% |   170.6% |    102 |
+| 5 | proposed first_observed k=16 mw=0.2  |  0.6832 | 0.2451 |    64.1% |   178.8% |     99 |
++---+--------------------------------------+---------+--------+----------+----------+--------+
+
+--- SINGLES vs DOUBLES SWING BALANCE ---
++-----------+-----------+-----------------+-----------------+-----------------+
+| K_SINGLES | K_DOUBLES | avgSinglesSwing | avgDoublesSwing | singles:doubles |
++-----------+-----------+-----------------+-----------------+-----------------+
+|        24 |        48 |            11.7 |            12.7 |            0.92 |
++-----------+-----------+-----------------+-----------------+-----------------+
+
+=== RECOMMENDATION ===
+Best overall fair algorithm: ZERO-SUM perPlayer k56 mw0.1
+  - logLoss: 0.6794
+  - Brier: 0.2432
+  - calMAE: 0.0475
+  - partnerDiff: 76.3%
+  - absDrift: 0.0000 (OK)
+  - meanRating: 1500.0, ratingStd: 40.0
+
+Best long-term health: ZERO-SUM perPlayer k48 mw0.1
+  - calMAE: 0.0297, totalDrift: 0, ratingStd: 44.0, partnerDiff: 82.4%
+
+Best predictive backtest: proposed first_observed k=20 mw=0.1
+  - logLoss: 0.6830, Brier: 0.2450, accuracy: 64.5%, upsetAcc: 181.6%
+
+Best singles:doubles balance: K_SINGLES=24, K_DOUBLES=48 (ratio 0.92)
+
+Composite weights: short-term = logLoss 25%, Brier 20%, calMAE 25%, absDrift 15%, (1-partnerDiff) 15%
+Long-term = calMAE 40%, totalDrift 25%, ratingStd 20%, (1-partnerDiff) 15%. Lower composite = better.
+Drift flagged HIGH when >0.03 per match.
+

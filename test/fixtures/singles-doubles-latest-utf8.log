@@ -1,0 +1,46 @@
+﻿=== JUNE 22 RATING SWING GRID SEARCH ===
+
+K_SINGLES | Singles avg swing | Doubles avg swing | Ratio s:d | Ideal?
+------------------------------------------------------------------------
+       16 |               7.8 |              12.7 |      0.62 |
+       20 |               9.8 |              12.7 |      0.78 |
+       24 |              11.7 |              12.7 |      0.92 |
+       28 |              13.8 |              12.7 |      1.09 |
+       32 |              15.5 |              12.7 |      1.23 |
+
+Closest to ideal balance: K_SINGLES = 24 (ratio 0.92)
+
+=== JUNE 22 RATING SWING COMPARISON ===
+
+CURRENT settings (K_SINGLES=32, K_DOUBLES=48)
+  Singles matches: 26, avg per-player swing: 15.5
+  Doubles matches: 16, avg per-player swing: 12.7
+  Ratio singles:doubles = 1.23
+
+SUGGESTED settings (K_SINGLES=24, K_DOUBLES=48)
+  Singles matches: 26, avg per-player swing: 11.7
+  Doubles matches: 16, avg per-player swing: 12.7
+  Ratio singles:doubles = 0.92
+
+TOP 5 BIGGEST SWINGS ΓÇö K_SINGLES=32
+  Hazel Eslabra 1396->1424 (+28)  7-5  Trin BOADO 1633->1605 (-28)  | max swing: 28
+  Luv Boado 1420->1447 (+27)  7-6  EddieWow Datuin jr 1649->1622 (-27)  | max swing: 27
+  James Manganaan 1456->1478 (+22)  7-4  Jel Manganaan 1521->1499 (-22)  | max swing: 22
+  Boyet Castillo 1529->1549 (+20)  7-1  RC TERSOL 1552->1532 (-20)  | max swing: 20
+  Joven Eslabra 1545->1565 (+20)  7-6  Trin BOADO 1605->1585 (-20)  | max swing: 20
+
+TOP 5 BIGGEST SWINGS ΓÇö K_SINGLES=24
+  Hazel Eslabra 1399->1420 (+21)  7-5  Trin BOADO 1633->1612 (-21)  | max swing: 21
+  Luv Boado 1423->1443 (+20)  7-6  EddieWow Datuin jr 1642->1622 (-20)  | max swing: 20
+  James Manganaan 1456->1472 (+16)  7-4  Jel Manganaan 1521->1505 (-16)  | max swing: 16
+  Boyet Castillo 1529->1544 (+15)  7-1  RC TERSOL 1552->1537 (-15)  | max swing: 15
+  Joven Eslabra 1546->1561 (+15)  7-6  Trin BOADO 1612->1597 (-15)  | max swing: 15
+
+TOP 5 BIGGEST DOUBLES SWINGS ΓÇö K_DOUBLES=48
+  EddieWow Datuin jr 1569->1583 (+14) + RC TERSOL 1528->1542 (+14)  15-11  Celine Maquiling 1607->1592 (-15) + James Manganaan 1502->1489 (-13)  | max swing: 15
+  Jel Manganaan 1511->1524 (+13) + Jayson Hazim 1389->1404 (+15)  11-5  Luv Boado 1473->1458 (-15) + Sandro Quinto 1399->1386 (-13)  | max swing: 15
+  Ednalyn Pasaoa 1541->1553 (+12) + Henri Querimit 1453->1467 (+14)  11-8  Jayson Hazim 1404->1393 (-11) + Joven Eslabra 1551->1536 (-15)  | max swing: 15
+  RC TERSOL 1539->1552 (+13) + Arvin Cabanlig 1444->1458 (+14)  11-8  Jel Manganaan 1536->1521 (-15) + Luv Boado 1444->1432 (-12)  | max swing: 15
+  Tristan Soriano 1592->1606 (+14) + EddieWow Datuin jr 1608->1622 (+14)  11-7  Celine Maquiling 1619->1604 (-15) + romel saclolo 1575->1562 (-13)  | max swing: 15
+
+Full results written to C:\Users\trinm\Documents\GitHub\DoublesQueueMaster\test\fixtures\singles-vs-doubles-analysis.json

@@ -715,7 +715,7 @@
                     anchor="top middle"
                     self="bottom middle"
                     :offset="[8, 8]"
-                    >Rating below 1450</q-tooltip
+                    >Rating below 1400</q-tooltip
                   >
                 </q-chip>
                 <q-chip dense color="blue-6" text-color="white" size="xs">
@@ -724,7 +724,7 @@
                     anchor="top middle"
                     self="bottom middle"
                     :offset="[8, 8]"
-                    >Rating 1450 – 1599</q-tooltip
+                    >Rating 1400 – 1699</q-tooltip
                   >
                 </q-chip>
                 <q-chip dense color="green-6" text-color="white" size="xs">
@@ -733,7 +733,7 @@
                     anchor="top middle"
                     self="bottom middle"
                     :offset="[8, 8]"
-                    >Rating 1600 – 1799</q-tooltip
+                    >Rating 1700 – 1899</q-tooltip
                   >
                 </q-chip>
                 <q-chip dense color="amber-7" text-color="white" size="xs">
@@ -742,7 +742,7 @@
                     anchor="top middle"
                     self="bottom middle"
                     :offset="[8, 8]"
-                    >Rating 1800 – 1999</q-tooltip
+                    >Rating 1900 – 2099</q-tooltip
                   >
                 </q-chip>
                 <q-chip dense color="red-7" text-color="white" size="xs">
@@ -751,7 +751,7 @@
                     anchor="top middle"
                     self="bottom middle"
                     :offset="[8, 8]"
-                    >Rating 2000+</q-tooltip
+                    >Rating 2100+</q-tooltip
                   >
                 </q-chip>
               </div>
@@ -794,6 +794,13 @@
                 <q-item
                   v-for="(player, idx) in leaderboardData"
                   :key="player.username"
+                  :class="
+                    player.winRate !== undefined
+                      ? player.winRate >= 50
+                        ? 'bg-green-1'
+                        : 'bg-red-1'
+                      : ''
+                  "
                 >
                   <q-item-section avatar>
                     <div class="row items-center no-wrap" style="gap: 8px">
@@ -806,13 +813,14 @@
                       <PlayerAvatar
                         :name="player.firstName"
                         :username="player.username"
-                        :color="getRatingColor(player.rating)"
+                        :color="getRatingColor(player.rating || 1450)"
                         :image-url="player.avatar"
                         size="32px"
+                        :index="idx"
                       />
                     </div>
                   </q-item-section>
-                  <q-item-section>
+                  <q-item-section class="col">
                     <q-item-label class="text-weight-medium ellipsis">
                       {{ player.firstName || player.username }}
                     </q-item-label>
@@ -820,15 +828,25 @@
                       >@{{ player.username }}</q-item-label
                     >
                   </q-item-section>
-                  <q-item-section side>
+                  <q-item-section side class="text-right">
                     <q-chip
-                      :color="getRatingColor(player.rating)"
+                      :color="getRatingColor(player.rating || 1450)"
                       text-color="white"
                       size="sm"
-                      class="text-weight-bold"
+                      dense
+                      class="text-weight-bold q-mb-xs"
                     >
-                      {{ player.rating }}
+                      {{ player.score ?? (player.rating || 1450) }}
                     </q-chip>
+                    <div v-if="player.games !== undefined" class="text-caption">
+                      <span class="text-grey-10">{{ player.games }}G</span>
+                      <span class="text-green text-weight-bold q-ml-xs"
+                        >{{ player.wins || 0 }}W</span
+                      >
+                      <span class="text-red-10 q-ml-xs"
+                        >{{ player.losses || 0 }}L</span
+                      >
+                    </div>
                   </q-item-section>
                 </q-item>
               </q-list>
@@ -1004,12 +1022,14 @@ import PayBanner from 'src/components/PayBanner.vue';
 import * as echarts from 'echarts';
 import QRCode from 'qrcode';
 import {
+  resolveAvatarUrl,
   getRatingColor,
   getRatingCategory,
   formatDate,
   formatDateOnly,
   wilsonLowerBound,
 } from 'src/utils/playerHelpers';
+import { replayMatches } from 'src/utils/ratingReplay';
 
 const router = useRouter();
 const $q = useQuasar();
@@ -1060,16 +1080,21 @@ const clubId = ref<string | { clubId: string; name: string }>(
 const loadLeaderboardCache = () => {
   const cached = LocalStorage.getItem(LEADERBOARD_CACHE_KEY) as
     | {
-        global: typeof globalLeaderboard.value;
-        matches: typeof matchesLeaderboard.value;
+        playerId?: string;
+        global?: LeaderboardEntry[];
+        matches?: LeaderboardEntry[];
       }
     | string
     | null;
   if (!cached) return false;
   try {
     const data = typeof cached === 'string' ? JSON.parse(cached) : cached;
+    if (data?.playerId !== PlayerProfile.state.id) {
+      matchesLeaderboardCache.value = [];
+      return false;
+    }
     if (data?.global) globalLeaderboard.value = data.global;
-    if (data?.matches) matchesLeaderboard.value = data.matches;
+    if (data?.matches) matchesLeaderboardCache.value = data.matches;
     return true;
   } catch {
     return false;
@@ -1078,6 +1103,7 @@ const loadLeaderboardCache = () => {
 
 const saveLeaderboardCache = () => {
   LocalStorage.set(LEADERBOARD_CACHE_KEY, {
+    playerId: PlayerProfile.state.id,
     global: globalLeaderboard.value,
     matches: matchesLeaderboard.value,
   });
@@ -1145,31 +1171,118 @@ const openQrDialog = async () => {
     notify({ type: 'negative', message: 'Failed to generate QR code' });
   }
 };
+type LeaderboardEntry = {
+  firstName: string;
+  lastName: string;
+  username: string;
+  rating: number;
+  avatar?: string;
+  score?: number;
+  wins?: number;
+  losses?: number;
+  games?: number;
+  winRate?: number;
+};
+
 const leaderboardTab = ref<'global' | 'matches'>('global');
 const leaderboardLoading = ref(false);
-const globalLeaderboard = ref<
-  Array<{
-    firstName: string;
-    lastName: string;
-    username: string;
-    rating: number;
-    avatar?: string;
-  }>
->([]);
-const matchesLeaderboard = ref<
-  Array<{
-    firstName: string;
-    lastName: string;
-    username: string;
-    rating: number;
-    avatar?: string;
-  }>
->([]);
+const globalLeaderboard = ref<LeaderboardEntry[]>([]);
+const matchesLeaderboardCache = ref<LeaderboardEntry[]>([]);
+const matchesLeaderboard = computed<LeaderboardEntry[]>(() => {
+  const matches = PlayerProfile.state.completedMatches || [];
+  if (matches.length === 0) return [];
+
+  // Replay matches chronologically using the same algorithm as the rating script.
+  const replayed = replayMatches(
+    [...matches].reverse().map((m) => ({
+      teamAScore: m.team_a_score,
+      teamBScore: m.team_b_score,
+      teamA: (m.team_a || []).map((p) => ({
+        username: p.username,
+        name: p.firstName,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        rating: p.rating,
+        avatar: p.avatar,
+      })),
+      teamB: (m.team_b || []).map((p) => ({
+        username: p.username,
+        name: p.firstName,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        rating: p.rating,
+        avatar: p.avatar,
+      })),
+    })),
+  );
+
+  // Build registered-user info map from the players junction.
+  const userMap = new Map<
+    string,
+    {
+      firstName: string;
+      lastName: string;
+      rating: number;
+      avatar?: string;
+    }
+  >();
+  for (const m of matches) {
+    for (const jp of m.players || []) {
+      const user = jp.directus_users_id;
+      if (!user?.username) continue;
+      userMap.set(user.username, {
+        firstName: user.first_name || user.username,
+        lastName: user.last_name || '',
+        rating: user.rating ?? 1450,
+        avatar: resolveAvatarUrl(user.avatar),
+      });
+    }
+  }
+
+  const list = Object.values(replayed)
+    .filter((p) => userMap.has(p.username))
+    .map((p) => {
+      const user = userMap.get(p.username);
+      return {
+        firstName: user?.firstName || p.firstName,
+        lastName: user?.lastName || p.lastName,
+        username: p.username,
+        rating: p.rating,
+        score: Math.round(p.rating),
+        avatar: user?.avatar || p.avatar,
+        wins: p.wins,
+        losses: p.losses,
+        games: p.matchesPlayed,
+        winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
+      };
+    });
+
+  const sorted = list.sort(
+    (a, b) => b.score - a.score || (b.rating || 1450) - (a.rating || 1450),
+  );
+
+  const top10 = sorted.slice(0, 10);
+  const currentUsername = PlayerProfile.state.username;
+  console.log(
+    '[matchesLeaderboard] matches:',
+    matches.length,
+    'players:',
+    sorted.length,
+    'top10:',
+    top10,
+  );
+  if (!currentUsername || top10.some((p) => p.username === currentUsername)) {
+    return top10;
+  }
+  const currentEntry = sorted.find((p) => p.username === currentUsername);
+  return currentEntry ? [...top10, currentEntry] : top10;
+});
 
 const leaderboardData = computed(() => {
-  return leaderboardTab.value === 'global'
-    ? globalLeaderboard.value
-    : matchesLeaderboard.value;
+  if (leaderboardTab.value === 'global') return globalLeaderboard.value;
+  return matchesLeaderboard.value.length > 0
+    ? matchesLeaderboard.value
+    : matchesLeaderboardCache.value;
 });
 
 const playerEvents = computed(() => PlayerProfile.state.events || []);
@@ -1945,22 +2058,6 @@ const fetchLeaderboard = async () => {
       }),
     );
 
-    // From matches: top 10 by event rating (deduplicated by player)
-    const eventsResult = await likhaClient.request(
-      readItems('event', {
-        fields: [
-          'player.first_name',
-          'player.last_name',
-          'player.username',
-          'player.rating',
-          'player.avatar',
-          'rating',
-        ],
-        sort: ['-rating'],
-        limit: 100,
-      }),
-    );
-
     const resolveAvatar = (avatar: unknown): string => {
       const a = (avatar as string) || '';
       if (!a) return '';
@@ -1978,24 +2075,6 @@ const fetchLeaderboard = async () => {
       avatar: resolveAvatar(u.avatar),
     }));
 
-    const seen = new Set<string>();
-    const matchPlayers: typeof globalLeaderboard.value = [];
-    for (const e of Array.isArray(eventsResult) ? eventsResult : []) {
-      const evt = e as Record<string, unknown>;
-      const p = evt.player as Record<string, unknown> | undefined;
-      if (!p) continue;
-      const uname = (p.username as string) || '';
-      if (seen.has(uname)) continue;
-      seen.add(uname);
-      matchPlayers.push({
-        firstName: (p.first_name as string) || '',
-        lastName: (p.last_name as string) || '',
-        username: uname,
-        rating: typeof p.rating === 'number' ? p.rating : Number(p.rating) || 0,
-        avatar: resolveAvatar(p.avatar),
-      });
-    }
-    matchesLeaderboard.value = matchPlayers.slice(0, 10);
     saveLeaderboardCache();
   } catch (err) {
     if (!hasCache) {

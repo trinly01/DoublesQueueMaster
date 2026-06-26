@@ -1,0 +1,36 @@
+﻿
+=== RATING SWING: BEFORE vs AFTER ===
+
+Old: K_SINGLES=24, K_DOUBLES=48, marginWeight=0.1, partnerGap=0.75, lossBlend=0.75, maxRatio=2.0
+New: K_SINGLES=36, K_DOUBLES=64, marginWeight=0.15, partnerGap=0.5, lossBlend=1.0, maxRatio=4.0
+
+Singles even 1500 vs 1500, 11-10
+  Old: pool 13 | winners     +13 | losers     -13
+  New: pool 20 | winners     +20 | losers     -20
+  Pool change: +7 points
+
+Singles upset 1200 vs 1500, 11-9
+  Old: pool 23 | winners     +23 | losers     -23
+  New: pool 36 | winners     +36 | losers     -36
+  Pool change: +13 points
+
+Singles upset 1200 vs 1500, 11-2
+  Old: pool 25 | winners     +25 | losers     -25
+  New: pool 41 | winners     +41 | losers     -41
+  Pool change: +16 points
+
+Doubles even 1500+1500 vs 1500+1500, 11-10
+  Old: pool 26 | winners +13 / +13 | losers -13 / -13
+  New: pool 35 | winners +18 / +17 | losers -18 / -17
+  Pool change: +9 points
+
+Doubles upset 1200+1200 vs 1500+1500, 11-9
+  Old: pool 45 | winners +23 / +22 | losers -23 / -22
+  New: pool 63 | winners +32 / +31 | losers -32 / -31
+  Pool change: +18 points
+
+Doubles upset 1200+1200 vs 1500+1500, 11-2
+  Old: pool 50 | winners +25 / +25 | losers -25 / -25
+  New: pool 73 | winners +37 / +36 | losers -37 / -36
+  Pool change: +23 points
+
