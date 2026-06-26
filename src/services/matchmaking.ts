@@ -1176,10 +1176,10 @@ export class LocalMatchmakingSystem {
     }
 
     // One-shot: after drafting with strict_balance, revert to balance_first
-    // so subsequent rounds use queue-priority selection again.
+    // so subsequent rounds keep the closest competitive matches.
     if (isStrictBalance) {
-      // change matchmaking mode back to fair_balance
-      this.state.matchmakingMode = 'fair_balance';
+      // change matchmaking mode back to balance_first
+      this.state.matchmakingMode = 'balance_first';
       this.state.settingsUpdatedAt = Date.now();
     }
 

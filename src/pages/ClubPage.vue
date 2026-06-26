@@ -5538,31 +5538,34 @@ const queuePriorityOptions = [
 // Matchmaking mode options
 const matchmakingModeOptions = [
   {
-    label: 'Variety first (fresh partners)',
-    value: 'variety_first',
-    description: 'Prioritize new partners, then opponents, then balance',
-  },
-  {
-    label: 'Balance first (rating parity)',
-    value: 'balance_first',
-    description: 'Most balanced match with novelty as a penalty',
-  },
-  {
-    label: 'Balanced variety',
-    value: 'balanced_variety',
-    description:
-      'Equal weighting of balance and variety, always the best match',
-  },
-  {
-    label: 'Strict balance',
-    value: 'strict_balance',
-    description: 'Always the most balanced match, no novelty consideration',
-  },
-  {
-    label: 'Fair balance (next in line, even teams)',
+    label: 'Waitlist: Pure Match',
     value: 'fair_balance',
     description:
-      'Drafts the next players in queue order, then forms the most balanced teams from them',
+      'Drafts the next in line, then builds teams purely on expected score difference without repeat penalties',
+  },
+  {
+    label: 'Waitlist: Social Mixer',
+    value: 'variety_first',
+    description:
+      'Drafts the next in line, then minimizes partner/opponent repeats within that group',
+  },
+  {
+    label: 'Waitlist: Standard',
+    value: 'balanced_variety',
+    description:
+      'Drafts the next in line, then balances skill and novelty equally',
+  },
+  {
+    label: 'Waitlist: Competitive',
+    value: 'balance_first',
+    description:
+      'Drafts the next in line, then strongly prioritizes close ratings',
+  },
+  {
+    label: 'True Ranked Match',
+    value: 'strict_balance',
+    description:
+      'Completely ignores wait time. Pulls the absolute highest-rated players from the entire queue for a mathematically perfect game',
   },
 ];
 
