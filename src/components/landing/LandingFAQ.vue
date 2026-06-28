@@ -36,7 +36,7 @@ const faqs = [
   {
     question: 'What are the rating levels?',
     answer:
-      'DinkMatch shows five skill levels based on your rating: Beginner (below 1450), Intermediate (1450+), Advanced (1600+), Expert (1800+), and Pro (2000+). Your level is shown as a colored chip next to your name and on the club leaderboard.',
+      'DinkMatch shows five skill levels based on your rating: Beginner (below 1400), Intermediate (1400+), Advanced (1700+), Expert (1900+), and Pro (2100+). Your level is shown as a colored chip next to your name and on the club leaderboard.',
   },
   {
     question: 'How does auto-matchmaking work?',
