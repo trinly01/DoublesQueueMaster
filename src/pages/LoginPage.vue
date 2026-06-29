@@ -397,7 +397,16 @@ const onSubmit = async () => {
 
 const onGoogleLogin = () => {
   googleLoading.value = true;
-  const redirect = `${window.location.origin}/#/login?sso=google`;
+  // Force https on real domains: iOS Safari may serve the page over http,
+  // making window.location.origin "http://..." which fails to match the
+  // Directus redirect allow-list (which contains the https variant).
+  const { hostname, origin } = window.location;
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+  const safeOrigin =
+    !isLocalhost && origin.startsWith('http://')
+      ? origin.replace(/^http:\/\//, 'https://')
+      : origin;
+  const redirect = `${safeOrigin}/#/login?sso=google`;
   const authUrl = `${LIKHA_URL}/auth/login/google?redirect=${encodeURIComponent(
     redirect,
   )}`;
