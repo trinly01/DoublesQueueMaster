@@ -142,6 +142,23 @@
           </div>
 
           <div class="text-center q-mt-md">
+            <q-btn
+              color="white"
+              text-color="grey-9"
+              size="md"
+              class="full-width google-btn"
+              :loading="googleLoading"
+              no-caps
+              outline
+              rounded
+              @click="onGoogleLogin"
+            >
+              <img :src="googleIconUrl" alt="Google" class="google-icon" />
+              <span class="q-ml-sm">Continue with Google</span>
+            </q-btn>
+          </div>
+
+          <div class="text-center q-mt-md">
             <span class="text-grey-7">Don't have an account? </span>
             <router-link
               to="/register"
@@ -177,17 +194,20 @@
 
 <script setup lang="ts">
 import logoUrl from 'src/assets/queue master logo.png';
+import googleIconUrl from 'src/assets/google-icon.svg';
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { LocalStorage } from 'quasar';
 import { useNotify } from 'src/composables/useNotify';
-import { likhaClient } from 'src/services/likhaClient';
-import { registerUserVerify } from '@likha-erp/likha-sdk';
+import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
+import { registerUserVerify, readMe } from '@likha-erp/likha-sdk';
 
 const email = ref('');
 const password = ref('');
 const showPassword = ref(false);
 const rememberMe = ref(false);
 const loading = ref(false);
+const googleLoading = ref(false);
 
 type VerifyStatus = 'idle' | 'loading' | 'success' | 'error';
 const verifyStatus = ref<VerifyStatus>('idle');
@@ -207,18 +227,60 @@ onMounted(async () => {
 
   console.log('Token is: ', token);
 
-  if (!token) return;
+  if (token) {
+    verifyStatus.value = 'loading';
+    try {
+      await likhaClient.request(registerUserVerify(token));
+      verifyStatus.value = 'success';
+    } catch (err) {
+      const error = err as { errors?: { message?: string }[] };
+      verifyError.value =
+        error?.errors?.[0]?.message ??
+        'Email verification failed. The link may have expired.';
+      verifyStatus.value = 'error';
+    }
+    return;
+  }
 
-  verifyStatus.value = 'loading';
-  try {
-    await likhaClient.request(registerUserVerify(token));
-    verifyStatus.value = 'success';
-  } catch (err) {
-    const error = err as { errors?: { message?: string }[] };
-    verifyError.value =
-      error?.errors?.[0]?.message ??
-      'Email verification failed. The link may have expired.';
-    verifyStatus.value = 'error';
+  // Google SSO return handling
+  const sso =
+    (route.query['sso'] as string | undefined) ||
+    new URLSearchParams(window.location.search).get('sso') ||
+    undefined;
+  const ssoReason =
+    (route.query['reason'] as string | undefined) ||
+    new URLSearchParams(window.location.search).get('reason') ||
+    undefined;
+
+  if (sso === 'google') {
+    googleLoading.value = true;
+    try {
+      // Confirm the session cookie is active by reading the current user.
+      await likhaClient.request(readMe());
+      LocalStorage.set('dink-auth', true);
+      notify({
+        color: 'positive',
+        textColor: 'white',
+        icon: 'check_circle',
+        message: 'Login with Google successful',
+      });
+      const redirect = route.query.redirect;
+      router.push(typeof redirect === 'string' ? redirect : '/profile');
+    } catch (err) {
+      const error = err as { errors?: { message?: string }[] };
+      const errorMessage =
+        error?.errors?.[0]?.message ??
+        ssoReason ??
+        'Google login failed. Please try again.';
+      notify({
+        color: 'negative',
+        textColor: 'white',
+        icon: 'warning',
+        message: errorMessage,
+      });
+      googleLoading.value = false;
+    }
+    return;
   }
 });
 
@@ -226,6 +288,7 @@ const onSubmit = async () => {
   loading.value = true;
   try {
     await likhaClient.login({ email: email.value, password: password.value });
+    LocalStorage.set('dink-auth', true);
 
     notify({
       color: 'positive',
@@ -252,6 +315,15 @@ const onSubmit = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const onGoogleLogin = () => {
+  googleLoading.value = true;
+  const redirect = `${window.location.origin}/#/login?sso=google`;
+  const authUrl = `${LIKHA_URL}/auth/login/google?redirect=${encodeURIComponent(
+    redirect,
+  )}`;
+  window.location.href = authUrl;
 };
 </script>
 
@@ -294,6 +366,14 @@ const onSubmit = async () => {
   background: linear-gradient(135deg, #667eea 0%, #5a67d8 100%) !important;
   color: white;
   font-weight: bold;
+}
+.google-btn {
+  border: 1px solid #dadce0 !important;
+  font-weight: 500;
+}
+.google-icon {
+  width: 18px;
+  height: 18px;
 }
 .text-decoration-none {
   text-decoration: none;

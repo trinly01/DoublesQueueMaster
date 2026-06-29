@@ -3,30 +3,13 @@ import {
   authentication,
   rest,
   realtime,
-  type AuthenticationData,
 } from '@likha-erp/likha-sdk';
-import { LocalStorage } from 'quasar';
 
-// Custom Storage adapter for Likha SDK utilizing Quasar's LocalStorage
-class QuasarStorage {
-  get(): AuthenticationData | null {
-    const data = LocalStorage.getItem('likha-data');
-    return data ? (data as AuthenticationData) : null;
-  }
-  set(data: AuthenticationData | null) {
-    if (data === null) {
-      LocalStorage.remove('likha-data');
-    } else {
-      LocalStorage.set('likha-data', data);
-    }
-  }
-}
+const LIKHA_URL = 'https://dink-it.zyberlab.com';
 
-const storage = new QuasarStorage();
-
-const likhaClient = createLikha('https://dink-it.zyberlab.com')
-  .with(authentication('json', { storage }))
-  .with(rest())
+const likhaClient = createLikha(LIKHA_URL)
+  .with(authentication('session', { credentials: 'include' }))
+  .with(rest({ credentials: 'include' }))
   .with(
     realtime({
       authMode: 'handshake',
@@ -34,4 +17,4 @@ const likhaClient = createLikha('https://dink-it.zyberlab.com')
     }),
   );
 
-export { likhaClient };
+export { likhaClient, LIKHA_URL };
