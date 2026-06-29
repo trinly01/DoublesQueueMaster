@@ -1,7 +1,7 @@
 <template>
   <q-page class="flex flex-center login-page">
     <q-card class="q-pa-lg login-card shadow-4" bordered>
-      <q-card-section class="text-center q-pb-sm q-pt-none">
+      <q-card-section class="text-center q-pt-none">
         <img
           :src="logoUrl"
           alt="Logo"
@@ -11,7 +11,7 @@
         <div class="text-h4 text-weight-bold text-primary brand-title q-mb-xs">
           DinkMatch
         </div>
-        <div class="text-subtitle1 text-grey-7">
+        <div class="text-subtitle1 text-grey-7 q-mb-md">
           Sign in to your player account
         </div>
       </q-card-section>
@@ -62,7 +62,6 @@
                 type="email"
                 label="Email Address"
                 lazy-rules
-                autofocus
                 autocomplete="username"
                 autocapitalize="off"
                 autocorrect="off"
@@ -141,6 +140,8 @@
             />
           </div>
 
+          <q-space />
+
           <div class="text-center q-mt-md">
             <q-btn
               color="white"
@@ -168,6 +169,14 @@
           </div>
 
           <div class="text-center q-mt-sm">
+            <router-link
+              to="/openplay"
+              class="text-primary text-weight-medium text-decoration-none"
+              >Start without account</router-link
+            >
+          </div>
+
+          <div class="text-center q-mt-sm">
             <q-btn
               flat
               dense
@@ -178,14 +187,6 @@
               to="/"
             />
           </div>
-
-          <div class="text-center q-mt-sm">
-            <router-link
-              to="/openplay"
-              class="text-primary text-weight-medium text-decoration-none"
-              >Start without account</router-link
-            >
-          </div>
         </q-form>
       </q-card-section>
     </q-card>
@@ -195,7 +196,7 @@
 <script setup lang="ts">
 import logoUrl from 'src/assets/queue master logo.png';
 import googleIconUrl from 'src/assets/google-icon.svg';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { LocalStorage } from 'quasar';
 import { useNotify } from 'src/composables/useNotify';
@@ -217,7 +218,17 @@ const router = useRouter();
 const route = useRoute();
 const { notify } = useNotify();
 
+const resetGoogleLoading = () => {
+  googleLoading.value = false;
+};
+
 onMounted(async () => {
+  // Defensive reset: if the user came back via the browser back button after
+  // cancelling the Google consent screen, the page might be restored from
+  // bfcache and still hold the old `googleLoading = true` state.
+  googleLoading.value = false;
+  window.addEventListener('pageshow', resetGoogleLoading);
+
   // In hash mode, Directus may append ?token= BEFORE the # (e.g. /?token=xxx#/login)
   // which means route.query won't see it — fall back to window.location.search
   const token =
@@ -282,6 +293,10 @@ onMounted(async () => {
     }
     return;
   }
+});
+
+onUnmounted(() => {
+  window.removeEventListener('pageshow', resetGoogleLoading);
 });
 
 const onSubmit = async () => {
@@ -384,6 +399,7 @@ const onGoogleLogin = () => {
 @media (max-width: 480px) {
   .login-card {
     padding: 24px !important;
+    padding-bottom: 64px !important;
     max-width: none;
     border-radius: 0;
     background-color: #ffffff;
@@ -391,6 +407,7 @@ const onGoogleLogin = () => {
     border: none;
     box-shadow: none;
     min-height: 100vh;
+    margin-top: 5vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
