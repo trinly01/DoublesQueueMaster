@@ -266,7 +266,45 @@ onMounted(async () => {
   if (sso === 'google') {
     googleLoading.value = true;
     try {
-      // Confirm the session cookie is active by reading the current user.
+      // Best-effort: try to exchange the SSO refresh-token cookie for JSON
+      // tokens and persist them to localStorage. This gives the most durable
+      // session (and is required on iOS, which blocks cross-site cookies).
+      // If it fails (e.g. backend cookie is SameSite=Lax and not sent on this
+      // cross-site request), we fall back to the session cookie below.
+      try {
+        const res = await fetch(`${LIKHA_URL}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: 'cookie' }),
+        });
+        if (res.ok) {
+          const json = (await res.json()) as {
+            data?: {
+              access_token?: string;
+              refresh_token?: string;
+              expires?: number;
+            };
+          };
+          const data = json.data;
+          if (data?.access_token) {
+            LocalStorage.set('likha-data', {
+              access_token: data.access_token,
+              refresh_token: data.refresh_token ?? null,
+              expires: data.expires ?? null,
+              expires_at: data.expires ? Date.now() + data.expires : null,
+            });
+          }
+        }
+      } catch (refreshErr) {
+        console.warn(
+          'SSO token exchange failed, falling back to cookie session:',
+          refreshErr,
+        );
+      }
+
+      // Confirm we are authenticated, either via the stored token or via the
+      // session cookie (credentials are included on all requests).
       await likhaClient.request(readMe());
       LocalStorage.set('dink-auth', true);
       notify({

@@ -13,6 +13,7 @@ export function useAuth() {
   // Clear all locally-persisted auth/session state.
   const clearLocalSession = () => {
     LocalStorage.remove('dink-auth');
+    LocalStorage.remove('likha-data');
     LocalStorage.remove('current_user_id');
     PlayerProfile.clearProfile();
   };
