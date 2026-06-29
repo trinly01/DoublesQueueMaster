@@ -263,6 +263,31 @@ onMounted(async () => {
     new URLSearchParams(window.location.search).get('reason') ||
     undefined;
 
+  // Directus signals an SSO failure by redirecting back with a `reason`
+  // query param (and it may NOT preserve our `sso=google` flag). Handle this
+  // first so the user always sees an error instead of a silent failure.
+  if (ssoReason) {
+    const reasonMessages: Record<string, string> = {
+      INVALID_PROVIDER:
+        'This account is not registered with Google. Please log in with your email and password.',
+      INVALID_CREDENTIALS:
+        'Google login failed. This email may belong to a different login method.',
+      INVALID_TOKEN: 'Google login failed. Please try again.',
+      SERVICE_UNAVAILABLE:
+        'Google login is temporarily unavailable. Please try again later.',
+    };
+    notify({
+      color: 'negative',
+      textColor: 'white',
+      icon: 'warning',
+      message:
+        reasonMessages[ssoReason] ??
+        `Google login failed (${ssoReason}). Please try logging in with your email and password.`,
+    });
+    googleLoading.value = false;
+    return;
+  }
+
   if (sso === 'google') {
     googleLoading.value = true;
     try {
