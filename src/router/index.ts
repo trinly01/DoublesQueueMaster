@@ -35,7 +35,7 @@ export default route(function (/* { store, ssrContext } */) {
   });
 
   Router.beforeEach((to, from, next) => {
-    const hasSession = LocalStorage.has('likha-data');
+    const hasSession = LocalStorage.has('dink-auth');
 
     if (to.matched.some((record) => record.meta.requiresAuth)) {
       if (!hasSession) {
