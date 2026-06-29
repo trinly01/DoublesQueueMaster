@@ -12,15 +12,15 @@
       </q-toolbar> -->
     </q-header>
 
-    <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
-      <!-- <q-list>
+    <!-- <q-drawer v-model="leftDrawerOpen" show-if-above bordered> -->
+    <!-- <q-list>
         <q-item-label header>
           Tryn Pogi
         </q-item-label>
 
         <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" />
       </q-list> -->
-    </q-drawer>
+    <!-- </q-drawer> -->
 
     <q-page-container>
       <router-view />
@@ -33,7 +33,7 @@ import { onMounted, ref } from 'vue';
 // import EssentialLink, { EssentialLinkProps } from 'components/EssentialLink.vue';
 
 defineOptions({
-  name: 'MainLayout'
+  name: 'MainLayout',
 });
 
 // const linksList: EssentialLinkProps[] = [
