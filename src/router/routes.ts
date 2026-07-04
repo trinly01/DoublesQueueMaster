@@ -38,6 +38,10 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresUnauth: true },
       },
       {
+        path: 'delete-account',
+        component: () => import('pages/DeleteAccountPage.vue'),
+      },
+      {
         path: 'club/:clubId',
         component: ClubPage,
         meta: { requiresAuth: true },
