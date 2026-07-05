@@ -11,7 +11,8 @@
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "vitest run",
     "dev": "quasar dev",
-    "build": "quasar build -m pwa"
+    "build": "quasar build -m pwa",
+    "build:aab": "cd android-twa && node build-bubblewrap.cjs"
   },
   "dependencies": {
     "@likha-erp/likha-sdk": "^1.0.7",
