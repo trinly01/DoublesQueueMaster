@@ -260,8 +260,46 @@
     "accountability": "all"
   },
   {
-    "id": "8f57fd7e-e49c-4440-9b41-304d1dd0c577",
+    "id": "8d01e431-d0b9-468e-b0bd-15faa5db1e80",
     "name": "update player rating",
+    "icon": "bolt",
+    "color": null,
+    "description": null,
+    "trigger": "operation",
+    "options": {
+      "return": "$all"
+    },
+    "operation": "514aaea3-6f01-4d3f-90d3-a21ad69a5e15",
+    "operations": [
+      {
+        "id": "514aaea3-6f01-4d3f-90d3-a21ad69a5e15",
+        "name": "Update Data",
+        "key": "item_update_calec",
+        "type": "item-update",
+        "position_x": 31,
+        "position_y": 2,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "directus_users",
+          "payload": {
+            "rating": "{{$trigger.rating}}",
+            "rating_updated_at": "{{$trigger.rating_updated_at}}"
+          },
+          "key": [
+            "{{$trigger.uuid}}"
+          ]
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "8f57fd7e-e49c-4440-9b41-304d1dd0c577",
+    "name": "update player events",
     "icon": "bolt",
     "color": null,
     "description": null,
@@ -270,63 +308,20 @@
     "operation": "8547d566-71e6-400e-9065-219a54087145",
     "operations": [
       {
-        "id": "0eb6bd36-af40-4551-8ac0-13156e93498b",
-        "name": "Update Data",
-        "key": "item_update_calec_muatd",
-        "type": "item-update",
-        "position_x": 51,
-        "position_y": 39,
-        "options": {
-          "permissions": "$full",
-          "emitEvents": false,
-          "collection": "directus_users",
-          "payload": {
-            "rating": "{{$trigger.rating}}"
-          },
-          "key": [
-            "{{$trigger.userId}}"
-          ]
-        },
-        "resolve": "e1ade08b-1dc9-44f6-a15c-43b7fafdf89d",
-        "reject": null
-      },
-      {
         "id": "3118305f-7081-467f-852b-cc17eb52cf75",
         "name": "create event",
         "key": "create_event",
         "type": "item-create",
-        "position_x": 30,
-        "position_y": 20,
+        "position_x": 12,
+        "position_y": 19,
         "options": {
           "permissions": "$trigger",
           "emitEvents": false,
           "collection": "event",
           "payload": "{{script_transform_player_to_event}}"
         },
-        "resolve": "4b490756-72cc-43a1-9ab6-7eff095ab9e8",
+        "resolve": null,
         "reject": "c8394f5e-6c61-4526-a7a6-6151b78781ec"
-      },
-      {
-        "id": "4b490756-72cc-43a1-9ab6-7eff095ab9e8",
-        "name": "Update Data",
-        "key": "item_update_calec",
-        "type": "item-update",
-        "position_x": 50,
-        "position_y": 20,
-        "options": {
-          "permissions": "$full",
-          "emitEvents": false,
-          "collection": "directus_users",
-          "payload": {
-            "rating": "{{$trigger.rating}}",
-            "rating_updated_at": "{{$trigger.ratingUpdatedAt}}"
-          },
-          "key": [
-            "{{$trigger.userId}}"
-          ]
-        },
-        "resolve": "b5069430-1bce-4f4e-b0fe-f21a6a1e24e7",
-        "reject": null
       },
       {
         "id": "8547d566-71e6-400e-9065-219a54087145",
@@ -360,27 +355,12 @@
         "reject": null
       },
       {
-        "id": "b5069430-1bce-4f4e-b0fe-f21a6a1e24e7",
-        "name": "Trigger Flow",
-        "key": "trigger_dklf7",
-        "type": "trigger",
-        "position_x": 69,
-        "position_y": 20,
-        "options": {
-          "iterationMode": "parallel",
-          "flow": "daa0ffa5-d040-4efd-af26-3ce063a81bc6",
-          "payload": "{{$trigger.completed_matches}}"
-        },
-        "resolve": null,
-        "reject": null
-      },
-      {
         "id": "c8394f5e-6c61-4526-a7a6-6151b78781ec",
         "name": "Update Data",
         "key": "item_update_f4v5t",
         "type": "item-update",
         "position_x": 12,
-        "position_y": 37,
+        "position_y": 36,
         "options": {
           "permissions": "$full",
           "emitEvents": false,
@@ -393,21 +373,6 @@
             }
           },
           "payload": "{{script_transform_player_to_event}}"
-        },
-        "resolve": "0eb6bd36-af40-4551-8ac0-13156e93498b",
-        "reject": null
-      },
-      {
-        "id": "e1ade08b-1dc9-44f6-a15c-43b7fafdf89d",
-        "name": "Trigger Flow",
-        "key": "trigger_dklf7_jvjto",
-        "type": "trigger",
-        "position_x": 69,
-        "position_y": 39,
-        "options": {
-          "iterationMode": "parallel",
-          "flow": "daa0ffa5-d040-4efd-af26-3ce063a81bc6",
-          "payload": "{{$trigger.completed_matches}}"
         },
         "resolve": null,
         "reject": null
@@ -565,7 +530,9 @@
             "{{$trigger.key}}"
           ],
           "payload": {
-            "username": "{{generate_username}}"
+            "username": "{{generate_username}}",
+            "role": "2f2b5b78-25ed-4f65-8fe3-0549b4d3a72c",
+            "external_identifier": "{{$trigger.payload.email}}"
           }
         },
         "resolve": "342f5aab-f5e3-41e2-9c58-8e35734b3fa8",
@@ -596,22 +563,50 @@
     "description": null,
     "trigger": "operation",
     "options": {},
-    "operation": "db5679d6-f6a9-49fd-a69e-b96503a39e55",
+    "operation": "77006b79-d50c-4b40-99d1-fe610a176fe0",
     "operations": [
+      {
+        "id": "77006b79-d50c-4b40-99d1-fe610a176fe0",
+        "name": "script transform match",
+        "key": "script_transform_match",
+        "type": "exec",
+        "position_x": 21,
+        "position_y": 1,
+        "options": {
+          "code": "const K_DOUBLES = 64;\nconst K_SINGLES = 36;\nconst MARGIN_WEIGHT = 0.15;\nconst PARTNER_GAP_FACTOR = 0.5;\nconst LOSS_UNDERDOG_BLEND = 1.0;\nconst RATING_FLOOR = 100;\nconst MAX_PARTNER_RATIO = 2.0;\n\nconst computeArithmeticMean = (team) => {\n  if (!team || team.length === 0) return 1450;\n  return team.reduce((sum, p) => sum + (Number(p.rating) || 1450), 0) / team.length;\n};\n\nconst allocateInteger = (total, weights) => {\n  const sum = weights.reduce((s, w) => s + w, 0);\n  const norm = sum > 0\n    ? weights.map((w) => w / sum)\n    : weights.map(() => 1 / weights.length);\n  const raw = norm.map((n) => n * total);\n  const floors = raw.map((r) => Math.floor(r));\n  const remainder = total - floors.reduce((s, f) => s + f, 0);\n  const order = raw\n    .map((r, i) => ({ i, frac: r - Math.floor(r) }))\n    .sort((a, b) => b.frac - a.frac);\n  const result = [...floors];\n  for (let k = 0; k < remainder; k++) result[order[k % order.length].i] += 1;\n  return result;\n};\n\nconst capWeights = (weights, maxRatio) => {\n  if (weights.length < 2) return weights;\n  const max = Math.max(...weights);\n  if (max <= 0) return weights;\n  const minAllowed = max / maxRatio;\n  return weights.map((w) => Math.max(w, minAllowed));\n};\n\nconst calculateShift = (winners, losers, scoreW, scoreL) => {\n  const ratingW = computeArithmeticMean(winners);\n  const ratingL = computeArithmeticMean(losers);\n\n  const margin = Math.abs(scoreW - scoreL);\n  const multiplier = 1 + MARGIN_WEIGHT * Math.log(1 + margin);\n\n  const K = winners.length === 1 ? K_SINGLES : K_DOUBLES;\n\n  const expectedW = 1 / (1 + Math.pow(10, (ratingL - ratingW) / 400));\n  const pool = Math.round(K * multiplier * (1 - expectedW));\n\n  const winnerCredits = winners.map((p, i) => {\n    const partner = winners[(i + 1) % winners.length];\n    const gap = Math.abs(partner.rating - p.rating);\n    const base = 1 - 1 / (1 + Math.pow(10, (ratingL - p.rating) / 400));\n    const weaker = p.rating < partner.rating;\n    const penalty = weaker\n      ? Math.max(0.1, 1 - (PARTNER_GAP_FACTOR * gap) / 400)\n      : 1;\n    return base * penalty;\n  });\n  const winnerGains = allocateInteger(pool, capWeights(winnerCredits, MAX_PARTNER_RATIO));\n\n  const loserBlames = losers.map((p) => {\n    const expectedVsWinners = 1 / (1 + Math.pow(10, (ratingW - p.rating) / 400));\n    return 1 - LOSS_UNDERDOG_BLEND + LOSS_UNDERDOG_BLEND * expectedVsWinners;\n  });\n  const loserLosses = allocateInteger(pool, capWeights(loserBlames, MAX_PARTNER_RATIO));\n\n  return { winnerGains, loserLosses };\n};\n\nmodule.exports = async function(data) {\n  const match = data.$trigger.payload || data.$trigger;\n\n  const teamA = match.teamA || [];\n  const teamB = match.teamB || [];\n  const teamAScore = Number(match.teamAScore) || 0;\n  const teamBScore = Number(match.teamBScore) || 0;\n\n  // Determine winners and losers\n  let winners, losers, scoreW, scoreL;\n  if (teamAScore > teamBScore) {\n    winners = teamA;\n    losers = teamB;\n    scoreW = teamAScore;\n    scoreL = teamBScore;\n  } else {\n    winners = teamB;\n    losers = teamA;\n    scoreW = teamBScore;\n    scoreL = teamAScore;\n  }\n\n  const { winnerGains, loserLosses } = calculateShift(\n    winners,\n    losers,\n    scoreW,\n    scoreL\n  );\n\n  const now = new Date().toISOString();\n\n  const updatedWinners = winners\n    .filter(p => p.userId)\n    .map((player, i) => ({\n      uuid: player.userId,\n      rating: Math.max(RATING_FLOOR, (Number(player.rating) || 1450) + winnerGains[i]),\n      rating_updated_at: now,\n      matches_played: (Number(player.matchesPlayed) || 0) + 1,\n      wins: (Number(player.wins) || 0) + 1\n    }));\n\n  const updatedLosers = losers\n    .filter(p => p.userId)\n    .map((player, i) => ({\n      uuid: player.userId,\n      rating: Math.max(RATING_FLOOR, (Number(player.rating) || 1450) - loserLosses[i]),\n      rating_updated_at: now,\n      matches_played: (Number(player.matchesPlayed) || 0) + 1,\n      losses: (Number(player.losses) || 0) + 1\n    }));\n\n  const completedMatch = {\n    match_key: `${match.completedAt}_${match.matchId}`,\n    match_id: match.matchId,\n    match_type: match.matchType,\n    team_a: match.teamA,\n    team_b: match.teamB,\n    team_a_score: match.teamAScore,\n    team_b_score: match.teamBScore,\n    started_at: new Date(match.startedAt).toISOString(),\n    completed_at: new Date(match.completedAt).toISOString(),\n    players: [...teamA, ...teamB]\n      .filter(p => p.userId)\n      .map(p => ({ \"directus_users_id\": p.userId })),\n    club: match.club\n  };\n\n  return {\n    match,\n    completedMatch,\n    newPlayersRatings: [...updatedWinners, ...updatedLosers]\n  };\n};"
+        },
+        "resolve": "db5679d6-f6a9-49fd-a69e-b96503a39e55",
+        "reject": null
+      },
+      {
+        "id": "c40f0ec8-9b6f-4d74-a043-e41475c9dec9",
+        "name": "trigger update rating",
+        "key": "trigger_update_rating",
+        "type": "trigger",
+        "position_x": 58,
+        "position_y": 1,
+        "options": {
+          "iterationMode": "parallel",
+          "flow": "8d01e431-d0b9-468e-b0bd-15faa5db1e80",
+          "payload": "{{ script_transform_match.newPlayersRatings }}"
+        },
+        "resolve": null,
+        "reject": null
+      },
       {
         "id": "db5679d6-f6a9-49fd-a69e-b96503a39e55",
         "name": "Create Data",
         "key": "item_create_eb2ul",
         "type": "item-create",
-        "position_x": 19,
+        "position_x": 40,
         "position_y": 1,
         "options": {
           "permissions": "$full",
           "emitEvents": false,
           "collection": "completed_match",
-          "payload": "{{$trigger}}"
+          "payload": "{{ script_transform_match.completedMatch }}"
         },
-        "resolve": null,
+        "resolve": "c40f0ec8-9b6f-4d74-a043-e41475c9dec9",
         "reject": null
       }
     ],
@@ -620,7 +615,7 @@
   },
   {
     "id": "e6fcb9cf-548e-4b43-95e0-da5665ecca55",
-    "name": "get players stat updates",
+    "name": "get appState",
     "icon": "bolt",
     "color": null,
     "description": null,
@@ -638,11 +633,11 @@
     "operations": [
       {
         "id": "3e3081eb-3899-498b-9761-e95993984be8",
-        "name": "trigger update player rating",
-        "key": "trigger_update_player_rating",
+        "name": "trigger save player events",
+        "key": "trigger_save_player_events",
         "type": "trigger",
-        "position_x": 37,
-        "position_y": 1,
+        "position_x": 23,
+        "position_y": 21,
         "options": {
           "iterationMode": "parallel",
           "payload": "{{get_players}}",
@@ -652,16 +647,31 @@
         "reject": null
       },
       {
+        "id": "51f5df17-a4e7-4b49-85e3-82a0b677deb4",
+        "name": "trigger save completed matches",
+        "key": "trigger_save_completed_matches",
+        "type": "trigger",
+        "position_x": 42,
+        "position_y": 2,
+        "options": {
+          "iterationMode": "parallel",
+          "flow": "daa0ffa5-d040-4efd-af26-3ce063a81bc6",
+          "payload": "{{ $trigger.payload.appState.matchmaking.completedMatches }}"
+        },
+        "resolve": "3e3081eb-3899-498b-9761-e95993984be8",
+        "reject": null
+      },
+      {
         "id": "851c41dd-c4c0-4862-9b1d-d3618c05fdea",
         "name": "get players",
         "key": "get_players",
         "type": "exec",
-        "position_x": 19,
-        "position_y": 1,
+        "position_x": 23,
+        "position_y": 2,
         "options": {
           "code": "module.exports = async function(data) {\n    const mm = data.$trigger?.payload?.appState?.matchmaking;\n    if (!mm?.players || !mm?.completedMatches) return [];\n\n    const { players, completedMatches } = mm;\n    const result = [];\n\n    const matchPayloads = {};\n    for (const match of completedMatches) {\n        const key = `${match.completedAt}_${match.matchId}`;\n        const playerIds = new Set();\n        const collect = (team) => {\n            if (!team) return;\n            for (const { username } of team) {\n                const p = players[username];\n                if (p?.userId) playerIds.add(p.userId);\n            }\n        };\n        collect(match.teamA);\n        collect(match.teamB);\n\n        matchPayloads[key] = {\n            match_key: key,\n            match_id: match.matchId,\n            match_type: match.matchType,\n            team_a: match.teamA,\n            team_b: match.teamB,\n            team_a_score: match.teamAScore,\n            team_b_score: match.teamBScore,\n            started_at: match.startedAt ? new Date(match.startedAt).toISOString() : null,\n            completed_at: new Date(match.completedAt).toISOString(),\n            players: Array.from(playerIds, id => ({ directus_users_id: id })),\n            club: match.club || mm.clubUUID || null\n        };\n    }\n\n    const processTeam = (team, key) => {\n        if (!team) return;\n        for (const { username } of team) {\n            const player = players[username];\n            if (!player?.userId) continue;\n            if (!player.completed_matches) {\n                player.completed_matches = [];\n                result.push(player);\n            }\n            player.completed_matches.push(matchPayloads[key]);\n        }\n    };\n\n    for (const match of completedMatches) {\n        const key = `${match.completedAt}_${match.matchId}`;\n        processTeam(match.teamA, key);\n        processTeam(match.teamB, key);\n    }\n\n    return result;\n};"
         },
-        "resolve": "3e3081eb-3899-498b-9761-e95993984be8",
+        "resolve": "51f5df17-a4e7-4b49-85e3-82a0b677deb4",
         "reject": null
       }
     ],

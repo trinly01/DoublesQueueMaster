@@ -584,6 +584,34 @@
         }
       },
       {
+        "collection": "report_player",
+        "meta": {
+          "accountability": "all",
+          "archive_app_filter": true,
+          "archive_field": null,
+          "archive_value": null,
+          "collapse": "open",
+          "collection": "report_player",
+          "color": null,
+          "display_template": null,
+          "group": null,
+          "hidden": false,
+          "icon": null,
+          "item_duplication_fields": null,
+          "note": null,
+          "preview_url": null,
+          "singleton": false,
+          "sort": null,
+          "sort_field": "sort",
+          "translations": null,
+          "unarchive_value": null,
+          "versioning": false
+        },
+        "schema": {
+          "name": "report_player"
+        }
+      },
+      {
         "collection": "task",
         "meta": {
           "accountability": "all",
@@ -5454,7 +5482,7 @@
           "field": "players",
           "group": null,
           "hidden": false,
-          "interface": "list-o2m",
+          "interface": "list-m2m",
           "note": null,
           "options": {
             "template": "{{directus_users_id.first_name}}-{{directus_users_id.username}}"
@@ -5514,6 +5542,54 @@
           "has_auto_increment": false,
           "foreign_key_table": null,
           "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "completed_match",
+        "field": "club",
+        "type": "uuid",
+        "meta": {
+          "collection": "completed_match",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "club",
+          "group": null,
+          "hidden": false,
+          "interface": "select-dropdown-m2o",
+          "note": null,
+          "options": {
+            "template": "{{clubId}}"
+          },
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 18,
+          "special": [
+            "m2o"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "club",
+          "table": "completed_match",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": "club",
+          "foreign_key_column": "id"
         }
       },
       {
@@ -11720,6 +11796,571 @@
         }
       },
       {
+        "collection": "report_player",
+        "field": "id",
+        "type": "uuid",
+        "meta": {
+          "collection": "report_player",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "id",
+          "group": null,
+          "hidden": true,
+          "interface": "input",
+          "note": null,
+          "options": null,
+          "readonly": true,
+          "required": false,
+          "searchable": true,
+          "sort": 1,
+          "special": [
+            "uuid"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "id",
+          "table": "report_player",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": false,
+          "is_unique": true,
+          "is_indexed": false,
+          "is_primary_key": true,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "sort",
+        "type": "integer",
+        "meta": {
+          "collection": "report_player",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "sort",
+          "group": null,
+          "hidden": true,
+          "interface": "input",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 2,
+          "special": null,
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "sort",
+          "table": "report_player",
+          "data_type": "integer",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": 32,
+          "numeric_scale": 0,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "user_created",
+        "type": "uuid",
+        "meta": {
+          "collection": "report_player",
+          "conditions": null,
+          "display": "user",
+          "display_options": null,
+          "field": "user_created",
+          "group": null,
+          "hidden": true,
+          "interface": "select-dropdown-m2o",
+          "note": null,
+          "options": {
+            "template": "{{avatar}} {{first_name}} {{last_name}}"
+          },
+          "readonly": true,
+          "required": false,
+          "searchable": true,
+          "sort": 3,
+          "special": [
+            "user-created"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "half"
+        },
+        "schema": {
+          "name": "user_created",
+          "table": "report_player",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": "directus_users",
+          "foreign_key_column": "id"
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "date_created",
+        "type": "timestamp",
+        "meta": {
+          "collection": "report_player",
+          "conditions": null,
+          "display": "datetime",
+          "display_options": {
+            "relative": true
+          },
+          "field": "date_created",
+          "group": null,
+          "hidden": true,
+          "interface": "datetime",
+          "note": null,
+          "options": null,
+          "readonly": true,
+          "required": false,
+          "searchable": true,
+          "sort": 4,
+          "special": [
+            "date-created"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "half"
+        },
+        "schema": {
+          "name": "date_created",
+          "table": "report_player",
+          "data_type": "timestamp with time zone",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "user_updated",
+        "type": "uuid",
+        "meta": {
+          "collection": "report_player",
+          "conditions": null,
+          "display": "user",
+          "display_options": null,
+          "field": "user_updated",
+          "group": null,
+          "hidden": true,
+          "interface": "select-dropdown-m2o",
+          "note": null,
+          "options": {
+            "template": "{{avatar}} {{first_name}} {{last_name}}"
+          },
+          "readonly": true,
+          "required": false,
+          "searchable": true,
+          "sort": 5,
+          "special": [
+            "user-updated"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "half"
+        },
+        "schema": {
+          "name": "user_updated",
+          "table": "report_player",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": "directus_users",
+          "foreign_key_column": "id"
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "date_updated",
+        "type": "timestamp",
+        "meta": {
+          "collection": "report_player",
+          "conditions": null,
+          "display": "datetime",
+          "display_options": {
+            "relative": true
+          },
+          "field": "date_updated",
+          "group": null,
+          "hidden": true,
+          "interface": "datetime",
+          "note": null,
+          "options": null,
+          "readonly": true,
+          "required": false,
+          "searchable": true,
+          "sort": 6,
+          "special": [
+            "date-updated"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "half"
+        },
+        "schema": {
+          "name": "date_updated",
+          "table": "report_player",
+          "data_type": "timestamp with time zone",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "player",
+        "type": "uuid",
+        "meta": {
+          "collection": "report_player",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "player",
+          "group": null,
+          "hidden": false,
+          "interface": "select-dropdown-m2o",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 7,
+          "special": [
+            "m2o"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "player",
+          "table": "report_player",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": "directus_users",
+          "foreign_key_column": "id"
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "reporter",
+        "type": "uuid",
+        "meta": {
+          "collection": "report_player",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "reporter",
+          "group": null,
+          "hidden": false,
+          "interface": "select-dropdown-m2o",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 8,
+          "special": [
+            "m2o"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "reporter",
+          "table": "report_player",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": "directus_users",
+          "foreign_key_column": "id"
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "type",
+        "type": "string",
+        "meta": {
+          "collection": "report_player",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "type",
+          "group": null,
+          "hidden": false,
+          "interface": "select-dropdown",
+          "note": null,
+          "options": {
+            "choices": [
+              {
+                "text": "commend",
+                "value": "commend"
+              },
+              {
+                "text": "report",
+                "value": "report"
+              }
+            ]
+          },
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 9,
+          "special": null,
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "type",
+          "table": "report_player",
+          "data_type": "character varying",
+          "default_value": null,
+          "max_length": 255,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "content",
+        "type": "json",
+        "meta": {
+          "collection": "report_player",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "content",
+          "group": null,
+          "hidden": false,
+          "interface": "input-code",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 10,
+          "special": [
+            "cast-json"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "content",
+          "table": "report_player",
+          "data_type": "json",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "comments",
+        "type": "text",
+        "meta": {
+          "collection": "report_player",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "comments",
+          "group": null,
+          "hidden": false,
+          "interface": "input-multiline",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 11,
+          "special": null,
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "comments",
+          "table": "report_player",
+          "data_type": "text",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "club",
+        "type": "uuid",
+        "meta": {
+          "collection": "report_player",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "club",
+          "group": null,
+          "hidden": false,
+          "interface": "select-dropdown-m2o",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 12,
+          "special": [
+            "m2o"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "club",
+          "table": "report_player",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": "club",
+          "foreign_key_column": "id"
+        }
+      },
+      {
         "collection": "task",
         "field": "id",
         "type": "uuid",
@@ -14031,6 +14672,31 @@
         }
       },
       {
+        "collection": "completed_match",
+        "field": "club",
+        "related_collection": "club",
+        "meta": {
+          "junction_field": null,
+          "many_collection": "completed_match",
+          "many_field": "club",
+          "one_allowed_collections": null,
+          "one_collection": "club",
+          "one_collection_field": null,
+          "one_deselect_action": "nullify",
+          "one_field": null,
+          "sort_field": null
+        },
+        "schema": {
+          "table": "completed_match",
+          "column": "club",
+          "foreign_key_table": "club",
+          "foreign_key_column": "id",
+          "constraint_name": "completed_match_club_foreign",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL"
+        }
+      },
+      {
         "collection": "component",
         "field": "user_created",
         "related_collection": "directus_users",
@@ -14578,6 +15244,131 @@
           "constraint_name": "print_template_user_updated_foreign",
           "on_update": "NO ACTION",
           "on_delete": "NO ACTION"
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "user_updated",
+        "related_collection": "directus_users",
+        "meta": {
+          "junction_field": null,
+          "many_collection": "report_player",
+          "many_field": "user_updated",
+          "one_allowed_collections": null,
+          "one_collection": "directus_users",
+          "one_collection_field": null,
+          "one_deselect_action": "nullify",
+          "one_field": null,
+          "sort_field": null
+        },
+        "schema": {
+          "table": "report_player",
+          "column": "user_updated",
+          "foreign_key_table": "directus_users",
+          "foreign_key_column": "id",
+          "constraint_name": "report_player_user_updated_foreign",
+          "on_update": "NO ACTION",
+          "on_delete": "NO ACTION"
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "user_created",
+        "related_collection": "directus_users",
+        "meta": {
+          "junction_field": null,
+          "many_collection": "report_player",
+          "many_field": "user_created",
+          "one_allowed_collections": null,
+          "one_collection": "directus_users",
+          "one_collection_field": null,
+          "one_deselect_action": "nullify",
+          "one_field": null,
+          "sort_field": null
+        },
+        "schema": {
+          "table": "report_player",
+          "column": "user_created",
+          "foreign_key_table": "directus_users",
+          "foreign_key_column": "id",
+          "constraint_name": "report_player_user_created_foreign",
+          "on_update": "NO ACTION",
+          "on_delete": "NO ACTION"
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "player",
+        "related_collection": "directus_users",
+        "meta": {
+          "junction_field": null,
+          "many_collection": "report_player",
+          "many_field": "player",
+          "one_allowed_collections": null,
+          "one_collection": "directus_users",
+          "one_collection_field": null,
+          "one_deselect_action": "nullify",
+          "one_field": null,
+          "sort_field": null
+        },
+        "schema": {
+          "table": "report_player",
+          "column": "player",
+          "foreign_key_table": "directus_users",
+          "foreign_key_column": "id",
+          "constraint_name": "report_player_player_foreign",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL"
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "reporter",
+        "related_collection": "directus_users",
+        "meta": {
+          "junction_field": null,
+          "many_collection": "report_player",
+          "many_field": "reporter",
+          "one_allowed_collections": null,
+          "one_collection": "directus_users",
+          "one_collection_field": null,
+          "one_deselect_action": "nullify",
+          "one_field": null,
+          "sort_field": null
+        },
+        "schema": {
+          "table": "report_player",
+          "column": "reporter",
+          "foreign_key_table": "directus_users",
+          "foreign_key_column": "id",
+          "constraint_name": "report_player_reporter_foreign",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL"
+        }
+      },
+      {
+        "collection": "report_player",
+        "field": "club",
+        "related_collection": "club",
+        "meta": {
+          "junction_field": null,
+          "many_collection": "report_player",
+          "many_field": "club",
+          "one_allowed_collections": null,
+          "one_collection": "club",
+          "one_collection_field": null,
+          "one_deselect_action": "nullify",
+          "one_field": null,
+          "sort_field": null
+        },
+        "schema": {
+          "table": "report_player",
+          "column": "club",
+          "foreign_key_table": "club",
+          "foreign_key_column": "id",
+          "constraint_name": "report_player_club_foreign",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL"
         }
       },
       {
