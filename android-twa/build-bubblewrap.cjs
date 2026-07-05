@@ -111,11 +111,7 @@ async function main() {
   const gradleWrapper = new GradleWrapper(process, androidSdkTools);
   const jarSigner = new JarSigner(jdkHelper);
 
-  // Build APK
-  console.log('Building APK...');
-  await gradleWrapper.assembleRelease();
-
-  // Build AAB
+  // Build AAB only
   console.log('Building App Bundle...');
   await gradleWrapper.bundleRelease();
 
