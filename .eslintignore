@@ -6,3 +6,4 @@
 .eslintrc.cjs
 /quasar.config.*.temporary.compiled*
 /docs
+/android-twa
