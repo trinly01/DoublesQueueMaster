@@ -142,7 +142,7 @@
 
           <q-space />
 
-          <div class="text-center q-mt-md">
+          <div v-if="!isBlockedWebview" class="text-center q-mt-md">
             <q-btn
               color="white"
               text-color="grey-9"
@@ -202,6 +202,16 @@ import { LocalStorage } from 'quasar';
 import { useNotify } from 'src/composables/useNotify';
 import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import { registerUserVerify, readMe } from '@likha-erp/likha-sdk';
+
+// Google blocks OAuth inside embedded webviews (403 disallowed_useragent).
+// iOS WKWebView: iOS UA without the "Safari" token.
+// Android raw WebView: UA contains the "; wv)" token.
+const isBlockedWebview = (() => {
+  const ua = navigator.userAgent;
+  const isIOSWebview = /iPhone|iPad|iPod/i.test(ua) && !/Safari/i.test(ua);
+  const isAndroidWebview = /Android/i.test(ua) && /; wv\)/i.test(ua);
+  return isIOSWebview || isAndroidWebview;
+})();
 
 const email = ref('');
 const password = ref('');
