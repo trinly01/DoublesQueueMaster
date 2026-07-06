@@ -5538,31 +5538,31 @@ const queuePriorityOptions = [
 // Matchmaking mode options
 const matchmakingModeOptions = [
   {
-    label: 'Waitlist: Pure Match',
+    label: 'Fair Play',
     value: 'fair_balance',
     description:
       'Drafts the next in line, then builds teams purely on expected score difference without repeat penalties',
   },
   {
-    label: 'Waitlist: Social Mixer',
+    label: 'Social Mixer',
     value: 'variety_first',
     description:
       'Drafts the next in line, then minimizes partner/opponent repeats within that group',
   },
   {
-    label: 'Waitlist: Standard',
+    label: 'Balanced Mix',
     value: 'balanced_variety',
     description:
       'Drafts the next in line, then balances skill and novelty equally',
   },
   {
-    label: 'Waitlist: Competitive',
+    label: 'Competitive Mix',
     value: 'balance_first',
     description:
       'Drafts the next in line, then strongly prioritizes close ratings',
   },
   {
-    label: 'True Ranked Match',
+    label: 'All-Star Match',
     value: 'strict_balance',
     description:
       'Completely ignores wait time. Pulls the absolute highest-rated players from the entire queue for a mathematically perfect game',

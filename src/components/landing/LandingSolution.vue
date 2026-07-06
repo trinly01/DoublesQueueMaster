@@ -30,6 +30,10 @@
           Built on real feedback from open-play players. Fair games make better
           vibes.
         </p>
+        <p class="modes-link">
+          From Social Mixer to All-Star Match — choose the mode that fits your
+          session.
+        </p>
       </div>
     </div>
   </section>
@@ -109,5 +113,13 @@ $brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #6b7280;
   max-width: 560px;
   margin: 0 auto;
+}
+
+.modes-link {
+  font-size: 0.9rem;
+  color: #764ba2;
+  font-weight: 600;
+  max-width: 560px;
+  margin: 0.75rem auto 0;
 }
 </style>

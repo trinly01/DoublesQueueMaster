@@ -41,7 +41,7 @@ const faqs = [
   {
     question: 'How does auto-matchmaking work?',
     answer:
-      'The club admin picks a matchmaking style. Fair Balance (default) always picks the most even teams. Strict Balance does the same but only for one round, then switches back. Balance First and Balanced Variety try to keep games close while also mixing up partners and opponents so you do not play the same people every time. Variety First focuses on new matchups. You can also switch to Manual Match and hand-pick teams.',
+      'The club admin picks a matchmaking style. Fair Play (default) always picks the most even teams. All-Star Match does the same but only for one round, then switches back to Competitive Mix. Competitive Mix and Balanced Mix try to keep games close while also mixing up partners and opponents so you do not play the same people every time. Social Mixer focuses on new matchups. You can also switch to Manual Match and hand-pick teams.',
   },
   {
     question:
@@ -92,6 +92,7 @@ const faqs = [
 
 .section {
   padding: 4rem 1.5rem;
+  background: white;
 }
 
 .section-title {
