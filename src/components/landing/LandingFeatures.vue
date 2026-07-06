@@ -1,24 +1,26 @@
 <template>
-  <section class="section container">
-    <div class="text-center q-mb-xl">
-      <h2 class="section-title">Everything you need for fair play</h2>
-      <p class="section-subtitle">Less managing, more playing.</p>
-    </div>
-    <div class="row q-col-gutter-lg justify-center">
-      <div
-        v-for="feature in features"
-        :key="feature.title"
-        class="col-12 col-sm-6 col-md-4"
-      >
-        <q-card flat bordered class="feature-card">
-          <div class="feature-icon">
-            <q-icon :name="feature.icon" size="28px" color="white" />
-          </div>
-          <div class="text-h6 text-weight-bold q-mb-xs">
-            {{ feature.title }}
-          </div>
-          <div class="text-body2 text-grey-7">{{ feature.desc }}</div>
-        </q-card>
+  <section class="section">
+    <div class="container">
+      <div class="text-center q-mb-xl">
+        <h2 class="section-title">Everything you need for fair play</h2>
+        <p class="section-subtitle">Less managing, more playing.</p>
+      </div>
+      <div class="row q-col-gutter-lg justify-center">
+        <div
+          v-for="feature in features"
+          :key="feature.title"
+          class="col-12 col-sm-6 col-md-4"
+        >
+          <q-card flat bordered class="feature-card">
+            <div class="feature-icon">
+              <q-icon :name="feature.icon" size="28px" color="white" />
+            </div>
+            <div class="text-h6 text-weight-bold q-mb-xs">
+              {{ feature.title }}
+            </div>
+            <div class="text-body2 text-grey-7">{{ feature.desc }}</div>
+          </q-card>
+        </div>
       </div>
     </div>
   </section>
