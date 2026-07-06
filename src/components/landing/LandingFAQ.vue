@@ -1,26 +1,28 @@
 <template>
-  <section class="section container">
-    <div class="text-center q-mb-xl">
-      <h2 class="section-title">Rating &amp; Matchmaking FAQs</h2>
-      <p class="section-subtitle">How DinkMatch builds fair games.</p>
-    </div>
-    <div class="row justify-center">
-      <div class="col-12 col-md-8">
-        <q-list bordered separator class="rounded-borders bg-white">
-          <q-expansion-item
-            v-for="faq in faqs"
-            :key="faq.question"
-            expand-separator
-            :label="faq.question"
-            header-class="text-weight-medium"
-          >
-            <q-card>
-              <q-card-section class="text-body2 text-grey-8">
-                {{ faq.answer }}
-              </q-card-section>
-            </q-card>
-          </q-expansion-item>
-        </q-list>
+  <section class="section">
+    <div class="container">
+      <div class="text-center q-mb-xl">
+        <h2 class="section-title">Rating &amp; Matchmaking FAQs</h2>
+        <p class="section-subtitle">How DinkMatch builds fair games.</p>
+      </div>
+      <div class="row justify-center">
+        <div class="col-12 col-md-8">
+          <q-list bordered separator class="rounded-borders bg-white">
+            <q-expansion-item
+              v-for="faq in faqs"
+              :key="faq.question"
+              expand-separator
+              :label="faq.question"
+              header-class="text-weight-medium"
+            >
+              <q-card>
+                <q-card-section class="text-body2 text-grey-8">
+                  {{ faq.answer }}
+                </q-card-section>
+              </q-card>
+            </q-expansion-item>
+          </q-list>
+        </div>
       </div>
     </div>
   </section>
