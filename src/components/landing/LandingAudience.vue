@@ -89,7 +89,7 @@ $brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 
 .section {
   padding: 4rem 1.5rem;
-  background: white;
+  background: linear-gradient(135deg, #f8f9fc 0%, #eef1f7 100%);
 }
 
 .section-title {

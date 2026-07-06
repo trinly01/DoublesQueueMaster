@@ -4,9 +4,10 @@
     <LandingHero />
     <LandingProblem />
     <LandingSolution />
-    <LandingAudience />
-    <LandingFeatures />
     <LandingHowItWorks />
+    <LandingAudience />
+    <LandingModes />
+    <LandingFeatures />
     <LandingFAQ />
     <LandingCTA />
     <LandingFooter />
@@ -18,6 +19,7 @@ import LandingNav from 'src/components/landing/LandingNav.vue';
 import LandingHero from 'src/components/landing/LandingHero.vue';
 import LandingProblem from 'src/components/landing/LandingProblem.vue';
 import LandingSolution from 'src/components/landing/LandingSolution.vue';
+import LandingModes from 'src/components/landing/LandingModes.vue';
 import LandingAudience from 'src/components/landing/LandingAudience.vue';
 import LandingFeatures from 'src/components/landing/LandingFeatures.vue';
 import LandingHowItWorks from 'src/components/landing/LandingHowItWorks.vue';

@@ -29,7 +29,7 @@ const features = [
   {
     icon: 'auto_awesome',
     title: 'Fair games in one tap',
-    desc: 'The app builds balanced singles or doubles matches from the queue — no hand-picking needed.',
+    desc: 'The app builds balanced singles or doubles matches from the queue, with five matchmaking modes to fit your group.',
   },
   {
     icon: 'groups',
@@ -66,6 +66,7 @@ $brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 
 .section {
   padding: 4rem 1.5rem;
+  background: linear-gradient(135deg, #f8f9fc 0%, #eef1f7 100%);
 }
 
 .section-title {

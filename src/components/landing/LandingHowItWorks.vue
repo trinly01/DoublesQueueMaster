@@ -6,7 +6,11 @@
         <p class="section-subtitle">Three steps to your next game.</p>
       </div>
       <div class="row q-col-gutter-xl">
-        <div v-for="(step, i) in steps" :key="step.title" class="col-12 col-md-4 text-center">
+        <div
+          v-for="(step, i) in steps"
+          :key="step.title"
+          class="col-12 col-md-4 text-center"
+        >
           <div class="step-number">{{ i + 1 }}</div>
           <div class="text-h6 text-weight-bold q-mb-xs">{{ step.title }}</div>
           <div class="text-body2 text-grey-7">{{ step.desc }}</div>
@@ -18,9 +22,18 @@
 
 <script setup lang="ts">
 const steps = [
-  { title: 'Join a club', desc: 'Create your free account and join your local pickleball club.' },
-  { title: 'Queue up', desc: 'Add yourself to the open-play queue when you are ready to play.' },
-  { title: 'Play balanced matches', desc: 'DinkMatch auto-generates fair matches and assigns your court.' },
+  {
+    title: 'Join a club',
+    desc: 'Create your free account and join your local pickleball club.',
+  },
+  {
+    title: 'Queue up',
+    desc: 'Add yourself to the open-play queue when you are ready to play.',
+  },
+  {
+    title: 'Play balanced matches',
+    desc: 'DinkMatch auto-generates fair matches and assigns your court.',
+  },
 ];
 </script>
 
