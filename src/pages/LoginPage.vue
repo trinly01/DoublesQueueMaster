@@ -201,7 +201,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { LocalStorage } from 'quasar';
 import { useNotify } from 'src/composables/useNotify';
 import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
-import { registerUserVerify, readMe } from '@likha-erp/likha-sdk';
+import { registerUserVerify } from '@likha-erp/likha-sdk';
+import { PlayerProfile } from 'src/services/playerProfile';
 
 // Google blocks OAuth inside embedded webviews (403 disallowed_useragent).
 // iOS WKWebView: iOS UA without the "Safari" token.
@@ -272,6 +273,10 @@ onMounted(async () => {
     (route.query['reason'] as string | undefined) ||
     new URLSearchParams(window.location.search).get('reason') ||
     undefined;
+  const isPopup =
+    (route.query['popup'] as string | undefined) ||
+    new URLSearchParams(window.location.search).get('popup') ||
+    undefined;
 
   // Directus signals an SSO failure by redirecting back with a `reason`
   // query param (and it may NOT preserve our `sso=google` flag). Handle this
@@ -301,47 +306,43 @@ onMounted(async () => {
   if (sso === 'google') {
     googleLoading.value = true;
     try {
-      // Best-effort: try to exchange the SSO refresh-token cookie for JSON
-      // tokens and persist them to localStorage. This gives the most durable
-      // session (and is required on iOS, which blocks cross-site cookies).
-      // If it fails (e.g. backend cookie is SameSite=Lax and not sent on this
-      // cross-site request), we fall back to the session cookie below.
+      // After Google SSO, Directus sets a refresh token cookie. Exchange it
+      // for JSON tokens via the SDK. In popup mode, the cookie was set
+      // first-party (popup was on dink-it.zyberlab.com during SSO), so iOS
+      // ITP won't block it.
       try {
-        const res = await fetch(`${LIKHA_URL}/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mode: 'cookie' }),
-        });
-        if (res.ok) {
-          const json = (await res.json()) as {
-            data?: {
-              access_token?: string;
-              refresh_token?: string;
-              expires?: number;
-            };
-          };
-          const data = json.data;
-          if (data?.access_token) {
-            LocalStorage.set('likha-data', {
-              access_token: data.access_token,
-              refresh_token: data.refresh_token ?? null,
-              expires: data.expires ?? null,
-              expires_at: data.expires ? Date.now() + data.expires : null,
-            });
-          }
-        }
+        await likhaClient.refresh({ mode: 'cookie' });
       } catch (refreshErr) {
-        console.warn(
-          'SSO token exchange failed, falling back to cookie session:',
-          refreshErr,
-        );
+        console.warn('[SSO] token exchange failed:', refreshErr);
       }
 
-      // Confirm we are authenticated, either via the stored token or via the
-      // session cookie (credentials are included on all requests).
-      await likhaClient.request(readMe());
+      // If we're in a popup, send tokens back to the parent window and
+      // close the popup. The parent handles the rest of the login flow.
+      // Use the popup=1 flag from the URL because window.opener may be
+      // null after cross-origin navigation (dinkmatch → directus → google).
+      if (isPopup === '1') {
+        if (window.opener && !window.opener.closed) {
+          const tokenData = LocalStorage.getItem('likha-data');
+          window.opener.postMessage(
+            {
+              type: 'sso-google-callback',
+              tokens: tokenData,
+              redirect:
+                (route.query.redirect as string | undefined) ?? undefined,
+            },
+            window.location.origin,
+          );
+        }
+        // Close popup regardless — parent will handle login or the user
+        // will need to retry if opener was lost.
+        window.close();
+        return;
+      }
+
+      // Non-popup flow (desktop/Android): handle directly in this window.
+      await PlayerProfile.fetchProfile();
       LocalStorage.set('dink-auth', true);
+
       notify({
         color: 'positive',
         textColor: 'white',
@@ -356,6 +357,20 @@ onMounted(async () => {
         error?.errors?.[0]?.message ??
         ssoReason ??
         'Google login failed. Please try again.';
+      // If in popup, send error to parent and close.
+      if (isPopup === '1') {
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(
+            {
+              type: 'sso-google-callback',
+              error: errorMessage,
+            },
+            window.location.origin,
+          );
+        }
+        window.close();
+        return;
+      }
       notify({
         color: 'negative',
         textColor: 'white',
@@ -368,8 +383,104 @@ onMounted(async () => {
   }
 });
 
+// Shared login completion logic used by both postMessage and storage event.
+let ssoRedirectTarget: string | undefined = undefined;
+
+const completeSsoLogin = async () => {
+  const tokenData = LocalStorage.getItem('likha-data') as {
+    access_token?: string;
+    refresh_token?: string | null;
+    expires?: number | null;
+    expires_at?: number | null;
+  } | null;
+
+  if (!tokenData?.access_token) {
+    notify({
+      color: 'negative',
+      textColor: 'white',
+      icon: 'warning',
+      message: 'Google login failed. No token received.',
+    });
+    googleLoading.value = false;
+    return;
+  }
+
+  await likhaClient.setToken(tokenData.access_token);
+
+  try {
+    await PlayerProfile.fetchProfile();
+    LocalStorage.set('dink-auth', true);
+    notify({
+      color: 'positive',
+      textColor: 'white',
+      icon: 'check_circle',
+      message: 'Login with Google successful',
+    });
+    router.push(
+      typeof ssoRedirectTarget === 'string' ? ssoRedirectTarget : '/profile',
+    );
+  } catch (err) {
+    const error = err as { errors?: { message?: string }[] };
+    notify({
+      color: 'negative',
+      textColor: 'white',
+      icon: 'warning',
+      message:
+        error?.errors?.[0]?.message ?? 'Google login failed. Please try again.',
+    });
+  }
+  googleLoading.value = false;
+};
+
+// Listen for SSO callback from popup via postMessage (works if window.opener survives).
+const onSsoMessage = async (event: MessageEvent) => {
+  if (event.origin !== window.location.origin) return;
+  if (event.data?.type !== 'sso-google-callback') return;
+
+  window.removeEventListener('message', onSsoMessage);
+  window.removeEventListener('storage', onSsoStorage);
+  if (popupCheckInterval) clearInterval(popupCheckInterval);
+
+  if (event.data.error) {
+    notify({
+      color: 'negative',
+      textColor: 'white',
+      icon: 'warning',
+      message: event.data.error,
+    });
+    googleLoading.value = false;
+    return;
+  }
+
+  if (event.data.redirect) ssoRedirectTarget = event.data.redirect;
+  await completeSsoLogin();
+};
+
+// Fallback: listen for localStorage changes (popup writes tokens via SDK refresh).
+const onSsoStorage = async (event: StorageEvent) => {
+  if (event.key !== 'likha-data') return;
+  if (!event.newValue) return;
+
+  window.removeEventListener('message', onSsoMessage);
+  window.removeEventListener('storage', onSsoStorage);
+  if (popupCheckInterval) clearInterval(popupCheckInterval);
+
+  await completeSsoLogin();
+};
+
+// Fallback: poll popup.closed in case both postMessage and storage event fail.
+let popupCheckInterval: ReturnType<typeof setInterval> | null = null;
+
+onMounted(() => {
+  window.addEventListener('message', onSsoMessage);
+  window.addEventListener('storage', onSsoStorage);
+});
+
 onUnmounted(() => {
   window.removeEventListener('pageshow', resetGoogleLoading);
+  window.removeEventListener('message', onSsoMessage);
+  window.removeEventListener('storage', onSsoStorage);
+  if (popupCheckInterval) clearInterval(popupCheckInterval);
 });
 
 const onSubmit = async () => {
@@ -416,11 +527,47 @@ const onGoogleLogin = () => {
     !isLocalhost && origin.startsWith('http://')
       ? origin.replace(/^http:\/\//, 'https://')
       : origin;
-  const redirect = `${safeOrigin}/#/login?sso=google`;
+  // Preserve the original ?redirect= target through the SSO round-trip so
+  // users who came from a club link land back on that club after login.
+  const redirectTarget = route.query.redirect;
+  const redirectParam =
+    typeof redirectTarget === 'string'
+      ? `&redirect=${encodeURIComponent(redirectTarget)}`
+      : '';
+  const redirect = `${safeOrigin}/#/login?sso=google&popup=1${redirectParam}`;
   const authUrl = `${LIKHA_URL}/auth/login/google?redirect=${encodeURIComponent(
     redirect,
   )}`;
-  window.location.href = authUrl;
+
+  // Use a popup so the SSO cookie is set first-party (popup navigates
+  // through dink-it.zyberlab.com during Google auth). This avoids iOS
+  // ITP blocking third-party cookies. Falls back to full redirect if
+  // the popup is blocked (e.g., some embedded webviews).
+  ssoRedirectTarget = (route.query.redirect as string | undefined) ?? undefined;
+  const popup = window.open(authUrl, 'google-sso', 'width=500,height=600');
+  if (!popup) {
+    // Popup blocked — fall back to full-page redirect.
+    window.location.href = authUrl;
+  } else {
+    // Poll popup.closed as a last-resort fallback. If postMessage and
+    // storage events both fail, this catches the case where the popup
+    // closed after writing tokens to localStorage.
+    popupCheckInterval = setInterval(() => {
+      if (popup.closed) {
+        if (popupCheckInterval) clearInterval(popupCheckInterval);
+        // Check if tokens appeared in localStorage.
+        const tokenData = LocalStorage.getItem('likha-data');
+        if (tokenData) {
+          window.removeEventListener('message', onSsoMessage);
+          window.removeEventListener('storage', onSsoStorage);
+          void completeSsoLogin();
+        } else {
+          // Popup closed without tokens — login failed or user cancelled.
+          googleLoading.value = false;
+        }
+      }
+    }, 500);
+  }
 };
 </script>
 

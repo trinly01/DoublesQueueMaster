@@ -123,9 +123,33 @@ export class PlayerProfileService {
     this.error.value = '';
 
     try {
-      const user = await likhaClient.request(readMe());
+      // On first Google SSO registration, the Directus provisioning Flow may
+      // not have finished populating username/rating/names yet. Retry a few
+      // times before accepting a half-provisioned profile.
+      let user = await likhaClient.request(readMe());
+      let attempts = 0;
+      console.log(
+        '[PlayerProfile] Full raw user from readMe():',
+        JSON.stringify(user, null, 2),
+      );
+      while (
+        user &&
+        !(user as Record<string, unknown>).username &&
+        attempts < 3
+      ) {
+        await new Promise((r) => setTimeout(r, 1500));
+        user = await likhaClient.request(readMe());
+        attempts++;
+        console.log(`[PlayerProfile] Retry ${attempts} user:`, {
+          username: (user as Record<string, unknown>)?.username,
+          first_name: (user as Record<string, unknown>)?.first_name,
+          last_name: (user as Record<string, unknown>)?.last_name,
+        });
+      }
+
       if (user) {
         const userObj = user as Record<string, unknown>;
+        const isProvisioned = !!userObj.username;
         let rating = 1450;
 
         if (typeof userObj.rating === 'number') {
@@ -210,7 +234,13 @@ export class PlayerProfileService {
           this.state.completedMatches = [];
         }
 
-        this.saveState();
+        // Only persist to cache when the profile is fully provisioned.
+        // A half-provisioned snapshot (blank username from SSO race) would
+        // stick in localStorage until logout; skipping saveState ensures the
+        // next visit refetches fresh from the server.
+        if (isProvisioned) {
+          this.saveState();
+        }
         this.loading.value = false;
         return true;
       }
