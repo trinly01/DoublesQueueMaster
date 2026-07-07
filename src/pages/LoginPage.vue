@@ -204,14 +204,13 @@ import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import { registerUserVerify } from '@likha-erp/likha-sdk';
 import { PlayerProfile } from 'src/services/playerProfile';
 
-// Google blocks OAuth inside embedded webviews (403 disallowed_useragent).
-// iOS WKWebView: iOS UA without the "Safari" token.
-// Android raw WebView: UA contains the "; wv)" token.
+// Google blocks OAuth inside iOS WKWebView (403 disallowed_useragent).
+// Android webviews (including Messenger/Facebook in-app browsers) use
+// Chromium and can do Google OAuth, so we only hide on iOS WKWebView.
 const isBlockedWebview = (() => {
   const ua = navigator.userAgent;
   const isIOSWebview = /iPhone|iPad|iPod/i.test(ua) && !/Safari/i.test(ua);
-  const isAndroidWebview = /Android/i.test(ua) && /; wv\)/i.test(ua);
-  return isIOSWebview || isAndroidWebview;
+  return isIOSWebview;
 })();
 
 const email = ref('');
