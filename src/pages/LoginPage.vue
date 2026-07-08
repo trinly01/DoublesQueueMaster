@@ -204,6 +204,26 @@ import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import { registerUserVerify } from '@likha-erp/likha-sdk';
 import { PlayerProfile } from 'src/services/playerProfile';
 
+// Google blocks OAuth inside iOS WKWebView (e.g. Messenger/Instagram in-app
+// browsers) with 403 disallowed_useragent. iOS Chrome (CriOS) and Firefox
+// (FxiOS) are allowed by Google, so we only warn for raw WKWebView.
+// iOS PWAs in standalone mode also lack "Safari" in the UA, but Google OAuth
+// works fine there, so we exclude them via display-mode / navigator.standalone.
+const isIOSWebview = (() => {
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isStandalonePWA =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as unknown as Record<string, unknown>).standalone === true;
+  return (
+    isIOS &&
+    !/Safari/i.test(ua) &&
+    !/CriOS/i.test(ua) &&
+    !/FxiOS/i.test(ua) &&
+    !isStandalonePWA
+  );
+})();
+
 const email = ref('');
 const password = ref('');
 const showPassword = ref(false);
@@ -371,6 +391,17 @@ const onSubmit = async () => {
 };
 
 const onGoogleLogin = () => {
+  if (isIOSWebview) {
+    notify({
+      color: 'warning',
+      textColor: 'white',
+      icon: 'open_in_browser',
+      message:
+        'Google login is not available in this in-app browser. Open this page in Safari, Chrome, or your preferred browser and try again.',
+      timeout: 10000,
+    });
+    return;
+  }
   googleLoading.value = true;
   // Force https on real domains: iOS Safari may serve the page over http,
   // making window.location.origin "http://..." which fails to match the
