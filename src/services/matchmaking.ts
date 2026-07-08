@@ -58,6 +58,10 @@ export interface ActiveMatch {
   originalQueueTypes?: Record<string, 'GENERAL' | 'WINNERS' | 'LOSERS'>;
   oldestQueueEntryAt?: number; // Earliest queue enteredAt among all players (for FIFO priority)
   minGamesPlayed?: number; // Minimum matchesPlayed among all players (for fairness priority)
+  generatedBy?: string; // Username of the admin who generated or last edited this match
+  matchmakingMode?: string; // Matchmaking mode used at generation time
+  generationType?: 'auto' | 'manual'; // Whether match was auto-drafted or manually created
+  isEdited?: boolean; // True if match was edited after initial creation
 }
 
 export interface CompletedMatchPlayer {
@@ -1022,7 +1026,10 @@ export class LocalMatchmakingSystem {
   }
 
   // 2. Draft the next round of matches from waiting players
-  public draftNextMatches(priorityMode: string = 'timestamp') {
+  public draftNextMatches(
+    priorityMode: string = 'timestamp',
+    generatedBy?: string,
+  ) {
     const playersNeeded = this.state.teamSize * 2;
 
     const isStrictBalance = this.state.matchmakingMode === 'strict_balance';
@@ -1172,6 +1179,9 @@ export class LocalMatchmakingSystem {
         originalQueueTypes,
         oldestQueueEntryAt,
         minGamesPlayed,
+        generatedBy,
+        matchmakingMode: this.state.matchmakingMode,
+        generationType: 'auto' as const,
       });
     }
 

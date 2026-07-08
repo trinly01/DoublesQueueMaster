@@ -3331,6 +3331,10 @@ const matches = computed(() => {
         createdAt: new Date(m.createdAt || Date.now()),
         startedAt: m.startedAt ? new Date(m.startedAt) : undefined,
         queueSource: m.queueSource,
+        generatedBy: m.generatedBy,
+        matchmakingMode: m.matchmakingMode,
+        generationType: m.generationType,
+        isEdited: m.isEdited,
       };
     });
 });
@@ -6158,11 +6162,19 @@ const addBulkPlayers = () => {
   showAddPlayerDialog.value = false;
 };
 
+const currentAdminName = computed(() => {
+  const member = clubMembers.value.find((m) => m.id === currentUserId.value);
+  return member?.firstName || member?.username || undefined;
+});
+
 const generateNewMatches = () => {
   MatchmakingApp.state.teamSize = matchType.value === 'singles' ? 1 : 2;
   MatchmakingApp.state.settingsUpdatedAt = Date.now();
   MatchmakingApp.persist();
-  MatchmakingApp.draftNextMatches(queuePriorityMode.value);
+  MatchmakingApp.draftNextMatches(
+    queuePriorityMode.value,
+    currentAdminName.value,
+  );
 
   if (autoAdvanceMatches.value) {
     const courtCount = getCourtCount();
@@ -7189,6 +7201,8 @@ const createManualMatchWithCourt = () => {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     originalQueueTypes,
+    generatedBy: currentAdminName.value,
+    generationType: 'manual' as const,
   });
 
   matchPlayers.forEach((p) => MatchmakingApp.removeFromQueue(p.username));
@@ -7681,6 +7695,8 @@ const saveMatchEdit = () => {
   actualMatch.teamA = newTeamA;
   actualMatch.teamB = newTeamB;
   actualMatch.updatedAt = Date.now();
+  actualMatch.generatedBy = currentAdminName.value;
+  actualMatch.isEdited = true;
 
   // Save data (direct state mutation requires explicit persist)
   MatchmakingApp.persist();
