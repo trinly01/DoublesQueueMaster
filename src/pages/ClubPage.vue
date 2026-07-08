@@ -3783,7 +3783,7 @@ let isTabVisible = true;
 
 // Initialize Likha client from environment or localStorage
 const likhaUrl = ref(
-  localStorage.getItem('likhaUrl') || 'https://dink-it.zyberlab.com',
+  localStorage.getItem('likhaUrl') || 'https://api.dinkmatch.club',
 );
 const likhaToken = ref(localStorage.getItem('likhaToken') || '');
 

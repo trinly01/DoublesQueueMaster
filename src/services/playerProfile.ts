@@ -128,10 +128,6 @@ export class PlayerProfileService {
       // times before accepting a half-provisioned profile.
       let user = await likhaClient.request(readMe());
       let attempts = 0;
-      console.log(
-        '[PlayerProfile] Full raw user from readMe():',
-        JSON.stringify(user, null, 2),
-      );
       while (
         user &&
         !(user as Record<string, unknown>).username &&
@@ -140,11 +136,6 @@ export class PlayerProfileService {
         await new Promise((r) => setTimeout(r, 1500));
         user = await likhaClient.request(readMe());
         attempts++;
-        console.log(`[PlayerProfile] Retry ${attempts} user:`, {
-          username: (user as Record<string, unknown>)?.username,
-          first_name: (user as Record<string, unknown>)?.first_name,
-          last_name: (user as Record<string, unknown>)?.last_name,
-        });
       }
 
       if (user) {

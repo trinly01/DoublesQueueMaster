@@ -309,7 +309,7 @@ export const computeCompositeScore = (
 
 export const resolveAvatarUrl = (
   avatar?: string | null,
-  baseUrl = 'https://dink-it.zyberlab.com',
+  baseUrl = 'https://api.dinkmatch.club',
 ): string | undefined => {
   if (!avatar) return undefined;
   const s = String(avatar);
