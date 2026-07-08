@@ -7,7 +7,7 @@ import {
 } from '@likha-erp/likha-sdk';
 import { LocalStorage } from 'quasar';
 
-const LIKHA_URL = 'https://dink-it.zyberlab.com';
+const LIKHA_URL = 'https://api.dinkmatch.club';
 
 // Custom Storage adapter for Likha SDK utilizing Quasar's LocalStorage.
 // Token mode (not cookies) so auth works on iOS Safari, which blocks

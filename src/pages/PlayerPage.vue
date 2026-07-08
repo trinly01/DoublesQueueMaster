@@ -1068,7 +1068,7 @@ const avatarUrl = computed(() => {
   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
     return avatar;
   }
-  return `https://dink-it.zyberlab.com/assets/${avatar}`;
+  return `https://api.dinkmatch.club/assets/${avatar}`;
 });
 
 const LAST_CLUB_KEY = 'lastClubId';
@@ -1443,7 +1443,7 @@ const partnerStats = computed<SynergyStat[]>(() => {
         ? data.avatar.startsWith('http://') ||
           data.avatar.startsWith('https://')
           ? data.avatar
-          : `https://dink-it.zyberlab.com/assets/${data.avatar}`
+          : `https://api.dinkmatch.club/assets/${data.avatar}`
         : undefined,
       rating: data.rating,
       duprId: data.duprId,
@@ -1526,7 +1526,7 @@ const nemesisStats = computed<SynergyStat[]>(() => {
         ? data.avatar.startsWith('http://') ||
           data.avatar.startsWith('https://')
           ? data.avatar
-          : `https://dink-it.zyberlab.com/assets/${data.avatar}`
+          : `https://api.dinkmatch.club/assets/${data.avatar}`
         : undefined,
       rating: data.rating,
       duprId: data.duprId,
@@ -2062,7 +2062,7 @@ const fetchLeaderboard = async () => {
       const a = (avatar as string) || '';
       if (!a) return '';
       if (a.startsWith('http://') || a.startsWith('https://')) return a;
-      return `https://dink-it.zyberlab.com/assets/${a}`;
+      return `https://api.dinkmatch.club/assets/${a}`;
     };
 
     globalLeaderboard.value = (
