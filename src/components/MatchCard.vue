@@ -147,6 +147,66 @@
           </div>
         </div>
       </div>
+      <!-- Generation indicator chips -->
+      <div
+        v-if="match.generationType || match.generatedBy"
+        class="row justify-center q-gutter-xs q-mt-xs"
+      >
+        <q-chip
+          v-if="match.isEdited"
+          color="amber-3"
+          text-color="amber-10"
+          size="xs"
+          dense
+          icon="edit"
+        >
+          Edited
+        </q-chip>
+        <q-chip
+          v-else-if="match.generationType === 'auto'"
+          color="green-2"
+          text-color="green-9"
+          size="xs"
+          dense
+          icon="auto_awesome"
+        >
+          Auto
+        </q-chip>
+        <q-chip
+          v-else-if="match.generationType === 'manual'"
+          color="orange-2"
+          text-color="orange-9"
+          size="xs"
+          dense
+          icon="pan_tool"
+        >
+          Manual
+        </q-chip>
+        <q-chip
+          v-if="
+            match.generationType === 'auto' &&
+            !match.isEdited &&
+            match.matchmakingMode
+          "
+          color="blue-grey-2"
+          text-color="blue-grey-9"
+          size="xs"
+          dense
+          icon="balance"
+        >
+          {{ modeLabel(match.matchmakingMode) }}
+        </q-chip>
+        <q-chip
+          v-if="match.generatedBy"
+          color="grey-3"
+          text-color="grey-9"
+          size="xs"
+          dense
+          icon="person"
+        >
+          {{ match.generatedBy }}
+        </q-chip>
+      </div>
       <!-- <div
         v-if="match.winProbability !== undefined"
         class="text-center text-caption q-mt-xs row justify-center q-gutter-xs"
@@ -260,6 +320,17 @@
 import { inject, ref, onUnmounted, watch } from 'vue';
 import { getRatingColor, getMatchStatusLabel } from '../utils/playerHelpers';
 
+const modeLabel = (mode: string): string => {
+  const labels: Record<string, string> = {
+    fair_balance: 'Fair Play',
+    variety_first: 'Variety',
+    balance_first: 'Balance',
+    balanced_variety: 'Balanced Variety',
+    strict_balance: 'Strict Balance',
+  };
+  return labels[mode] || mode;
+};
+
 const isReadOnlyMode = inject('isReadOnlyMode', false);
 
 // Player interface (matches matchmaking.ts Player)
@@ -290,6 +361,10 @@ interface Match {
   queueSource?: string;
   expectedDifference?: number;
   winProbability?: number;
+  generatedBy?: string;
+  matchmakingMode?: string;
+  generationType?: 'auto' | 'manual';
+  isEdited?: boolean;
 }
 
 interface Props {
