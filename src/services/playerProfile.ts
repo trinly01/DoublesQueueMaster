@@ -40,6 +40,12 @@ export interface DirectusCompletedMatch {
   completed_at: string;
   started_at?: string;
   club: string;
+  meta?: {
+    generatedBy?: string;
+    matchmakingMode?: string;
+    generationType?: 'auto' | 'manual';
+    isEdited?: boolean;
+  };
   players?: {
     id: number;
     directus_users_id?: {

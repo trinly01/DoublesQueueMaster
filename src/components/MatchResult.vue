@@ -250,6 +250,7 @@
         </div>
       </div>
     </div>
+    <MatchMetaChips :meta="meta" />
   </div>
 </template>
 
@@ -262,6 +263,7 @@ import {
   getMatchStatusLabel,
   formatDate,
 } from '../utils/playerHelpers';
+import MatchMetaChips from './MatchMetaChips.vue';
 
 interface TeamPlayer {
   username: string;
@@ -286,6 +288,12 @@ const props = withDefaults(
     completedAt?: string;
     blurExceptUsername?: string;
     blurDate?: boolean;
+    meta?: {
+      generatedBy?: string;
+      matchmakingMode?: string;
+      generationType?: 'auto' | 'manual';
+      isEdited?: boolean;
+    };
   }>(),
   {
     editable: false,
