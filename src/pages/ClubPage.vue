@@ -2056,6 +2056,86 @@
                         class="ellipsis"
                         >@{{ member.username }}</q-item-label
                       >
+                      <div
+                        v-if="
+                          (adminMatchStats[
+                            member.firstName || member.username || ''
+                          ]?.total ?? 0) > 0
+                        "
+                        class="row q-gutter-xs q-mt-xs"
+                      >
+                        <q-chip
+                          :label="
+                            adminMatchStats[
+                              member.firstName || member.username || ''
+                            ].total
+                          "
+                          color="accent"
+                          text-color="white"
+                          size="xs"
+                          dense
+                          icon="sports_tennis"
+                        >
+                          <q-tooltip>Total</q-tooltip>
+                        </q-chip>
+                        <q-chip
+                          v-if="
+                            adminMatchStats[
+                              member.firstName || member.username || ''
+                            ].auto > 0
+                          "
+                          :label="
+                            adminMatchStats[
+                              member.firstName || member.username || ''
+                            ].auto
+                          "
+                          color="green-2"
+                          text-color="green-9"
+                          size="xs"
+                          dense
+                          icon="auto_awesome"
+                        >
+                          <q-tooltip>Auto</q-tooltip>
+                        </q-chip>
+                        <q-chip
+                          v-if="
+                            adminMatchStats[
+                              member.firstName || member.username || ''
+                            ].manual > 0
+                          "
+                          :label="
+                            adminMatchStats[
+                              member.firstName || member.username || ''
+                            ].manual
+                          "
+                          color="orange-2"
+                          text-color="orange-9"
+                          size="xs"
+                          dense
+                          icon="pan_tool"
+                        >
+                          <q-tooltip>Manual</q-tooltip>
+                        </q-chip>
+                        <q-chip
+                          v-if="
+                            adminMatchStats[
+                              member.firstName || member.username || ''
+                            ].edited > 0
+                          "
+                          :label="
+                            adminMatchStats[
+                              member.firstName || member.username || ''
+                            ].edited
+                          "
+                          color="amber-3"
+                          text-color="amber-10"
+                          size="xs"
+                          dense
+                          icon="edit"
+                        >
+                          <q-tooltip>Edited</q-tooltip>
+                        </q-chip>
+                      </div>
                     </q-item-section>
                     <q-item-section side>
                       <q-btn
@@ -3344,6 +3424,24 @@ const duprExportableMatches = computed(() => {
   return MatchmakingApp.state.completedMatches.filter(
     (m) => m.completedAt > resetAt,
   );
+});
+
+const adminMatchStats = computed(() => {
+  const stats: Record<
+    string,
+    { total: number; auto: number; manual: number; edited: number }
+  > = {};
+  for (const m of MatchmakingApp.state.completedMatches) {
+    const admin = m.meta?.generatedBy;
+    if (!admin) continue;
+    if (!stats[admin])
+      stats[admin] = { total: 0, auto: 0, manual: 0, edited: 0 };
+    stats[admin].total++;
+    if (m.meta?.isEdited) stats[admin].edited++;
+    else if (m.meta?.generationType === 'auto') stats[admin].auto++;
+    else if (m.meta?.generationType === 'manual') stats[admin].manual++;
+  }
+  return stats;
 });
 
 const teamAScore = ref<number>(0);
