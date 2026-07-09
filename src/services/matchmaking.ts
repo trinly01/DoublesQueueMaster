@@ -87,6 +87,12 @@ export interface CompletedMatch {
   completedAt: number; // Epoch ms
   updatedAt: number; // Epoch ms (LWW)
   club: string; // Directus club UUID
+  meta?: {
+    generatedBy?: string;
+    matchmakingMode?: string;
+    generationType?: 'auto' | 'manual';
+    isEdited?: boolean;
+  };
 }
 
 export interface AppState {
@@ -1299,6 +1305,12 @@ export class LocalMatchmakingSystem {
       completedAt: now,
       updatedAt: now,
       club: this.state.clubUUID || '',
+      meta: {
+        generatedBy: match.generatedBy,
+        matchmakingMode: match.matchmakingMode,
+        generationType: match.generationType,
+        isEdited: match.isEdited,
+      },
     };
     console.log(
       '[reportMatchScore] completed match clubUUID:',

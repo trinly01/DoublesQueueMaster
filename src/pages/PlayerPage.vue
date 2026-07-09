@@ -432,6 +432,7 @@
                       :teamBScore="match.team_b_score"
                       :completedAt="match.completed_at"
                       :startedAt="match.started_at"
+                      :meta="match.meta"
                     />
                   </q-item-section>
                 </q-item>
@@ -679,6 +680,7 @@
                         :blurExceptUsername="
                           isPaymentExpired ? username : undefined
                         "
+                        :meta="g.match.meta"
                       />
                     </q-item-section>
                   </q-item>
