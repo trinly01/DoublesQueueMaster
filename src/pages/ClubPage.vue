@@ -2076,7 +2076,9 @@
                           dense
                           icon="sports_tennis"
                         >
-                          <q-tooltip>Total</q-tooltip>
+                          <q-tooltip anchor="top middle" self="bottom middle"
+                            >Total</q-tooltip
+                          >
                         </q-chip>
                         <q-chip
                           v-if="
@@ -2095,7 +2097,9 @@
                           dense
                           icon="auto_awesome"
                         >
-                          <q-tooltip>Auto</q-tooltip>
+                          <q-tooltip anchor="top middle" self="bottom middle"
+                            >Auto</q-tooltip
+                          >
                         </q-chip>
                         <q-chip
                           v-if="
@@ -2114,7 +2118,9 @@
                           dense
                           icon="pan_tool"
                         >
-                          <q-tooltip>Manual</q-tooltip>
+                          <q-tooltip anchor="top middle" self="bottom middle"
+                            >Manual</q-tooltip
+                          >
                         </q-chip>
                         <q-chip
                           v-if="
@@ -2133,7 +2139,9 @@
                           dense
                           icon="edit"
                         >
-                          <q-tooltip>Edited</q-tooltip>
+                          <q-tooltip anchor="top middle" self="bottom middle"
+                            >Edited</q-tooltip
+                          >
                         </q-chip>
                       </div>
                     </q-item-section>
