@@ -54,7 +54,7 @@ const modes = [
   {
     icon: 'emoji_events',
     label: 'All-Star Match',
-    desc: 'The showcase. Skips the queue and puts the top-rated players on court.',
+    desc: 'The showcase. Skips the queue and alternates between top-rated and bottom-rated players each round.',
   },
 ];
 </script>

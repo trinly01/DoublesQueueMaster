@@ -5662,31 +5662,31 @@ const matchmakingModeOptions = [
     label: 'Fair Play',
     value: 'fair_balance',
     description:
-      'Drafts the next in line, then builds teams purely on expected score difference without repeat penalties',
+      'Drafts the next in line, then builds the most balanced teams by skill rating',
   },
   {
     label: 'Social Mixer',
     value: 'variety_first',
     description:
-      'Drafts the next in line, then minimizes partner/opponent repeats within that group',
+      'Drafts the next in line, then prioritizes new partners and opponents each round',
   },
   {
     label: 'Balanced Mix',
     value: 'balanced_variety',
     description:
-      'Drafts the next in line, then balances skill and novelty equally',
+      'Drafts the next in line, then balances fair teams with fresh matchups equally',
   },
   {
     label: 'Competitive Mix',
     value: 'balance_first',
     description:
-      'Drafts the next in line, then strongly prioritizes close ratings',
+      'Drafts the next in line, then builds the closest games while avoiding repeat matchups',
   },
   {
     label: 'All-Star Match',
     value: 'strict_balance',
     description:
-      'Completely ignores wait time. Pulls the absolute highest-rated players from the entire queue for a mathematically perfect game',
+      'Skips the queue. Alternates each round between drafting the top-rated and bottom-rated players for a showcase game',
   },
 ];
 
