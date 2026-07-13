@@ -116,6 +116,7 @@ export interface AppState {
     | 'fair_balance';
   sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
   matchType?: 'singles' | 'doubles';
+  allStarSortDirection?: 'desc' | 'asc'; // Alternates each All-Star draft round
   matchesFilterBy?: 'all' | number;
   scoreType?: 'RALLY' | 'SIDEOUT'; // For DUPR CSV export
   ttsEnabled?: boolean; // Text-to-speech announcements
@@ -653,9 +654,9 @@ export class LocalMatchmakingSystem {
     if (initialState.autoSortQueue === undefined)
       initialState.autoSortQueue = true;
     if (initialState.queuePriorityMode === undefined)
-      initialState.queuePriorityMode = 'timestamp';
+      initialState.queuePriorityMode = 'gamesPlayed';
     if (initialState.matchmakingMode === undefined)
-      initialState.matchmakingMode = 'fair_balance';
+      initialState.matchmakingMode = 'strict_balance';
     if (initialState.sortBy === undefined)
       initialState.sortBy = 'matchesPlayed';
     if (initialState.matchType === undefined)
@@ -909,8 +910,8 @@ export class LocalMatchmakingSystem {
     this.state.autoAdvanceMatches = true;
     this.state.queueReturnMethod = 'fairness_first';
     this.state.autoSortQueue = true;
-    this.state.queuePriorityMode = 'timestamp';
-    this.state.matchmakingMode = 'fair_balance';
+    this.state.queuePriorityMode = 'gamesPlayed';
+    this.state.matchmakingMode = 'strict_balance';
     this.state.sortBy = 'matchesPlayed';
     this.state.matchType = 'doubles';
     this.state.matchesFilterBy = 'all';
@@ -1039,12 +1040,15 @@ export class LocalMatchmakingSystem {
     const playersNeeded = this.state.teamSize * 2;
 
     const isStrictBalance = this.state.matchmakingMode === 'strict_balance';
+    const allStarDir = this.state.allStarSortDirection ?? 'desc';
 
     const sortFn = (a: QueueEntry, b: QueueEntry) => {
       if (isStrictBalance) {
         const ratingA = this.state.players[a.username]?.rating ?? 1450;
         const ratingB = this.state.players[b.username]?.rating ?? 1450;
-        if (ratingA !== ratingB) return ratingB - ratingA;
+        if (ratingA !== ratingB) {
+          return allStarDir === 'desc' ? ratingB - ratingA : ratingA - ratingB;
+        }
         return a.enteredAt - b.enteredAt;
       }
       if (priorityMode === 'gamesPlayed') {
@@ -1191,11 +1195,9 @@ export class LocalMatchmakingSystem {
       });
     }
 
-    // One-shot: after drafting with strict_balance, revert to balance_first
-    // so subsequent rounds keep the closest competitive matches.
+    // Alternate All-Star sort direction for next round (desc ↔ asc)
     if (isStrictBalance) {
-      // change matchmaking mode back to balance_first
-      this.state.matchmakingMode = 'balance_first';
+      this.state.allStarSortDirection = allStarDir === 'desc' ? 'asc' : 'desc';
       this.state.settingsUpdatedAt = Date.now();
     }
 
@@ -1854,8 +1856,51 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   // admins. The UI already filters by `!m.deletedAt` when rendering.
   const activeMatchesAfterCleanup = mergedMatches;
 
+  // Per-field LWW for settings: pick each field from whichever side is newer
+  const localIsNewer = localSettingsTime > serverSettingsTime;
+  const pickSettings = <T>(localVal: T, serverVal: T): T =>
+    localIsNewer ? localVal : serverVal;
+
   const mergedState: AppState = {
-    ...settingsSource,
+    availableCourts: pickSettings(
+      local.availableCourts,
+      server.availableCourts,
+    ),
+    autoAdvanceMatches: pickSettings(
+      local.autoAdvanceMatches,
+      server.autoAdvanceMatches,
+    ),
+    queueReturnMethod: pickSettings(
+      local.queueReturnMethod,
+      server.queueReturnMethod,
+    ),
+    autoSortQueue: pickSettings(local.autoSortQueue, server.autoSortQueue),
+    queuePriorityMode: pickSettings(
+      local.queuePriorityMode,
+      server.queuePriorityMode,
+    ),
+    matchmakingMode: pickSettings(
+      local.matchmakingMode,
+      server.matchmakingMode,
+    ),
+    allStarSortDirection: pickSettings(
+      local.allStarSortDirection,
+      server.allStarSortDirection,
+    ),
+    sortBy: pickSettings(local.sortBy, server.sortBy),
+    matchType: pickSettings(local.matchType, server.matchType),
+    matchesFilterBy: pickSettings(
+      local.matchesFilterBy,
+      server.matchesFilterBy,
+    ),
+    scoreType: pickSettings(local.scoreType, server.scoreType),
+    ttsEnabled: pickSettings(local.ttsEnabled, server.ttsEnabled),
+    completedMatchesResetAt: pickSettings(
+      local.completedMatchesResetAt,
+      server.completedMatchesResetAt,
+    ),
+    lastExportedAt: pickSettings(local.lastExportedAt, server.lastExportedAt),
+    teamSize: pickSettings(local.teamSize, server.teamSize),
     players: mergedPlayers,
     queues: filteredQueues,
     activeMatches: activeMatchesAfterCleanup,

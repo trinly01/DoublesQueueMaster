@@ -5461,7 +5461,7 @@ const autoSortQueue = computed<boolean>({
   },
 });
 const queuePriorityMode = computed<'timestamp' | 'gamesPlayed'>({
-  get: () => MatchmakingApp.state.queuePriorityMode || 'timestamp',
+  get: () => MatchmakingApp.state.queuePriorityMode || 'gamesPlayed',
   set: (val) => {
     MatchmakingApp.state.queuePriorityMode = val;
     MatchmakingApp.state.settingsUpdatedAt = Date.now();
@@ -5553,7 +5553,7 @@ const matchmakingMode = computed<
   | 'strict_balance'
   | 'fair_balance'
 >({
-  get: () => MatchmakingApp.state.matchmakingMode || 'fair_balance',
+  get: () => MatchmakingApp.state.matchmakingMode || 'strict_balance',
   set: (val) => {
     MatchmakingApp.state.matchmakingMode = val;
     MatchmakingApp.state.settingsUpdatedAt = Date.now();
@@ -5578,7 +5578,7 @@ const matchTypeOptions = [
 
 // Score type for DUPR CSV export
 const scoreType = computed<'RALLY' | 'SIDEOUT'>({
-  get: () => MatchmakingApp.state.scoreType || 'RALLY',
+  get: () => MatchmakingApp.state.scoreType || 'SIDEOUT',
   set: (val) => {
     MatchmakingApp.state.scoreType = val;
     MatchmakingApp.state.settingsUpdatedAt = Date.now();
