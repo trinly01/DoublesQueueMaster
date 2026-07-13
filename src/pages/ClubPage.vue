@@ -3431,7 +3431,10 @@ const adminMatchStats = computed(() => {
     string,
     { total: number; auto: number; manual: number; edited: number }
   > = {};
-  for (const m of MatchmakingApp.state.completedMatches) {
+  const completed = MatchmakingApp.state.completedMatches;
+  console.log('[adminMatchStats] completedMatches count:', completed.length);
+  for (const m of completed) {
+    console.log('[adminMatchStats] match:', m.matchId, 'meta:', m.meta);
     const admin = m.meta?.generatedBy;
     if (!admin) continue;
     if (!stats[admin])
@@ -3441,6 +3444,14 @@ const adminMatchStats = computed(() => {
     else if (m.meta?.generationType === 'auto') stats[admin].auto++;
     else if (m.meta?.generationType === 'manual') stats[admin].manual++;
   }
+  console.log('[adminMatchStats] result:', JSON.stringify(stats));
+  console.log(
+    '[adminMatchStats] adminMembers:',
+    adminMembers.value.map((m) => ({
+      firstName: m.firstName,
+      username: m.username,
+    })),
+  );
   return stats;
 });
 
