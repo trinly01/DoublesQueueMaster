@@ -33,27 +33,27 @@
 const modes = [
   {
     icon: 'balance',
-    label: 'Fair Play',
-    desc: 'The everyday default. Next in line, teams balanced by skill.',
+    label: 'Casual',
+    desc: 'The everyday mode. Next in line, teams balanced by skill.',
   },
   {
     icon: 'diversity_3',
-    label: 'Social Mixer',
+    label: 'Social',
     desc: 'Meet everyone. Next in line, with new partners and opponents each round.',
   },
   {
     icon: 'tune',
-    label: 'Balanced Mix',
+    label: 'Standard',
     desc: 'Best of both. Fair teams and fresh faces in equal measure.',
   },
   {
     icon: 'local_fire_department',
-    label: 'Competitive Mix',
-    desc: 'For serious sessions. The closest possible games, never a repeat matchup.',
+    label: 'Competitive',
+    desc: 'For serious sessions. The closest possible games, minimizing repeat matchups.',
   },
   {
     icon: 'emoji_events',
-    label: 'All-Star Match',
+    label: 'All-Star',
     desc: 'The showcase. Skips the queue and alternates between top-rated and bottom-rated players each round.',
   },
 ];

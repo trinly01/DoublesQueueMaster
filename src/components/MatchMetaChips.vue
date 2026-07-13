@@ -35,9 +35,7 @@
     </q-chip>
     <q-chip
       v-if="
-        meta.generationType === 'auto' &&
-        !meta.isEdited &&
-        meta.matchmakingMode
+        meta.generationType === 'auto' && !meta.isEdited && meta.matchmakingMode
       "
       color="blue-grey-2"
       text-color="blue-grey-9"
@@ -74,11 +72,11 @@ defineProps<{
 
 const modeLabel = (mode: string): string => {
   const labels: Record<string, string> = {
-    fair_balance: 'Fair Play',
-    variety_first: 'Variety',
-    balance_first: 'Balance',
-    balanced_variety: 'Balanced Variety',
-    strict_balance: 'Strict Balance',
+    fair_balance: 'Casual',
+    variety_first: 'Social',
+    balance_first: 'Competitive',
+    balanced_variety: 'Standard',
+    strict_balance: 'All-Star',
   };
   return labels[mode] || mode;
 };

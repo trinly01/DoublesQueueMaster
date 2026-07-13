@@ -43,7 +43,7 @@ const faqs = [
   {
     question: 'How does auto-matchmaking work?',
     answer:
-      'The club admin picks a matchmaking style. Fair Play (default) always picks the most even teams. All-Star Match alternates each round between drafting the highest-rated and lowest-rated players for a showcase game. Competitive Mix and Balanced Mix try to keep games close while also mixing up partners and opponents so you do not play the same people every time. Social Mixer focuses on new matchups. You can also switch to Manual Match and hand-pick teams.',
+      'The club admin picks a matchmaking style. All-Star (default) alternates each round between drafting the highest-rated and lowest-rated players for a showcase game. Casual always picks the most even teams. Competitive and Standard try to keep games close while also mixing up partners and opponents so you do not play the same people every time. Social focuses on new matchups. You can also switch to Manual Match and hand-pick teams.',
   },
   {
     question:

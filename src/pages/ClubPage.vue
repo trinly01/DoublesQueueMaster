@@ -5659,31 +5659,31 @@ const queuePriorityOptions = [
 // Matchmaking mode options
 const matchmakingModeOptions = [
   {
-    label: 'Fair Play',
+    label: 'Casual',
     value: 'fair_balance',
     description:
       'Drafts the next in line, then builds the most balanced teams by skill rating',
   },
   {
-    label: 'Social Mixer',
+    label: 'Social',
     value: 'variety_first',
     description:
       'Drafts the next in line, then prioritizes new partners and opponents each round',
   },
   {
-    label: 'Balanced Mix',
+    label: 'Standard',
     value: 'balanced_variety',
     description:
       'Drafts the next in line, then balances fair teams with fresh matchups equally',
   },
   {
-    label: 'Competitive Mix',
+    label: 'Competitive',
     value: 'balance_first',
     description:
       'Drafts the next in line, then builds the closest games while avoiding repeat matchups',
   },
   {
-    label: 'All-Star Match',
+    label: 'All-Star',
     value: 'strict_balance',
     description:
       'Skips the queue. Alternates each round between drafting the top-rated and bottom-rated players for a showcase game',
