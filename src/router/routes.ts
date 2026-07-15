@@ -50,6 +50,10 @@ const routes: RouteRecordRaw[] = [
         path: 'openplay',
         component: ClubPage,
       },
+      {
+        path: 'play',
+        component: () => import('pages/PlayPage.vue'),
+      },
     ],
   },
 
