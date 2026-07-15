@@ -73,7 +73,14 @@ export default configure((/* ctx */) => {
           },
         };
       },
-      // viteVuePluginOptions: {},
+      viteVuePluginOptions: {
+        template: {
+          compilerOptions: {
+            isCustomElement: (tag: string) =>
+              tag.startsWith('Tres') && tag !== 'TresCanvas',
+          },
+        },
+      },
 
       vitePlugins: [
         [
