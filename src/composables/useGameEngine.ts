@@ -158,6 +158,12 @@ export function useGameEngine() {
   let serveFromX = 0; // server's X position when serving (to check wrong court)
   let aiDinkRead: boolean | null = null; // null = not evaluated, true/false = committed
 
+  // Precomputed constants for hot loops
+  const HALF_COURT_W = COURT_WIDTH / 2;
+  const HALF_COURT_L = COURT_LENGTH / 2;
+  const BOUNCE_PREDICT_INTERVAL = 0.048; // ~3 frames at 60fps
+  let bouncePredictTimer = 0;
+
   // Velocity tracking for impact-force physics
   const playerVel = new THREE.Vector3();
   const aiVel = new THREE.Vector3();
@@ -1020,31 +1026,40 @@ export function useGameEngine() {
     refs.ballPos.y += refs.ballVel.y * dt;
     refs.ballPos.z += refs.ballVel.z * dt;
 
-    // Predict bounce point for trajectory indicator
+    // Predict bounce point for trajectory indicator (throttled to ~20fps)
+    bouncePredictTimer += dt;
     if (!servePending.value && refs.ballVel.lengthSq() > 0.5) {
-      let simY = refs.ballPos.y;
-      let simVy = refs.ballVel.y;
-      let simZ = refs.ballPos.z;
-      let simX = refs.ballPos.x;
-      const simVz = refs.ballVel.z;
-      const simVx = refs.ballVel.x;
-      let found = false;
-      for (let i = 0; i < 120; i++) {
-        simY += simVy * 0.016;
-        simVy += GRAVITY * 0.016;
-        simZ += simVz * 0.016;
-        simX += simVx * 0.016;
-        if (simY <= BALL_RADIUS && Math.abs(simZ) < COURT_LENGTH / 2) {
-          if (!refs.ballBouncePredict)
-            refs.ballBouncePredict = new THREE.Vector3();
-          refs.ballBouncePredict.set(simX, 0.02, simZ);
-          found = true;
-          break;
+      if (bouncePredictTimer >= BOUNCE_PREDICT_INTERVAL) {
+        bouncePredictTimer = 0;
+        let simY = refs.ballPos.y;
+        let simVy = refs.ballVel.y;
+        let simZ = refs.ballPos.z;
+        let simX = refs.ballPos.x;
+        const simVz = refs.ballVel.z;
+        const simVx = refs.ballVel.x;
+        let found = false;
+        for (let i = 0; i < 120; i++) {
+          simY += simVy * 0.016;
+          simVy += GRAVITY * 0.016;
+          simZ += simVz * 0.016;
+          simX += simVx * 0.016;
+          if (
+            simY <= BALL_RADIUS &&
+            simZ > -HALF_COURT_L &&
+            simZ < HALF_COURT_L
+          ) {
+            if (!refs.ballBouncePredict)
+              refs.ballBouncePredict = new THREE.Vector3();
+            refs.ballBouncePredict.set(simX, 0.02, simZ);
+            found = true;
+            break;
+          }
+          if (simY < -1 || simZ < -HALF_COURT_L - 2 || simZ > HALF_COURT_L + 2)
+            break;
         }
-        if (simY < -1 || Math.abs(simZ) > COURT_LENGTH / 2 + 2) break;
-      }
-      if (!found) {
-        refs.ballBouncePredict = null;
+        if (!found) {
+          refs.ballBouncePredict = null;
+        }
       }
     } else {
       refs.ballBouncePredict = null;
@@ -1070,10 +1085,8 @@ export function useGameEngine() {
       sound.ballBounce();
 
       // Check if bounce is in or out of bounds
-      const halfW = COURT_WIDTH / 2;
-      const halfL = COURT_LENGTH / 2;
-      const bounceOutX = Math.abs(refs.ballPos.x) > halfW;
-      const bounceOutZ = Math.abs(refs.ballPos.z) > halfL;
+      const bounceOutX = Math.abs(refs.ballPos.x) > HALF_COURT_W;
+      const bounceOutZ = Math.abs(refs.ballPos.z) > HALF_COURT_L;
       const bounceIsOut = bounceOutX || bounceOutZ;
 
       // OOB check on SECOND bounce (not serve) — give player chance to hit after first bounce
@@ -1112,11 +1125,9 @@ export function useGameEngine() {
           return;
         }
         // Check if serve landed out of bounds
-        const halfW = COURT_WIDTH / 2;
-        const halfL = COURT_LENGTH / 2;
         if (
-          Math.abs(refs.ballPos.x) > halfW ||
-          Math.abs(refs.ballPos.z) > halfL
+          Math.abs(refs.ballPos.x) > HALF_COURT_W ||
+          Math.abs(refs.ballPos.z) > HALF_COURT_L
         ) {
           scorePoint(opponentSide, 'Serve out!');
           return;
@@ -1239,24 +1250,29 @@ export function useGameEngine() {
   function willBallLandOut(): boolean {
     if (refs.ballVel.z >= 0) return false; // not moving toward AI
     if (ballBouncedOnSide) return false; // already bounced — ball is in play, go hit it
+    // Use the bounce prediction if available (avoids redundant simulation)
+    if (refs.ballBouncePredict) {
+      return (
+        Math.abs(refs.ballBouncePredict.x) > HALF_COURT_W ||
+        Math.abs(refs.ballBouncePredict.z) > HALF_COURT_L
+      );
+    }
+    // Fallback: simulate if no prediction available
     let simY = refs.ballPos.y;
     let simVy = refs.ballVel.y;
     let simX = refs.ballPos.x;
     let simZ = refs.ballPos.z;
     const simVx = refs.ballVel.x;
     const simVz = refs.ballVel.z;
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 80; i++) {
       simY += simVy * 0.03;
       simVy += GRAVITY * 0.03;
       simX += simVx * 0.03;
       simZ += simVz * 0.03;
-      // Ball lands
       if (simY <= BALL_RADIUS && simZ < 0) {
-        const halfW = COURT_WIDTH / 2;
-        const halfL = COURT_LENGTH / 2;
-        return Math.abs(simX) > halfW || Math.abs(simZ) > halfL;
+        return Math.abs(simX) > HALF_COURT_W || Math.abs(simZ) > HALF_COURT_L;
       }
-      if (simY < 0) return false; // didn't land cleanly
+      if (simY < 0) return false;
     }
     return false;
   }
