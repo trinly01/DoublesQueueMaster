@@ -40,6 +40,16 @@
     <TresCircleGeometry :args="[0.13, 16]" />
     <TresMeshBasicMaterial color="#1a1a2e" :opacity="0.3" transparent />
   </TresMesh>
+
+  <!-- Bounce prediction indicator -->
+  <TresMesh
+    ref="bounceMarkerRef"
+    :rotation="[-Math.PI / 2, 0, 0]"
+    :visible="false"
+  >
+    <TresRingGeometry :args="[0.2, 0.3, 24]" />
+    <TresMeshBasicMaterial color="#fde047" :opacity="0.6" transparent />
+  </TresMesh>
 </template>
 
 <script setup lang="ts">
@@ -57,6 +67,7 @@ const playerRef = ref();
 const aiRef = ref();
 const ballRef = ref();
 const shadowRef = ref();
+const bounceMarkerRef = ref();
 const cameraRef = ref();
 
 const COURT_LENGTH = 13.41;
@@ -147,6 +158,23 @@ onMounted(() => {
     // Update ball shadow
     if (shadowRef.value) {
       shadowRef.value.position.set(r.ballPos.x, 0.01, r.ballPos.z);
+    }
+
+    // Update bounce prediction marker
+    if (bounceMarkerRef.value) {
+      if (r.ballBouncePredict) {
+        bounceMarkerRef.value.visible = true;
+        bounceMarkerRef.value.position.set(
+          r.ballBouncePredict.x,
+          0.03,
+          r.ballBouncePredict.z,
+        );
+        // Pulse scale
+        const pulse = 1 + Math.sin(elapsed * 6) * 0.15;
+        bounceMarkerRef.value.scale.set(pulse, pulse, 1);
+      } else {
+        bounceMarkerRef.value.visible = false;
+      }
     }
 
     // Soft-follow camera: follow midpoint of player and AI, keep height & z fixed
