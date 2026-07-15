@@ -103,7 +103,7 @@
     <!-- Net -->
     <TresMesh :position="[0, NET_HEIGHT / 2, 0] as any">
       <TresBoxGeometry :args="[COURT_WIDTH, NET_HEIGHT, 0.03]" />
-      <TresMeshStandardMaterial color="#1a1a2e" :opacity="0.6" transparent />
+      <TresMeshStandardMaterial color="#1a1a2e" :opacity="0.35" transparent />
     </TresMesh>
     <!-- Net posts -->
     <TresMesh :position="[-COURT_WIDTH / 2, 0.5, 0] as any">
@@ -113,6 +113,22 @@
     <TresMesh :position="[COURT_WIDTH / 2, 0.5, 0] as any">
       <TresCylinderGeometry :args="[0.04, 0.04, 1, 8]" />
       <TresMeshStandardMaterial color="#e0e0e0" />
+    </TresMesh>
+
+    <!-- Transparent walls at net (prevent crossing within court) -->
+    <TresMesh :position="[0, NET_HEIGHT / 2, 0] as any">
+      <TresBoxGeometry :args="[COURT_WIDTH, NET_HEIGHT, 0.02]" />
+      <TresMeshBasicMaterial
+        color="#667eea"
+        :opacity="0.08"
+        transparent
+        :side="2"
+      />
+    </TresMesh>
+    <!-- Wall top edge highlight -->
+    <TresMesh :position="[0, NET_HEIGHT, 0] as any">
+      <TresBoxGeometry :args="[COURT_WIDTH, 0.03, 0.03]" />
+      <TresMeshBasicMaterial color="#667eea" :opacity="0.3" transparent />
     </TresMesh>
 
     <!-- Dynamic actors (player, AI, ball) — updated per-frame via useRenderLoop -->
