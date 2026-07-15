@@ -3,7 +3,7 @@
   <TresPerspectiveCamera
     ref="cameraRef"
     :position="initialCamPos as any"
-    :fov="60"
+    :fov="45"
   />
 
   <!-- Player character -->
@@ -62,10 +62,10 @@ const cameraRef = ref();
 const COURT_LENGTH = 13.41;
 
 // Initial camera position: behind player, elevated
-const initialCamPos: [number, number, number] = [0, 4.5, COURT_LENGTH / 2 + 5];
+const initialCamPos: [number, number, number] = [0, 6, COURT_LENGTH / 2 + 10];
 
-// Smooth follow look target
-const camLookTarget = new THREE.Vector3(0, 0.5, -2);
+// Smooth follow look target — shifted toward AI to see more of their side
+const camLookTarget = new THREE.Vector3(0, 0, 3);
 
 const { onBeforeRender } = useLoop();
 
@@ -149,14 +149,16 @@ onMounted(() => {
       shadowRef.value.position.set(r.ballPos.x, 0.01, r.ballPos.z);
     }
 
-    // Soft-follow camera: gently shift x toward player, keep height & z fixed
+    // Soft-follow camera: follow midpoint of player and AI, keep height & z fixed
     if (cameraRef.value) {
       const cam = cameraRef.value;
-      const targetX = r.playerPos.x * 0.35; // 35% of player offset
-      cam.position.x += (targetX - cam.position.x) * Math.min(1, dt * 3);
+      // Blend: weight player more since camera is behind player
+      const midX = r.playerPos.x * 0.6 + r.aiPos.x * 0.2;
+      cam.position.x += (midX - cam.position.x) * Math.min(1, dt * 4);
 
-      // Look at mid-court, slightly shifted toward player
-      camLookTarget.x = r.playerPos.x * 0.15;
+      // Look target follows both player and AI
+      camLookTarget.x = r.playerPos.x * 0.35 + r.aiPos.x * 0.15;
+      camLookTarget.z = 3 + r.playerPos.z * 0.1 - r.aiPos.z * 0.05;
       cam.lookAt(camLookTarget);
     }
   });
