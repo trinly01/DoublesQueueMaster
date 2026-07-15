@@ -50,7 +50,7 @@
       class="serve-hint-container"
     >
       <p class="serve-hint">
-        Move to serve — serve
+        Move to serve, serve
         {{ engine.playerScore.value % 2 === 0 ? 'RIGHT' : 'LEFT' }} court
       </p>
     </div>
@@ -198,8 +198,8 @@
           <p class="rules-hint">
             {{
               engine.rules.value === 'arcade'
-                ? 'Rally scoring — every rally wins a point'
-                : 'Side-out scoring — only server scores, diagonal serves'
+                ? 'Rally scoring, every rally wins a point'
+                : 'Side-out scoring, only server scores, diagonal serves'
             }}
           </p>
         </div>
@@ -235,7 +235,7 @@
           {{ engine.winner.value === 'player' ? 'You Win!' : 'AI Wins!' }}
         </h1>
         <p class="menu-subtitle">
-          {{ engine.playerScore.value }} — {{ engine.aiScore.value }}
+          {{ engine.playerScore.value }}, {{ engine.aiScore.value }}
         </p>
         <q-btn
           label="Play Again"
@@ -555,12 +555,15 @@ onUnmounted(() => {
     0 0 20px rgba(253, 224, 71, 0.3);
   pointer-events: none;
   animation: announce 0.5s ease;
-  white-space: nowrap;
+  text-align: center;
+  max-width: 90vw;
+  word-wrap: break-word;
 }
 
 @media (min-width: 768px) {
   .point-toast {
     font-size: 40px;
+    white-space: nowrap;
   }
 }
 
