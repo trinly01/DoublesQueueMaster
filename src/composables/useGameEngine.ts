@@ -571,24 +571,29 @@ export function useGameEngine() {
             if (simY < 0 || simZ < -COURT_LENGTH / 2) break;
           }
           // If ball is going to bounce in the kitchen (dink), wait at kitchen line
-          if (ballWillBounceInKitchen && !ballBouncedOnSide) {
+          // Only during double-bounce rule — after that, AI can volley
+          if (
+            ballWillBounceInKitchen &&
+            !ballBouncedOnSide &&
+            rallyHitCount < 3
+          ) {
             aiTargetZ = -KITCHEN_DEPTH - 0.2;
           }
         }
         aiReactionTimer = cfg.reactionDelay;
       }
 
-      // Avoid volley fault: every frame, if ball hasn't bounced, stay away from ball path
+      // Avoid volley fault: only when ball is at body height and close enough to hit AI
       if (!ballBouncedOnSide && rallyHitCount < 3) {
         const distZ = Math.abs(refs.aiPos.z - refs.ballPos.z);
-        if (distZ < 1.5) {
-          // Back away behind the ball's Z position
+        // Only avoid if ball is high enough to hit the AI body (above 0.5m)
+        // Low balls will bounce — AI should stay at kitchen line and wait
+        if (distZ < 1.5 && refs.ballPos.y > 0.5) {
           aiTargetZ = refs.ballPos.z - 1.5;
           // Also dodge in X to avoid the ball's path
           const ballFutureX = refs.ballPos.x + refs.ballVel.x * 0.3;
           const xDiff = refs.aiPos.x - ballFutureX;
           if (Math.abs(xDiff) < 0.8) {
-            // Too close in X — dodge away
             aiTargetX = ballFutureX + (xDiff >= 0 ? 1.0 : -1.0);
           }
         }
@@ -606,7 +611,13 @@ export function useGameEngine() {
       refs.ballPos.z < 0 &&
       Math.abs(refs.ballPos.z) < KITCHEN_DEPTH &&
       aiDinkRead === true;
-    const speedMul = chasingDink ? 1.4 : 1;
+    // Also boost when ball is about to bounce in kitchen and AI needs to close distance
+    const approachingDink =
+      !ballBouncedOnSide &&
+      refs.ballVel.z < 0 &&
+      refs.ballPos.z < 0 &&
+      Math.abs(refs.ballPos.z) < KITCHEN_DEPTH + 1;
+    const speedMul = chasingDink ? 1.8 : approachingDink ? 1.4 : 1;
     if (!servePending.value) {
       const targetVx = THREE.MathUtils.clamp(
         (aiTargetX - refs.aiPos.x) * 3,
@@ -616,7 +627,7 @@ export function useGameEngine() {
       aiCurrentVel.x = THREE.MathUtils.damp(
         aiCurrentVel.x,
         targetVx,
-        AI_ACCEL,
+        AI_ACCEL * speedMul,
         dt,
       );
       refs.aiPos.x += aiCurrentVel.x * dt;
@@ -632,7 +643,7 @@ export function useGameEngine() {
       aiCurrentVel.z = THREE.MathUtils.damp(
         aiCurrentVel.z,
         targetVz,
-        AI_ACCEL,
+        AI_ACCEL * speedMul,
         dt,
       );
       refs.aiPos.z += aiCurrentVel.z * dt;
