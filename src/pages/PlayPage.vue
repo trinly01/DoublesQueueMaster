@@ -300,7 +300,13 @@ import {
 
 const engine = useGameEngine();
 const router = useRouter();
-const goBack = () => router.push('/');
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back();
+  } else {
+    router.push('/');
+  }
+};
 
 interface JoystickState {
   active: boolean;
@@ -393,8 +399,8 @@ const difficulties: { label: string; value: Difficulty }[] = [
 ];
 
 const rulesOptions: { label: string; value: Rules }[] = [
-  { label: 'Arcade', value: 'arcade' },
-  { label: 'Authentic', value: 'authentic' },
+  { label: 'Rally', value: 'arcade' },
+  { label: 'Classic', value: 'authentic' },
 ];
 
 const isTouch =
@@ -694,7 +700,7 @@ onUnmounted(() => {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 24px;
-  padding: 40px 48px;
+  padding: 40px 64px;
   text-align: center;
   max-width: 400px;
   width: 90%;
@@ -705,7 +711,11 @@ onUnmounted(() => {
   font-size: 32px;
   font-weight: 800;
   color: white;
-  margin: 0 0 8px;
+  line-height: 1.1;
+  white-space: nowrap;
+  display: flex;
+  justify-content: center;
+  margin: 0 auto;
 }
 
 .menu-subtitle {
@@ -737,10 +747,12 @@ onUnmounted(() => {
   display: flex;
   gap: 8px;
   justify-content: center;
+  padding: 8px 16px;
 }
 
 .diff-btn {
-  min-width: 90px;
+  min-width: 80px;
+  padding: 4px 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 

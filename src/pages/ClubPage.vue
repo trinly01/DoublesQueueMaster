@@ -3228,18 +3228,19 @@
     </template>
 
     <q-page-sticky position="bottom-left" :offset="[18, 18]">
-      <div class="row q-gutter-sm">
-        <q-btn round icon="sports_esports" color="primary" @click="goPlay">
-          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-            >Play with AI</q-tooltip
-          >
-        </q-btn>
-        <q-btn round icon="person" color="accent" @click="goHome">
-          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-            >Profile</q-tooltip
-          >
-        </q-btn>
-      </div>
+      <q-btn round icon="person" color="accent" @click="goHome">
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+          >Profile</q-tooltip
+        >
+      </q-btn>
+    </q-page-sticky>
+
+    <q-page-sticky position="bottom-right" :offset="[18, 18]">
+      <q-btn round icon="sports_esports" color="primary" @click="goPlay">
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+          >Play with AI</q-tooltip
+        >
+      </q-btn>
     </q-page-sticky>
   </q-page>
 </template>
