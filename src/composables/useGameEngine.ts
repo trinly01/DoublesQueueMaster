@@ -387,8 +387,8 @@ export function useGameEngine() {
         // Side out — serve passes to rally winner, no point scored
         lastPointMsg.value =
           forWhom === 'player'
-            ? 'Side Out — Your Serve!'
-            : 'Side Out — AI Serves';
+            ? 'Side Out, Your Serve!'
+            : 'Side Out, AI Serves';
         server.value = forWhom;
       }
     } else {
