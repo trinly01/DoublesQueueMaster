@@ -74,7 +74,7 @@ const AI_CONFIGS: Record<Difficulty, AIConfig> = {
     dinkBonusStanding: 0.25,
     netFaultChance: 0.1,
     targetBias: 1.5,
-    playerMagnet: 0,
+    playerMagnet: 0.06,
     aiMagnet: 0.8,
   },
 };
@@ -161,6 +161,9 @@ export function useGameEngine() {
   // Precomputed constants for hot loops
   const HALF_COURT_W = COURT_WIDTH / 2;
   const HALF_COURT_L = COURT_LENGTH / 2;
+  const CLAMP_HALF_W = HALF_COURT_W + 1;
+  const CLAMP_BACK = HALF_COURT_L + 2;
+  const CLAMP_AI_BACK = -HALF_COURT_L - 2;
   const BOUNCE_PREDICT_INTERVAL = 0.048; // ~3 frames at 60fps
   let bouncePredictTimer = 0;
 
@@ -484,22 +487,25 @@ export function useGameEngine() {
 
     // Clamp to player's half — wall at net only within court width
     // Outside court width, player can walk around the wall
-    const halfW = COURT_WIDTH / 2 + 1;
-    const insideCourt = Math.abs(refs.playerPos.x) < COURT_WIDTH / 2;
-    refs.playerPos.x = THREE.MathUtils.clamp(refs.playerPos.x, -halfW, halfW);
+    const insideCourt = Math.abs(refs.playerPos.x) < HALF_COURT_W;
+    refs.playerPos.x = THREE.MathUtils.clamp(
+      refs.playerPos.x,
+      -CLAMP_HALF_W,
+      CLAMP_HALF_W,
+    );
     if (servePending.value) {
       // During serve: allow behind baseline, still block crossing net
       if (insideCourt) {
         refs.playerPos.z = THREE.MathUtils.clamp(
           refs.playerPos.z,
           0.3,
-          COURT_LENGTH / 2 + 2,
+          CLAMP_BACK,
         );
       } else {
         refs.playerPos.z = THREE.MathUtils.clamp(
           refs.playerPos.z,
-          -COURT_LENGTH / 2 - 2,
-          COURT_LENGTH / 2 + 2,
+          -CLAMP_BACK,
+          CLAMP_BACK,
         );
       }
     } else if (insideCourt) {
@@ -507,14 +513,14 @@ export function useGameEngine() {
       refs.playerPos.z = THREE.MathUtils.clamp(
         refs.playerPos.z,
         0.3,
-        COURT_LENGTH / 2 + 2,
+        CLAMP_BACK,
       );
     } else {
       // Outside court width: can walk around the wall
       refs.playerPos.z = THREE.MathUtils.clamp(
         refs.playerPos.z,
-        -COURT_LENGTH / 2 - 2,
-        COURT_LENGTH / 2 + 2,
+        -CLAMP_BACK,
+        CLAMP_BACK,
       );
     }
 
@@ -568,7 +574,7 @@ export function useGameEngine() {
         let hittableZ: number | null = null;
         let hittableX = 0;
         let bodyHeightZ: number | null = null;
-        for (let i = 0; i < 80; i++) {
+        for (let i = 0; i < 50; i++) {
           simY += simVy * 0.05;
           simVy += GRAVITY * 0.05;
           simZ += simVz * 0.05;
@@ -699,34 +705,29 @@ export function useGameEngine() {
     }
 
     // Clamp to AI's half — wall at net only within court width
-    const halfW = COURT_WIDTH / 2 + 1;
-    const aiInsideCourt = Math.abs(refs.aiPos.x) < COURT_WIDTH / 2;
-    refs.aiPos.x = THREE.MathUtils.clamp(refs.aiPos.x, -halfW, halfW);
+    const aiInsideCourt = Math.abs(refs.aiPos.x) < HALF_COURT_W;
+    refs.aiPos.x = THREE.MathUtils.clamp(
+      refs.aiPos.x,
+      -CLAMP_HALF_W,
+      CLAMP_HALF_W,
+    );
     if (servePending.value) {
       if (aiInsideCourt) {
-        refs.aiPos.z = THREE.MathUtils.clamp(
-          refs.aiPos.z,
-          -COURT_LENGTH / 2 - 2,
-          -0.3,
-        );
+        refs.aiPos.z = THREE.MathUtils.clamp(refs.aiPos.z, CLAMP_AI_BACK, -0.3);
       } else {
         refs.aiPos.z = THREE.MathUtils.clamp(
           refs.aiPos.z,
-          -COURT_LENGTH / 2 - 2,
-          COURT_LENGTH / 2 + 2,
+          CLAMP_AI_BACK,
+          CLAMP_BACK,
         );
       }
     } else if (aiInsideCourt) {
-      refs.aiPos.z = THREE.MathUtils.clamp(
-        refs.aiPos.z,
-        -COURT_LENGTH / 2 - 2,
-        -0.3,
-      );
+      refs.aiPos.z = THREE.MathUtils.clamp(refs.aiPos.z, CLAMP_AI_BACK, -0.3);
     } else {
       refs.aiPos.z = THREE.MathUtils.clamp(
         refs.aiPos.z,
-        -COURT_LENGTH / 2 - 2,
-        COURT_LENGTH / 2 + 2,
+        CLAMP_AI_BACK,
+        CLAMP_BACK,
       );
     }
 
@@ -769,14 +770,8 @@ export function useGameEngine() {
       // Ball outside body volume — check paddle reach zone (extended forward)
       const paddleY = 0.55;
       const paddleReach = 0.6; // paddle extends forward
-      const dyPaddle = Math.abs(paddleY - ballPos.y);
-      const dxPaddle = Math.abs(pos.x - ballPos.x);
-      const dzPaddle = Math.abs(pos.z - ballPos.z);
-      if (
-        dxPaddle > bodyHalfWidth ||
-        dzPaddle > paddleReach ||
-        dyPaddle > 0.5
-      ) {
+      const dyPaddle = Math.abs(paddleY - dy);
+      if (dx > bodyHalfWidth || dz > paddleReach || dyPaddle > 0.5) {
         return false;
       }
     }
@@ -1168,26 +1163,29 @@ export function useGameEngine() {
     // (We let it fly; it will be caught by the OOB check on bounce or back-wall check)
 
     // Back walls — ball went past baseline
-    // If ball already bounced on this side → good shot, opponent let it go → hitter's point
-    // If ball never bounced on this side → hitter hit it out → opponent's point
-    if (rallyHitCount > 0) {
-      if (refs.ballPos.z > COURT_LENGTH / 2 + 0.5 && refs.ballVel.z > 0) {
-        // Ball past player's baseline AND moving away from court
-        if (ballBouncedOnSide) {
-          scorePoint('ai', 'In!');
-        } else {
-          scorePoint('player', 'Out!');
+    // Only score after second bounce, or if ball is well past baseline (+2m) after first bounce
+    // This gives player/AI a chance to hit the ball after the first bounce
+    if (rallyHitCount > 0 && ballBouncedOnSide) {
+      const pastPlayerBack =
+        refs.ballPos.z > HALF_COURT_L + 0.5 && refs.ballVel.z > 0;
+      const pastAiBack =
+        refs.ballPos.z < -HALF_COURT_L - 0.5 && refs.ballVel.z < 0;
+      if (pastPlayerBack || pastAiBack) {
+        // After second bounce — point is over
+        if (bounceCountThisSide >= 2) {
+          if (pastPlayerBack) scorePoint('ai', 'In!');
+          else scorePoint('player', 'In!');
+          return;
         }
-        return;
-      }
-      if (refs.ballPos.z < -COURT_LENGTH / 2 - 0.5 && refs.ballVel.z < 0) {
-        // Ball past AI's baseline AND moving away from court
-        if (ballBouncedOnSide) {
-          scorePoint('player', 'In!');
-        } else {
-          scorePoint('ai', 'Out!');
+        // After first bounce — only call if ball is far past reach (+3m beyond baseline)
+        if (
+          refs.ballPos.z > HALF_COURT_L + 3 ||
+          refs.ballPos.z < -HALF_COURT_L - 3
+        ) {
+          if (pastPlayerBack) scorePoint('ai', 'In!');
+          else scorePoint('player', 'In!');
+          return;
         }
-        return;
       }
     }
 
