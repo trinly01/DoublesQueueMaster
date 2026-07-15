@@ -5,11 +5,8 @@
       <GameScene :refs="engine.refs" />
     </div>
 
-    <!-- Top-left: Back button + Score (mobile: same row) -->
+    <!-- Top-left: Score (mobile: same row) -->
     <div class="top-left-row">
-      <q-btn flat round dense icon="arrow_back" color="white" @click="goBack">
-        <q-tooltip>Back</q-tooltip>
-      </q-btn>
       <div v-if="engine.gameState.value !== 'menu'" class="score-pill">
         <span class="score-label score-you-label">
           <span
@@ -58,6 +55,19 @@
       </p>
     </div>
 
+    <!-- Exit button (top right, during menu and game-over) -->
+    <div
+      v-if="
+        engine.gameState.value === 'menu' ||
+        engine.gameState.value === 'game-over'
+      "
+      class="top-right-exit"
+    >
+      <q-btn flat round dense icon="close" color="white" @click="goBack">
+        <q-tooltip anchor="center end" self="center start">Exit</q-tooltip>
+      </q-btn>
+    </div>
+
     <!-- Control buttons (top right, vertical, during play) -->
     <div
       v-if="
@@ -67,6 +77,33 @@
       "
       class="top-right-controls"
     >
+      <q-btn flat round dense icon="close" color="white" @click="goBack">
+        <q-tooltip anchor="center end" self="center start">Exit</q-tooltip>
+      </q-btn>
+      <q-btn
+        flat
+        round
+        dense
+        :icon="engine.sound.soundEnabled.value ? 'volume_up' : 'volume_off'"
+        color="white"
+        @click="engine.sound.toggleSound()"
+      >
+        <q-tooltip anchor="center end" self="center start">{{
+          engine.sound.soundEnabled.value ? 'Mute SFX' : 'Enable SFX'
+        }}</q-tooltip>
+      </q-btn>
+      <q-btn
+        flat
+        round
+        dense
+        :icon="engine.sound.musicEnabled.value ? 'music_note' : 'music_off'"
+        color="white"
+        @click="engine.sound.toggleMusic()"
+      >
+        <q-tooltip anchor="center end" self="center start">{{
+          engine.sound.musicEnabled.value ? 'Mute Music' : 'Enable Music'
+        }}</q-tooltip>
+      </q-btn>
       <q-btn
         flat
         round
@@ -79,42 +116,8 @@
             : engine.pauseGame()
         "
       >
-        <q-tooltip>{{
+        <q-tooltip anchor="center end" self="center start">{{
           engine.gameState.value === 'paused' ? 'Resume' : 'Pause'
-        }}</q-tooltip>
-      </q-btn>
-      <q-btn
-        flat
-        round
-        dense
-        icon="restart_alt"
-        color="white"
-        @click="engine.resetScore()"
-      >
-        <q-tooltip>Reset Score</q-tooltip>
-      </q-btn>
-      <q-btn
-        flat
-        round
-        dense
-        :icon="engine.sound.soundEnabled.value ? 'volume_up' : 'volume_off'"
-        color="white"
-        @click="engine.sound.toggleSound()"
-      >
-        <q-tooltip>{{
-          engine.sound.soundEnabled.value ? 'Mute SFX' : 'Enable SFX'
-        }}</q-tooltip>
-      </q-btn>
-      <q-btn
-        flat
-        round
-        dense
-        :icon="engine.sound.musicEnabled.value ? 'music_note' : 'music_off'"
-        color="white"
-        @click="engine.sound.toggleMusic()"
-      >
-        <q-tooltip>{{
-          engine.sound.musicEnabled.value ? 'Mute Music' : 'Enable Music'
         }}</q-tooltip>
       </q-btn>
     </div>
@@ -124,6 +127,16 @@
       <div class="menu-card">
         <h1 class="menu-title">Paused</h1>
         <q-btn
+          label="Main Menu"
+          color="white"
+          text-color="grey-7"
+          rounded
+          size="md"
+          class="play-btn"
+          outline
+          @click="engine.resetScore()"
+        />
+        <q-btn
           label="Resume"
           color="white"
           text-color="accent"
@@ -132,16 +145,6 @@
           size="lg"
           class="play-btn"
           @click="engine.resumeGame()"
-        />
-        <q-btn
-          label="Reset Score"
-          color="white"
-          text-color="grey-8"
-          rounded
-          size="md"
-          class="play-btn"
-          outline
-          @click="engine.resetScore()"
         />
       </div>
     </div>
@@ -247,7 +250,7 @@
         <q-btn
           label="Main Menu"
           color="white"
-          text-color="white"
+          text-color="grey-7"
           rounded
           class="menu-btn"
           outline
@@ -463,6 +466,16 @@ onUnmounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
+@media (max-width: 767px) {
+  .score-pill {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+  }
+}
+
 @media (min-width: 768px) {
   .top-left-row {
     gap: 16px;
@@ -630,6 +643,20 @@ onUnmounted(() => {
   }
 }
 
+.top-right-exit {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 4px;
+}
+
 .top-right-controls {
   position: absolute;
   top: 64px;
@@ -780,5 +807,11 @@ kbd {
   background: rgba(255, 255, 255, 0.85);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   pointer-events: none;
+}
+</style>
+
+<style>
+.q-tooltip {
+  white-space: nowrap !important;
 }
 </style>
