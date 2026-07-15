@@ -578,11 +578,19 @@ export function useGameEngine() {
         aiReactionTimer = cfg.reactionDelay;
       }
 
-      // Avoid volley fault: every frame, if ball hasn't bounced and is close to AI, back away
-      if (!ballBouncedOnSide) {
-        const distToBall = Math.abs(refs.aiPos.z - refs.ballPos.z);
-        if (distToBall < 1.0) {
-          aiTargetZ = refs.ballPos.z - 1.2;
+      // Avoid volley fault: every frame, if ball hasn't bounced, stay away from ball path
+      if (!ballBouncedOnSide && rallyHitCount < 3) {
+        const distZ = Math.abs(refs.aiPos.z - refs.ballPos.z);
+        if (distZ < 1.5) {
+          // Back away behind the ball's Z position
+          aiTargetZ = refs.ballPos.z - 1.5;
+          // Also dodge in X to avoid the ball's path
+          const ballFutureX = refs.ballPos.x + refs.ballVel.x * 0.3;
+          const xDiff = refs.aiPos.x - ballFutureX;
+          if (Math.abs(xDiff) < 0.8) {
+            // Too close in X — dodge away
+            aiTargetX = ballFutureX + (xDiff >= 0 ? 1.0 : -1.0);
+          }
         }
       }
     } else if (refs.ballVel.z > 0 && refs.ballPos.z > 0) {
@@ -1122,15 +1130,13 @@ export function useGameEngine() {
       aiDinkRead = null;
     }
 
-    // Try hits — always collide with body (tryHit handles fault logic)
+    // Try hits — enforce pickleball rules (volley fault if ball hits body before bounce)
     if (refs.ballPos.z > 0) {
       tryHit(refs.playerPos, refs.ballPos, refs.ballVel, true);
     } else {
-      // AI: skip collision on serve return until ball bounces (prevents volley fault)
-      const isServeReturn = rallyHitCount === 1 && !ballBouncedOnSide;
       // AI: don't attempt hit if ball is going out
       const ballIsGoingOut = willBallLandOut();
-      if (!isServeReturn && !ballIsGoingOut) {
+      if (!ballIsGoingOut) {
         tryHit(refs.aiPos, refs.ballPos, refs.ballVel, false);
       }
     }
