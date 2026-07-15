@@ -718,7 +718,7 @@ onUnmounted(() => {
   white-space: nowrap;
   display: flex;
   justify-content: center;
-  margin: 0 auto;
+  margin: 0 auto 16px;
 }
 
 .menu-subtitle {
@@ -763,6 +763,10 @@ onUnmounted(() => {
   width: 100%;
   margin-bottom: 16px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.play-btn:last-child {
+  margin-bottom: 0;
 }
 
 .menu-btn {
