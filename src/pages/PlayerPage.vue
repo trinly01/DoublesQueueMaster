@@ -85,6 +85,18 @@
               @click="showLeaderboardDialog = true"
             />
 
+            <q-btn
+              color="primary"
+              icon="sports_esports"
+              label="Play with AI"
+              size="sm"
+              dense
+              rounded
+              class="full-width"
+              style="border-radius: 12px"
+              @click="router.push('/play')"
+            />
+
             <div
               class="rating-badge cursor-pointer"
               :style="{

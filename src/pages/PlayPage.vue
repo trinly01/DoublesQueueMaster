@@ -5,32 +5,37 @@
       <GameScene :refs="engine.refs" />
     </div>
 
-    <!-- Score display (top center) -->
-    <div v-if="engine.gameState.value !== 'menu'" class="score-pill">
-      <span class="score-label score-you-label">
-        <span
-          v-if="
-            engine.rules.value === 'authentic' &&
-            engine.server.value === 'player'
-          "
-          class="server-dot"
-          >●</span
-        >YOU</span
-      >
-      <span class="score-num score-you-num">{{
-        engine.playerScore.value
-      }}</span>
-      <span class="score-sep">—</span>
-      <span class="score-num score-ai-num">{{ engine.aiScore.value }}</span>
-      <span class="score-label score-ai-label"
-        >AI<span
-          v-if="
-            engine.rules.value === 'authentic' && engine.server.value === 'ai'
-          "
-          class="server-dot"
-          >●</span
-        ></span
-      >
+    <!-- Top-left: Back button + Score (mobile: same row) -->
+    <div class="top-left-row">
+      <q-btn flat round dense icon="arrow_back" color="white" @click="goBack">
+        <q-tooltip>Back</q-tooltip>
+      </q-btn>
+      <div v-if="engine.gameState.value !== 'menu'" class="score-pill">
+        <span class="score-label score-you-label">
+          <span
+            v-if="
+              engine.rules.value === 'authentic' &&
+              engine.server.value === 'player'
+            "
+            class="server-dot"
+            >●</span
+          >YOU</span
+        >
+        <span class="score-num score-you-num">{{
+          engine.playerScore.value
+        }}</span>
+        <span class="score-sep">—</span>
+        <span class="score-num score-ai-num">{{ engine.aiScore.value }}</span>
+        <span class="score-label score-ai-label"
+          >AI<span
+            v-if="
+              engine.rules.value === 'authentic' && engine.server.value === 'ai'
+            "
+            class="server-dot"
+            >●</span
+          ></span
+        >
+      </div>
     </div>
 
     <!-- Point toast -->
@@ -38,32 +43,22 @@
       {{ engine.lastPointMsg.value }}
     </div>
 
-    <!-- Serve button (when player needs to serve) -->
+    <!-- Serve hint (when player needs to serve) -->
     <div
       v-if="
         engine.servePending.value &&
         engine.server.value === 'player' &&
         engine.gameState.value === 'playing'
       "
-      class="serve-btn-container"
+      class="serve-hint-container"
     >
-      <q-btn
-        label="SERVE"
-        color="white"
-        text-color="accent"
-        unelevated
-        rounded
-        size="lg"
-        class="serve-btn"
-        @click="engine.triggerServe()"
-      />
       <p class="serve-hint">
-        Move to aim, then tap SERVE — serve
+        Move to serve — serve
         {{ engine.playerScore.value % 2 === 0 ? 'RIGHT' : 'LEFT' }} court
       </p>
     </div>
 
-    <!-- Pause + Reset buttons (top right, during play) -->
+    <!-- Control buttons (top right, vertical, during play) -->
     <div
       v-if="
         engine.gameState.value === 'playing' ||
@@ -98,6 +93,30 @@
       >
         <q-tooltip>Reset Score</q-tooltip>
       </q-btn>
+      <q-btn
+        flat
+        round
+        dense
+        :icon="engine.sound.soundEnabled.value ? 'volume_up' : 'volume_off'"
+        color="white"
+        @click="engine.sound.toggleSound()"
+      >
+        <q-tooltip>{{
+          engine.sound.soundEnabled.value ? 'Mute SFX' : 'Enable SFX'
+        }}</q-tooltip>
+      </q-btn>
+      <q-btn
+        flat
+        round
+        dense
+        :icon="engine.sound.musicEnabled.value ? 'music_note' : 'music_off'"
+        color="white"
+        @click="engine.sound.toggleMusic()"
+      >
+        <q-tooltip>{{
+          engine.sound.musicEnabled.value ? 'Mute Music' : 'Enable Music'
+        }}</q-tooltip>
+      </q-btn>
     </div>
 
     <!-- Pause overlay -->
@@ -130,8 +149,8 @@
     <!-- Menu overlay -->
     <div v-if="engine.gameState.value === 'menu'" class="menu-overlay">
       <div class="menu-card">
-        <h1 class="menu-title">DinkMatch Play</h1>
-        <p class="menu-subtitle">Casual AI Pickleball — first to 11</p>
+        <h1 class="menu-title">DinkMatch AI</h1>
+        <p class="menu-subtitle">First to 11</p>
 
         <div class="difficulty-section">
           <p class="difficulty-label">AI Difficulty</p>
@@ -197,10 +216,10 @@
           <p v-if="!isTouch" class="hint-text">
             <kbd>A</kbd> <kbd>D</kbd> or <kbd>←</kbd> <kbd>→</kbd> to move
             &nbsp;|&nbsp; <kbd>W</kbd> <kbd>S</kbd> or <kbd>↑</kbd>
-            <kbd>↓</kbd> for depth &nbsp;|&nbsp; <kbd>Space</kbd> to serve
+            <kbd>↓</kbd> for depth &nbsp;|&nbsp; Move to serve
           </p>
           <p v-else class="hint-text">
-            Use the on-screen controls to move &nbsp;|&nbsp; Tap SERVE to serve
+            Use the on-screen controls to move &nbsp;|&nbsp; Move to serve
           </p>
         </div>
       </div>
@@ -268,6 +287,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, reactive } from 'vue';
+import { useRouter } from 'vue-router';
 import GameScene from 'components/play/GameScene.vue';
 import {
   useGameEngine,
@@ -276,6 +296,8 @@ import {
 } from 'src/composables/useGameEngine';
 
 const engine = useGameEngine();
+const router = useRouter();
+const goBack = () => router.push('/');
 
 interface JoystickState {
   active: boolean;
@@ -377,16 +399,13 @@ const isTouch =
   ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
 function startPlaying() {
+  engine.sound.ensureCtx();
+  engine.sound.startMusic();
   engine.startGame();
   engine.startLoop();
 }
 
 function onKeyDown(e: KeyboardEvent) {
-  if (e.code === 'Space') {
-    e.preventDefault();
-    engine.triggerServe();
-    return;
-  }
   engine.onKeyDown(e);
 }
 
@@ -394,11 +413,16 @@ onMounted(() => {
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', engine.onKeyUp);
   engine.startLoop();
+  if (engine.sound.musicEnabled.value) {
+    engine.sound.ensureCtx();
+    engine.sound.startMusic();
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown);
   window.removeEventListener('keyup', engine.onKeyUp);
+  engine.sound.stopMusic();
   engine.cleanup();
 });
 </script>
@@ -416,12 +440,17 @@ onUnmounted(() => {
   inset: 0;
 }
 
-.score-pill {
+.top-left-row {
   position: absolute;
   top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
+  left: 16px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.score-pill {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -432,6 +461,19 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.15);
   pointer-events: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+@media (min-width: 768px) {
+  .top-left-row {
+    gap: 16px;
+  }
+  .score-pill {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+  }
 }
 
 .score-label {
@@ -482,47 +524,102 @@ onUnmounted(() => {
 
 .point-toast {
   position: absolute;
-  top: 60px;
+  top: 120px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 800;
   color: #fde047;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  text-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.8),
+    0 0 20px rgba(253, 224, 71, 0.3);
   pointer-events: none;
-  animation: pop 0.3s ease;
+  animation: announce 0.5s ease;
+  white-space: nowrap;
 }
 
-.serve-btn-container {
+@media (min-width: 768px) {
+  .point-toast {
+    font-size: 40px;
+  }
+}
+
+@keyframes announce {
+  0% {
+    transform: translateX(-50%) scale(0.3);
+    opacity: 0;
+  }
+  20% {
+    transform: translateX(-52%) scale(1.1);
+    opacity: 1;
+  }
+  25% {
+    transform: translateX(-48%) scale(1.1);
+  }
+  30% {
+    transform: translateX(-52%) scale(1.1);
+  }
+  35% {
+    transform: translateX(-48%) scale(1.1);
+  }
+  40% {
+    transform: translateX(-50%) scale(1.1);
+  }
+  60% {
+    transform: translateX(-51%) scale(1);
+  }
+  65% {
+    transform: translateX(-49%) scale(1);
+  }
+  70% {
+    transform: translateX(-50%) scale(1);
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+.serve-hint-container {
   position: absolute;
   bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 25;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
 }
 
-.serve-btn {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  padding: 12px 40px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-}
-
 .serve-hint {
   color: rgba(255, 255, 255, 0.9);
   font-size: 13px;
   margin: 0;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   font-weight: 600;
 }
 
 @keyframes pop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (min-width: 768px) {
+  .point-toast {
+    animation: announce 0.5s ease;
+  }
+}
+
+@keyframes pop-center {
   0% {
     transform: translateX(-50%) scale(0.5);
     opacity: 0;
@@ -535,16 +632,23 @@ onUnmounted(() => {
 
 .top-right-controls {
   position: absolute;
-  top: 16px;
+  top: 64px;
   right: 16px;
   z-index: 25;
   display: flex;
+  flex-direction: column;
   gap: 4px;
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 999px;
   padding: 4px;
+}
+
+@media (min-width: 768px) {
+  .top-right-controls {
+    top: 16px;
+  }
 }
 
 .menu-overlay {

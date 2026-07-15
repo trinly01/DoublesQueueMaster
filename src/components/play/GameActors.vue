@@ -78,9 +78,15 @@ onMounted(() => {
 
     const r = props.refs;
 
-    // Update player position
+    // Update player position + lean
     if (playerRef.value?.groupRef) {
       playerRef.value.groupRef.position.set(r.playerPos.x, 0, r.playerPos.z);
+      // Lean into movement direction (Z-axis tilt)
+      // Player is rotated 180° so local Z lean is inverted
+      const targetLean = -r.playerMoveDir * 0.25;
+      playerRef.value.groupRef.rotation.z +=
+        (targetLean - playerRef.value.groupRef.rotation.z) *
+        Math.min(1, dt * 8);
     }
     // Update player paddle (position + rotation based on movement and swing)
     if (playerRef.value?.paddleRef) {
@@ -104,9 +110,13 @@ onMounted(() => {
       );
     }
 
-    // Update AI position
+    // Update AI position + lean
     if (aiRef.value?.groupRef) {
       aiRef.value.groupRef.position.set(r.aiPos.x, 0, r.aiPos.z);
+      // Lean into movement direction
+      const targetLean = r.aiMoveDir * 0.25;
+      aiRef.value.groupRef.rotation.z +=
+        (targetLean - aiRef.value.groupRef.rotation.z) * Math.min(1, dt * 8);
     }
     // Update AI paddle (position + rotation based on movement and swing)
     if (aiRef.value?.paddleRef) {

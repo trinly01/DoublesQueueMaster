@@ -17,7 +17,7 @@
           text-color="accent"
           icon-right="arrow_forward"
           label="Start free"
-          @click="goRegister"
+          @click="goLogin"
         />
         <q-btn
           outline
@@ -40,7 +40,7 @@
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
-const goRegister = () => router.push('/register');
+const goLogin = () => router.push('/login');
 const goOpenPlay = () => router.push('/openplay');
 </script>
 

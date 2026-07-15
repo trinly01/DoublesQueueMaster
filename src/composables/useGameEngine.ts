@@ -1,5 +1,6 @@
 import { ref, reactive, onUnmounted } from 'vue';
 import * as THREE from 'three';
+import { useSound } from 'src/composables/useSound';
 
 // Court dimensions (scaled to scene units: 1 unit = 1 meter)
 const COURT_LENGTH = 13.41; // 44ft
@@ -10,7 +11,6 @@ const KITCHEN_DEPTH = 2.13; // 7ft non-volley zone each side
 // Ball physics
 const GRAVITY = -9.8;
 const BALL_RADIUS = 0.08;
-const HIT_REACH = 0.8; // how close ball must be for a hit (body + paddle reach)
 const HIT_COOLDOWN = 0.4; // seconds between hits per player
 
 // Game
@@ -30,17 +30,53 @@ interface AIConfig {
   speed: number; // movement speed (player = 3.5)
   reactionDelay: number; // seconds before AI reacts to ball direction
   accuracy: number; // 0..1, higher = less error
+  dinkChance: number; // base chance to dink into kitchen
+  dinkBonusStanding: number; // extra dink chance when player standing still
+  netFaultChance: number; // chance dink hits net (fault)
+  targetBias: number; // how far to target away from player (0 = random)
+  playerMagnet: number; // 0..1, gentle pull toward ball X for easier navigation
+  aiMagnet: number; // 0..1, how tightly AI tracks ball X (hard = more)
 }
 
 const PLAYER_MAX_SPEED = 3.5;
 
 const AI_CONFIGS: Record<Difficulty, AIConfig> = {
-  // Easy: slow, sluggish reaction, misses often
-  easy: { speed: PLAYER_MAX_SPEED * 0.5, reactionDelay: 0.3, accuracy: 0.6 },
-  // Medium: decent speed, moderate reaction, occasional misses
-  medium: { speed: PLAYER_MAX_SPEED * 0.8, reactionDelay: 0.2, accuracy: 0.8 },
-  // Hard: same speed as player, quick reaction, rare misses
-  hard: { speed: PLAYER_MAX_SPEED * 1.0, reactionDelay: 0.1, accuracy: 0.92 },
+  // Easy: slightly slower, moderate reaction, misses sometimes
+  easy: {
+    speed: PLAYER_MAX_SPEED * 0.65,
+    reactionDelay: 0.25,
+    accuracy: 0.7,
+    dinkChance: 0.12,
+    dinkBonusStanding: 0.25,
+    netFaultChance: 0.25,
+    targetBias: 0,
+    playerMagnet: 0.6,
+    aiMagnet: 0,
+  },
+  // Medium: close to player speed, good reaction, occasional misses
+  medium: {
+    speed: PLAYER_MAX_SPEED * 0.82,
+    reactionDelay: 0.16,
+    accuracy: 0.83,
+    dinkChance: 0.2,
+    dinkBonusStanding: 0.25,
+    netFaultChance: 0.18,
+    targetBias: 0.8,
+    playerMagnet: 0.3,
+    aiMagnet: 0.4,
+  },
+  // Hard: matches player speed, sharp reaction, rare misses
+  hard: {
+    speed: PLAYER_MAX_SPEED * 0.95,
+    reactionDelay: 0.08,
+    accuracy: 0.93,
+    dinkChance: 0.3,
+    dinkBonusStanding: 0.25,
+    netFaultChance: 0.1,
+    targetBias: 1.5,
+    playerMagnet: 0,
+    aiMagnet: 0.8,
+  },
 };
 
 export interface GameRefs {
@@ -57,6 +93,7 @@ export interface GameRefs {
 }
 
 export function useGameEngine() {
+  const sound = useSound();
   const gameState = ref<GameState>('menu');
   const difficulty = ref<Difficulty>(
     (typeof window !== 'undefined' &&
@@ -116,6 +153,7 @@ export function useGameEngine() {
   let currentSide: 'player' | 'ai' | null = null; // which side the ball is currently on
   let serveTimer = 0;
   let serveFromX = 0; // server's X position when serving (to check wrong court)
+  let aiDinkRead: boolean | null = null; // null = not evaluated, true/false = committed
 
   // Velocity tracking for impact-force physics
   const playerVel = new THREE.Vector3();
@@ -203,8 +241,7 @@ export function useGameEngine() {
     bounceCountThisSide = 0;
     ballBouncedOnSide = false;
     currentSide = null;
-
-    // Serve waits for player input (no auto-serve)
+    aiDinkRead = null;
     servePending.value = true;
     serveTimer = 0; // not used for player serve; AI uses its own timer
 
@@ -250,6 +287,21 @@ export function useGameEngine() {
       );
       // Base target near center, bias by movement direction
       targetX = (Math.random() - 0.5) * 0.6 + moveX * 2.5;
+      // Serve magnet: bias target toward correct diagonal court based on difficulty
+      const cfg = AI_CONFIGS[difficulty.value];
+      if (cfg.playerMagnet > 0) {
+        const playerScoreVal = playerScore.value;
+        const serveRight = playerScoreVal % 2 === 0;
+        // Player on right → serve to left (diagonal), and vice versa
+        const correctCourtX = serveRight
+          ? -(COURT_WIDTH / 2 - 1) // serve to left court corner
+          : COURT_WIDTH / 2 - 1; // serve to right court corner
+        targetX = THREE.MathUtils.lerp(
+          targetX,
+          correctCourtX,
+          cfg.playerMagnet,
+        );
+      }
       // Clamp to court width
       targetX = THREE.MathUtils.clamp(
         targetX,
@@ -288,10 +340,25 @@ export function useGameEngine() {
     bounceCountThisSide = 0;
     ballBouncedOnSide = false;
     currentSide = serveTo; // ball starts on server's side
+    aiDinkRead = null;
+    sound.serve();
+    sound.paddleHit();
   }
 
   function scorePoint(forWhom: 'player' | 'ai', reason?: string) {
     const msg = reason || (forWhom === 'player' ? 'Point!' : 'AI Point!');
+
+    if (reason) {
+      // Harsh error sound when player faults (AI gets the point)
+      // Softer sound when AI faults (player gets the point)
+      if (forWhom === 'ai') {
+        sound.fault();
+      } else {
+        sound.pointScored();
+      }
+    } else {
+      sound.pointScored();
+    }
 
     if (rules.value === 'authentic') {
       // Side-out scoring: only the server scores
@@ -303,8 +370,11 @@ export function useGameEngine() {
         }
         lastPointMsg.value = msg;
       } else {
-        // Side out — serve passes, no point
-        lastPointMsg.value = forWhom === 'player' ? 'Side Out!' : 'Side Out!';
+        // Side out — serve passes to rally winner, no point scored
+        lastPointMsg.value =
+          forWhom === 'player'
+            ? 'Side Out — Your Serve!'
+            : 'Side Out — AI Serves';
         server.value = forWhom;
       }
     } else {
@@ -321,11 +391,13 @@ export function useGameEngine() {
     if (playerScore.value >= WIN_SCORE) {
       winner.value = 'player';
       gameState.value = 'game-over';
+      sound.win();
       return;
     }
     if (aiScore.value >= WIN_SCORE) {
       winner.value = 'ai';
       gameState.value = 'game-over';
+      sound.lose();
       return;
     }
 
@@ -341,6 +413,7 @@ export function useGameEngine() {
 
   function updatePlayer(dt: number) {
     const maxSpeed = PLAYER_MAX_SPEED;
+    const cfg = AI_CONFIGS[difficulty.value];
     // Combine keyboard (boolean) and analog (joystick) inputs
     let dx = input.axisX;
     let dz = input.axisZ;
@@ -351,6 +424,18 @@ export function useGameEngine() {
     // Clamp combined input to -1..1
     dx = THREE.MathUtils.clamp(dx, -1, 1);
     dz = THREE.MathUtils.clamp(dz, -1, 1);
+
+    // Ball magnet: gently guide player toward ball X when ball is incoming
+    if (cfg.playerMagnet > 0 && refs.ballVel.z > 0 && !servePending.value) {
+      // Predict where ball will be when it reaches player's Z
+      const timeToPlayer = (refs.playerPos.z - refs.ballPos.z) / refs.ballVel.z;
+      if (timeToPlayer > 0 && timeToPlayer < 2) {
+        const predictedX = refs.ballPos.x + refs.ballVel.x * timeToPlayer;
+        const xDiff = predictedX - refs.playerPos.x;
+        // Blend magnet with player input — magnet adds a gentle pull
+        dx = THREE.MathUtils.clamp(dx + xDiff * cfg.playerMagnet * 0.5, -1, 1);
+      }
+    }
 
     // Track movement direction for paddle positioning
     refs.playerMoveDir = dx;
@@ -386,21 +471,38 @@ export function useGameEngine() {
       playerVel.subVectors(refs.playerPos, prevPlayerPos).divideScalar(dt);
     }
 
-    // Clamp to player's half (allow 1m outside court boundaries)
+    // Clamp to player's half — wall at net only within court width
+    // Outside court width, player can walk around the wall
     const halfW = COURT_WIDTH / 2 + 1;
+    const insideCourt = Math.abs(refs.playerPos.x) < COURT_WIDTH / 2;
     refs.playerPos.x = THREE.MathUtils.clamp(refs.playerPos.x, -halfW, halfW);
     if (servePending.value) {
-      // During serve: allow behind baseline, don't enforce kitchen
+      // During serve: allow behind baseline, still block crossing net
+      if (insideCourt) {
+        refs.playerPos.z = THREE.MathUtils.clamp(
+          refs.playerPos.z,
+          0.3,
+          COURT_LENGTH / 2 + 1,
+        );
+      } else {
+        refs.playerPos.z = THREE.MathUtils.clamp(
+          refs.playerPos.z,
+          -COURT_LENGTH / 2 - 1,
+          COURT_LENGTH / 2 + 1,
+        );
+      }
+    } else if (insideCourt) {
+      // Within court width: blocked by wall at net
       refs.playerPos.z = THREE.MathUtils.clamp(
         refs.playerPos.z,
-        -COURT_LENGTH / 2 - 1,
+        0.3,
         COURT_LENGTH / 2 + 1,
       );
     } else {
-      // Normal play: allow 1m outside baseline, kitchen enforced
+      // Outside court width: can walk around the wall
       refs.playerPos.z = THREE.MathUtils.clamp(
         refs.playerPos.z,
-        KITCHEN_DEPTH,
+        -COURT_LENGTH / 2 - 1,
         COURT_LENGTH / 2 + 1,
       );
     }
@@ -418,32 +520,70 @@ export function useGameEngine() {
     // Default: hold position near baseline
     let aiTargetZ = -COURT_LENGTH / 2 + 0.5;
 
-    if (refs.ballVel.z < 0) {
+    // If ball already bounced in kitchen, move to it — but with difficulty-based chance
+    if (
+      ballBouncedOnSide &&
+      refs.ballPos.z < 0 &&
+      Math.abs(refs.ballPos.z) < KITCHEN_DEPTH
+    ) {
+      // Evaluate dink read once (persistent), not every frame
+      if (aiDinkRead === null) {
+        aiDinkRead = Math.random() < cfg.accuracy;
+      }
+      if (aiDinkRead) {
+        // AI reads the dink — go directly to ball position
+        aiTargetX = refs.ballPos.x;
+        aiTargetZ = refs.ballPos.z;
+      } else {
+        // AI fails to read the dink — stays at kitchen line
+        aiTargetZ = -KITCHEN_DEPTH - 0.2;
+      }
+    } else if (refs.ballVel.z < 0) {
       // Ball moving toward AI — predict landing
       aiReactionTimer -= dt;
       if (aiReactionTimer <= 0) {
         const timeToReach = (refs.aiPos.z - refs.ballPos.z) / refs.ballVel.z;
         if (timeToReach > 0 && timeToReach < 3) {
           aiTargetX = refs.ballPos.x + refs.ballVel.x * timeToReach;
-          // Error based on accuracy: (1 - accuracy) * 2.0m max spread
-          aiTargetX += (Math.random() - 0.5) * (1 - cfg.accuracy) * 2.0;
+          // Error based on accuracy and magnet: higher magnet = less error
+          const errorScale = (1 - cfg.accuracy) * (1 - cfg.aiMagnet);
+          aiTargetX += (Math.random() - 0.5) * errorScale * 2.0;
           // Predict Z where ball will be at a hittable height (~0.5m)
           let simY = refs.ballPos.y;
           let simVy = refs.ballVel.y;
           let simZ = refs.ballPos.z;
           const simVz = refs.ballVel.z;
+          let predictedLandingZ = 0;
+          let ballWillBounceInKitchen = false;
           for (let i = 0; i < 60; i++) {
             simY += simVy * 0.05;
             simVy += GRAVITY * 0.05;
             simZ += simVz * 0.05;
+            // Track where ball lands (y <= BALL_RADIUS)
+            if (simY <= BALL_RADIUS && simZ < 0 && predictedLandingZ === 0) {
+              predictedLandingZ = simZ;
+              ballWillBounceInKitchen = Math.abs(simZ) < KITCHEN_DEPTH;
+            }
             if (simY <= 0.5 && simZ < 0) {
               aiTargetZ = simZ;
               break;
             }
             if (simY < 0 || simZ < -COURT_LENGTH / 2) break;
           }
+          // If ball is going to bounce in the kitchen (dink), wait at kitchen line
+          if (ballWillBounceInKitchen && !ballBouncedOnSide) {
+            aiTargetZ = -KITCHEN_DEPTH - 0.2;
+          }
         }
         aiReactionTimer = cfg.reactionDelay;
+      }
+
+      // Avoid volley fault: every frame, if ball hasn't bounced and is close to AI, back away
+      if (!ballBouncedOnSide) {
+        const distToBall = Math.abs(refs.aiPos.z - refs.ballPos.z);
+        if (distToBall < 1.0) {
+          aiTargetZ = refs.ballPos.z - 1.2;
+        }
       }
     } else if (refs.ballVel.z > 0 && refs.ballPos.z > 0) {
       // Ball on player's side moving away — drift toward neutral position
@@ -452,11 +592,18 @@ export function useGameEngine() {
     }
 
     // Move toward target X with acceleration (but not during serve)
+    // Speed boost when chasing a ball that bounced in the kitchen (dink recovery)
+    const chasingDink =
+      ballBouncedOnSide &&
+      refs.ballPos.z < 0 &&
+      Math.abs(refs.ballPos.z) < KITCHEN_DEPTH &&
+      aiDinkRead === true;
+    const speedMul = chasingDink ? 1.4 : 1;
     if (!servePending.value) {
       const targetVx = THREE.MathUtils.clamp(
         (aiTargetX - refs.aiPos.x) * 3,
-        -cfg.speed,
-        cfg.speed,
+        -cfg.speed * speedMul,
+        cfg.speed * speedMul,
       );
       aiCurrentVel.x = THREE.MathUtils.damp(
         aiCurrentVel.x,
@@ -471,8 +618,8 @@ export function useGameEngine() {
     if (!servePending.value) {
       const targetVz = THREE.MathUtils.clamp(
         (aiTargetZ - refs.aiPos.z) * 3,
-        -cfg.speed,
-        cfg.speed,
+        -cfg.speed * speedMul,
+        cfg.speed * speedMul,
       );
       aiCurrentVel.z = THREE.MathUtils.damp(
         aiCurrentVel.z,
@@ -483,20 +630,35 @@ export function useGameEngine() {
       refs.aiPos.z += aiCurrentVel.z * dt;
     }
 
-    // Clamp to AI's half (allow 1m outside court)
+    // Clamp to AI's half — wall at net only within court width
     const halfW = COURT_WIDTH / 2 + 1;
+    const aiInsideCourt = Math.abs(refs.aiPos.x) < COURT_WIDTH / 2;
     refs.aiPos.x = THREE.MathUtils.clamp(refs.aiPos.x, -halfW, halfW);
     if (servePending.value) {
+      if (aiInsideCourt) {
+        refs.aiPos.z = THREE.MathUtils.clamp(
+          refs.aiPos.z,
+          -COURT_LENGTH / 2 - 1,
+          -0.3,
+        );
+      } else {
+        refs.aiPos.z = THREE.MathUtils.clamp(
+          refs.aiPos.z,
+          -COURT_LENGTH / 2 - 1,
+          COURT_LENGTH / 2 + 1,
+        );
+      }
+    } else if (aiInsideCourt) {
       refs.aiPos.z = THREE.MathUtils.clamp(
         refs.aiPos.z,
         -COURT_LENGTH / 2 - 1,
-        COURT_LENGTH / 2 + 1,
+        -0.3,
       );
     } else {
       refs.aiPos.z = THREE.MathUtils.clamp(
         refs.aiPos.z,
         -COURT_LENGTH / 2 - 1,
-        -KITCHEN_DEPTH,
+        COURT_LENGTH / 2 + 1,
       );
     }
 
@@ -516,13 +678,40 @@ export function useGameEngine() {
     ballVel: THREE.Vector3,
     isPlayer: boolean,
   ): boolean {
-    // 3D collision — use paddle position (body pos + paddle offset)
-    const paddleY = 0.55; // paddle height above ground
-    const dy = paddleY - ballPos.y;
-    const dx = pos.x - ballPos.x;
-    const dz = pos.z - ballPos.z;
-    const dist3D = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    if (dist3D > HIT_REACH) return false;
+    // 3D body volume collision — player body + head + paddle reach
+    // Body: capsule radius 0.22, center Y=0.35, spans Y 0.05–0.7
+    // Head: sphere radius 0.32, center Y=0.85, spans Y 0.53–1.17
+    // Paddle: extends ~0.4m to the side at Y=0.55
+    const bodyHalfWidth = 0.35; // body radius + paddle reach
+    const bodyHeightMin = 0.0;
+    const bodyHeightMax = 1.2; // top of head
+    const bodyHalfDepth = 0.35; // front/back reach
+
+    const dx = Math.abs(pos.x - ballPos.x);
+    const dz = Math.abs(pos.z - ballPos.z);
+    const dy = ballPos.y;
+
+    // Check if ball is within the player's 3D volume (body + paddle reach)
+    if (
+      dx > bodyHalfWidth ||
+      dz > bodyHalfDepth ||
+      dy < bodyHeightMin ||
+      dy > bodyHeightMax
+    ) {
+      // Ball outside body volume — check paddle reach zone (extended forward)
+      const paddleY = 0.55;
+      const paddleReach = 0.6; // paddle extends forward
+      const dyPaddle = Math.abs(paddleY - ballPos.y);
+      const dxPaddle = Math.abs(pos.x - ballPos.x);
+      const dzPaddle = Math.abs(pos.z - ballPos.z);
+      if (
+        dxPaddle > bodyHalfWidth ||
+        dzPaddle > paddleReach ||
+        dyPaddle > 0.5
+      ) {
+        return false;
+      }
+    }
 
     if (isPlayer && playerHitCooldown > 0) return false;
     if (!isPlayer && aiHitCooldown > 0) return false;
@@ -559,8 +748,9 @@ export function useGameEngine() {
 
     // Aim at a target on the opponent's side
     const cfg = AI_CONFIGS[difficulty.value];
-    // Error based on accuracy: (1 - accuracy) * 2.0m max spread
-    const errorRange = isPlayer ? 1.0 : (1 - cfg.accuracy) * 2.0;
+    // Error based on accuracy: (1 - accuracy) * max spread
+    // Player error is minimal (skill-based), AI error scales with difficulty
+    const errorRange = isPlayer ? 0.4 : (1 - cfg.accuracy) * 1.8;
 
     // Impact-force: based on player movement direction and speed
     // Movement direction influences where the ball goes
@@ -580,9 +770,32 @@ export function useGameEngine() {
     const maxDepth = COURT_LENGTH / 2 - KITCHEN_DEPTH - 0.5;
     const minDepth = 0.5;
     const depth = minDepth + moveRatioZ * (maxDepth - minDepth);
-    const adjustedTargetZ = isPlayer
-      ? -(KITCHEN_DEPTH + depth)
-      : KITCHEN_DEPTH + depth;
+
+    // AI dink chance: sometimes hit short into the kitchen to force player to let it bounce
+    let adjustedTargetZ: number;
+    if (!isPlayer) {
+      // Increase dink chance when player is standing still (vulnerable to kitchen dink)
+      const playerSpeed = playerVel.length();
+      const playerStanding = playerSpeed < 0.5;
+      let dinkChance = cfg.dinkChance;
+      if (playerStanding) dinkChance += cfg.dinkBonusStanding;
+      if (Math.random() < dinkChance) {
+        // Dink into kitchen: ball must bounce inside kitchen (0.3m to 1.8m past net)
+        adjustedTargetZ = 0.3 + Math.random() * 1.5;
+      } else {
+        adjustedTargetZ = KITCHEN_DEPTH + depth;
+      }
+    } else {
+      // Player dink: when standing still, shot tends to go short into AI kitchen
+      const playerSpeed = playerVel.length();
+      const isStanding = playerSpeed < 0.5;
+      if (isStanding && Math.random() < 0.3) {
+        // Dink into AI kitchen: ball must bounce inside kitchen (0.3m to 1.8m past net)
+        adjustedTargetZ = -(0.3 + Math.random() * 1.5);
+      } else {
+        adjustedTargetZ = -(KITCHEN_DEPTH + depth);
+      }
+    }
 
     // X target: base random spread + bias from movement direction
     const baseXRange = 1.0 + moveRatioZ * (COURT_WIDTH - 2);
@@ -590,10 +803,10 @@ export function useGameEngine() {
     const moveBias = sideMove * 2.0;
     let targetXAdj: number;
 
-    if (!isPlayer && difficulty.value === 'hard') {
-      // Hard AI: bias toward opposite side of player, but with realistic spread
+    if (!isPlayer && cfg.targetBias > 0) {
+      // AI: bias toward opposite side of player based on difficulty
       const playerSide = refs.playerPos.x > 0 ? -1 : 1;
-      const targetCenter = playerSide * 1.5;
+      const targetCenter = playerSide * cfg.targetBias;
       targetXAdj =
         targetCenter +
         (Math.random() - 0.5) * 2.0 +
@@ -606,13 +819,29 @@ export function useGameEngine() {
     }
 
     const target = new THREE.Vector3(targetXAdj, 0.3, adjustedTargetZ);
-    // Minimal net clearance — just get over the net
-    const clearMargin = 0.05;
+    // Net clearance — dinks have variable clearance (sometimes hits net = fault)
+    const isDink = Math.abs(adjustedTargetZ) < KITCHEN_DEPTH;
+    let clearMargin: number;
+    let power: number;
+    if (isDink) {
+      // Dink: chance of low clearance (may hit net = fault)
+      // AI net fault scales by difficulty; player fixed at 15%
+      const netFaultChance = isPlayer ? 0.15 : cfg.netFaultChance;
+      if (Math.random() < netFaultChance) {
+        clearMargin = -0.05; // below net height — will clip net
+      } else {
+        clearMargin = 0.15 + Math.random() * 0.2; // 0.15–0.35m clearance
+      }
+      power = 0.6;
+    } else {
+      clearMargin = 0.05;
+      power = 1;
+    }
     const vel2 = computeBallisticVel(
       ballPos,
       target,
-      NET_HEIGHT + clearMargin,
-      1,
+      Math.max(NET_HEIGHT + clearMargin, 0.1),
+      power,
     );
     ballVel.copy(vel2);
 
@@ -622,6 +851,7 @@ export function useGameEngine() {
     bounceCountThisSide = 0;
     ballBouncedOnSide = false;
     currentSide = isPlayer ? 'ai' : 'player';
+    aiDinkRead = null;
 
     if (isPlayer) {
       playerHitCooldown = HIT_COOLDOWN;
@@ -633,6 +863,7 @@ export function useGameEngine() {
       refs.aiSwingDir = aiVel.x >= 0 ? 1 : -1;
     }
 
+    sound.paddleHit();
     return true;
   }
 
@@ -743,6 +974,7 @@ export function useGameEngine() {
       // Track bounce for rules
       bounceCountThisSide++;
       ballBouncedOnSide = true;
+      sound.ballBounce();
 
       // OOB only on FIRST bounce per side (not serve, not after first bounce in)
       if (bounceCountThisSide === 1 && rallyHitCount > 1) {
@@ -867,6 +1099,7 @@ export function useGameEngine() {
       // Ball clips net — reduce velocity but let it continue
       refs.ballVel.z *= 0.5;
       refs.ballVel.y *= 0.5;
+      sound.netHit();
     }
 
     // Ball stopped on same side (didn't get hit)
@@ -886,20 +1119,18 @@ export function useGameEngine() {
       currentSide = newSide;
       bounceCountThisSide = 0;
       ballBouncedOnSide = false;
+      aiDinkRead = null;
     }
 
-    // Try hits — collide with whole body
+    // Try hits — always collide with body (tryHit handles fault logic)
     if (refs.ballPos.z > 0) {
-      // Player: don't attempt hit if it would be a volley fault
-      const playerCanHit = canHit(true);
-      if (playerCanHit) {
-        tryHit(refs.playerPos, refs.ballPos, refs.ballVel, true);
-      }
+      tryHit(refs.playerPos, refs.ballPos, refs.ballVel, true);
     } else {
-      // AI: don't attempt hit if it would be a volley fault or if ball is going out
-      const aiCanHit = canHit(false);
+      // AI: skip collision on serve return until ball bounces (prevents volley fault)
+      const isServeReturn = rallyHitCount === 1 && !ballBouncedOnSide;
+      // AI: don't attempt hit if ball is going out
       const ballIsGoingOut = willBallLandOut();
-      if (aiCanHit && !ballIsGoingOut) {
+      if (!isServeReturn && !ballIsGoingOut) {
         tryHit(refs.aiPos, refs.ballPos, refs.ballVel, false);
       }
     }
@@ -929,29 +1160,6 @@ export function useGameEngine() {
       if (simY < 0) return false; // didn't land cleanly
     }
     return false;
-  }
-
-  // Check if a player can legally hit the ball without committing a fault
-  function canHit(isPlayer: boolean): boolean {
-    // Can't volley serve before it bounces
-    if (rallyHitCount === 1 && !ballBouncedOnSide) return false;
-
-    // Double-bounce rule: can't volley before 3rd shot
-    const hitterSide = isPlayer ? 'player' : 'ai';
-    if (!ballBouncedOnSide && rallyHitCount < 3 && currentSide === hitterSide) {
-      return false;
-    }
-
-    // Kitchen volley: can't hit while in kitchen if ball hasn't bounced
-    if (!ballBouncedOnSide) {
-      const z = isPlayer ? refs.playerPos.z : refs.aiPos.z;
-      const inKitchen = isPlayer
-        ? Math.abs(z) < KITCHEN_DEPTH && z > 0
-        : Math.abs(z) < KITCHEN_DEPTH && z < 0;
-      if (inKitchen) return false;
-    }
-
-    return true;
   }
 
   function gameLoop(time: number) {
@@ -994,6 +1202,27 @@ export function useGameEngine() {
 
   // Keyboard handlers
   function onKeyDown(e: KeyboardEvent) {
+    // Auto-serve on any movement key
+    if (servePending.value && servingTo === 'player') {
+      if (
+        [
+          'a',
+          'A',
+          'd',
+          'D',
+          'w',
+          'W',
+          's',
+          'S',
+          'ArrowLeft',
+          'ArrowRight',
+          'ArrowUp',
+          'ArrowDown',
+        ].includes(e.key)
+      ) {
+        triggerServe();
+      }
+    }
     switch (e.key) {
       case 'a':
       case 'A':
@@ -1048,11 +1277,23 @@ export function useGameEngine() {
     dir: 'left' | 'right' | 'forward' | 'backward',
     active: boolean,
   ) {
+    // Auto-serve on any touch movement
+    if (active && servePending.value && servingTo === 'player') {
+      triggerServe();
+    }
     input[dir] = active;
   }
 
   // Analog joystick input (-1..1)
   function setAxis(x: number, z: number) {
+    // Auto-serve on joystick movement
+    if (
+      (Math.abs(x) > 0.1 || Math.abs(z) > 0.1) &&
+      servePending.value &&
+      servingTo === 'player'
+    ) {
+      triggerServe();
+    }
     input.axisX = x;
     input.axisZ = z;
   }
@@ -1077,6 +1318,7 @@ export function useGameEngine() {
     lastPointMsg,
     refs,
     input,
+    sound,
     setDifficulty,
     setRules,
     startGame,
