@@ -99,25 +99,37 @@ onMounted(() => {
         (targetLean - playerRef.value.groupRef.rotation.z) *
         Math.min(1, dt * 8);
     }
-    // Update player paddle (position + rotation based on movement and swing)
+    // Update player paddle (movement-based position, ball-direction when close, never through body)
     if (playerRef.value?.paddleRef) {
       const swing = r.playerSwing;
-      const dir = r.playerSwingDir; // -1 = moving left, 1 = moving right
-      const moveDir = r.playerMoveDir; // current movement -1..1
-      const side = -1; // player paddleSide
-      // Paddle shifts toward movement direction, extends forward during swing
-      const baseX = 0.25 * side;
+      const swingDir = r.playerSwingDir; // -1 = hit from left, 1 = hit from right
+      const moveDir = r.playerMoveDir; // -1 = left, 1 = right
+      const reach = r.playerReach; // 0..1 based on ball distance
+      const angle = r.playerPaddleAngle; // direction toward ball
       const baseY = 0.55;
-      const baseZ = 0.15;
-      playerRef.value.paddleRef.position.set(
-        baseX + moveDir * 0.15 * side, // shift toward movement
-        baseY - swing * 0.1, // dip slightly during swing
-        baseZ + swing * 0.2, // extend forward during swing
-      );
+      // Movement-based position (inverted because player is rotated 180°)
+      // Right by default, left when moving left — paddle in front and to the side
+      const moveX = moveDir < -0.1 ? 0.22 : -0.22;
+      const moveZ = 0.28;
+      // Ball-direction position when ball is near
+      const ballX = Math.sin(angle) * 0.22;
+      const ballZ = -Math.cos(angle) * 0.04; // negative because player faces -Z
+      // Blend: movement-based when reach=0, ball-based when reach=1
+      const targetX = moveX * (1 - reach) + ballX * reach;
+      const targetZ = moveZ * (1 - reach) + ballZ * reach;
+      // Smoothly animate
+      const curX = playerRef.value.paddleRef.position.x;
+      const newPaddleX = curX + (targetX - curX) * Math.min(1, dt * 8);
+      const curZ = playerRef.value.paddleRef.position.z;
+      const newPaddleZ = curZ + (targetZ - curZ) * Math.min(1, dt * 8);
+      // Push paddle forward when crossing center to avoid body
+      const centerProximity = 1 - Math.min(1, Math.abs(newPaddleX) / 0.22);
+      const safeZ = newPaddleZ + centerProximity * 0.05;
+      playerRef.value.paddleRef.position.set(newPaddleX, baseY, safeZ);
       playerRef.value.paddleRef.rotation.set(
-        -swing * 0.6,
-        swing * 1.5 * dir,
-        -0.15 * side,
+        -swing * 0.52 * swingDir, // X: tilt ~30° based on hit direction
+        swing * 0.3 * swingDir, // Y: small rotation toward hit direction
+        -swing * 0.26 * swingDir, // Z: tilt side based on hit direction
       );
     }
 
@@ -129,24 +141,33 @@ onMounted(() => {
       aiRef.value.groupRef.rotation.z +=
         (targetLean - aiRef.value.groupRef.rotation.z) * Math.min(1, dt * 8);
     }
-    // Update AI paddle (position + rotation based on movement and swing)
+    // Update AI paddle (movement-based position, ball-direction when close, never through body)
     if (aiRef.value?.paddleRef) {
       const swing = r.aiSwing;
-      const dir = r.aiSwingDir;
+      const swingDir = r.aiSwingDir;
       const moveDir = r.aiMoveDir;
-      const side = 1; // AI paddleSide
-      const baseX = 0.25 * side;
+      const reach = r.aiReach;
+      const angle = r.aiPaddleAngle;
       const baseY = 0.55;
-      const baseZ = 0.15;
-      aiRef.value.paddleRef.position.set(
-        baseX + moveDir * 0.15 * side,
-        baseY - swing * 0.1,
-        baseZ + swing * 0.2,
-      );
+      // Movement-based position
+      const moveX = moveDir < -0.1 ? -0.22 : 0.22;
+      const moveZ = 0.28;
+      // Ball-direction position when ball is near
+      const ballX = Math.sin(angle) * 0.22;
+      const ballZ = Math.cos(angle) * 0.04; // positive because AI faces +Z
+      const targetX = moveX * (1 - reach) + ballX * reach;
+      const targetZ = moveZ * (1 - reach) + ballZ * reach;
+      const curX = aiRef.value.paddleRef.position.x;
+      const newPaddleX = curX + (targetX - curX) * Math.min(1, dt * 8);
+      const curZ = aiRef.value.paddleRef.position.z;
+      const newPaddleZ = curZ + (targetZ - curZ) * Math.min(1, dt * 8);
+      const centerProximity = 1 - Math.min(1, Math.abs(newPaddleX) / 0.22);
+      const safeZ = newPaddleZ + centerProximity * 0.05;
+      aiRef.value.paddleRef.position.set(newPaddleX, baseY, safeZ);
       aiRef.value.paddleRef.rotation.set(
-        -swing * 0.6,
-        swing * 1.5 * dir,
-        -0.15 * side,
+        -swing * 0.52 * swingDir, // X: tilt ~30° based on hit direction
+        swing * 0.3 * swingDir, // Y: small rotation toward hit direction
+        -swing * 0.26 * swingDir, // Z: tilt side based on hit direction
       );
     }
 
