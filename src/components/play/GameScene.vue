@@ -1,5 +1,5 @@
 <template>
-  <TresCanvas clear-color="#667eea">
+  <TresCanvas clear-color="#667eea" :dpr="[1, 2]">
     <!-- Lighting -->
     <TresAmbientLight :intensity="0.6" />
     <TresDirectionalLight :position="[5, 10, 5] as any" :intensity="1.2" />
