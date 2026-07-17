@@ -530,9 +530,23 @@
                       <q-icon name="balance" />
                     </template>
                     <template v-slot:option="scope">
-                      <q-item v-bind="scope.itemProps">
+                      <q-item
+                        v-bind="scope.itemProps"
+                        :disable="scope.opt.disable"
+                        :class="scope.opt.disable ? 'text-grey-5' : ''"
+                      >
                         <q-item-section>
-                          <q-item-label>{{ scope.opt.label }}</q-item-label>
+                          <q-item-label>
+                            {{ scope.opt.label }}
+                            <q-badge
+                              v-if="scope.opt.disable"
+                              color="amber"
+                              text-color="white"
+                              label="Pro"
+                              class="q-ml-xs"
+                              dense
+                            />
+                          </q-item-label>
                           <q-item-label
                             v-if="scope.opt.description"
                             caption
@@ -598,6 +612,13 @@
                     </q-tooltip>
                   </q-btn>
                 </div>
+                <PayBanner
+                  v-if="isClubSubscriptionExpired"
+                  class="q-mt-sm"
+                  message="Competitive & All-Star are Pro features."
+                  :loading="paymentLoading"
+                  @pay="callPayment({ clubId: currentClubId })"
+                />
                 <div class="text-caption text-grey-6 q-mt-sm text-center">
                   {{ getMatchGenerationHint() }}
                 </div>
@@ -909,9 +930,23 @@
                         <q-icon name="balance" />
                       </template>
                       <template v-slot:option="scope">
-                        <q-item v-bind="scope.itemProps">
+                        <q-item
+                          v-bind="scope.itemProps"
+                          :disable="scope.opt.disable"
+                          :class="scope.opt.disable ? 'text-grey-5' : ''"
+                        >
                           <q-item-section>
-                            <q-item-label>{{ scope.opt.label }}</q-item-label>
+                            <q-item-label>
+                              {{ scope.opt.label }}
+                              <q-badge
+                                v-if="scope.opt.disable"
+                                color="amber"
+                                text-color="white"
+                                label="Pro"
+                                class="q-ml-xs"
+                                dense
+                              />
+                            </q-item-label>
                             <q-item-label
                               v-if="scope.opt.description"
                               caption
@@ -979,6 +1014,13 @@
                       </q-tooltip>
                     </q-btn>
                   </div>
+                  <PayBanner
+                    v-if="isClubSubscriptionExpired"
+                    class="q-mt-sm"
+                    message="Competitive & All-Star are Pro features."
+                    :loading="paymentLoading"
+                    @pay="callPayment({ clubId: currentClubId })"
+                  />
                   <div class="text-caption text-grey-6 q-mt-sm text-center">
                     {{ getMatchGenerationHint() }}
                   </div>
@@ -1233,11 +1275,6 @@
 
             <!-- Club Members Mode -->
             <div v-else-if="addPlayerMode === 'club'" class="q-gutter-y-md">
-              <PayBanner
-                v-if="isClubSubscriptionExpired"
-                :loading="paymentLoading"
-                @pay="callPayment({ clubId: currentClubId })"
-              />
               <!-- Search & Sort -->
               <div class="row q-col-gutter-sm">
                 <div class="col-12 col-sm-5">
@@ -1278,7 +1315,6 @@
                     dense
                     unelevated
                     style="height: 40px"
-                    :disable="isClubSubscriptionExpired"
                     @click="openScanDialog"
                   />
                 </div>
@@ -1294,10 +1330,8 @@
                 <q-item
                   v-for="member in availableClubMembers"
                   :key="member.id"
-                  :clickable="!isClubSubscriptionExpired"
-                  @click="
-                    !isClubSubscriptionExpired && toggleClubMember(member.id)
-                  "
+                  :clickable="true"
+                  @click="toggleClubMember(member.id)"
                   :class="{ 'bg-purple-1': isClubMemberSelected(member.id) }"
                 >
                   <q-item-section avatar>
@@ -1349,7 +1383,6 @@
                       <q-checkbox
                         :model-value="isClubMemberSelected(member.id)"
                         color="accent"
-                        :disable="isClubSubscriptionExpired"
                         @click.stop="toggleClubMember(member.id)"
                       />
                     </div>
@@ -1425,9 +1458,7 @@
               color="accent"
               @click="addClubMembers"
               label="Add Selected Members"
-              :disable="
-                selectedClubMembers.length === 0 || isClubSubscriptionExpired
-              "
+              :disable="selectedClubMembers.length === 0"
               icon="groups"
             >
               <q-tooltip
@@ -1825,9 +1856,23 @@
                       map-options
                     >
                       <template v-slot:option="scope">
-                        <q-item v-bind="scope.itemProps">
+                        <q-item
+                          v-bind="scope.itemProps"
+                          :disable="scope.opt.disable"
+                          :class="scope.opt.disable ? 'text-grey-5' : ''"
+                        >
                           <q-item-section>
-                            <q-item-label>{{ scope.opt.label }}</q-item-label>
+                            <q-item-label>
+                              {{ scope.opt.label }}
+                              <q-badge
+                                v-if="scope.opt.disable"
+                                color="amber"
+                                text-color="white"
+                                label="Pro"
+                                class="q-ml-xs"
+                                dense
+                              />
+                            </q-item-label>
                             <q-item-label
                               v-if="scope.opt.description"
                               caption
@@ -3705,7 +3750,6 @@ const regularMembers = computed(() =>
 );
 
 const toggleClubMember = (memberId: string) => {
-  if (isClubSubscriptionExpired.value) return;
   const idx = selectedClubMembers.value.indexOf(memberId);
   if (idx >= 0) {
     selectedClubMembers.value.splice(idx, 1);
@@ -5565,12 +5609,22 @@ const matchmakingMode = computed<
   | 'strict_balance'
   | 'fair_balance'
 >({
-  get: () => MatchmakingApp.state.matchmakingMode || 'strict_balance',
+  get: () => MatchmakingApp.state.matchmakingMode || 'fair_balance',
   set: (val) => {
     MatchmakingApp.state.matchmakingMode = val;
     MatchmakingApp.state.settingsUpdatedAt = Date.now();
     MatchmakingApp.persist();
   },
+});
+
+watch(isClubSubscriptionExpired, (expired) => {
+  if (
+    expired &&
+    (matchmakingMode.value === 'balance_first' ||
+      matchmakingMode.value === 'strict_balance')
+  ) {
+    matchmakingMode.value = 'fair_balance';
+  }
 });
 
 const currentMatchIndexForActions = ref<number>(-1);
@@ -5669,7 +5723,7 @@ const queuePriorityOptions = [
 ];
 
 // Matchmaking mode options
-const matchmakingModeOptions = [
+const matchmakingModeOptions = computed(() => [
   {
     label: 'Casual',
     value: 'fair_balance',
@@ -5693,14 +5747,16 @@ const matchmakingModeOptions = [
     value: 'balance_first',
     description:
       'Drafts the next in line, then builds the closest games while avoiding repeat matchups',
+    disable: isClubSubscriptionExpired.value,
   },
   {
     label: 'All-Star',
     value: 'strict_balance',
     description:
       'Skips the queue. Alternates each round between drafting the top-rated and bottom-rated players for a showcase game',
+    disable: isClubSubscriptionExpired.value,
   },
-];
+]);
 
 const courtOptions = computed(() =>
   Array.from({ length: maxCourts.value }, (_, i) => ({
@@ -6097,7 +6153,6 @@ const generateTeamCombinations = (
 // Helper function to create balanced singles matches from 2 players
 // Action functions
 const addClubMembers = () => {
-  if (isClubSubscriptionExpired.value) return;
   if (selectedClubMembers.value.length === 0) return;
 
   const added: string[] = [];
