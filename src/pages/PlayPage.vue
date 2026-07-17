@@ -692,6 +692,20 @@ function pollGamepadMenu() {
 function onKeyDown(e: KeyboardEvent) {
   const state = engine.gameState.value;
 
+  // Escape toggles pause/resume during gameplay
+  if (e.key === 'Escape') {
+    if (state === 'playing' || state === 'point-scored') {
+      e.preventDefault();
+      engine.pauseGame();
+      return;
+    }
+    if (state === 'paused') {
+      e.preventDefault();
+      engine.resumeGame();
+      return;
+    }
+  }
+
   // Menu navigation with arrow keys and Enter
   if (state === 'menu' || state === 'paused' || state === 'game-over') {
     if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
