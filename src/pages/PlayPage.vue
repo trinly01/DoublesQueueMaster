@@ -713,11 +713,21 @@ function onKeyDown(e: KeyboardEvent) {
   engine.onKeyDown(e);
 }
 
+function onWindowBlur() {
+  if (
+    engine.gameState.value === 'playing' ||
+    engine.gameState.value === 'point-scored'
+  ) {
+    engine.pauseGame();
+  }
+}
+
 onMounted(() => {
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', engine.onKeyUp);
   window.addEventListener('gamepadconnected', onGamepadConnected);
   window.addEventListener('gamepaddisconnected', onGamepadDisconnected);
+  window.addEventListener('blur', onWindowBlur);
   updateGamepadStatus();
   engine.startLoop();
   // Poll gamepad menu navigation every frame
@@ -736,6 +746,7 @@ onUnmounted(() => {
   window.removeEventListener('keyup', engine.onKeyUp);
   window.removeEventListener('gamepadconnected', onGamepadConnected);
   window.removeEventListener('gamepaddisconnected', onGamepadDisconnected);
+  window.removeEventListener('blur', onWindowBlur);
   if (menuPollInterval) clearInterval(menuPollInterval);
   engine.sound.stopMusic();
   engine.cleanup();
