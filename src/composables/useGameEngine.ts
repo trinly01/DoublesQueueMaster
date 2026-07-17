@@ -1466,10 +1466,12 @@ export function useGameEngine() {
       stickActive = true;
     }
 
-    // Only set axis from gamepad when sticks/d-pad are active
-    // Otherwise let touch joystick or keyboard control movement
+    // Set axis from gamepad — reset to zero when nothing is active
+    // so the player stops moving when the controller is released
     if (stickActive) {
       setAxis(axisX, axisZ);
+    } else {
+      setAxis(0, 0);
     }
 
     // If first poll (e.g. just entered playing state), sync button state
