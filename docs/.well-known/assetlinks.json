@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "club.dinkmatch.app",
+      "sha256_cert_fingerprints": [
+        "E9:25:FC:8D:C7:7F:4E:21:EB:F9:35:8B:F6:EC:2C:53:BC:C9:C3:20:83:AF:1F:F3:96:03:C5:74:42:79:B6:0A"
+      ]
+    }
+  }
+]
