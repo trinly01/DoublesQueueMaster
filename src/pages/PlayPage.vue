@@ -50,7 +50,10 @@
       class="serve-hint-container"
     >
       <p class="serve-hint">
-        Move to serve, serve
+        <template v-if="hasGamepad">Move stick to serve</template>
+        <template v-else-if="isTouch">Move to serve</template>
+        <template v-else>Move to serve</template>
+        , serve
         {{ engine.playerScore.value % 2 === 0 ? 'RIGHT' : 'LEFT' }} court
       </p>
     </div>
@@ -63,7 +66,15 @@
       "
       class="top-right-exit"
     >
-      <q-btn flat round dense icon="close" color="white" @click="goBack">
+      <q-btn
+        flat
+        round
+        dense
+        icon="close"
+        color="white"
+        @click="goBack"
+        :class="isNavFocused('exit') ? 'nav-focused-icon' : ''"
+      >
         <q-tooltip anchor="center end" self="center start">Exit</q-tooltip>
       </q-btn>
     </div>
@@ -77,7 +88,15 @@
       "
       class="top-right-controls"
     >
-      <q-btn flat round dense icon="close" color="white" @click="goBack">
+      <q-btn
+        flat
+        round
+        dense
+        icon="close"
+        color="white"
+        @click="goBack"
+        :class="isNavFocused('ctrl-exit') ? 'nav-focused-icon' : ''"
+      >
         <q-tooltip anchor="center end" self="center start">Exit</q-tooltip>
       </q-btn>
       <q-btn
@@ -87,6 +106,7 @@
         :icon="engine.sound.soundEnabled.value ? 'volume_up' : 'volume_off'"
         color="white"
         @click="engine.sound.toggleSound()"
+        :class="isNavFocused('ctrl-sound') ? 'nav-focused-icon' : ''"
       >
         <q-tooltip anchor="center end" self="center start">{{
           engine.sound.soundEnabled.value ? 'Mute SFX' : 'Enable SFX'
@@ -99,6 +119,7 @@
         :icon="engine.sound.musicEnabled.value ? 'music_note' : 'music_off'"
         color="white"
         @click="engine.sound.toggleMusic()"
+        :class="isNavFocused('ctrl-music') ? 'nav-focused-icon' : ''"
       >
         <q-tooltip anchor="center end" self="center start">{{
           engine.sound.musicEnabled.value ? 'Mute Music' : 'Enable Music'
@@ -115,6 +136,7 @@
             ? engine.resumeGame()
             : engine.pauseGame()
         "
+        :class="isNavFocused('ctrl-pause') ? 'nav-focused-icon' : ''"
       >
         <q-tooltip anchor="center end" self="center start">{{
           engine.gameState.value === 'paused' ? 'Resume' : 'Pause'
@@ -134,6 +156,7 @@
           size="md"
           class="play-btn"
           outline
+          :class="isNavFocused('main-menu') ? 'nav-focused' : ''"
           @click="engine.resetScore()"
         />
         <q-btn
@@ -144,6 +167,7 @@
           rounded
           size="lg"
           class="play-btn"
+          :class="isNavFocused('resume') ? 'nav-focused' : ''"
           @click="engine.resumeGame()"
         />
       </div>
@@ -171,6 +195,7 @@
               rounded
               size="md"
               class="diff-btn"
+              :class="isNavFocused(`diff-${d.value}`) ? 'nav-focused' : ''"
               @click="engine.setDifficulty(d.value)"
             />
           </div>
@@ -192,6 +217,7 @@
               rounded
               size="md"
               class="diff-btn"
+              :class="isNavFocused(`rules-${r.value}`) ? 'nav-focused' : ''"
               @click="engine.setRules(r.value)"
             />
           </div>
@@ -212,14 +238,20 @@
           rounded
           size="lg"
           class="play-btn"
+          :class="isNavFocused('play') ? 'nav-focused' : ''"
           @click="startPlaying"
         />
 
         <div class="controls-hint">
-          <p v-if="!isTouch" class="hint-text">
-            <kbd>A</kbd> <kbd>D</kbd> or <kbd>←</kbd> <kbd>→</kbd> to move
-            &nbsp;|&nbsp; <kbd>W</kbd> <kbd>S</kbd> or <kbd>↑</kbd>
-            <kbd>↓</kbd> for depth &nbsp;|&nbsp; Move to serve
+          <p v-if="hasGamepad" class="hint-text">
+            D-pad / stick to navigate & select &nbsp;|&nbsp; A to confirm
+            &nbsp;|&nbsp; Move stick to play &nbsp;|&nbsp; Start to pause
+          </p>
+          <p v-else-if="!isTouch" class="hint-text">
+            <kbd>↑</kbd> <kbd>↓</kbd> to navigate &nbsp;|&nbsp; <kbd>←</kbd>
+            <kbd>→</kbd> to select &nbsp;|&nbsp; <kbd>Enter</kbd> to confirm
+            &nbsp;|&nbsp; <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> to
+            move in-game
           </p>
           <p v-else class="hint-text">
             Use the on-screen controls to move &nbsp;|&nbsp; Move to serve
@@ -245,6 +277,7 @@
           rounded
           size="lg"
           class="play-btn"
+          :class="isNavFocused('play-again') ? 'nav-focused' : ''"
           @click="startPlaying"
         />
         <q-btn
@@ -254,7 +287,18 @@
           rounded
           class="menu-btn"
           outline
+          :class="isNavFocused('main-menu') ? 'nav-focused' : ''"
           @click="engine.resetScore()"
+        />
+        <q-btn
+          label="Exit"
+          color="white"
+          text-color="grey-7"
+          rounded
+          class="menu-btn"
+          outline
+          :class="isNavFocused('exit') ? 'nav-focused' : ''"
+          @click="goBack"
         />
       </div>
     </div>
@@ -289,7 +333,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive } from 'vue';
+import { onMounted, onUnmounted, reactive, ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import GameScene from 'components/play/GameScene.vue';
 import {
@@ -407,6 +451,21 @@ const isTouch =
   typeof window !== 'undefined' &&
   ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
+const hasGamepad = ref(false);
+
+function updateGamepadStatus() {
+  const pads = navigator.getGamepads();
+  hasGamepad.value = Array.from(pads).some((p) => p !== null);
+}
+
+function onGamepadConnected() {
+  hasGamepad.value = true;
+}
+
+function onGamepadDisconnected() {
+  updateGamepadStatus();
+}
+
 function startPlaying() {
   engine.sound.ensureCtx();
   engine.sound.startMusic();
@@ -414,14 +473,258 @@ function startPlaying() {
   engine.startLoop();
 }
 
+// --- Menu navigation (keyboard + gamepad) ---
+// 2D grid: rows = sections, columns = options within a section
+interface NavRow {
+  id: string;
+  items: { id: string; action: () => void }[];
+}
+
+const menuRowIndex = ref(0);
+const menuColIndex = ref(0);
+
+const menuNavRows = computed<NavRow[]>(() => {
+  const state = engine.gameState.value;
+  if (state === 'menu') {
+    return [
+      {
+        id: 'difficulty',
+        items: difficulties.map((d) => ({
+          id: `diff-${d.value}`,
+          action: () => engine.setDifficulty(d.value),
+        })),
+      },
+      {
+        id: 'rules',
+        items: rulesOptions.map((r) => ({
+          id: `rules-${r.value}`,
+          action: () => engine.setRules(r.value),
+        })),
+      },
+      {
+        id: 'play',
+        items: [{ id: 'play', action: () => startPlaying() }],
+      },
+      {
+        id: 'exit',
+        items: [{ id: 'exit', action: () => goBack() }],
+      },
+    ];
+  } else if (state === 'paused') {
+    return [
+      {
+        id: 'main-menu',
+        items: [{ id: 'main-menu', action: () => engine.resetScore() }],
+      },
+      {
+        id: 'resume',
+        items: [{ id: 'resume', action: () => engine.resumeGame() }],
+      },
+      {
+        id: 'ctrl-exit',
+        items: [{ id: 'ctrl-exit', action: () => goBack() }],
+      },
+      {
+        id: 'ctrl-sound',
+        items: [{ id: 'ctrl-sound', action: () => engine.sound.toggleSound() }],
+      },
+      {
+        id: 'ctrl-music',
+        items: [{ id: 'ctrl-music', action: () => engine.sound.toggleMusic() }],
+      },
+      {
+        id: 'ctrl-pause',
+        items: [{ id: 'ctrl-pause', action: () => engine.resumeGame() }],
+      },
+    ];
+  } else if (state === 'game-over') {
+    return [
+      {
+        id: 'play-again',
+        items: [{ id: 'play-again', action: () => startPlaying() }],
+      },
+      {
+        id: 'main-menu',
+        items: [{ id: 'main-menu', action: () => engine.resetScore() }],
+      },
+      {
+        id: 'exit',
+        items: [{ id: 'exit', action: () => goBack() }],
+      },
+    ];
+  }
+  return [];
+});
+
+watch(
+  () => engine.gameState.value,
+  (state) => {
+    menuColIndex.value = 0;
+    if (state === 'paused') {
+      menuRowIndex.value = 1;
+    } else {
+      menuRowIndex.value = 0;
+    }
+  },
+);
+
+function isNavFocused(id: string) {
+  const rows = menuNavRows.value;
+  const row = rows[menuRowIndex.value];
+  if (!row) return false;
+  const item = row.items[menuColIndex.value];
+  return item?.id === id;
+}
+
+function navUp() {
+  const rows = menuNavRows.value;
+  if (rows.length === 0) return;
+  menuRowIndex.value = (menuRowIndex.value - 1 + rows.length) % rows.length;
+  menuColIndex.value = 0;
+}
+
+function navDown() {
+  const rows = menuNavRows.value;
+  if (rows.length === 0) return;
+  menuRowIndex.value = (menuRowIndex.value + 1) % rows.length;
+  menuColIndex.value = 0;
+}
+
+function navLeft() {
+  const rows = menuNavRows.value;
+  const row = rows[menuRowIndex.value];
+  if (!row || row.items.length <= 1) return;
+  menuColIndex.value =
+    (menuColIndex.value - 1 + row.items.length) % row.items.length;
+}
+
+function navRight() {
+  const rows = menuNavRows.value;
+  const row = rows[menuRowIndex.value];
+  if (!row || row.items.length <= 1) return;
+  menuColIndex.value = (menuColIndex.value + 1) % row.items.length;
+}
+
+function navActivate() {
+  const rows = menuNavRows.value;
+  const row = rows[menuRowIndex.value];
+  if (!row) return;
+  row.items[menuColIndex.value]?.action();
+}
+
+// Gamepad menu navigation state
+let prevMenuButtons = {
+  up: false,
+  down: false,
+  left: false,
+  right: false,
+  action: false,
+  start: false,
+};
+let menuStickCooldown = 0;
+let menuPollInterval: ReturnType<typeof setInterval> | null = null;
+
+function pollGamepadMenu() {
+  const pads = navigator.getGamepads();
+  for (const gp of pads) {
+    if (!gp) continue;
+
+    const state = engine.gameState.value;
+    if (state !== 'menu' && state !== 'paused' && state !== 'game-over') return;
+
+    const dpadUp = gp.buttons[12]?.pressed ?? false;
+    const dpadDown = gp.buttons[13]?.pressed ?? false;
+    const dpadLeft = gp.buttons[14]?.pressed ?? false;
+    const dpadRight = gp.buttons[15]?.pressed ?? false;
+    const actionBtn = gp.buttons[0]?.pressed ?? false;
+    const startBtn = gp.buttons[9]?.pressed ?? false;
+
+    if (dpadUp && !prevMenuButtons.up) navUp();
+    if (dpadDown && !prevMenuButtons.down) navDown();
+    if (dpadLeft && !prevMenuButtons.left) navLeft();
+    if (dpadRight && !prevMenuButtons.right) navRight();
+    if (actionBtn && !prevMenuButtons.action) navActivate();
+
+    // Stick navigation (both sticks, with cooldown to avoid spam)
+    const lx = gp.axes[0] || 0;
+    const ly = gp.axes[1] || 0;
+    const rx = gp.axes[2] || 0;
+    const ry = gp.axes[3] || 0;
+    if (menuStickCooldown <= 0) {
+      if (ly < -0.5 || ry < -0.5) {
+        navUp();
+        menuStickCooldown = 0.25;
+      } else if (ly > 0.5 || ry > 0.5) {
+        navDown();
+        menuStickCooldown = 0.25;
+      } else if (lx < -0.5 || rx < -0.5) {
+        navLeft();
+        menuStickCooldown = 0.25;
+      } else if (lx > 0.5 || rx > 0.5) {
+        navRight();
+        menuStickCooldown = 0.25;
+      }
+    }
+
+    prevMenuButtons = {
+      up: dpadUp,
+      down: dpadDown,
+      left: dpadLeft,
+      right: dpadRight,
+      action: actionBtn,
+      start: startBtn,
+    };
+    return;
+  }
+}
+
 function onKeyDown(e: KeyboardEvent) {
+  const state = engine.gameState.value;
+
+  // Menu navigation with arrow keys and Enter
+  if (state === 'menu' || state === 'paused' || state === 'game-over') {
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+      e.preventDefault();
+      navUp();
+      return;
+    }
+    if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+      e.preventDefault();
+      navDown();
+      return;
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+      e.preventDefault();
+      navLeft();
+      return;
+    }
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+      e.preventDefault();
+      navRight();
+      return;
+    }
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      navActivate();
+      return;
+    }
+  }
+
   engine.onKeyDown(e);
 }
 
 onMounted(() => {
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', engine.onKeyUp);
+  window.addEventListener('gamepadconnected', onGamepadConnected);
+  window.addEventListener('gamepaddisconnected', onGamepadDisconnected);
+  updateGamepadStatus();
   engine.startLoop();
+  // Poll gamepad menu navigation every frame
+  menuPollInterval = setInterval(() => {
+    pollGamepadMenu();
+    if (menuStickCooldown > 0) menuStickCooldown -= 0.05;
+  }, 50);
   if (engine.sound.musicEnabled.value) {
     engine.sound.ensureCtx();
     engine.sound.startMusic();
@@ -431,6 +734,9 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown);
   window.removeEventListener('keyup', engine.onKeyUp);
+  window.removeEventListener('gamepadconnected', onGamepadConnected);
+  window.removeEventListener('gamepaddisconnected', onGamepadDisconnected);
+  if (menuPollInterval) clearInterval(menuPollInterval);
   engine.sound.stopMusic();
   engine.cleanup();
 });
@@ -826,6 +1132,24 @@ kbd {
   background: rgba(255, 255, 255, 0.85);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   pointer-events: none;
+}
+
+.nav-focused {
+  transform: scale(1.08);
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.6),
+    0 6px 20px rgba(0, 0, 0, 0.4) !important;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.nav-focused-icon {
+  background: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5) !important;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 </style>
 

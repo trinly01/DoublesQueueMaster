@@ -198,6 +198,7 @@ export function useGameEngine() {
     servingTo = 'player';
     server.value = 'player';
     resetBall('player');
+    prevGamepadButtons = [];
   }
 
   function resetScore() {
@@ -213,12 +214,14 @@ export function useGameEngine() {
     if (gameState.value === 'playing' || gameState.value === 'point-scored') {
       pausedFromState = gameState.value;
       gameState.value = 'paused';
+      prevGamepadButtons = [];
     }
   }
 
   function resumeGame() {
     if (gameState.value === 'paused') {
       gameState.value = pausedFromState;
+      prevGamepadButtons = [];
     }
   }
 
@@ -1275,6 +1278,166 @@ export function useGameEngine() {
     return false;
   }
 
+  // --- Gamepad support ---
+  let gamepadIndex: number | null = null;
+  let prevGamepadButtons: boolean[] = [];
+
+  function onGamepadConnected(e: GamepadEvent) {
+    gamepadIndex = e.gamepad.index;
+  }
+
+  function onGamepadDisconnected(e: GamepadEvent) {
+    if (gamepadIndex === e.gamepad.index) {
+      gamepadIndex = null;
+      prevGamepadButtons = [];
+      setAxis(0, 0);
+    }
+  }
+
+  function pollGamepad() {
+    const pads = navigator.getGamepads();
+
+    // Auto-detect gamepad if not already tracked
+    if (gamepadIndex === null) {
+      for (let i = 0; i < pads.length; i++) {
+        if (pads[i]) {
+          gamepadIndex = i;
+          break;
+        }
+      }
+      if (gamepadIndex === null) return;
+    }
+
+    const gp = pads[gamepadIndex];
+    if (!gp) {
+      gamepadIndex = null;
+      setAxis(0, 0);
+      return;
+    }
+
+    // Left stick → axis movement (same as virtual joystick)
+    const lx = gp.axes[0] || 0;
+    const ly = gp.axes[1] || 0;
+    // Right stick → same axis movement
+    const rx = gp.axes[2] || 0;
+    const ry = gp.axes[3] || 0;
+    const deadZone = 0.15;
+
+    // Combine both sticks — whichever has more input wins
+    let axisX = 0;
+    let axisZ = 0;
+    let stickActive = false;
+
+    const lMag = Math.hypot(lx, ly);
+    const rMag = Math.hypot(rx, ry);
+
+    if (lMag >= rMag) {
+      if (lMag > deadZone) {
+        axisX = Math.abs(lx) < deadZone ? 0 : lx;
+        axisZ = Math.abs(ly) < deadZone ? 0 : ly;
+        stickActive = true;
+      }
+    } else {
+      if (rMag > deadZone) {
+        axisX = Math.abs(rx) < deadZone ? 0 : rx;
+        axisZ = Math.abs(ry) < deadZone ? 0 : ry;
+        stickActive = true;
+      }
+    }
+
+    // D-pad as fallback (buttons 12-15)
+    if (gp.buttons[12]?.pressed) {
+      axisX = 0;
+      axisZ = -1;
+      stickActive = true;
+    } else if (gp.buttons[13]?.pressed) {
+      axisX = 0;
+      axisZ = 1;
+      stickActive = true;
+    } else if (gp.buttons[14]?.pressed) {
+      axisX = -1;
+      axisZ = 0;
+      stickActive = true;
+    } else if (gp.buttons[15]?.pressed) {
+      axisX = 1;
+      axisZ = 0;
+      stickActive = true;
+    }
+
+    // Only set axis from gamepad when sticks/d-pad are active
+    // Otherwise let touch joystick or keyboard control movement
+    if (stickActive) {
+      setAxis(axisX, axisZ);
+    }
+
+    // If first poll (e.g. just entered playing state), sync button state
+    // to avoid false "justPressed" from buttons held during menu navigation
+    if (prevGamepadButtons.length === 0) {
+      prevGamepadButtons = gp.buttons.map((b) => b.pressed);
+      return;
+    }
+
+    // Button press detection (edge-triggered)
+    const curButtons = gp.buttons.map((b) => b.pressed);
+    const justPressed = (idx: number) =>
+      curButtons[idx] && !prevGamepadButtons[idx];
+
+    // A / X (button 0) → serve
+    if (justPressed(0)) {
+      triggerServe();
+    }
+    // Start (button 9) → pause/resume
+    if (justPressed(9)) {
+      if (gameState.value === 'paused') {
+        resumeGame();
+      } else if (
+        gameState.value === 'playing' ||
+        gameState.value === 'point-scored'
+      ) {
+        pauseGame();
+      }
+    }
+
+    prevGamepadButtons = curButtons;
+  }
+
+  // Button-only poll for paused state (no movement, just Start to resume)
+  function pollGamepadButtons() {
+    const pads = navigator.getGamepads();
+
+    if (gamepadIndex === null) {
+      for (let i = 0; i < pads.length; i++) {
+        if (pads[i]) {
+          gamepadIndex = i;
+          break;
+        }
+      }
+      if (gamepadIndex === null) return;
+    }
+
+    const gp = pads[gamepadIndex];
+    if (!gp) {
+      gamepadIndex = null;
+      return;
+    }
+
+    if (prevGamepadButtons.length === 0) {
+      prevGamepadButtons = gp.buttons.map((b) => b.pressed);
+      return;
+    }
+
+    const curButtons = gp.buttons.map((b) => b.pressed);
+    const justPressed = (idx: number) =>
+      curButtons[idx] && !prevGamepadButtons[idx];
+
+    // Start (button 9) → resume
+    if (justPressed(9)) {
+      resumeGame();
+    }
+
+    prevGamepadButtons = curButtons;
+  }
+
   function gameLoop(time: number) {
     rafId = requestAnimationFrame(gameLoop);
 
@@ -1283,6 +1446,7 @@ export function useGameEngine() {
     lastTime = time;
 
     if (gameState.value === 'playing') {
+      pollGamepad();
       playerHitCooldown = Math.max(0, playerHitCooldown - dt);
       aiHitCooldown = Math.max(0, aiHitCooldown - dt);
 
@@ -1296,13 +1460,15 @@ export function useGameEngine() {
         resetBall(servingTo);
       }
     } else if (gameState.value === 'paused') {
-      // Do nothing — game frozen
+      pollGamepadButtons();
     }
   }
 
   function startLoop() {
     if (rafId) return;
     lastTime = 0;
+    window.addEventListener('gamepadconnected', onGamepadConnected);
+    window.addEventListener('gamepaddisconnected', onGamepadDisconnected);
     rafId = requestAnimationFrame(gameLoop);
   }
 
@@ -1415,6 +1581,8 @@ export function useGameEngine() {
     stopLoop();
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
+    window.removeEventListener('gamepadconnected', onGamepadConnected);
+    window.removeEventListener('gamepaddisconnected', onGamepadDisconnected);
   }
 
   onUnmounted(cleanup);
