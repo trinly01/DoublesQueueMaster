@@ -91,6 +91,10 @@ export interface GameRefs {
   aiSwingDir: number;
   playerMoveDir: number; // current movement direction -1..1
   aiMoveDir: number;
+  playerReach: number; // 0..1 how far paddle reaches toward ball
+  aiReach: number;
+  playerPaddleAngle: number; // radians, paddle yaw toward ball
+  aiPaddleAngle: number;
 }
 
 export function useGameEngine() {
@@ -126,6 +130,10 @@ export function useGameEngine() {
     aiSwingDir: 1,
     playerMoveDir: 0,
     aiMoveDir: 0,
+    playerReach: 0,
+    aiReach: 0,
+    playerPaddleAngle: 0,
+    aiPaddleAngle: 0,
   };
 
   // Input state
@@ -529,6 +537,28 @@ export function useGameEngine() {
 
     // Swing animation decay
     refs.playerSwing = Math.max(0, refs.playerSwing - dt * 3);
+
+    // Compute reach toward ball and paddle angle
+    if (!servePending.value && refs.ballVel.z > 0) {
+      const distToBall = refs.playerPos.distanceTo(refs.ballPos);
+      const reachRange = 2.5;
+      const targetReach = THREE.MathUtils.clamp(
+        1 - distToBall / reachRange,
+        0,
+        1,
+      );
+      refs.playerReach = THREE.MathUtils.damp(
+        refs.playerReach,
+        targetReach,
+        8,
+        dt,
+      );
+      const dxBall = refs.ballPos.x - refs.playerPos.x;
+      const dzBall = refs.ballPos.z - refs.playerPos.z;
+      refs.playerPaddleAngle = Math.atan2(dxBall, dzBall);
+    } else {
+      refs.playerReach = THREE.MathUtils.damp(refs.playerReach, 0, 8, dt);
+    }
   }
 
   function updateAI(dt: number) {
@@ -742,6 +772,23 @@ export function useGameEngine() {
 
     // Swing animation decay
     refs.aiSwing = Math.max(0, refs.aiSwing - dt * 3);
+
+    // Compute reach toward ball and paddle angle
+    if (!servePending.value && refs.ballVel.z < 0) {
+      const distToBall = refs.aiPos.distanceTo(refs.ballPos);
+      const reachRange = 2.5;
+      const targetReach = THREE.MathUtils.clamp(
+        1 - distToBall / reachRange,
+        0,
+        1,
+      );
+      refs.aiReach = THREE.MathUtils.damp(refs.aiReach, targetReach, 8, dt);
+      const dxBall = refs.ballPos.x - refs.aiPos.x;
+      const dzBall = refs.ballPos.z - refs.aiPos.z;
+      refs.aiPaddleAngle = Math.atan2(dxBall, dzBall);
+    } else {
+      refs.aiReach = THREE.MathUtils.damp(refs.aiReach, 0, 8, dt);
+    }
   }
 
   function tryHit(
@@ -751,13 +798,12 @@ export function useGameEngine() {
     isPlayer: boolean,
   ): boolean {
     // 3D body volume collision — player body + head + paddle reach
-    // Body: capsule radius 0.22, center Y=0.35, spans Y 0.05–0.7
-    // Head: sphere radius 0.32, center Y=0.85, spans Y 0.53–1.17
-    // Paddle: extends ~0.4m to the side at Y=0.55
-    const bodyHalfWidth = 0.35; // body radius + paddle reach
+    // Paddle reach extends based on how far paddle is reaching toward ball
+    const reach = isPlayer ? refs.playerReach : refs.aiReach;
+    const bodyHalfWidth = 0.35 + reach * 0.3; // paddle extends wider when reaching
     const bodyHeightMin = 0.0;
     const bodyHeightMax = 1.2; // top of head
-    const bodyHalfDepth = 0.35; // front/back reach
+    const bodyHalfDepth = 0.35 + reach * 0.3; // paddle extends deeper when reaching
 
     const dx = Math.abs(pos.x - ballPos.x);
     const dz = Math.abs(pos.z - ballPos.z);
