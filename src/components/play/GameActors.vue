@@ -10,7 +10,17 @@
   <CuteCharacter
     ref="playerRef"
     :rotation="Math.PI"
-    body-color="#667eea"
+    :body-color="playerPalette.bodyColor"
+    :hair-color="playerPalette.hairColor"
+    :hat-color="playerPalette.hatColor"
+    :pants-color="playerPalette.pantsColor"
+    :shoe-color="playerPalette.shoeColor"
+    :gender="playerPalette.gender"
+    :has-hat="playerPalette.hasHat"
+    :paddle-color="playerPalette.paddleColor"
+    :paddle-handle-color="playerPalette.paddleHandleColor"
+    :paddle-grip-color="playerPalette.paddleGripColor"
+    :paddle-edge-color="playerPalette.paddleEdgeColor"
     :swing="refs.playerSwing"
     :paddle-side="-1"
   />
@@ -19,15 +29,25 @@
   <CuteCharacter
     ref="aiRef"
     :rotation="0"
-    body-color="#26A69A"
+    :body-color="aiPalette.bodyColor"
     head-color="#FFD3B6"
+    :hair-color="aiPalette.hairColor"
+    :hat-color="aiPalette.hatColor"
+    :pants-color="aiPalette.pantsColor"
+    :shoe-color="aiPalette.shoeColor"
+    :gender="aiPalette.gender"
+    :has-hat="aiPalette.hasHat"
+    :paddle-color="aiPalette.paddleColor"
+    :paddle-handle-color="aiPalette.paddleHandleColor"
+    :paddle-grip-color="aiPalette.paddleGripColor"
+    :paddle-edge-color="aiPalette.paddleEdgeColor"
     :swing="refs.aiSwing"
     :paddle-side="1"
   />
 
   <!-- Ball (enlarged for mobile visibility) -->
   <TresMesh ref="ballRef" cast-shadow>
-    <TresSphereGeometry :args="[0.11, 16, 16]" />
+    <TresSphereGeometry :args="[0.11, 12, 12]" />
     <TresMeshStandardMaterial
       color="#fde047"
       :emissive="'#fde047'"
@@ -37,7 +57,7 @@
 
   <!-- Ball shadow (enlarged) -->
   <TresMesh ref="shadowRef" :rotation="[-Math.PI / 2, 0, 0]">
-    <TresCircleGeometry :args="[0.13, 16]" />
+    <TresCircleGeometry :args="[0.13, 12]" />
     <TresMeshBasicMaterial color="#1a1a2e" :opacity="0.3" transparent />
   </TresMesh>
 
@@ -47,7 +67,7 @@
     :rotation="[-Math.PI / 2, 0, 0]"
     :visible="false"
   >
-    <TresRingGeometry :args="[0.2, 0.3, 24]" />
+    <TresRingGeometry :args="[0.2, 0.3, 16]" />
     <TresMeshBasicMaterial color="#fde047" :opacity="0.6" transparent />
   </TresMesh>
 </template>
@@ -58,10 +78,19 @@ import { useLoop } from '@tresjs/core';
 import * as THREE from 'three';
 import type { GameRefs } from 'src/composables/useGameEngine';
 import CuteCharacter from 'components/play/CuteCharacter.vue';
+import { useRandomPalette } from 'src/composables/useRandomPalette';
 
 const props = defineProps<{
   refs: GameRefs;
 }>();
+
+const { randomPalette } = useRandomPalette();
+const playerPalette = ref(randomPalette());
+const aiPalette = ref(randomPalette());
+// Ensure player and AI always have different colors
+if (aiPalette.value.bodyColor === playerPalette.value.bodyColor) {
+  aiPalette.value = randomPalette();
+}
 
 const playerRef = ref();
 const aiRef = ref();
@@ -82,22 +111,166 @@ const { onBeforeRender } = useLoop();
 
 let lastTime = 0;
 
+// Walk-cycle phase accumulators (advanced by dt, not elapsed*speed)
+let playerWalkPhase = 0;
+let aiWalkPhase = 0;
+// Smoothed animation magnitude (eases in/out instead of hard cutoff)
+let playerAnimMagSmooth = 0;
+let aiAnimMagSmooth = 0;
+// Last stable move angle (prevents sign flip when velocity ~0)
+let playerMoveAngleStable = 0;
+let aiMoveAngleStable = 0;
+
 onMounted(() => {
+  // Set initial base rotations
+  if (playerRef.value?.groupRef) {
+    playerRef.value.groupRef.rotation.y = Math.PI;
+  }
+  if (aiRef.value?.groupRef) {
+    aiRef.value.groupRef.rotation.y = 0;
+  }
   onBeforeRender(({ elapsed }) => {
     const dt = lastTime > 0 ? Math.min(elapsed - lastTime, 0.05) : 0.016;
     lastTime = elapsed;
 
     const r = props.refs;
 
-    // Update player position + lean
+    // Update player position + body rotation toward movement + leg/arm animation
     if (playerRef.value?.groupRef) {
       playerRef.value.groupRef.position.set(r.playerPos.x, 0, r.playerPos.z);
-      // Lean into movement direction (Z-axis tilt)
-      // Player is rotated 180° so local Z lean is inverted
-      const targetLean = -r.playerMoveDir * 0.25;
+      // Body rotation (imperative — player base rotation is PI)
+      const moveAngle = Math.atan2(-r.playerMoveDir, -r.playerMoveZ);
+      const moveMagBody = Math.sqrt(
+        r.playerMoveDir * r.playerMoveDir + r.playerMoveZ * r.playerMoveZ,
+      );
+      // When at rest, face forward toward opponent
+      let targetBodyY: number;
+      if (moveMagBody < 0.05) {
+        // Player base facing is PI (toward -Z / opponent)
+        targetBodyY = Math.PI;
+      } else {
+        targetBodyY = Math.PI + moveAngle * 0.6;
+      }
+      const targetLean = -r.playerMoveDir * 0.4;
+      const targetPitch = -r.playerMoveZ * 0.3;
+      const k = Math.min(1, dt * 6);
+      const kLean = Math.min(1, dt * 8);
+      playerRef.value.groupRef.rotation.y +=
+        (targetBodyY - playerRef.value.groupRef.rotation.y) * k;
       playerRef.value.groupRef.rotation.z +=
-        (targetLean - playerRef.value.groupRef.rotation.z) *
-        Math.min(1, dt * 8);
+        (targetLean - playerRef.value.groupRef.rotation.z) * kLean;
+      playerRef.value.groupRef.rotation.x +=
+        (targetPitch - playerRef.value.groupRef.rotation.x) * kLean;
+      // Leg swing: projected onto movement direction
+      const moveMag = Math.min(
+        1,
+        Math.sqrt(
+          r.playerMoveDir * r.playerMoveDir + r.playerMoveZ * r.playerMoveZ,
+        ),
+      );
+      // Smooth animMag: ease in/out instead of hard cutoff
+      playerAnimMagSmooth = THREE.MathUtils.damp(
+        playerAnimMagSmooth,
+        moveMag,
+        8,
+        dt,
+      );
+      const animMag = playerAnimMagSmooth;
+      // Stabilize moveAngle: hold last stable angle when nearly stopped
+      if (moveMag > 0.08) {
+        playerMoveAngleStable = moveAngle;
+      }
+      const stableAngle = playerMoveAngleStable;
+      // Accumulate walk phase with dt (continuous when speed changes)
+      const walkSpeed = 6 + animMag * 8;
+      playerWalkPhase += dt * walkSpeed;
+      const swingBase = Math.sin(playerWalkPhase) * 0.6 * animMag;
+      // Project swing onto movement direction: X rotation for forward/back, Z for side
+      const swingX = swingBase * Math.cos(stableAngle);
+      const swingZ = swingBase * Math.sin(stableAngle);
+      const kLimb = Math.min(1, dt * 12);
+      if (playerRef.value.leftLegRef) {
+        playerRef.value.leftLegRef.rotation.x +=
+          (swingX - playerRef.value.leftLegRef.rotation.x) * kLimb;
+        playerRef.value.leftLegRef.rotation.z +=
+          (swingZ - playerRef.value.leftLegRef.rotation.z) * kLimb;
+      }
+      if (playerRef.value.rightLegRef) {
+        playerRef.value.rightLegRef.rotation.x +=
+          (-swingX - playerRef.value.rightLegRef.rotation.x) * kLimb;
+        playerRef.value.rightLegRef.rotation.z +=
+          (-swingZ - playerRef.value.rightLegRef.rotation.z) * kLimb;
+      }
+      // Free arm (left) swings opposite to legs
+      if (playerRef.value.leftArmRef) {
+        playerRef.value.leftArmRef.rotation.x +=
+          (-swingX * 0.7 - playerRef.value.leftArmRef.rotation.x) * kLimb;
+        playerRef.value.leftArmRef.rotation.z +=
+          (-swingZ * 0.7 - playerRef.value.leftArmRef.rotation.z) * kLimb;
+      }
+      // Head faces opponent during serve, ball during rally
+      // Head is child of body group, so local yaw = world yaw - body actual
+      if (playerRef.value.headRef) {
+        // Player faces -Z (PI). Look toward AI position.
+        const dxTarget = r.servePending
+          ? r.aiPos.x - r.playerPos.x
+          : r.ballPos.x - r.playerPos.x;
+        const dzTarget = r.servePending
+          ? r.aiPos.z - r.playerPos.z
+          : r.ballPos.z - r.playerPos.z;
+        const targetDist = Math.sqrt(dxTarget * dxTarget + dzTarget * dzTarget);
+        // World yaw to face target = atan2(dx, dz) regardless of base facing
+        const worldHeadYaw = Math.atan2(dxTarget, dzTarget);
+        const bodyY = playerRef.value.groupRef.rotation.y;
+        const targetHeadYaw = worldHeadYaw - bodyY;
+        // Normalize to [-PI, PI] then clamp to forward arc (±60°)
+        let normYaw = targetHeadYaw;
+        while (normYaw > Math.PI) normYaw -= 2 * Math.PI;
+        while (normYaw < -Math.PI) normYaw += 2 * Math.PI;
+        const clampedHeadYaw = Math.max(
+          -Math.PI / 3,
+          Math.min(Math.PI / 3, normYaw),
+        );
+        const dyTarget = r.servePending ? 0 : r.ballPos.y - 0.68;
+        const targetHeadPitch = Math.atan2(dyTarget, Math.max(targetDist, 0.1));
+        // Clamp pitch: max 45° down, 75° up — track high balls
+        const clampedHeadPitch = Math.max(
+          -Math.PI / 4,
+          Math.min((Math.PI * 5) / 12, targetHeadPitch),
+        );
+        const k = Math.min(1, dt * 8);
+        playerRef.value.headRef.rotation.y +=
+          (clampedHeadYaw - playerRef.value.headRef.rotation.y) * k;
+        playerRef.value.headRef.rotation.x +=
+          (clampedHeadPitch - playerRef.value.headRef.rotation.x) * k;
+      }
+      // Pupils track ball (via reactive prop)
+      const playerPupils = playerRef.value.pupilPositions?.value;
+      if (playerPupils) {
+        const dxBall = r.ballPos.x - r.playerPos.x;
+        const dzBall = r.ballPos.z - r.playerPos.z;
+        const ballDist = Math.sqrt(dxBall * dxBall + dzBall * dzBall);
+        const nx = ballDist > 0 ? dxBall / ballDist : 0;
+        const nz = ballDist > 0 ? dzBall / ballDist : 0;
+        const dy = (r.ballPos.y - 0.68) / Math.max(ballDist, 0.5);
+        const pupilOffX = nx * 0.03;
+        const pupilOffY = Math.max(-0.025, Math.min(0.025, dy * 0.03));
+        const pupilOffZ = -nz * 0.02;
+        playerRef.value.pupilPositions.value = {
+          lx: -0.15 + pupilOffX,
+          ly: 0.03 + pupilOffY,
+          lz: 0.37 + pupilOffZ,
+          rx: 0.15 + pupilOffX,
+          ry: 0.03 + pupilOffY,
+          rz: 0.37 + pupilOffZ,
+          lsx: -0.13 + pupilOffX,
+          lsy: 0.06 + pupilOffY,
+          lsz: 0.4 + pupilOffZ,
+          rsx: 0.17 + pupilOffX,
+          rsy: 0.06 + pupilOffY,
+          rsz: 0.4 + pupilOffZ,
+        };
+      }
     }
     // Update player paddle (movement-based position, ball-direction when close, never through body)
     if (playerRef.value?.paddleRef) {
@@ -106,40 +279,187 @@ onMounted(() => {
       const moveDir = r.playerMoveDir; // -1 = left, 1 = right
       const reach = r.playerReach; // 0..1 based on ball distance
       const angle = r.playerPaddleAngle; // direction toward ball
-      const baseY = 0.55;
-      // Movement-based position (inverted because player is rotated 180°)
-      // Right by default, left when moving left — paddle in front and to the side
-      const moveX = moveDir < -0.1 ? 0.22 : -0.22;
-      const moveZ = 0.28;
-      // Ball-direction position when ball is near
-      const ballX = Math.sin(angle) * 0.22;
-      const ballZ = -Math.cos(angle) * 0.04; // negative because player faces -Z
-      // Blend: movement-based when reach=0, ball-based when reach=1
-      const targetX = moveX * (1 - reach) + ballX * reach;
-      const targetZ = moveZ * (1 - reach) + ballZ * reach;
-      // Smoothly animate
+      const baseY = 0.22;
+      // Handle moves left/forward/right — never backward into body
+      const handleX = moveDir < -0.1 ? -0.15 : 0.15;
+      const handleZ = 0.22; // always forward enough to clear body
+      // Ball-direction handle offset when ball is near
+      const ballHandleX = Math.sin(angle) * 0.1;
+      const ballHandleZ = -Math.cos(angle) * 0.06;
+      const targetX = handleX * (1 - reach) + ballHandleX * reach;
+      const targetZ = handleZ * (1 - reach) + ballHandleZ * reach;
+      // Smoothly animate handle position
       const curX = playerRef.value.paddleRef.position.x;
-      const newPaddleX = curX + (targetX - curX) * Math.min(1, dt * 8);
+      let newPaddleX = curX + (targetX - curX) * Math.min(1, dt * 8);
       const curZ = playerRef.value.paddleRef.position.z;
-      const newPaddleZ = curZ + (targetZ - curZ) * Math.min(1, dt * 8);
-      // Push paddle forward when crossing center to avoid body
-      const centerProximity = 1 - Math.min(1, Math.abs(newPaddleX) / 0.22);
-      const safeZ = newPaddleZ + centerProximity * 0.05;
-      playerRef.value.paddleRef.position.set(newPaddleX, baseY, safeZ);
+      let newPaddleZ = curZ + (targetZ - curZ) * Math.min(1, dt * 8);
+      // Clamp X: limit how far paddle goes from body
+      newPaddleX = Math.max(-0.2, Math.min(0.2, newPaddleX));
+      // Clamp Z: always forward, never into body, limit how far out
+      newPaddleZ = Math.max(0.2, Math.min(0.45, newPaddleZ));
+      // Push further forward when near center to avoid body collision
+      const centerProximity = 1 - Math.min(1, Math.abs(newPaddleX) / 0.2);
+      newPaddleZ += centerProximity * 0.08;
+      newPaddleZ = Math.min(0.5, newPaddleZ);
+      playerRef.value.paddleRef.position.set(newPaddleX, baseY, newPaddleZ);
+      // Paddle Y rotation faces the ball
+      // Player faces -Z, so paddle yaw = atan2(dxBall, -dzBall) to face ball
+      const dxBall = r.ballPos.x - r.playerPos.x;
+      const dzBall = r.ballPos.z - r.playerPos.z;
+      const paddleYaw =
+        Math.atan2(dxBall, -dzBall) - playerRef.value.groupRef.rotation.y;
       playerRef.value.paddleRef.rotation.set(
         -swing * 0.52 * swingDir, // X: tilt ~30° based on hit direction
-        swing * 0.3 * swingDir, // Y: small rotation toward hit direction
+        paddleYaw, // Y: face the ball
         -swing * 0.26 * swingDir, // Z: tilt side based on hit direction
       );
+      // Paddle-side arm (right) points toward paddle — arm+hand move as one group
+      if (playerRef.value.rightArmRef) {
+        const shoulderX = 0.22;
+        const shoulderY = 0.38;
+        const shoulderZ = 0;
+        const dx = newPaddleX - shoulderX;
+        const dy = baseY - shoulderY;
+        const dz = newPaddleZ - shoulderZ;
+        const armYaw = Math.atan2(dx, dz);
+        const armPitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
+        playerRef.value.rightArmRef.rotation.y +=
+          (armYaw - playerRef.value.rightArmRef.rotation.y) *
+          Math.min(1, dt * 10);
+        playerRef.value.rightArmRef.rotation.x +=
+          (armPitch - playerRef.value.rightArmRef.rotation.x) *
+          Math.min(1, dt * 10);
+      }
     }
 
-    // Update AI position + lean
+    // Update AI position + body rotation toward movement + leg/arm animation
     if (aiRef.value?.groupRef) {
       aiRef.value.groupRef.position.set(r.aiPos.x, 0, r.aiPos.z);
-      // Lean into movement direction
-      const targetLean = r.aiMoveDir * 0.25;
+      // Body rotation (imperative — AI base rotation is 0, faces +Z)
+      const aiMoveAngle = Math.atan2(-r.aiMoveDir, r.aiMoveZ);
+      const aiMoveMagBody = Math.sqrt(
+        r.aiMoveDir * r.aiMoveDir + r.aiMoveZ * r.aiMoveZ,
+      );
+      // When at rest, face forward toward opponent
+      let targetBodyY: number;
+      if (aiMoveMagBody < 0.05) {
+        // AI base facing is 0 (toward +Z / opponent)
+        targetBodyY = 0;
+      } else {
+        targetBodyY = aiMoveAngle * 0.6;
+      }
+      const targetLean = r.aiMoveDir * 0.4;
+      const targetPitch = r.aiMoveZ * 0.3;
+      const k = Math.min(1, dt * 6);
+      const kLean = Math.min(1, dt * 8);
+      aiRef.value.groupRef.rotation.y +=
+        (targetBodyY - aiRef.value.groupRef.rotation.y) * k;
       aiRef.value.groupRef.rotation.z +=
-        (targetLean - aiRef.value.groupRef.rotation.z) * Math.min(1, dt * 8);
+        (targetLean - aiRef.value.groupRef.rotation.z) * kLean;
+      aiRef.value.groupRef.rotation.x +=
+        (targetPitch - aiRef.value.groupRef.rotation.x) * kLean;
+      // Leg swing: projected onto movement direction
+      const aiMoveMag = Math.min(
+        1,
+        Math.sqrt(r.aiMoveDir * r.aiMoveDir + r.aiMoveZ * r.aiMoveZ),
+      );
+      // Smooth animMag: ease in/out instead of hard cutoff
+      aiAnimMagSmooth = THREE.MathUtils.damp(aiAnimMagSmooth, aiMoveMag, 8, dt);
+      const aiAnimMag = aiAnimMagSmooth;
+      // Stabilize moveAngle: hold last stable angle when nearly stopped
+      if (aiMoveMag > 0.08) {
+        aiMoveAngleStable = aiMoveAngle;
+      }
+      const aiStableAngle = aiMoveAngleStable;
+      // Accumulate walk phase with dt (continuous when speed changes)
+      const aiWalkSpeed = 6 + aiAnimMag * 8;
+      aiWalkPhase += dt * aiWalkSpeed;
+      const aiSwingBase = Math.sin(aiWalkPhase) * 0.6 * aiAnimMag;
+      const aiSwingX = aiSwingBase * Math.cos(aiStableAngle);
+      const aiSwingZ = aiSwingBase * Math.sin(aiStableAngle);
+      const kLimbAi = Math.min(1, dt * 12);
+      if (aiRef.value.leftLegRef) {
+        aiRef.value.leftLegRef.rotation.x +=
+          (aiSwingX - aiRef.value.leftLegRef.rotation.x) * kLimbAi;
+        aiRef.value.leftLegRef.rotation.z +=
+          (aiSwingZ - aiRef.value.leftLegRef.rotation.z) * kLimbAi;
+      }
+      if (aiRef.value.rightLegRef) {
+        aiRef.value.rightLegRef.rotation.x +=
+          (-aiSwingX - aiRef.value.rightLegRef.rotation.x) * kLimbAi;
+        aiRef.value.rightLegRef.rotation.z +=
+          (-aiSwingZ - aiRef.value.rightLegRef.rotation.z) * kLimbAi;
+      }
+      // Free arm (left) swings opposite to legs
+      if (aiRef.value.leftArmRef) {
+        aiRef.value.leftArmRef.rotation.x +=
+          (-aiSwingX * 0.7 - aiRef.value.leftArmRef.rotation.x) * kLimbAi;
+        aiRef.value.leftArmRef.rotation.z +=
+          (-aiSwingZ * 0.7 - aiRef.value.leftArmRef.rotation.z) * kLimbAi;
+      }
+      // Head faces opponent during serve, ball during rally
+      // Head is child of body group, so local yaw = world yaw - body actual
+      if (aiRef.value.headRef) {
+        // AI faces +Z. Look toward player position during serve, ball during rally.
+        const dxTarget = r.servePending
+          ? r.playerPos.x - r.aiPos.x
+          : r.ballPos.x - r.aiPos.x;
+        const dzTarget = r.servePending
+          ? r.playerPos.z - r.aiPos.z
+          : r.ballPos.z - r.aiPos.z;
+        const targetDist = Math.sqrt(dxTarget * dxTarget + dzTarget * dzTarget);
+        // AI faces +Z, so world yaw = atan2(dx, dz)
+        const worldHeadYaw = Math.atan2(dxTarget, dzTarget);
+        const aiBodyY = aiRef.value.groupRef.rotation.y;
+        const targetHeadYaw = worldHeadYaw - aiBodyY;
+        // Normalize to [-PI, PI] then clamp to forward arc (±60°)
+        let normYaw = targetHeadYaw;
+        while (normYaw > Math.PI) normYaw -= 2 * Math.PI;
+        while (normYaw < -Math.PI) normYaw += 2 * Math.PI;
+        const clampedHeadYaw = Math.max(
+          -Math.PI / 3,
+          Math.min(Math.PI / 3, normYaw),
+        );
+        const dyTarget = r.servePending ? 0 : r.ballPos.y - 0.68;
+        const targetHeadPitch = Math.atan2(dyTarget, Math.max(targetDist, 0.1));
+        // Clamp pitch: max 45° down, 75° up — track high balls
+        const clampedHeadPitch = Math.max(
+          -Math.PI / 4,
+          Math.min((Math.PI * 5) / 12, targetHeadPitch),
+        );
+        const k = Math.min(1, dt * 8);
+        aiRef.value.headRef.rotation.y +=
+          (clampedHeadYaw - aiRef.value.headRef.rotation.y) * k;
+        aiRef.value.headRef.rotation.x +=
+          (-clampedHeadPitch - aiRef.value.headRef.rotation.x) * k;
+      }
+      // Pupils track ball
+      const aiPupils = aiRef.value.pupilPositions?.value;
+      if (aiPupils) {
+        const dxBall = r.ballPos.x - r.aiPos.x;
+        const dzBall = r.ballPos.z - r.aiPos.z;
+        const ballDist = Math.sqrt(dxBall * dxBall + dzBall * dzBall);
+        const nx = ballDist > 0 ? dxBall / ballDist : 0;
+        const nz = ballDist > 0 ? dzBall / ballDist : 0;
+        const dy = (r.ballPos.y - 0.68) / Math.max(ballDist, 0.5);
+        const pupilOffX = nx * 0.03;
+        const pupilOffY = Math.max(-0.025, Math.min(0.025, dy * 0.03));
+        const pupilOffZ = nz * 0.02;
+        aiRef.value.pupilPositions.value = {
+          lx: -0.15 + pupilOffX,
+          ly: 0.03 + pupilOffY,
+          lz: 0.37 + pupilOffZ,
+          rx: 0.15 + pupilOffX,
+          ry: 0.03 + pupilOffY,
+          rz: 0.37 + pupilOffZ,
+          lsx: -0.13 + pupilOffX,
+          lsy: 0.06 + pupilOffY,
+          lsz: 0.4 + pupilOffZ,
+          rsx: 0.17 + pupilOffX,
+          rsy: 0.06 + pupilOffY,
+          rsz: 0.4 + pupilOffZ,
+        };
+      }
     }
     // Update AI paddle (movement-based position, ball-direction when close, never through body)
     if (aiRef.value?.paddleRef) {
@@ -148,27 +468,56 @@ onMounted(() => {
       const moveDir = r.aiMoveDir;
       const reach = r.aiReach;
       const angle = r.aiPaddleAngle;
-      const baseY = 0.55;
-      // Movement-based position
-      const moveX = moveDir < -0.1 ? -0.22 : 0.22;
-      const moveZ = 0.28;
-      // Ball-direction position when ball is near
-      const ballX = Math.sin(angle) * 0.22;
-      const ballZ = Math.cos(angle) * 0.04; // positive because AI faces +Z
-      const targetX = moveX * (1 - reach) + ballX * reach;
-      const targetZ = moveZ * (1 - reach) + ballZ * reach;
+      const baseY = 0.22;
+      // Handle moves left/forward/right — never backward into body
+      const handleX = moveDir < -0.1 ? -0.15 : 0.15;
+      const handleZ = 0.22; // always forward enough to clear body
+      // Ball-direction handle offset when ball is near
+      const ballHandleX = Math.sin(angle) * 0.1;
+      const ballHandleZ = Math.cos(angle) * 0.06;
+      const targetX = handleX * (1 - reach) + ballHandleX * reach;
+      const targetZ = handleZ * (1 - reach) + ballHandleZ * reach;
+      // Smoothly animate handle position
       const curX = aiRef.value.paddleRef.position.x;
-      const newPaddleX = curX + (targetX - curX) * Math.min(1, dt * 8);
+      let newPaddleX = curX + (targetX - curX) * Math.min(1, dt * 8);
       const curZ = aiRef.value.paddleRef.position.z;
-      const newPaddleZ = curZ + (targetZ - curZ) * Math.min(1, dt * 8);
-      const centerProximity = 1 - Math.min(1, Math.abs(newPaddleX) / 0.22);
-      const safeZ = newPaddleZ + centerProximity * 0.05;
-      aiRef.value.paddleRef.position.set(newPaddleX, baseY, safeZ);
+      let newPaddleZ = curZ + (targetZ - curZ) * Math.min(1, dt * 8);
+      // Clamp X: limit how far paddle goes from body
+      newPaddleX = Math.max(-0.2, Math.min(0.2, newPaddleX));
+      // Clamp Z: always forward, never into body, limit how far out
+      newPaddleZ = Math.max(0.2, Math.min(0.45, newPaddleZ));
+      // Push further forward when near center to avoid body collision
+      const centerProximity = 1 - Math.min(1, Math.abs(newPaddleX) / 0.2);
+      newPaddleZ += centerProximity * 0.08;
+      newPaddleZ = Math.min(0.5, newPaddleZ);
+      aiRef.value.paddleRef.position.set(newPaddleX, baseY, newPaddleZ);
+      // Paddle Y rotation faces the ball
+      // AI faces +Z, so paddle yaw = atan2(dxBall, dzBall) to face ball
+      const aiDxBall = r.ballPos.x - r.aiPos.x;
+      const aiDzBall = r.ballPos.z - r.aiPos.z;
+      const paddleYaw =
+        Math.atan2(aiDxBall, aiDzBall) - aiRef.value.groupRef.rotation.y;
       aiRef.value.paddleRef.rotation.set(
         -swing * 0.52 * swingDir, // X: tilt ~30° based on hit direction
-        swing * 0.3 * swingDir, // Y: small rotation toward hit direction
+        paddleYaw, // Y: face the ball
         -swing * 0.26 * swingDir, // Z: tilt side based on hit direction
       );
+      // Paddle-side arm points toward paddle — arm+hand move as one group
+      if (aiRef.value.rightArmRef) {
+        const shoulderX = -0.22; // mirrored for AI
+        const shoulderY = 0.38;
+        const shoulderZ = 0;
+        const dx = newPaddleX - shoulderX;
+        const dy = baseY - shoulderY;
+        const dz = newPaddleZ - shoulderZ;
+        const armYaw = Math.atan2(dx, dz);
+        const armPitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
+        aiRef.value.rightArmRef.rotation.y +=
+          (armYaw - aiRef.value.rightArmRef.rotation.y) * Math.min(1, dt * 10);
+        aiRef.value.rightArmRef.rotation.x +=
+          (armPitch - aiRef.value.rightArmRef.rotation.x) *
+          Math.min(1, dt * 10);
+      }
     }
 
     // Update ball position

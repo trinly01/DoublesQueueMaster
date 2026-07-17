@@ -89,12 +89,15 @@ export interface GameRefs {
   aiSwing: number;
   playerSwingDir: number; // -1 = left, 1 = right
   aiSwingDir: number;
-  playerMoveDir: number; // current movement direction -1..1
+  playerMoveDir: number; // current movement direction -1..1 (X axis)
   aiMoveDir: number;
+  playerMoveZ: number; // forward/backward velocity -1..1
+  aiMoveZ: number;
   playerReach: number; // 0..1 how far paddle reaches toward ball
   aiReach: number;
   playerPaddleAngle: number; // radians, paddle yaw toward ball
   aiPaddleAngle: number;
+  servePending: boolean; // true before serve — heads face opponent
 }
 
 export function useGameEngine() {
@@ -130,10 +133,13 @@ export function useGameEngine() {
     aiSwingDir: 1,
     playerMoveDir: 0,
     aiMoveDir: 0,
+    playerMoveZ: 0,
+    aiMoveZ: 0,
     playerReach: 0,
     aiReach: 0,
     playerPaddleAngle: 0,
     aiPaddleAngle: 0,
+    servePending: false,
   };
 
   // Input state
@@ -185,6 +191,10 @@ export function useGameEngine() {
   const playerCurrentVel = new THREE.Vector3();
   const aiCurrentVel = new THREE.Vector3();
   const AI_ACCEL = 10;
+
+  // Pre-allocated temp vectors to avoid per-frame allocations
+  const _tempVel = new THREE.Vector3();
+  const _tempTarget = new THREE.Vector3();
 
   function setDifficulty(d: Difficulty) {
     difficulty.value = d;
@@ -282,9 +292,9 @@ export function useGameEngine() {
     serveFromX = serveTo === 'player' ? refs.playerPos.x : refs.aiPos.x;
     // Ball starts from paddle position (on top of paddle)
     if (serveTo === 'player') {
-      refs.ballPos.set(refs.playerPos.x + 0.25, 0.65, refs.playerPos.z - 0.15);
+      refs.ballPos.set(refs.playerPos.x + 0.25, 0.45, refs.playerPos.z - 0.15);
     } else {
-      refs.ballPos.set(refs.aiPos.x + 0.25, 0.65, refs.aiPos.z + 0.15);
+      refs.ballPos.set(refs.aiPos.x + 0.25, 0.45, refs.aiPos.z + 0.15);
     }
 
     // Aim toward opponent's side (past kitchen)
@@ -343,12 +353,9 @@ export function useGameEngine() {
     // Authentic: show which court to serve to, but don't force it
     // Player can serve to wrong court and get faulted
 
-    const vel = computeBallisticVel(
-      refs.ballPos,
-      new THREE.Vector3(targetX, 0.3, targetZ),
-      NET_HEIGHT + 0.3,
-    );
-    refs.ballVel.copy(vel);
+    _tempTarget.set(targetX, 0.3, targetZ);
+    computeBallisticVel(refs.ballPos, _tempTarget, NET_HEIGHT + 0.3, _tempVel);
+    refs.ballVel.copy(_tempVel);
 
     // Swing animation for server
     if (serveTo === 'player') {
@@ -396,10 +403,11 @@ export function useGameEngine() {
         lastPointMsg.value = msg;
       } else {
         // Side out — serve passes to rally winner, no point scored
-        lastPointMsg.value =
+        const sideOutMsg =
           forWhom === 'player'
             ? 'Side Out, Your Serve!'
             : 'Side Out, AI Serves';
+        lastPointMsg.value = reason ? `${reason} ${sideOutMsg}` : sideOutMsg;
         server.value = forWhom;
       }
     } else {
@@ -446,9 +454,9 @@ export function useGameEngine() {
     if (input.right) dx += 1;
     if (input.forward) dz -= 1;
     if (input.backward) dz += 1;
-    // Clamp combined input to -1..1
-    dx = THREE.MathUtils.clamp(dx, -1, 1);
-    dz = THREE.MathUtils.clamp(dz, -1, 1);
+    // Clamp combined input to -1.2..1.2 (allows joystick boost)
+    dx = THREE.MathUtils.clamp(dx, -1.2, 1.2);
+    dz = THREE.MathUtils.clamp(dz, -1.2, 1.2);
 
     // Ball magnet: gently guide player toward ball X when ball is incoming
     if (cfg.playerMagnet > 0 && refs.ballVel.z > 0 && !servePending.value) {
@@ -458,12 +466,13 @@ export function useGameEngine() {
         const predictedX = refs.ballPos.x + refs.ballVel.x * timeToPlayer;
         const xDiff = predictedX - refs.playerPos.x;
         // Blend magnet with player input — magnet adds a gentle pull
-        dx = THREE.MathUtils.clamp(dx + xDiff * cfg.playerMagnet * 0.5, -1, 1);
+        dx = THREE.MathUtils.clamp(
+          dx + xDiff * cfg.playerMagnet * 0.5,
+          -1.2,
+          1.2,
+        );
       }
     }
-
-    // Track movement direction for paddle positioning
-    refs.playerMoveDir = dx;
 
     // Target velocity from input
     const targetVx = dx * maxSpeed;
@@ -494,6 +503,28 @@ export function useGameEngine() {
     // Compute velocity (for impact-force physics)
     if (dt > 0) {
       playerVel.subVectors(refs.playerPos, prevPlayerPos).divideScalar(dt);
+      const rawMoveZ = THREE.MathUtils.clamp(
+        playerVel.z / PLAYER_MAX_SPEED,
+        -1,
+        1,
+      );
+      const rawMoveDir = THREE.MathUtils.clamp(
+        playerVel.x / PLAYER_MAX_SPEED,
+        -1,
+        1,
+      );
+      refs.playerMoveZ = THREE.MathUtils.damp(
+        refs.playerMoveZ,
+        rawMoveZ,
+        10,
+        dt,
+      );
+      refs.playerMoveDir = THREE.MathUtils.damp(
+        refs.playerMoveDir,
+        rawMoveDir,
+        10,
+        dt,
+      );
     }
 
     // Clamp to player's half — wall at net only within court width
@@ -767,7 +798,23 @@ export function useGameEngine() {
     // Compute velocity
     if (dt > 0) {
       aiVel.subVectors(refs.aiPos, prevAiPos).divideScalar(dt);
-      refs.aiMoveDir = THREE.MathUtils.clamp(aiVel.x / 2, -1, 1);
+      const rawAiMoveDir = THREE.MathUtils.clamp(
+        aiVel.x / PLAYER_MAX_SPEED,
+        -1,
+        1,
+      );
+      const rawAiMoveZ = THREE.MathUtils.clamp(
+        aiVel.z / PLAYER_MAX_SPEED,
+        -1,
+        1,
+      );
+      refs.aiMoveDir = THREE.MathUtils.damp(
+        refs.aiMoveDir,
+        rawAiMoveDir,
+        10,
+        dt,
+      );
+      refs.aiMoveZ = THREE.MathUtils.damp(refs.aiMoveZ, rawAiMoveZ, 10, dt);
     }
 
     // Swing animation decay
@@ -930,7 +977,7 @@ export function useGameEngine() {
         (Math.random() - 0.5) * errorRange;
     }
 
-    const target = new THREE.Vector3(targetXAdj, 0.3, adjustedTargetZ);
+    _tempTarget.set(targetXAdj, 0.3, adjustedTargetZ);
     // Net clearance — dinks have variable clearance (sometimes hits net = fault)
     const isDink = Math.abs(adjustedTargetZ) < KITCHEN_DEPTH;
     let clearMargin: number;
@@ -949,13 +996,13 @@ export function useGameEngine() {
       clearMargin = 0.05;
       power = 1;
     }
-    const vel2 = computeBallisticVel(
+    computeBallisticVel(
       ballPos,
-      target,
+      _tempTarget,
       Math.max(NET_HEIGHT + clearMargin, 0.1),
+      ballVel,
       power,
     );
-    ballVel.copy(vel2);
 
     // Update rally state
     lastHitBy = isPlayer ? 'player' : 'ai';
@@ -985,6 +1032,7 @@ export function useGameEngine() {
     from: THREE.Vector3,
     to: THREE.Vector3,
     clearY: number,
+    out: THREE.Vector3,
     power: number = 1,
   ): THREE.Vector3 {
     const dz = to.z - from.z;
@@ -1016,7 +1064,8 @@ export function useGameEngine() {
     // Pickleball: minimal upward velocity, flat shots
     vy = Math.max(vy, 0.5);
 
-    return new THREE.Vector3(vx, vy, finalVz);
+    out.set(vx, vy, finalVz);
+    return out;
   }
 
   // Player triggers serve manually
@@ -1037,15 +1086,15 @@ export function useGameEngine() {
     // If serve is pending, ball stays with the server (held by player)
     if (servePending.value) {
       if (servingTo === 'player') {
-        // Ball held on top of paddle (paddle is at +0.25x, 0.55y, -0.15z relative to player)
+        // Ball held on top of paddle (paddle at +0.25x, 0.35y, +0.15z relative to player)
         refs.ballPos.set(
           refs.playerPos.x + 0.25,
-          0.65,
+          0.45,
           refs.playerPos.z - 0.15,
         );
       } else {
-        // AI: ball held on top of paddle (paddle at +0.25x, 0.55y, +0.15z relative to AI)
-        refs.ballPos.set(refs.aiPos.x + 0.25, 0.65, refs.aiPos.z + 0.15);
+        // AI: ball held on top of paddle (paddle at +0.25x, 0.35y, +0.15z relative to AI)
+        refs.ballPos.set(refs.aiPos.x + 0.25, 0.45, refs.aiPos.z + 0.15);
         // AI auto-serves after a short delay
         serveTimer += dt;
         if (serveTimer >= 0.8) {
@@ -1133,8 +1182,16 @@ export function useGameEngine() {
       const bounceOutZ = Math.abs(refs.ballPos.z) > HALF_COURT_L;
       const bounceIsOut = bounceOutX || bounceOutZ;
 
-      // OOB check on SECOND bounce (not serve) — give player chance to hit after first bounce
-      // First bounce: just record if it was out. Second bounce: determine outcome.
+      // First bounce during rally: call out immediately if clearly OOB
+      if (rallyHitCount > 1 && bounceCountThisSide === 1 && bounceIsOut) {
+        const faultBy = lastHitBy;
+        if (faultBy) {
+          scorePoint(faultBy === 'player' ? 'ai' : 'player', 'Out!');
+        }
+        return;
+      }
+
+      // OOB check on SECOND bounce — opponent didn't return
       if (rallyHitCount > 1 && bounceCountThisSide >= 2) {
         if (firstBounceWasOut) {
           // First bounce was out — fault against last hitter
@@ -1261,8 +1318,8 @@ export function useGameEngine() {
     }
 
     // Ball stopped on same side (didn't get hit)
-    const speed = refs.ballVel.length();
-    if (speed < 0.5 && refs.ballPos.y < 0.15) {
+    const speedSq = refs.ballVel.lengthSq();
+    if (speedSq < 0.25 && refs.ballPos.y < 0.15) {
       if (refs.ballPos.z > 0) {
         scorePoint('ai', 'Ball stopped!');
       } else {
@@ -1492,6 +1549,7 @@ export function useGameEngine() {
     lastTime = time;
 
     if (gameState.value === 'playing') {
+      refs.servePending = servePending.value;
       pollGamepad();
       playerHitCooldown = Math.max(0, playerHitCooldown - dt);
       aiHitCooldown = Math.max(0, aiHitCooldown - dt);

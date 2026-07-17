@@ -267,7 +267,7 @@
           {{ engine.winner.value === 'player' ? 'You Win!' : 'AI Wins!' }}
         </h1>
         <p class="menu-subtitle">
-          {{ engine.playerScore.value }}, {{ engine.aiScore.value }}
+          {{ engine.playerScore.value }} - {{ engine.aiScore.value }}
         </p>
         <q-btn
           label="Play Again"
@@ -407,9 +407,20 @@ function updateJoystick(touch: Touch) {
   joystick.knobX = nx;
   joystick.knobY = ny;
 
-  // Map to analog axis (-1..1)
-  const axisX = nx / maxDist;
-  const axisZ = ny / maxDist;
+  // Map to analog axis (-1..1) with boost at full deflection
+  const rawAxisX = nx / maxDist;
+  const rawAxisZ = ny / maxDist;
+  const boostThreshold = 0.8;
+  const boostMax = 1.2;
+  const applyBoost = (v: number) => {
+    const abs = Math.abs(v);
+    if (abs <= boostThreshold) return v;
+    // Scale from 1.0 at threshold to boostMax at full deflection
+    const t = (abs - boostThreshold) / (1 - boostThreshold);
+    return Math.sign(v) * (1 + (boostMax - 1) * t);
+  };
+  const axisX = applyBoost(rawAxisX);
+  const axisZ = applyBoost(rawAxisZ);
 
   // Apply dead zone (~20%)
   const deadZone = 0.2;
