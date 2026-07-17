@@ -2,7 +2,7 @@
   <div class="play-page">
     <!-- 3D Scene -->
     <div class="scene-container">
-      <GameScene :refs="engine.refs" />
+      <GameScene :refs="engine.refs" :step="engine.step" />
     </div>
 
     <!-- Top-left: Score (mobile: same row) -->
@@ -741,11 +741,11 @@ onMounted(() => {
   window.addEventListener('blur', onWindowBlur);
   updateGamepadStatus();
   engine.startLoop();
-  // Poll gamepad menu navigation every frame
+  // Poll gamepad menu navigation at 10fps (early-returns during active gameplay)
   menuPollInterval = setInterval(() => {
     pollGamepadMenu();
-    if (menuStickCooldown > 0) menuStickCooldown -= 0.05;
-  }, 50);
+    if (menuStickCooldown > 0) menuStickCooldown -= 0.1;
+  }, 100);
   if (engine.sound.musicEnabled.value) {
     engine.sound.ensureCtx();
     engine.sound.startMusic();
