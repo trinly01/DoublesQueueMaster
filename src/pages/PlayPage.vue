@@ -885,13 +885,13 @@ onUnmounted(() => {
   animation: announce 0.5s ease;
   text-align: center;
   max-width: 90vw;
+  white-space: pre-line;
   word-wrap: break-word;
 }
 
 @media (min-width: 768px) {
   .point-toast {
     font-size: 40px;
-    white-space: nowrap;
   }
 }
 
