@@ -270,6 +270,16 @@
           {{ engine.playerScore.value }} - {{ engine.aiScore.value }}
         </p>
         <q-btn
+          label="Main Menu"
+          color="white"
+          text-color="grey-7"
+          rounded
+          class="play-btn"
+          outline
+          :class="isNavFocused('main-menu') ? 'nav-focused' : ''"
+          @click="engine.resetScore()"
+        />
+        <q-btn
           label="Play Again"
           color="white"
           text-color="accent"
@@ -279,26 +289,6 @@
           class="play-btn"
           :class="isNavFocused('play-again') ? 'nav-focused' : ''"
           @click="startPlaying"
-        />
-        <q-btn
-          label="Main Menu"
-          color="white"
-          text-color="grey-7"
-          rounded
-          class="menu-btn"
-          outline
-          :class="isNavFocused('main-menu') ? 'nav-focused' : ''"
-          @click="engine.resetScore()"
-        />
-        <q-btn
-          label="Exit"
-          color="white"
-          text-color="grey-7"
-          rounded
-          class="menu-btn"
-          outline
-          :class="isNavFocused('exit') ? 'nav-focused' : ''"
-          @click="goBack"
         />
       </div>
     </div>
@@ -551,16 +541,12 @@ const menuNavRows = computed<NavRow[]>(() => {
   } else if (state === 'game-over') {
     return [
       {
-        id: 'play-again',
-        items: [{ id: 'play-again', action: () => startPlaying() }],
-      },
-      {
         id: 'main-menu',
         items: [{ id: 'main-menu', action: () => engine.resetScore() }],
       },
       {
-        id: 'exit',
-        items: [{ id: 'exit', action: () => goBack() }],
+        id: 'play-again',
+        items: [{ id: 'play-again', action: () => startPlaying() }],
       },
     ];
   }
@@ -571,7 +557,7 @@ watch(
   () => engine.gameState.value,
   (state) => {
     menuColIndex.value = 0;
-    if (state === 'paused') {
+    if (state === 'paused' || state === 'game-over') {
       menuRowIndex.value = 1;
     } else {
       menuRowIndex.value = 0;
