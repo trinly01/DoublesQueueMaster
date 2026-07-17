@@ -1,193 +1,159 @@
 <template>
   <TresGroup ref="groupRef">
     <!-- Body (small capsule — chibi proportions) -->
-    <TresMesh :position="[0, 0.38, 0] as any" cast-shadow>
-      <TresCapsuleGeometry :args="[0.18, 0.1, 6, 12]" />
-      <TresMeshStandardMaterial :color="bodyColor" :roughness="0.7" />
+    <TresMesh :position="[0, 0.38, 0] as any">
+      <TresCapsuleGeometry :args="[0.18, 0.1, 4, 10]" />
+      <TresMeshLambertMaterial :color="bodyColor" />
     </TresMesh>
 
     <!-- Skirt for girls (cone shape over legs) -->
-    <TresMesh
-      v-if="gender === 'girl'"
-      :position="[0, 0.22, 0] as any"
-      cast-shadow
-    >
-      <TresCylinderGeometry :args="[0.14, 0.26, 0.18, 12]" />
-      <TresMeshStandardMaterial :color="pantsColor" :roughness="0.8" />
+    <TresMesh v-if="gender === 'girl'" :position="[0, 0.22, 0] as any">
+      <TresCylinderGeometry :args="[0.14, 0.26, 0.18, 10]" />
+      <TresMeshLambertMaterial :color="pantsColor" />
     </TresMesh>
 
     <!-- Left leg group (pants + shoe + heel, animates together) -->
     <TresGroup ref="leftLegRef" :position="[-0.09, 0.22, 0] as any">
       <!-- Pant leg (hidden for girls, skirt covers it) -->
-      <TresMesh
-        v-if="gender === 'boy'"
-        :position="[0, -0.06, 0] as any"
-        cast-shadow
-      >
-        <TresCapsuleGeometry :args="[0.1, 0.06, 4, 8]" />
-        <TresMeshStandardMaterial :color="pantsColor" :roughness="0.8" />
+      <TresMesh v-if="gender === 'boy'" :position="[0, -0.06, 0] as any">
+        <TresCapsuleGeometry :args="[0.1, 0.06, 4, 6]" />
+        <TresMeshLambertMaterial :color="pantsColor" />
       </TresMesh>
       <!-- Bare leg for girls (skin tone shows below skirt) -->
-      <TresMesh
-        v-if="gender === 'girl'"
-        :position="[0, -0.06, 0] as any"
-        cast-shadow
-      >
-        <TresCapsuleGeometry :args="[0.08, 0.06, 4, 8]" />
-        <TresMeshStandardMaterial :color="headColor" :roughness="0.8" />
+      <TresMesh v-if="gender === 'girl'" :position="[0, -0.06, 0] as any">
+        <TresCapsuleGeometry :args="[0.08, 0.06, 4, 6]" />
+        <TresMeshLambertMaterial :color="headColor" />
       </TresMesh>
       <!-- Shoe -->
-      <TresMesh :position="[0, -0.19, 0.08] as any" cast-shadow>
+      <TresMesh :position="[0, -0.19, 0.08] as any">
         <TresSphereGeometry :args="[0.11, 6, 6]" />
-        <TresMeshStandardMaterial :color="shoeColor" :roughness="0.8" />
+        <TresMeshLambertMaterial :color="shoeColor" />
       </TresMesh>
       <!-- Shoe heel volume -->
       <TresMesh
         :position="[0, -0.17, -0.02] as any"
         :scale="[1, 0.6, 1.2] as any"
-        cast-shadow
       >
         <TresSphereGeometry :args="[0.1, 6, 6]" />
-        <TresMeshStandardMaterial :color="shoeColor" :roughness="0.8" />
+        <TresMeshLambertMaterial :color="shoeColor" />
       </TresMesh>
     </TresGroup>
 
     <!-- Right leg group (pants + shoe + heel, animates together) -->
     <TresGroup ref="rightLegRef" :position="[0.09, 0.22, 0] as any">
       <!-- Pant leg (hidden for girls, skirt covers it) -->
-      <TresMesh
-        v-if="gender === 'boy'"
-        :position="[0, -0.06, 0] as any"
-        cast-shadow
-      >
-        <TresCapsuleGeometry :args="[0.1, 0.06, 4, 8]" />
-        <TresMeshStandardMaterial :color="pantsColor" :roughness="0.8" />
+      <TresMesh v-if="gender === 'boy'" :position="[0, -0.06, 0] as any">
+        <TresCapsuleGeometry :args="[0.1, 0.06, 4, 6]" />
+        <TresMeshLambertMaterial :color="pantsColor" />
       </TresMesh>
       <!-- Bare leg for girls -->
-      <TresMesh
-        v-if="gender === 'girl'"
-        :position="[0, -0.06, 0] as any"
-        cast-shadow
-      >
-        <TresCapsuleGeometry :args="[0.08, 0.06, 4, 8]" />
-        <TresMeshStandardMaterial :color="headColor" :roughness="0.8" />
+      <TresMesh v-if="gender === 'girl'" :position="[0, -0.06, 0] as any">
+        <TresCapsuleGeometry :args="[0.08, 0.06, 4, 6]" />
+        <TresMeshLambertMaterial :color="headColor" />
       </TresMesh>
       <!-- Shoe -->
-      <TresMesh :position="[0, -0.19, 0.08] as any" cast-shadow>
+      <TresMesh :position="[0, -0.19, 0.08] as any">
         <TresSphereGeometry :args="[0.11, 6, 6]" />
-        <TresMeshStandardMaterial :color="shoeColor" :roughness="0.8" />
+        <TresMeshLambertMaterial :color="shoeColor" />
       </TresMesh>
       <!-- Shoe heel volume -->
       <TresMesh
         :position="[0, -0.17, -0.02] as any"
         :scale="[1, 0.6, 1.2] as any"
-        cast-shadow
       >
         <TresSphereGeometry :args="[0.1, 6, 6]" />
-        <TresMeshStandardMaterial :color="shoeColor" :roughness="0.8" />
+        <TresMeshLambertMaterial :color="shoeColor" />
       </TresMesh>
     </TresGroup>
 
     <!-- Left arm group (arm + hand together) -->
     <TresGroup ref="leftArmRef" :position="[-0.22, 0.38, 0] as any">
-      <TresMesh :position="[0, -0.08, 0] as any" cast-shadow>
-        <TresCapsuleGeometry :args="[0.05, 0.1, 4, 8]" />
-        <TresMeshStandardMaterial :color="headColor" :roughness="0.7" />
+      <TresMesh :position="[0, -0.08, 0] as any">
+        <TresCapsuleGeometry :args="[0.05, 0.1, 4, 6]" />
+        <TresMeshLambertMaterial :color="headColor" />
       </TresMesh>
       <!-- Left hand -->
-      <TresMesh :position="[0, -0.16, 0.02] as any" cast-shadow>
+      <TresMesh :position="[0, -0.16, 0.02] as any">
         <TresSphereGeometry :args="[0.05, 6, 6]" />
-        <TresMeshStandardMaterial :color="headColor" :roughness="0.6" />
+        <TresMeshLambertMaterial :color="headColor" />
       </TresMesh>
     </TresGroup>
 
     <!-- Right arm group (arm + hand together, follows paddle) -->
     <TresGroup ref="rightArmRef" :position="[0.22, 0.38, 0] as any">
-      <TresMesh :position="[0, -0.08, 0] as any" cast-shadow>
-        <TresCapsuleGeometry :args="[0.05, 0.1, 4, 8]" />
-        <TresMeshStandardMaterial :color="headColor" :roughness="0.7" />
+      <TresMesh :position="[0, -0.08, 0] as any">
+        <TresCapsuleGeometry :args="[0.05, 0.1, 4, 6]" />
+        <TresMeshLambertMaterial :color="headColor" />
       </TresMesh>
       <!-- Right hand (holds paddle handle) -->
-      <TresMesh
-        ref="rightHandRef"
-        :position="[0, -0.16, 0.02] as any"
-        cast-shadow
-      >
+      <TresMesh ref="rightHandRef" :position="[0, -0.16, 0.02] as any">
         <TresSphereGeometry :args="[0.05, 6, 6]" />
-        <TresMeshStandardMaterial :color="headColor" :roughness="0.6" />
+        <TresMeshLambertMaterial :color="headColor" />
       </TresMesh>
     </TresGroup>
 
     <!-- Head group (rotates toward movement direction) -->
     <TresGroup ref="headRef" :position="[0, 0.68, 0] as any">
       <!-- Head (big sphere — chibi style) -->
-      <TresMesh cast-shadow>
-        <TresSphereGeometry :args="[0.38, 14, 14]" />
-        <TresMeshStandardMaterial :color="headColor" :roughness="0.5" />
+      <TresMesh>
+        <TresSphereGeometry :args="[0.38, 12, 10]" />
+        <TresMeshLambertMaterial :color="headColor" />
       </TresMesh>
 
       <!-- Ears -->
       <TresMesh
         :position="[-0.38, -0.02, 0] as any"
         :scale="[0.4, 0.7, 0.3] as any"
-        cast-shadow
       >
         <TresSphereGeometry :args="[0.08, 6, 6]" />
-        <TresMeshStandardMaterial :color="headColor" :roughness="0.5" />
+        <TresMeshLambertMaterial :color="headColor" />
       </TresMesh>
       <TresMesh
         :position="[0.38, -0.02, 0] as any"
         :scale="[0.4, 0.7, 0.3] as any"
-        cast-shadow
       >
         <TresSphereGeometry :args="[0.08, 6, 6]" />
-        <TresMeshStandardMaterial :color="headColor" :roughness="0.5" />
+        <TresMeshLambertMaterial :color="headColor" />
       </TresMesh>
 
       <!-- Hair: top cap (extends further down for girls to cover back of head) -->
-      <TresMesh :position="[0, 0.2, -0.03] as any" cast-shadow>
+      <TresMesh :position="[0, 0.2, -0.03] as any">
         <TresSphereGeometry
           :args="[
             0.4,
-            12,
-            8,
+            10,
+            6,
             0,
             Math.PI * 2,
             0,
             gender === 'girl' ? Math.PI * 0.65 : Math.PI * 0.58,
           ]"
         />
-        <TresMeshStandardMaterial :color="hairColor" :roughness="0.6" />
+        <TresMeshLambertMaterial :color="hairColor" />
       </TresMesh>
       <!-- Hair fringe / bangs -->
-      <TresMesh
-        :position="[0, 0.14, 0.26] as any"
-        :rotation="[0.35, 0, 0]"
-        cast-shadow
-      >
+      <TresMesh :position="[0, 0.14, 0.26] as any" :rotation="[0.35, 0, 0]">
         <TresSphereGeometry
           :args="[0.34, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.3]"
         />
-        <TresMeshStandardMaterial :color="hairColor" :roughness="0.6" />
+        <TresMeshLambertMaterial :color="hairColor" />
       </TresMesh>
       <!-- Hair side tufts (positioned behind ears, slightly higher) -->
       <TresMesh
         v-if="gender === 'boy'"
         :position="[-0.32, 0.06, -0.02] as any"
         :scale="[0.5, 0.8, 0.6] as any"
-        cast-shadow
       >
         <TresSphereGeometry :args="[0.12, 6, 6]" />
-        <TresMeshStandardMaterial :color="hairColor" :roughness="0.6" />
+        <TresMeshLambertMaterial :color="hairColor" />
       </TresMesh>
       <TresMesh
         v-if="gender === 'boy'"
         :position="[0.32, 0.06, -0.02] as any"
         :scale="[0.5, 0.8, 0.6] as any"
-        cast-shadow
       >
         <TresSphereGeometry :args="[0.12, 6, 6]" />
-        <TresMeshStandardMaterial :color="hairColor" :roughness="0.6" />
+        <TresMeshLambertMaterial :color="hairColor" />
       </TresMesh>
       <!-- Boy back hair removed — top cap now extends further down to cover back -->
       <!-- Long hair for girls: back panel covering back of head to neck (below cap) -->
@@ -195,48 +161,44 @@
         v-if="gender === 'girl'"
         :position="[0, -0.08, -0.26] as any"
         :scale="[1.05, 0.6, 0.6] as any"
-        cast-shadow
       >
-        <TresSphereGeometry :args="[0.36, 12, 12]" />
-        <TresMeshStandardMaterial :color="hairColor" :roughness="0.6" />
+        <TresSphereGeometry :args="[0.36, 8, 8]" />
+        <TresMeshLambertMaterial :color="hairColor" />
       </TresMesh>
       <!-- Long hair for girls: left side panel covering side of head to neck -->
       <TresMesh
         v-if="gender === 'girl'"
         :position="[-0.38, -0.05, -0.05] as any"
         :scale="[0.45, 1.1, 0.85] as any"
-        cast-shadow
       >
-        <TresSphereGeometry :args="[0.14, 8, 8]" />
-        <TresMeshStandardMaterial :color="hairColor" :roughness="0.6" />
+        <TresSphereGeometry :args="[0.14, 6, 6]" />
+        <TresMeshLambertMaterial :color="hairColor" />
       </TresMesh>
       <!-- Long hair for girls: right side panel covering side of head to neck -->
       <TresMesh
         v-if="gender === 'girl'"
         :position="[0.38, -0.05, -0.05] as any"
         :scale="[0.45, 1.1, 0.85] as any"
-        cast-shadow
       >
-        <TresSphereGeometry :args="[0.14, 8, 8]" />
-        <TresMeshStandardMaterial :color="hairColor" :roughness="0.6" />
+        <TresSphereGeometry :args="[0.14, 6, 6]" />
+        <TresMeshLambertMaterial :color="hairColor" />
       </TresMesh>
       <!-- Little ahoge (cute cowlick strand) -->
       <TresMesh
         :position="[0.08, 0.44, 0.05] as any"
         :rotation="[0.4, 0, 0.3]"
         :scale="[0.4, 1.5, 0.4] as any"
-        cast-shadow
       >
         <TresCapsuleGeometry :args="[0.04, 0.1, 4, 6]" />
-        <TresMeshStandardMaterial :color="hairColor" :roughness="0.6" />
+        <TresMeshLambertMaterial :color="hairColor" />
       </TresMesh>
 
       <!-- Cap crown (hemisphere, bigger to cover hair) -->
-      <TresMesh v-if="hasHat" :position="[0, 0.24, -0.02] as any" cast-shadow>
+      <TresMesh v-if="hasHat" :position="[0, 0.24, -0.02] as any">
         <TresSphereGeometry
-          :args="[0.42, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55]"
+          :args="[0.42, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.55]"
         />
-        <TresMeshStandardMaterial :color="hatColor" :roughness="0.6" />
+        <TresMeshLambertMaterial :color="hatColor" />
       </TresMesh>
       <!-- Cap brim / visor (flat, extends forward) -->
       <TresMesh
@@ -244,30 +206,25 @@
         :position="[0, 0.14, 0.32] as any"
         :rotation="[-0.15, 0, 0]"
         :scale="[1.3, 0.12, 1] as any"
-        cast-shadow
       >
         <TresCylinderGeometry
-          :args="[0.18, 0.18, 0.22, 16, 1, false, 0, Math.PI]"
+          :args="[0.18, 0.18, 0.22, 12, 1, false, 0, Math.PI]"
         />
-        <TresMeshStandardMaterial
-          :color="hatColor"
-          :roughness="0.6"
-          :side="2"
-        />
+        <TresMeshLambertMaterial :color="hatColor" :side="2" />
       </TresMesh>
       <!-- Cap button on top -->
-      <TresMesh v-if="hasHat" :position="[0, 0.46, 0] as any" cast-shadow>
+      <TresMesh v-if="hasHat" :position="[0, 0.46, 0] as any">
         <TresSphereGeometry :args="[0.04, 6, 6]" />
-        <TresMeshStandardMaterial :color="hatColor" :roughness="0.7" />
+        <TresMeshLambertMaterial :color="hatColor" />
       </TresMesh>
 
       <!-- Rosy cheeks -->
       <TresMesh :position="[-0.22, -0.06, 0.3] as any">
-        <TresCircleGeometry :args="[0.06, 8]" />
+        <TresCircleGeometry :args="[0.06, 6]" />
         <TresMeshBasicMaterial color="#ff9999" :opacity="0.5" transparent />
       </TresMesh>
       <TresMesh :position="[0.22, -0.06, 0.3] as any">
-        <TresCircleGeometry :args="[0.06, 8]" />
+        <TresCircleGeometry :args="[0.06, 6]" />
         <TresMeshBasicMaterial color="#ff9999" :opacity="0.5" transparent />
       </TresMesh>
 
@@ -277,14 +234,14 @@
         :scale="[1, 1.4, 0.6] as any"
       >
         <TresSphereGeometry :args="[0.1, 8, 8]" />
-        <TresMeshStandardMaterial color="#ffffff" />
+        <TresMeshBasicMaterial color="#ffffff" />
       </TresMesh>
       <TresMesh
         :position="[0.15, 0.03, 0.3] as any"
         :scale="[1, 1.4, 0.6] as any"
       >
         <TresSphereGeometry :args="[0.1, 8, 8]" />
-        <TresMeshStandardMaterial color="#ffffff" />
+        <TresMeshBasicMaterial color="#ffffff" />
       </TresMesh>
       <!-- Big anime pupils (dark, oversized) -->
       <TresMesh
@@ -295,7 +252,7 @@
         :scale="[1, 1.3, 0.5] as any"
       >
         <TresSphereGeometry :args="[0.06, 8, 8]" />
-        <TresMeshStandardMaterial color="#1a1a3a" />
+        <TresMeshBasicMaterial color="#1a1a3a" />
       </TresMesh>
       <TresMesh
         ref="rightPupilRef"
@@ -305,7 +262,7 @@
         :scale="[1, 1.3, 0.5] as any"
       >
         <TresSphereGeometry :args="[0.06, 8, 8]" />
-        <TresMeshStandardMaterial color="#1a1a3a" />
+        <TresMeshBasicMaterial color="#1a1a3a" />
       </TresMesh>
       <!-- Eye shine (big cute glint, follows pupils) -->
       <TresMesh
@@ -330,7 +287,7 @@
       <!-- Cute smile -->
       <TresMesh :position="[0, -0.1, 0.34] as any" :rotation="[0.3, 0, 0]">
         <TresTorusGeometry :args="[0.07, 0.014, 6, 12, Math.PI]" />
-        <TresMeshStandardMaterial color="#222222" />
+        <TresMeshBasicMaterial color="#222222" />
       </TresMesh>
     </TresGroup>
 
@@ -339,22 +296,21 @@
       <!-- Handle: extends downward from face bottom to hand -->
       <TresMesh :position="[0, -0.15, 0] as any">
         <TresCylinderGeometry :args="[0.035, 0.035, 0.18, 8]" />
-        <TresMeshStandardMaterial :color="paddleHandleColor" :roughness="0.6" />
+        <TresMeshLambertMaterial :color="paddleHandleColor" />
       </TresMesh>
       <!-- Handle grip wrap -->
       <TresMesh :position="[0, -0.17, 0] as any">
         <TresCylinderGeometry :args="[0.038, 0.038, 0.12, 8]" />
-        <TresMeshStandardMaterial :color="paddleGripColor" :roughness="0.5" />
+        <TresMeshLambertMaterial :color="paddleGripColor" />
       </TresMesh>
       <!-- Paddle face: oval on top, bottom meets handle top -->
       <TresMesh
         :position="[0, 0.22, 0] as any"
         :rotation="[Math.PI / 2, 0, 0] as any"
         :scale="[0.8, 1.1, 1] as any"
-        cast-shadow
       >
-        <TresCylinderGeometry :args="[0.26, 0.26, 0.03, 32]" />
-        <TresMeshStandardMaterial :color="paddleColor" :roughness="0.4" />
+        <TresCylinderGeometry :args="[0.26, 0.26, 0.03, 20]" />
+        <TresMeshLambertMaterial :color="paddleColor" />
       </TresMesh>
       <!-- Edge guard: hollow ring on paddle face edge, white border -->
       <TresMesh
@@ -362,12 +318,8 @@
         :rotation="[0, 0, 0] as any"
         :scale="[0.8, 1.1, 1] as any"
       >
-        <TresRingGeometry :args="[0.26, 0.29, 48]" />
-        <TresMeshStandardMaterial
-          :color="paddleEdgeColor"
-          :roughness="0.3"
-          :side="2"
-        />
+        <TresRingGeometry :args="[0.26, 0.29, 24]" />
+        <TresMeshLambertMaterial :color="paddleEdgeColor" :side="2" />
       </TresMesh>
     </TresGroup>
   </TresGroup>

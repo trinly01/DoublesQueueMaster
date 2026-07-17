@@ -46,8 +46,8 @@
   />
 
   <!-- Ball (enlarged for mobile visibility) -->
-  <TresMesh ref="ballRef" cast-shadow>
-    <TresSphereGeometry :args="[0.11, 12, 12]" />
+  <TresMesh ref="ballRef">
+    <TresSphereGeometry :args="[0.11, 10, 8]" />
     <TresMeshStandardMaterial
       color="#fde047"
       :emissive="'#fde047'"
@@ -59,6 +59,18 @@
   <TresMesh ref="shadowRef" :rotation="[-Math.PI / 2, 0, 0]">
     <TresCircleGeometry :args="[0.13, 12]" />
     <TresMeshBasicMaterial color="#1a1a2e" :opacity="0.3" transparent />
+  </TresMesh>
+
+  <!-- Player blob shadow -->
+  <TresMesh ref="playerShadowRef" :rotation="[-Math.PI / 2, 0, 0]">
+    <TresCircleGeometry :args="[0.32, 16]" />
+    <TresMeshBasicMaterial color="#1a1a2e" :opacity="0.28" transparent />
+  </TresMesh>
+
+  <!-- AI blob shadow -->
+  <TresMesh ref="aiShadowRef" :rotation="[-Math.PI / 2, 0, 0]">
+    <TresCircleGeometry :args="[0.32, 16]" />
+    <TresMeshBasicMaterial color="#1a1a2e" :opacity="0.28" transparent />
   </TresMesh>
 
   <!-- Bounce prediction indicator -->
@@ -82,6 +94,7 @@ import { useRandomPalette } from 'src/composables/useRandomPalette';
 
 const props = defineProps<{
   refs: GameRefs;
+  step: (time: number) => void;
 }>();
 
 const { randomPalette } = useRandomPalette();
@@ -96,6 +109,8 @@ const playerRef = ref();
 const aiRef = ref();
 const ballRef = ref();
 const shadowRef = ref();
+const playerShadowRef = ref();
+const aiShadowRef = ref();
 const bounceMarkerRef = ref();
 const cameraRef = ref();
 
@@ -120,6 +135,12 @@ let aiAnimMagSmooth = 0;
 // Last stable move angle (prevents sign flip when velocity ~0)
 let playerMoveAngleStable = 0;
 let aiMoveAngleStable = 0;
+// Bounce marker smoothing state (render-side interpolation)
+const markerPos = new THREE.Vector3();
+const markerTarget = new THREE.Vector3();
+let markerOpacity = 0;
+let markerMissTime = 0;
+let markerHasTarget = false;
 
 onMounted(() => {
   // Set initial base rotations
@@ -130,6 +151,9 @@ onMounted(() => {
     aiRef.value.groupRef.rotation.y = 0;
   }
   onBeforeRender(({ elapsed }) => {
+    // Run game physics step first (merged from separate RAF)
+    props.step(elapsed);
+    // dt for animation interpolation
     const dt = lastTime > 0 ? Math.min(elapsed - lastTime, 0.05) : 0.016;
     lastTime = elapsed;
 
@@ -161,13 +185,8 @@ onMounted(() => {
         (targetLean - playerRef.value.groupRef.rotation.z) * kLean;
       playerRef.value.groupRef.rotation.x +=
         (targetPitch - playerRef.value.groupRef.rotation.x) * kLean;
-      // Leg swing: projected onto movement direction
-      const moveMag = Math.min(
-        1,
-        Math.sqrt(
-          r.playerMoveDir * r.playerMoveDir + r.playerMoveZ * r.playerMoveZ,
-        ),
-      );
+      // Leg swing: reuse moveMagBody (same value, avoid redundant sqrt)
+      const moveMag = Math.min(1, moveMagBody);
       // Smooth animMag: ease in/out instead of hard cutoff
       playerAnimMagSmooth = THREE.MathUtils.damp(
         playerAnimMagSmooth,
@@ -256,20 +275,18 @@ onMounted(() => {
         const pupilOffX = nx * 0.03;
         const pupilOffY = Math.max(-0.025, Math.min(0.025, dy * 0.03));
         const pupilOffZ = -nz * 0.02;
-        playerRef.value.pupilPositions.value = {
-          lx: -0.15 + pupilOffX,
-          ly: 0.03 + pupilOffY,
-          lz: 0.37 + pupilOffZ,
-          rx: 0.15 + pupilOffX,
-          ry: 0.03 + pupilOffY,
-          rz: 0.37 + pupilOffZ,
-          lsx: -0.13 + pupilOffX,
-          lsy: 0.06 + pupilOffY,
-          lsz: 0.4 + pupilOffZ,
-          rsx: 0.17 + pupilOffX,
-          rsy: 0.06 + pupilOffY,
-          rsz: 0.4 + pupilOffZ,
-        };
+        playerPupils.lx = -0.15 + pupilOffX;
+        playerPupils.ly = 0.03 + pupilOffY;
+        playerPupils.lz = 0.37 + pupilOffZ;
+        playerPupils.rx = 0.15 + pupilOffX;
+        playerPupils.ry = 0.03 + pupilOffY;
+        playerPupils.rz = 0.37 + pupilOffZ;
+        playerPupils.lsx = -0.13 + pupilOffX;
+        playerPupils.lsy = 0.06 + pupilOffY;
+        playerPupils.lsz = 0.4 + pupilOffZ;
+        playerPupils.rsx = 0.17 + pupilOffX;
+        playerPupils.rsy = 0.06 + pupilOffY;
+        playerPupils.rsz = 0.4 + pupilOffZ;
       }
     }
     // Update player paddle (movement-based position, ball-direction when close, never through body)
@@ -358,11 +375,8 @@ onMounted(() => {
         (targetLean - aiRef.value.groupRef.rotation.z) * kLean;
       aiRef.value.groupRef.rotation.x +=
         (targetPitch - aiRef.value.groupRef.rotation.x) * kLean;
-      // Leg swing: projected onto movement direction
-      const aiMoveMag = Math.min(
-        1,
-        Math.sqrt(r.aiMoveDir * r.aiMoveDir + r.aiMoveZ * r.aiMoveZ),
-      );
+      // Leg swing: reuse aiMoveMagBody (same value, avoid redundant sqrt)
+      const aiMoveMag = Math.min(1, aiMoveMagBody);
       // Smooth animMag: ease in/out instead of hard cutoff
       aiAnimMagSmooth = THREE.MathUtils.damp(aiAnimMagSmooth, aiMoveMag, 8, dt);
       const aiAnimMag = aiAnimMagSmooth;
@@ -445,20 +459,18 @@ onMounted(() => {
         const pupilOffX = nx * 0.03;
         const pupilOffY = Math.max(-0.025, Math.min(0.025, dy * 0.03));
         const pupilOffZ = nz * 0.02;
-        aiRef.value.pupilPositions.value = {
-          lx: -0.15 + pupilOffX,
-          ly: 0.03 + pupilOffY,
-          lz: 0.37 + pupilOffZ,
-          rx: 0.15 + pupilOffX,
-          ry: 0.03 + pupilOffY,
-          rz: 0.37 + pupilOffZ,
-          lsx: -0.13 + pupilOffX,
-          lsy: 0.06 + pupilOffY,
-          lsz: 0.4 + pupilOffZ,
-          rsx: 0.17 + pupilOffX,
-          rsy: 0.06 + pupilOffY,
-          rsz: 0.4 + pupilOffZ,
-        };
+        aiPupils.lx = -0.15 + pupilOffX;
+        aiPupils.ly = 0.03 + pupilOffY;
+        aiPupils.lz = 0.37 + pupilOffZ;
+        aiPupils.rx = 0.15 + pupilOffX;
+        aiPupils.ry = 0.03 + pupilOffY;
+        aiPupils.rz = 0.37 + pupilOffZ;
+        aiPupils.lsx = -0.13 + pupilOffX;
+        aiPupils.lsy = 0.06 + pupilOffY;
+        aiPupils.lsz = 0.4 + pupilOffZ;
+        aiPupils.rsx = 0.17 + pupilOffX;
+        aiPupils.rsy = 0.06 + pupilOffY;
+        aiPupils.rsz = 0.4 + pupilOffZ;
       }
     }
     // Update AI paddle (movement-based position, ball-direction when close, never through body)
@@ -530,21 +542,55 @@ onMounted(() => {
       shadowRef.value.position.set(r.ballPos.x, 0.01, r.ballPos.z);
     }
 
-    // Update bounce prediction marker
+    // Update player blob shadow
+    if (playerShadowRef.value) {
+      playerShadowRef.value.position.set(r.playerPos.x, 0.01, r.playerPos.z);
+    }
+
+    // Update AI blob shadow
+    if (aiShadowRef.value) {
+      aiShadowRef.value.position.set(r.aiPos.x, 0.01, r.aiPos.z);
+    }
+
+    // Update bounce prediction marker (smoothed render-side)
     if (bounceMarkerRef.value) {
+      const mesh = bounceMarkerRef.value;
+      const mat = mesh.material;
+
       if (r.ballBouncePredict) {
-        bounceMarkerRef.value.visible = true;
-        bounceMarkerRef.value.position.set(
-          r.ballBouncePredict.x,
-          0.03,
-          r.ballBouncePredict.z,
-        );
+        markerTarget.set(r.ballBouncePredict.x, 0.03, r.ballBouncePredict.z);
+        markerMissTime = 0;
+        markerHasTarget = true;
+      } else {
+        markerMissTime += dt;
+        if (markerMissTime > 0.15) {
+          markerHasTarget = false;
+        }
+      }
+
+      if (markerHasTarget) {
+        // Snap on large jumps (fresh hit), else lerp smoothly
+        const dist = markerPos.distanceTo(markerTarget);
+        if (dist > 3) {
+          markerPos.copy(markerTarget);
+        } else {
+          const lerpFactor = Math.min(1, dt * 12);
+          markerPos.x += (markerTarget.x - markerPos.x) * lerpFactor;
+          markerPos.y += (markerTarget.y - markerPos.y) * lerpFactor;
+          markerPos.z += (markerTarget.z - markerPos.z) * lerpFactor;
+        }
+        mesh.position.copy(markerPos);
+
         // Pulse scale
         const pulse = 1 + Math.sin(elapsed * 6) * 0.15;
-        bounceMarkerRef.value.scale.set(pulse, pulse, 1);
-      } else {
-        bounceMarkerRef.value.visible = false;
+        mesh.scale.set(pulse, pulse, 1);
       }
+
+      // Fade opacity smoothly
+      const opacityTarget = markerHasTarget ? 0.6 : 0;
+      markerOpacity += (opacityTarget - markerOpacity) * Math.min(1, dt * 10);
+      if (mat) mat.opacity = markerOpacity;
+      mesh.visible = markerOpacity > 0.02;
     }
 
     // Soft-follow camera: follow midpoint of player and AI, keep height & z fixed

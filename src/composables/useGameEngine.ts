@@ -153,7 +153,6 @@ export function useGameEngine() {
   });
 
   let lastTime = 0;
-  let rafId = 0;
   let playerHitCooldown = 0;
   let aiHitCooldown = 0;
   let aiReactionTimer = 0;
@@ -1131,11 +1130,11 @@ export function useGameEngine() {
         const simVz = refs.ballVel.z;
         const simVx = refs.ballVel.x;
         let found = false;
-        for (let i = 0; i < 120; i++) {
-          simY += simVy * 0.016;
-          simVy += GRAVITY * 0.016;
-          simZ += simVz * 0.016;
-          simX += simVx * 0.016;
+        for (let i = 0; i < 80; i++) {
+          simY += simVy * 0.02;
+          simVy += GRAVITY * 0.02;
+          simZ += simVz * 0.02;
+          simX += simVx * 0.02;
           if (
             simY <= BALL_RADIUS &&
             simZ > -HALF_COURT_L &&
@@ -1541,11 +1540,9 @@ export function useGameEngine() {
     prevGamepadButtons = curButtons;
   }
 
-  function gameLoop(time: number) {
-    rafId = requestAnimationFrame(gameLoop);
-
+  function step(time: number) {
     if (lastTime === 0) lastTime = time;
-    const dt = Math.min((time - lastTime) / 1000, 0.05);
+    const dt = Math.min(time - lastTime, 0.05);
     lastTime = time;
 
     if (gameState.value === 'playing') {
@@ -1568,19 +1565,20 @@ export function useGameEngine() {
     }
   }
 
+  let loopStarted = false;
   function startLoop() {
-    if (rafId) return;
+    if (loopStarted) {
+      lastTime = 0;
+      return;
+    }
+    loopStarted = true;
     lastTime = 0;
     window.addEventListener('gamepadconnected', onGamepadConnected);
     window.addEventListener('gamepaddisconnected', onGamepadDisconnected);
-    rafId = requestAnimationFrame(gameLoop);
   }
 
   function stopLoop() {
-    if (rafId) {
-      cancelAnimationFrame(rafId);
-      rafId = 0;
-    }
+    lastTime = 0;
   }
 
   // Keyboard handlers
@@ -1712,6 +1710,7 @@ export function useGameEngine() {
     resumeGame,
     startLoop,
     stopLoop,
+    step,
     onKeyDown,
     onKeyUp,
     setTouchInput,
