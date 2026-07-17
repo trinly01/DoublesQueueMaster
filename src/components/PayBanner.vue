@@ -26,7 +26,7 @@ interface Props {
 }
 
 withDefaults(defineProps<Props>(), {
-  message: 'Premium access paused. Reactivate to unlock.',
+  message: 'These are Pro features.',
   buttonLabel: 'Reactivate',
   loading: false,
 });

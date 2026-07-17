@@ -461,6 +461,7 @@
             >
               <PayBanner
                 v-if="isPaymentExpired"
+                message="Partner stats are a Pro feature."
                 :loading="paymentLoading"
                 @pay="callPayment({ playerId: username })"
               />
@@ -547,6 +548,7 @@
             >
               <PayBanner
                 v-if="isPaymentExpired"
+                message="Rival stats are a Pro feature."
                 :loading="paymentLoading"
                 @pay="callPayment({ playerId: username })"
               />
@@ -633,6 +635,7 @@
             >
               <PayBanner
                 v-if="isPaymentExpired"
+                message="Clutch stats are a Pro feature."
                 :loading="paymentLoading"
                 @pay="callPayment({ playerId: username })"
               />
