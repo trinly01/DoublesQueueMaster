@@ -1109,7 +1109,7 @@
           <!-- Content -->
           <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
             <!-- Mode Toggle -->
-            <div class="q-mb-sm q-pb-lg">
+            <div class="q-pb-md">
               <q-btn-group spread class="full-width">
                 <q-btn
                   flat
@@ -1312,8 +1312,8 @@
             <!-- Club Members Mode -->
             <div v-else-if="addPlayerMode === 'club'" class="q-gutter-y-md">
               <!-- Search & Sort -->
-              <div class="row q-col-gutter-sm">
-                <div class="col-12 col-sm-5">
+              <div class="row q-col-gutter-x-sm">
+                <div class="col-12 col-sm-6">
                   <q-input
                     v-model="clubMemberSearch"
                     label="Search club members"
@@ -1326,7 +1326,7 @@
                     </template>
                   </q-input>
                 </div>
-                <div class="col-12 col-sm-4">
+                <div class="col-12 col-sm-6">
                   <q-select
                     v-model="clubMemberSort"
                     :options="[
@@ -1345,83 +1345,85 @@
               </div>
 
               <!-- Selected count -->
-              <div class="text-caption text-grey-7">
+              <div class="text-caption text-grey-7 q-mt-md">
                 {{ selectedClubMembers.length }} member(s) selected
               </div>
 
               <!-- Members list -->
-              <q-list separator dense class="rounded-borders">
-                <q-item
-                  v-for="member in availableClubMembers"
-                  :key="member.id"
-                  :clickable="true"
-                  @click="toggleClubMember(member.id)"
-                  :class="{ 'bg-purple-1': isClubMemberSelected(member.id) }"
-                >
-                  <q-item-section avatar>
-                    <PlayerAvatar
-                      :name="member.firstName"
-                      :username="member.username"
-                      :email="member.email"
-                      :user-id="member.id"
-                      :dupr-id="member.duprId"
-                      :image-url="
-                        !clubMemberAvatarErrors.has(member.id)
-                          ? member.avatar
-                          : undefined
-                      "
-                      size="md"
-                      @image-error="clubMemberAvatarErrors.add(member.id)"
-                    />
-                  </q-item-section>
-                  <q-item-section>
-                    <div class="row items-center no-wrap">
-                      <q-item-label class="text-weight-medium ellipsis">
-                        {{
-                          member.firstName ||
-                          member.username ||
-                          member.email?.split('@')[0] ||
-                          'Unknown'
-                        }}
+              <div class="q-mt-md">
+                <q-list separator dense class="rounded-borders">
+                  <q-item
+                    v-for="member in availableClubMembers"
+                    :key="member.id"
+                    :clickable="true"
+                    @click="toggleClubMember(member.id)"
+                    :class="{ 'bg-purple-1': isClubMemberSelected(member.id) }"
+                  >
+                    <q-item-section avatar>
+                      <PlayerAvatar
+                        :name="member.firstName"
+                        :username="member.username"
+                        :email="member.email"
+                        :user-id="member.id"
+                        :dupr-id="member.duprId"
+                        :image-url="
+                          !clubMemberAvatarErrors.has(member.id)
+                            ? member.avatar
+                            : undefined
+                        "
+                        size="md"
+                        @image-error="clubMemberAvatarErrors.add(member.id)"
+                      />
+                    </q-item-section>
+                    <q-item-section>
+                      <div class="row items-center no-wrap">
+                        <q-item-label class="text-weight-medium ellipsis">
+                          {{
+                            member.firstName ||
+                            member.username ||
+                            member.email?.split('@')[0] ||
+                            'Unknown'
+                          }}
+                        </q-item-label>
+                        <q-chip
+                          :label="member.rating || 1450"
+                          :color="getRatingColor(member.rating || 1450)"
+                          text-color="white"
+                          size="xs"
+                          dense
+                          class="q-ml-xs"
+                        />
+                      </div>
+                      <q-item-label
+                        caption
+                        class="text-grey-6"
+                        style="font-size: 10px"
+                        v-if="member.username && member.firstName"
+                      >
+                        @{{ member.username }}
                       </q-item-label>
-                      <q-chip
-                        :label="member.rating || 1450"
-                        :color="getRatingColor(member.rating || 1450)"
-                        text-color="white"
-                        size="xs"
-                        dense
-                        class="q-ml-xs"
-                      />
-                    </div>
-                    <q-item-label
-                      caption
-                      class="text-grey-6"
-                      style="font-size: 10px"
-                      v-if="member.username && member.firstName"
-                    >
-                      @{{ member.username }}
-                    </q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <div class="row items-center q-gutter-sm">
-                      <q-checkbox
-                        :model-value="isClubMemberSelected(member.id)"
-                        color="accent"
-                        @click.stop="toggleClubMember(member.id)"
-                      />
-                    </div>
-                  </q-item-section>
-                </q-item>
-                <q-item v-if="availableClubMembers.length === 0">
-                  <q-item-section class="text-grey">
-                    No club members available to add
-                  </q-item-section>
-                </q-item>
-              </q-list>
+                    </q-item-section>
+                    <q-item-section side>
+                      <div class="row items-center q-gutter-sm">
+                        <q-checkbox
+                          :model-value="isClubMemberSelected(member.id)"
+                          color="accent"
+                          @click.stop="toggleClubMember(member.id)"
+                        />
+                      </div>
+                    </q-item-section>
+                  </q-item>
+                  <q-item v-if="availableClubMembers.length === 0">
+                    <q-item-section class="text-grey">
+                      No club members available to add
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </div>
             </div>
 
             <!-- QR Mode -->
-            <div v-else-if="addPlayerMode === 'qr'">
+            <div v-else-if="addPlayerMode === 'qr'" class="q-gutter-y-md">
               <div v-if="scanError" class="text-negative text-center q-pa-md">
                 <q-icon name="error" size="48px" />
                 <div class="text-h6 q-mt-sm">{{ scanError }}</div>
@@ -1452,7 +1454,6 @@
                 label="Stay on scanner after adding a player"
                 color="accent"
                 dense
-                class="q-mt-sm"
               />
             </div>
           </q-card-section>
