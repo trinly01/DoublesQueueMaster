@@ -1449,7 +1449,7 @@
               </div>
               <q-checkbox
                 v-model="qrContinueScan"
-                label="Continue scanning after each add"
+                label="Stay on scanner after adding a player"
                 color="accent"
                 dense
                 class="q-mt-sm"
@@ -5219,20 +5219,33 @@ const doResumeSync = async () => {
   restartRealtime();
 };
 
+let scannerRestartTimer: ReturnType<typeof setTimeout> | null = null;
+const restartScannerIfActive = () => {
+  if (!showAddPlayerDialog.value || addPlayerMode.value !== 'qr') return;
+  if (scannerRestartTimer) clearTimeout(scannerRestartTimer);
+  scannerRestartTimer = setTimeout(() => {
+    scannerRestartTimer = null;
+    void startScan('qr-reader-inline');
+  }, 500);
+};
+
 const handleVisibilityChange = () => {
   const wasHidden = !isTabVisible;
   isTabVisible = !document.hidden;
   if (isTabVisible && wasHidden) {
     doResumeSync();
+    restartScannerIfActive();
   }
 };
 
 const handleFocus = () => {
   doResumeSync();
+  restartScannerIfActive();
 };
 
 const handlePageShow = () => {
   doResumeSync();
+  restartScannerIfActive();
 };
 
 onMounted(async () => {
