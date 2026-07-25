@@ -451,23 +451,20 @@
                   </q-toolbar-title>
                   <div class="queue-stats">
                     <q-chip
-                      :label="`L1: ${queueStats.level1}`"
-                      color="green-6"
+                      v-for="cat in queueStats.categories"
+                      :key="cat.label"
+                      :label="cat.count.toString()"
+                      :color="cat.color"
                       text-color="white"
                       size="sm"
-                    />
-                    <q-chip
-                      :label="`L2: ${queueStats.level2}`"
-                      color="orange-7"
-                      text-color="white"
-                      size="sm"
-                    />
-                    <q-chip
-                      :label="`L3: ${queueStats.level3}`"
-                      color="red-8"
-                      text-color="white"
-                      size="sm"
-                    />
+                    >
+                      <q-tooltip
+                        anchor="top middle"
+                        self="bottom middle"
+                        :offset="[0, 4]"
+                        >{{ cat.label }}</q-tooltip
+                      >
+                    </q-chip>
                   </div>
                 </q-toolbar>
               </q-card-section>
@@ -851,23 +848,20 @@
                       <div class="row items-center justify-between">
                         <div class="queue-stats">
                           <q-chip
-                            :label="`L1: ${queueStats.level1}`"
-                            color="green-6"
+                            v-for="cat in queueStats.categories"
+                            :key="cat.label"
+                            :label="cat.count.toString()"
+                            :color="cat.color"
                             text-color="white"
                             size="sm"
-                          />
-                          <q-chip
-                            :label="`L2: ${queueStats.level2}`"
-                            color="orange-7"
-                            text-color="white"
-                            size="sm"
-                          />
-                          <q-chip
-                            :label="`L3: ${queueStats.level3}`"
-                            color="red-8"
-                            text-color="white"
-                            size="sm"
-                          />
+                          >
+                            <q-tooltip
+                              anchor="top middle"
+                              self="bottom middle"
+                              :offset="[0, 4]"
+                              >{{ cat.label }}</q-tooltip
+                            >
+                          </q-chip>
                         </div>
                       </div>
                     </div>
@@ -1116,14 +1110,56 @@
           <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
             <!-- Mode Toggle -->
             <div class="q-mb-sm q-pb-lg">
-              <q-btn-toggle
-                v-model="addPlayerMode"
-                :options="addPlayerModeOptions"
-                color="grey-5"
-                toggle-color="accent"
-                spread
-                class="full-width"
-              />
+              <q-btn-group spread class="full-width">
+                <q-btn
+                  flat
+                  color="accent"
+                  :class="
+                    addPlayerMode === 'single' ? 'bg-accent text-white' : ''
+                  "
+                  icon="person"
+                  label="Single Player"
+                  dense
+                  size="sm"
+                  @click="addPlayerMode = 'single'"
+                />
+                <q-btn
+                  flat
+                  color="accent"
+                  :class="
+                    addPlayerMode === 'bulk' ? 'bg-accent text-white' : ''
+                  "
+                  icon="group_add"
+                  label="Bulk Import"
+                  dense
+                  size="sm"
+                  @click="addPlayerMode = 'bulk'"
+                />
+                <q-btn
+                  v-if="isCurrentUserAdmin && clubMembers.length > 0"
+                  flat
+                  color="accent"
+                  :class="
+                    addPlayerMode === 'club' ? 'bg-accent text-white' : ''
+                  "
+                  icon="groups"
+                  label="Club Members"
+                  dense
+                  size="sm"
+                  @click="addPlayerMode = 'club'"
+                />
+                <q-btn
+                  v-if="isCurrentUserAdmin"
+                  flat
+                  color="accent"
+                  :class="addPlayerMode === 'qr' ? 'bg-accent text-white' : ''"
+                  icon="qr_code_scanner"
+                  label="Scan QR"
+                  dense
+                  size="sm"
+                  @click="addPlayerMode = 'qr'"
+                />
+              </q-btn-group>
             </div>
 
             <!-- Single Player Mode -->
@@ -1306,18 +1342,6 @@
                     map-options
                   />
                 </div>
-                <div class="col-12 col-sm-3">
-                  <q-btn
-                    color="accent"
-                    icon="qr_code_scanner"
-                    label="Scan QR"
-                    class="full-width"
-                    dense
-                    unelevated
-                    style="height: 40px"
-                    @click="openScanDialog"
-                  />
-                </div>
               </div>
 
               <!-- Selected count -->
@@ -1395,6 +1419,42 @@
                 </q-item>
               </q-list>
             </div>
+
+            <!-- QR Mode -->
+            <div v-else-if="addPlayerMode === 'qr'">
+              <div v-if="scanError" class="text-negative text-center q-pa-md">
+                <q-icon name="error" size="48px" />
+                <div class="text-h6 q-mt-sm">{{ scanError }}</div>
+                <q-btn
+                  color="accent"
+                  label="Try Again"
+                  class="q-mt-md"
+                  @click="startScan('qr-reader-inline')"
+                />
+              </div>
+              <div v-else style="position: relative; width: 100%">
+                <div id="qr-reader-inline" style="width: 100%"></div>
+                <div
+                  v-if="scanProcessing"
+                  class="absolute-full flex flex-center"
+                  style="background: rgba(255, 255, 255, 0.85); z-index: 1"
+                >
+                  <div class="text-center">
+                    <q-spinner size="48px" color="accent" />
+                    <div class="text-subtitle2 q-mt-md text-grey-7">
+                      Processing…
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <q-checkbox
+                v-model="qrContinueScan"
+                label="Continue scanning after each add"
+                color="accent"
+                dense
+                class="q-mt-sm"
+              />
+            </div>
           </q-card-section>
 
           <!-- Footer Actions -->
@@ -1468,46 +1528,6 @@
                 >Add members</q-tooltip
               >
             </q-btn>
-          </q-card-actions>
-        </q-card>
-      </q-dialog>
-
-      <!-- QR Scanner Dialog -->
-      <q-dialog
-        v-model="showScanDialog"
-        :maximized="$q.screen.lt.md"
-        @hide="stopScan"
-      >
-        <q-card
-          class="bg-white"
-          style="
-            max-width: 600px;
-            width: 95vw;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-          "
-        >
-          <DialogHeader title="Scan Player QR" icon="qr_code_scanner" />
-          <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
-            <div v-if="scanError" class="text-negative text-center q-pa-md">
-              <q-icon name="error" size="48px" />
-              <div class="text-h6 q-mt-sm">{{ scanError }}</div>
-              <q-btn
-                color="accent"
-                label="Try Again"
-                class="q-mt-md"
-                @click="startScan"
-              />
-            </div>
-            <div
-              v-else
-              id="qr-reader"
-              style="width: 100%; min-height: 300px"
-            ></div>
-          </q-card-section>
-          <q-card-actions align="right" class="q-pa-md">
-            <q-btn flat label="Cancel" color="grey" v-close-popup />
           </q-card-actions>
         </q-card>
       </q-dialog>
@@ -3293,7 +3313,7 @@
 <script setup lang="ts">
 import { MatchmakingApp, mergeAppState } from '../services/matchmaking';
 import type { Player, AppState } from '../services/matchmaking';
-import { readItems, updateItem, readMe } from '@likha-erp/likha-sdk';
+import { readItems, updateItem, readMe, readUsers } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
 import { useAuth } from 'src/composables/useAuth';
@@ -3328,6 +3348,7 @@ import {
   getLevelColor,
   getLevelIcon,
   getRatingColor,
+  getRatingCategory,
 } from '../utils/playerHelpers';
 import { replayMatches } from '../utils/ratingReplay';
 import { computeWinProbability } from '../services/matchmaking';
@@ -3536,16 +3557,16 @@ const canCompleteMatch = computed(() => {
 const newPlayerName = ref<string | null>(null);
 const newPlayerLevel = ref<1 | 2 | 3 | null>(null);
 const newPlayerDuprId = ref<string>('');
-// Add player dialog mode: 'single' | 'bulk' | 'club'
-const addPlayerMode = ref<'single' | 'bulk' | 'club'>('single');
+// Add player dialog mode: 'single' | 'bulk' | 'club' | 'qr'
+const addPlayerMode = ref<'single' | 'bulk' | 'club' | 'qr'>('single');
 const selectedClubMembers = ref<string[]>([]);
 const clubMemberSearch = ref('');
 const clubMemberSort = ref<'nameAsc' | 'nameDesc' | 'ratingDesc' | 'ratingAsc'>(
   'nameAsc',
 );
 const clubMemberAvatarErrors = ref<Set<string>>(new Set());
-const showScanDialog = ref(false);
 const scanError = ref('');
+const scanProcessing = ref(false);
 let html5QrCode: Html5Qrcode | null = null;
 const bulkPlayerText = ref<string>('');
 const bulkPlayers = ref<
@@ -3616,6 +3637,14 @@ watch(ttsEnabled, (newVal, oldVal) => {
   if (oldVal === true && newVal === false) {
     clearSpeechQueue();
   }
+});
+const qrContinueScan = computed<boolean>({
+  get: () => MatchmakingApp.state.qrContinueScan ?? true,
+  set: (val) => {
+    MatchmakingApp.state.qrContinueScan = val;
+    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    MatchmakingApp.persist();
+  },
 });
 const maxCourts = ref<number>(8);
 
@@ -3762,22 +3791,18 @@ const isClubMemberSelected = (memberId: string): boolean => {
   return selectedClubMembers.value.includes(memberId);
 };
 
-const openScanDialog = () => {
+const startScan = async (elementId = 'qr-reader-inline') => {
   scanError.value = '';
-  showScanDialog.value = true;
-  // Wait for dialog to render before starting scanner
-  setTimeout(() => startScan(), 300);
-};
-
-const startScan = async () => {
-  scanError.value = '';
+  scanProcessing.value = false;
   try {
-    if (!html5QrCode) {
-      html5QrCode = new Html5Qrcode('qr-reader');
-    }
+    await stopScan();
+    // Clear any leftover DOM from previous scanner
+    const el = document.getElementById(elementId);
+    if (el) el.innerHTML = '';
+    html5QrCode = new Html5Qrcode(elementId);
     await html5QrCode.start(
       { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
+      { fps: 5, qrbox: { width: 250, height: 250 }, disableFlip: true },
       onScanSuccess,
       () => {
         /* ignore scan errors */
@@ -3792,60 +3817,189 @@ const startScan = async () => {
 
 const stopScan = async () => {
   try {
-    if (html5QrCode && html5QrCode.isScanning) {
-      await html5QrCode.stop();
+    if (html5QrCode) {
+      if (html5QrCode.isScanning) {
+        await html5QrCode.stop();
+      }
       html5QrCode.clear();
+      html5QrCode = null;
     }
   } catch {
     // ignore stop errors
+    html5QrCode = null;
   }
 };
 
 const onScanSuccess = async (decodedText: string) => {
-  // Stop scanning immediately
-  await stopScan();
-  showScanDialog.value = false;
+  // Ignore duplicate scans while processing a previous one
+  if (scanProcessing.value) return;
+  scanProcessing.value = true;
+
+  // Brief pause to let user pull QR away before resuming
+  await new Promise((resolve) => setTimeout(resolve, 500));
 
   const scannedUsername = decodedText.trim();
   if (!scannedUsername) {
     notify({ type: 'warning', message: 'Invalid QR code' });
+    scanProcessing.value = false;
     return;
   }
 
-  // Find member by username in availableClubMembers
-  const member = availableClubMembers.value.find(
+  // Check if player is already in the queue
+  const alreadyInQueue = Object.values(MatchmakingApp.state.players).some(
+    (p) =>
+      p.username?.toLowerCase() === scannedUsername.toLowerCase() &&
+      !p.deletedAt,
+  );
+  if (alreadyInQueue) {
+    notify({
+      type: 'info',
+      message: `"${scannedUsername}" is already in the queue`,
+    });
+    if (qrContinueScan.value) {
+      scanProcessing.value = false;
+    } else {
+      scanProcessing.value = false;
+      showAddPlayerDialog.value = false;
+    }
+    return;
+  }
+
+  // Find member by username in clubMembers (not availableClubMembers — we want all members)
+  const member = clubMembers.value.find(
     (m) => m.username?.toLowerCase() === scannedUsername.toLowerCase(),
   );
 
-  if (!member) {
-    // Not a club member — offer to switch to Single Player mode
-    notify({
-      type: 'warning',
-      message: `"${scannedUsername}" is not a club member. Switching to manual entry.`,
-    });
-    addPlayerMode.value = 'single';
-    newPlayerName.value = scannedUsername;
+  if (member) {
+    // Club member — add to queue directly
+    const memberLevel = member.level ?? 2;
+    const memberRating =
+      member.rating ??
+      (memberLevel === 1 ? 1450 : memberLevel === 2 ? 1500 : 1550);
+    const result = MatchmakingApp.checkInPlayer(
+      member.username || scannedUsername,
+      memberLevel as 1 | 2 | 3,
+      {
+        firstName: member.firstName,
+        avatar: member.avatar,
+        userId: member.id,
+        duprId: member.duprId,
+        rating: memberRating,
+      },
+    );
+    if (result === 'added') {
+      notify({
+        type: 'positive',
+        message: `Added "${member.firstName || member.username}" to queue`,
+      });
+    }
+    if (qrContinueScan.value) {
+      scanProcessing.value = false;
+    } else {
+      scanProcessing.value = false;
+      showAddPlayerDialog.value = false;
+    }
     return;
   }
 
-  // Check if already selected
-  if (isClubMemberSelected(member.id)) {
+  // Not a club member — look up user by username in directus_users
+  try {
+    const users = await likhaClient.request(
+      readUsers({
+        filter: { username: { _eq: scannedUsername } },
+        fields: ['id', 'first_name', 'username', 'rating', 'avatar', 'dupr_id'],
+        limit: 1,
+      }),
+    );
+
+    if (!users || users.length === 0) {
+      notify({
+        type: 'warning',
+        message: `No registered user found with username "${scannedUsername}"`,
+      });
+      if (qrContinueScan.value) {
+        scanProcessing.value = false;
+      } else {
+        scanProcessing.value = false;
+      }
+      return;
+    }
+
+    const user = users[0] as Record<string, unknown>;
+    const userId = user.id as string;
+    const firstName = user.first_name as string | undefined;
+    const userRating = user.rating as number | undefined;
+    const userAvatar = user.avatar as string | undefined;
+    const userDuprId = user.dupr_id as string | undefined;
+
+    // Join the user to the club
+    const joinResult = await joinClubService(currentClubId.value, userId);
+    if (!joinResult.success) {
+      notify({
+        color: 'negative',
+        message: `Failed to join "${scannedUsername}": ${joinResult.error}`,
+      });
+      if (qrContinueScan.value) {
+        scanProcessing.value = false;
+      } else {
+        scanProcessing.value = false;
+      }
+      return;
+    }
+
+    // Refresh club members to pick up the new member
+    await refreshClubMembers();
+
+    // Add to queue with profile data
+    const avatarUrl = userAvatar
+      ? `${likhaUrl.value}/assets/${userAvatar}`
+      : undefined;
+    const memberLevel = 2;
+    const memberRating = userRating ?? 1500;
+    const checkInResult = MatchmakingApp.checkInPlayer(
+      scannedUsername,
+      memberLevel,
+      {
+        firstName,
+        avatar: avatarUrl,
+        userId,
+        duprId: userDuprId,
+        rating: memberRating,
+      },
+    );
+
+    if (checkInResult === 'added') {
+      notify({
+        type: 'positive',
+        message: `Joined & added "${firstName || scannedUsername}" to queue`,
+      });
+    } else if (checkInResult === 'already_in_queue') {
+      notify({
+        type: 'info',
+        message: `"${firstName || scannedUsername}" is already in the queue`,
+      });
+    }
+    if (qrContinueScan.value) {
+      scanProcessing.value = false;
+    } else {
+      scanProcessing.value = false;
+      showAddPlayerDialog.value = false;
+    }
+  } catch (err) {
+    if (await handleAuthError(err, router)) return;
+    const rawErr = err as { errors?: { message?: string }[]; message?: string };
+    const errMsg =
+      rawErr?.errors?.[0]?.message || rawErr?.message || 'Unknown error';
     notify({
-      type: 'info',
-      message: `"${member.firstName || member.username}" is already selected`,
+      color: 'negative',
+      message: `Failed to add "${scannedUsername}": ${errMsg}`,
     });
-    return;
+    if (qrContinueScan.value) {
+      scanProcessing.value = false;
+    } else {
+      scanProcessing.value = false;
+    }
   }
-
-  // Auto-select the member
-  toggleClubMember(member.id);
-  notify({
-    type: 'positive',
-    message: `Selected "${member.firstName || member.username}"`,
-  });
-
-  // Optional: auto-submit if user prefers one-at-a-time scanning
-  // For now, keep dialog open so admin can scan multiple players
 };
 const isCurrentUserAdmin = computed(() => {
   if (isOpenPlay.value) return true;
@@ -3871,17 +4025,6 @@ const queueMaxHeightDesktop = computed(() =>
 const queueMaxHeightMobile = computed(() =>
   isCurrentUserAdmin.value ? 'calc(100vh - 460px)' : 'calc(100vh - 300px)',
 );
-
-const addPlayerModeOptions = computed(() => {
-  const opts = [
-    { label: 'Single Player', value: 'single', icon: 'person' },
-    { label: 'Bulk Import', value: 'bulk', icon: 'group_add' },
-  ];
-  if (isCurrentUserAdmin.value && clubMembers.value.length > 0) {
-    opts.push({ label: 'Club Members', value: 'club', icon: 'groups' });
-  }
-  return opts;
-});
 
 const goHome = () => {
   router.push('/');
@@ -5191,7 +5334,14 @@ const getCourtCount = (): number => {
 const showAddPlayerDialog = ref(false);
 watch(showAddPlayerDialog, (open) => {
   if (open) {
-    addPlayerMode.value = 'single';
+    const savedMode = LocalStorage.getItem('addPlayerMode') as
+      | 'single'
+      | 'bulk'
+      | 'club'
+      | 'qr'
+      | null;
+    const wasQr = addPlayerMode.value === 'qr';
+    addPlayerMode.value = savedMode || 'single';
     selectedClubMembers.value = [];
     clubMemberSearch.value = '';
     newPlayerName.value = null;
@@ -5200,6 +5350,13 @@ watch(showAddPlayerDialog, (open) => {
     bulkPlayerText.value = '';
     bulkPlayers.value = [];
     bulkDefaultLevel.value = 2;
+    // Only start scanner here if mode was already 'qr' (addPlayerMode watcher won't fire)
+    if (addPlayerMode.value === 'qr' && wasQr) {
+      scanError.value = '';
+      setTimeout(() => startScan('qr-reader-inline'), 300);
+    }
+  } else {
+    void stopScan();
   }
 });
 const showSettingsDialog = ref(false);
@@ -5475,9 +5632,17 @@ watch(settingsTab, (tab) => {
 });
 
 // Fetch latest members when selecting Club Members mode in Add Player dialog
-watch(addPlayerMode, (mode) => {
+// Start/stop QR scanner when switching to/from QR mode
+watch(addPlayerMode, (mode, oldMode) => {
+  LocalStorage.set('addPlayerMode', mode);
   if (mode === 'club') {
     void refreshClubMembers();
+  }
+  if (mode === 'qr') {
+    scanError.value = '';
+    setTimeout(() => startScan('qr-reader-inline'), 300);
+  } else if (oldMode === 'qr') {
+    void stopScan();
   }
 });
 
@@ -5842,11 +6007,26 @@ const displayPlayers = computed(() => {
 
 const queueStats = computed(() => {
   const total = queue.value.length;
-  const level1 = queue.value.filter((p) => p.level === 1).length;
-  const level2 = queue.value.filter((p) => p.level === 2).length;
-  const level3 = queue.value.filter((p) => p.level === 3).length;
+  const categories = ['Beginner', 'Intermediate', 'Advanced', 'Expert', 'Pro'];
+  const counts = categories.map((cat) => ({
+    label: cat,
+    count: queue.value.filter(
+      (p) => getRatingCategory(p.rating || 1450) === cat,
+    ).length,
+    color: getRatingColor(
+      cat === 'Beginner'
+        ? 1300
+        : cat === 'Intermediate'
+          ? 1500
+          : cat === 'Advanced'
+            ? 1800
+            : cat === 'Expert'
+              ? 2000
+              : 2200,
+    ),
+  }));
 
-  return { total, level1, level2, level3 };
+  return { total, categories: counts.filter((c) => c.count > 0) };
 });
 
 const allPlayersInQueue = computed(() => {
