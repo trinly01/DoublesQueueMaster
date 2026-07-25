@@ -1619,22 +1619,32 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       const tombDeletedAt = Math.max(localDeleted, serverDeleted);
 
       let winner: Player;
-      let loser: Player;
+      let loser: Player | undefined;
       if (tombDeletedAt > liveAddedAt) {
         // Remove happened after the latest (re-)add: tombstone wins
-        winner = localDeleted > serverDeleted ? lp! : sp!;
-        loser = localDeleted > serverDeleted ? sp! : lp!;
+        if (localDeleted > serverDeleted) {
+          winner = lp!;
+          loser = sp;
+        } else {
+          winner = sp!;
+          loser = lp;
+        }
       } else {
         // (Re-)add happened after the latest removal: live copy wins
-        winner = lp && !lp.deletedAt ? lp : sp!;
-        loser = winner === lp ? sp! : lp!;
+        if (lp && !lp.deletedAt) {
+          winner = lp;
+          loser = sp;
+        } else {
+          winner = sp!;
+          loser = lp;
+        }
       }
 
       // Even if the tombstone/liveness winner is chosen by addedAt/deletedAt,
       // still overlay fresher stats from the loser if available.
       const winnerStatsAt = winner.statsUpdatedAt ?? 0;
-      const loserStatsAt = loser.statsUpdatedAt ?? 0;
-      if (loserStatsAt > winnerStatsAt) {
+      const loserStatsAt = loser?.statsUpdatedAt ?? 0;
+      if (loser && loserStatsAt > winnerStatsAt) {
         winner.matchesPlayed = loser.matchesPlayed;
         winner.wins = loser.wins;
         winner.losses = loser.losses;
@@ -1642,8 +1652,8 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
         winner.statsUpdatedAt = loserStatsAt;
       }
       const winnerRatingAt = winner.ratingUpdatedAt ?? 0;
-      const loserRatingAt = loser.ratingUpdatedAt ?? 0;
-      if (loserRatingAt > winnerRatingAt) {
+      const loserRatingAt = loser?.ratingUpdatedAt ?? 0;
+      if (loser && loserRatingAt > winnerRatingAt) {
         winner.rating = loser.rating;
         winner.ratingUpdatedAt = loserRatingAt;
       }
