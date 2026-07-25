@@ -1326,7 +1326,7 @@
                     </template>
                   </q-input>
                 </div>
-                <div class="col-12 col-sm-6">
+                <div class="col-12 col-sm-6 club-sort-col">
                   <q-select
                     v-model="clubMemberSort"
                     :options="[
@@ -8335,6 +8335,11 @@ const savePlayerEdit = () => {
 </script>
 
 <style lang="scss">
+@media (max-width: 599px) {
+  .club-sort-col {
+    margin-top: 8px;
+  }
+}
 .doubles-queue-page {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: 100vh;
