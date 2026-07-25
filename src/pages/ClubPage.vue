@@ -4099,135 +4099,180 @@ const loadClubData = async (clubId: string) => {
       const serverMatchmaking = club.appState?.matchmaking as
         | AppState
         | undefined;
-      if (serverMatchmaking) {
-        // Only merge settings that are missing locally — never overwrite queues/matches/players
-        if (
-          MatchmakingApp.state.availableCourts === undefined &&
-          serverMatchmaking.availableCourts !== undefined
-        ) {
-          MatchmakingApp.state.availableCourts =
-            serverMatchmaking.availableCourts;
-        }
-        if (
-          MatchmakingApp.state.autoAdvanceMatches === undefined &&
-          serverMatchmaking.autoAdvanceMatches !== undefined
-        ) {
-          MatchmakingApp.state.autoAdvanceMatches =
-            serverMatchmaking.autoAdvanceMatches;
-        }
-        if (
-          MatchmakingApp.state.queueReturnMethod === undefined &&
-          serverMatchmaking.queueReturnMethod !== undefined
-        ) {
-          MatchmakingApp.state.queueReturnMethod =
-            serverMatchmaking.queueReturnMethod;
-        }
-        if (
-          MatchmakingApp.state.autoSortQueue === undefined &&
-          serverMatchmaking.autoSortQueue !== undefined
-        ) {
-          MatchmakingApp.state.autoSortQueue = serverMatchmaking.autoSortQueue;
-        }
-        if (
-          MatchmakingApp.state.queuePriorityMode === undefined &&
-          serverMatchmaking.queuePriorityMode !== undefined
-        ) {
-          MatchmakingApp.state.queuePriorityMode =
-            serverMatchmaking.queuePriorityMode;
-        }
-        if (
-          MatchmakingApp.state.matchmakingMode === undefined &&
-          serverMatchmaking.matchmakingMode !== undefined
-        ) {
-          MatchmakingApp.state.matchmakingMode =
-            serverMatchmaking.matchmakingMode;
-        }
-        if (
-          MatchmakingApp.state.sortBy === undefined &&
-          serverMatchmaking.sortBy !== undefined
-        ) {
-          MatchmakingApp.state.sortBy = serverMatchmaking.sortBy;
-        }
-        if (
-          MatchmakingApp.state.matchType === undefined &&
-          serverMatchmaking.matchType !== undefined
-        ) {
-          MatchmakingApp.state.matchType = serverMatchmaking.matchType;
-        }
-        if (
-          MatchmakingApp.state.matchesFilterBy === undefined &&
-          serverMatchmaking.matchesFilterBy !== undefined
-        ) {
-          MatchmakingApp.state.matchesFilterBy =
-            serverMatchmaking.matchesFilterBy;
-        }
-        if (
-          MatchmakingApp.state.ttsEnabled === undefined &&
-          serverMatchmaking.ttsEnabled !== undefined
-        ) {
-          MatchmakingApp.state.ttsEnabled = serverMatchmaking.ttsEnabled;
-        }
-      } else {
-        // Cloud appState is blank/null — clear local data so UI starts fresh
-        MatchmakingApp.resetState();
-        MatchmakingApp.state.clubId = clubId;
-      }
-      // Determine admin status from raw club data
-      const isAdminFromData = (club.admins || []).some(
-        (a) => a.directus_users_id?.id === currentUserId.value,
-      );
 
-      // Seed / sync player roster, queue, and matches from appState
-      // Admins: smart-merge so a refresh picks up other admins' newly created
-      //   queues/matches (latest-writer-wins) while preserving player stats.
-      // Non-admins: server is source of truth — always overwrite.
-      if (serverMatchmaking) {
-        // Detect remote reset: another admin cleared all data (full reset).
-        // Partial checkpoint advances (session resets) are handled by mergeAppState.
-        const serverHasNoPlayers =
-          Object.keys(serverMatchmaking.players || {}).length === 0;
-        const serverHasNoQueues = (serverMatchmaking.queues || []).length === 0;
-        const serverHasNoMatches =
-          (serverMatchmaking.activeMatches || []).filter((m) => !m.deletedAt)
-            .length === 0;
-        const serverTime = serverMatchmaking.lastModified ?? 0;
-        const localTime = MatchmakingApp.state.lastModified ?? 0;
-        const isRemoteReset =
-          serverHasNoPlayers &&
-          serverHasNoQueues &&
-          serverHasNoMatches &&
-          serverTime > localTime;
-
-        if (isRemoteReset) {
-          // Another admin performed a reset — adopt server state (mergeAppState will purge)
-          MatchmakingApp.state.players = {};
-          MatchmakingApp.state.queues = [];
-          MatchmakingApp.state.activeMatches = [];
-          MatchmakingApp.state.completedMatches = [];
-          MatchmakingApp.state.lastModified = serverTime;
-          MatchmakingApp.state.playersResetAt =
-            serverMatchmaking.playersResetAt ?? 0;
-          MatchmakingApp.state.queuesResetAt =
-            serverMatchmaking.queuesResetAt ?? 0;
-          MatchmakingApp.state.matchesResetAt =
-            serverMatchmaking.matchesResetAt ?? 0;
-          notify({
-            type: 'info',
-            message: 'Club data was reset by another admin',
-            timeout: 3000,
-          });
+      // Wrap the entire merge/seed block so a client-side exception (e.g.,
+      // malformed appState, unexpected null) is never misdiagnosed as "offline".
+      // On merge failure we keep whatever server data was fetched and still
+      // mark the club as loaded — the outer catch handles only network/API errors.
+      try {
+        if (serverMatchmaking) {
+          // Only merge settings that are missing locally — never overwrite queues/matches/players
+          if (
+            MatchmakingApp.state.availableCourts === undefined &&
+            serverMatchmaking.availableCourts !== undefined
+          ) {
+            MatchmakingApp.state.availableCourts =
+              serverMatchmaking.availableCourts;
+          }
+          if (
+            MatchmakingApp.state.autoAdvanceMatches === undefined &&
+            serverMatchmaking.autoAdvanceMatches !== undefined
+          ) {
+            MatchmakingApp.state.autoAdvanceMatches =
+              serverMatchmaking.autoAdvanceMatches;
+          }
+          if (
+            MatchmakingApp.state.queueReturnMethod === undefined &&
+            serverMatchmaking.queueReturnMethod !== undefined
+          ) {
+            MatchmakingApp.state.queueReturnMethod =
+              serverMatchmaking.queueReturnMethod;
+          }
+          if (
+            MatchmakingApp.state.autoSortQueue === undefined &&
+            serverMatchmaking.autoSortQueue !== undefined
+          ) {
+            MatchmakingApp.state.autoSortQueue =
+              serverMatchmaking.autoSortQueue;
+          }
+          if (
+            MatchmakingApp.state.queuePriorityMode === undefined &&
+            serverMatchmaking.queuePriorityMode !== undefined
+          ) {
+            MatchmakingApp.state.queuePriorityMode =
+              serverMatchmaking.queuePriorityMode;
+          }
+          if (
+            MatchmakingApp.state.matchmakingMode === undefined &&
+            serverMatchmaking.matchmakingMode !== undefined
+          ) {
+            MatchmakingApp.state.matchmakingMode =
+              serverMatchmaking.matchmakingMode;
+          }
+          if (
+            MatchmakingApp.state.sortBy === undefined &&
+            serverMatchmaking.sortBy !== undefined
+          ) {
+            MatchmakingApp.state.sortBy = serverMatchmaking.sortBy;
+          }
+          if (
+            MatchmakingApp.state.matchType === undefined &&
+            serverMatchmaking.matchType !== undefined
+          ) {
+            MatchmakingApp.state.matchType = serverMatchmaking.matchType;
+          }
+          if (
+            MatchmakingApp.state.matchesFilterBy === undefined &&
+            serverMatchmaking.matchesFilterBy !== undefined
+          ) {
+            MatchmakingApp.state.matchesFilterBy =
+              serverMatchmaking.matchesFilterBy;
+          }
+          if (
+            MatchmakingApp.state.ttsEnabled === undefined &&
+            serverMatchmaking.ttsEnabled !== undefined
+          ) {
+            MatchmakingApp.state.ttsEnabled = serverMatchmaking.ttsEnabled;
+          }
         } else {
-          // Check if local state is "fresh" (no meaningful data) - e.g., incognito/private mode
-          // In this case, directly adopt server state instead of merging to prevent
-          // timestamp-based logic from keeping empty local data.
-          const isFreshState =
-            Object.keys(MatchmakingApp.state.players).length === 0 &&
-            MatchmakingApp.state.queues.length === 0 &&
-            MatchmakingApp.state.activeMatches.length === 0;
+          // Cloud appState is blank/null — clear local data so UI starts fresh
+          MatchmakingApp.resetState();
+          MatchmakingApp.state.clubId = clubId;
+        }
+        // Determine admin status from raw club data
+        const isAdminFromData = (club.admins || []).some(
+          (a) => a.directus_users_id?.id === currentUserId.value,
+        );
 
-          if (isAdminFromData) {
-            if (isFreshState) {
-              // Fresh state: directly adopt server data
+        // Seed / sync player roster, queue, and matches from appState
+        // Admins: smart-merge so a refresh picks up other admins' newly created
+        //   queues/matches (latest-writer-wins) while preserving player stats.
+        // Non-admins: server is source of truth — always overwrite.
+        if (serverMatchmaking) {
+          // Detect remote reset: another admin cleared all data (full reset).
+          // Partial checkpoint advances (session resets) are handled by mergeAppState.
+          const serverHasNoPlayers =
+            Object.keys(serverMatchmaking.players || {}).length === 0;
+          const serverHasNoQueues =
+            (serverMatchmaking.queues || []).length === 0;
+          const serverHasNoMatches =
+            (serverMatchmaking.activeMatches || []).filter((m) => !m.deletedAt)
+              .length === 0;
+          const serverTime = serverMatchmaking.lastModified ?? 0;
+          const localTime = MatchmakingApp.state.lastModified ?? 0;
+          const isRemoteReset =
+            serverHasNoPlayers &&
+            serverHasNoQueues &&
+            serverHasNoMatches &&
+            serverTime > localTime;
+
+          if (isRemoteReset) {
+            // Another admin performed a reset — adopt server state (mergeAppState will purge)
+            MatchmakingApp.state.players = {};
+            MatchmakingApp.state.queues = [];
+            MatchmakingApp.state.activeMatches = [];
+            MatchmakingApp.state.completedMatches = [];
+            MatchmakingApp.state.lastModified = serverTime;
+            MatchmakingApp.state.playersResetAt =
+              serverMatchmaking.playersResetAt ?? 0;
+            MatchmakingApp.state.queuesResetAt =
+              serverMatchmaking.queuesResetAt ?? 0;
+            MatchmakingApp.state.matchesResetAt =
+              serverMatchmaking.matchesResetAt ?? 0;
+            notify({
+              type: 'info',
+              message: 'Club data was reset by another admin',
+              timeout: 3000,
+            });
+          } else {
+            // Check if local state is "fresh" (no meaningful data) - e.g., incognito/private mode
+            // In this case, directly adopt server state instead of merging to prevent
+            // timestamp-based logic from keeping empty local data.
+            const isFreshState =
+              Object.keys(MatchmakingApp.state.players).length === 0 &&
+              MatchmakingApp.state.queues.length === 0 &&
+              MatchmakingApp.state.activeMatches.length === 0;
+
+            if (isAdminFromData) {
+              if (isFreshState) {
+                // Fresh state: directly adopt server data
+                if (serverMatchmaking.players) {
+                  MatchmakingApp.state.players = {
+                    ...serverMatchmaking.players,
+                  };
+                }
+                if (serverMatchmaking.queues) {
+                  MatchmakingApp.state.queues = [...serverMatchmaking.queues];
+                }
+                if (serverMatchmaking.activeMatches) {
+                  MatchmakingApp.state.activeMatches = [
+                    ...serverMatchmaking.activeMatches,
+                  ];
+                }
+                if (serverMatchmaking.completedMatches) {
+                  MatchmakingApp.state.completedMatches = [
+                    ...serverMatchmaking.completedMatches,
+                  ];
+                }
+                // Carry checkpoint timestamps so resets propagate
+                MatchmakingApp.state.playersResetAt =
+                  serverMatchmaking.playersResetAt ?? 0;
+                MatchmakingApp.state.queuesResetAt =
+                  serverMatchmaking.queuesResetAt ?? 0;
+                MatchmakingApp.state.matchesResetAt =
+                  serverMatchmaking.matchesResetAt ?? 0;
+              } else {
+                // Existing local state: smart-merge with server
+                const merged = mergeAppState(
+                  MatchmakingApp.state,
+                  serverMatchmaking,
+                );
+                Object.assign(MatchmakingApp.state, merged);
+                // Extra safety: ensure no player appears in multiple matches
+                MatchmakingApp.enforceOneMatchPerPlayer();
+              }
+            } else {
+              // Non-admins: server is source of truth — always overwrite
               if (serverMatchmaking.players) {
                 MatchmakingApp.state.players = {
                   ...serverMatchmaking.players,
@@ -4253,213 +4298,187 @@ const loadClubData = async (clubId: string) => {
                 serverMatchmaking.queuesResetAt ?? 0;
               MatchmakingApp.state.matchesResetAt =
                 serverMatchmaking.matchesResetAt ?? 0;
-            } else {
-              // Existing local state: smart-merge with server
-              const merged = mergeAppState(
-                MatchmakingApp.state,
-                serverMatchmaking,
-              );
-              Object.assign(MatchmakingApp.state, merged);
-              // Extra safety: ensure no player appears in multiple matches
-              MatchmakingApp.enforceOneMatchPerPlayer();
             }
-          } else {
-            // Non-admins: server is source of truth — always overwrite
-            if (serverMatchmaking.players) {
-              MatchmakingApp.state.players = {
-                ...serverMatchmaking.players,
-              };
-            }
-            if (serverMatchmaking.queues) {
-              MatchmakingApp.state.queues = [...serverMatchmaking.queues];
-            }
-            if (serverMatchmaking.activeMatches) {
-              MatchmakingApp.state.activeMatches = [
-                ...serverMatchmaking.activeMatches,
-              ];
-            }
-            if (serverMatchmaking.completedMatches) {
-              MatchmakingApp.state.completedMatches = [
-                ...serverMatchmaking.completedMatches,
-              ];
-            }
-            // Carry checkpoint timestamps so resets propagate
-            MatchmakingApp.state.playersResetAt =
-              serverMatchmaking.playersResetAt ?? 0;
-            MatchmakingApp.state.queuesResetAt =
-              serverMatchmaking.queuesResetAt ?? 0;
-            MatchmakingApp.state.matchesResetAt =
-              serverMatchmaking.matchesResetAt ?? 0;
           }
         }
-      }
-      // Backward-compat: migrate old separate settings blocks into MatchmakingApp.state
-      if (club.appState?.courtSettings) {
-        const ac = club.appState.courtSettings.availableCourts;
-        if (MatchmakingApp.state.availableCourts === undefined) {
-          MatchmakingApp.state.availableCourts =
-            typeof ac === 'object' ? (ac as CourtOption).value : (ac as number);
-        }
-        if (MatchmakingApp.state.autoAdvanceMatches === undefined) {
-          MatchmakingApp.state.autoAdvanceMatches =
-            club.appState.courtSettings.autoAdvanceMatches;
-        }
-      }
-      if (club.appState?.queueSettings) {
-        if (MatchmakingApp.state.queueReturnMethod === undefined) {
-          MatchmakingApp.state.queueReturnMethod =
-            club.appState.queueSettings.queueReturnMethod;
-        }
-        if (MatchmakingApp.state.autoSortQueue === undefined) {
-          MatchmakingApp.state.autoSortQueue =
-            club.appState.queueSettings.autoSortQueue;
-        }
-        if (MatchmakingApp.state.queuePriorityMode === undefined) {
-          MatchmakingApp.state.queuePriorityMode =
-            club.appState.queueSettings.queuePriorityMode;
-        }
-        if (MatchmakingApp.state.matchmakingMode === undefined) {
-          MatchmakingApp.state.matchmakingMode =
-            club.appState.queueSettings.matchmakingMode;
-        }
-      }
-      if (club.appState?.uiSettings) {
-        if (MatchmakingApp.state.sortBy === undefined) {
-          MatchmakingApp.state.sortBy = club.appState.uiSettings.sortBy;
-        }
-        if (MatchmakingApp.state.matchType === undefined) {
-          MatchmakingApp.state.matchType = club.appState.uiSettings.matchType;
-        }
-        if (MatchmakingApp.state.matchesFilterBy === undefined) {
-          MatchmakingApp.state.matchesFilterBy =
-            club.appState.uiSettings.matchesFilterBy;
-        }
-      }
-      // Ensure the club UUID is always present after any server state merge
-      if (currentClubUUID.value) {
-        MatchmakingApp.state.clubUUID = currentClubUUID.value;
-        // Backfill club on any completed matches that were created without it
-        MatchmakingApp.state.completedMatches.forEach((m) => {
-          if (!m.club) m.club = currentClubUUID.value;
-        });
-      }
-
-      MatchmakingApp.persist();
-
-      // Update our concurrency token to the server's version so subsequent syncs
-      // don't falsely conflict with the state we just merged.
-      if (serverMatchmaking?.lastModified) {
-        lastSyncedServerTimestamp.value = serverMatchmaking.lastModified;
-        saveLastSyncedTimestamp(clubId, serverMatchmaking.lastModified);
-      }
-
-      // Build admin set and clubMembers list
-      clubAdminIds.value = new Set(
-        (club.admins || [])
-          .map((a) => a.directus_users_id?.id)
-          .filter((id): id is string => !!id),
-      );
-      // Build admin junction ID lookup for member management
-      const adminJunctionMap = new Map<string, string>();
-      (club.admins || []).forEach((a) => {
-        const adminUserId = a.directus_users_id?.id;
-        if (adminUserId && a.id) {
-          adminJunctionMap.set(adminUserId, a.id);
-        }
-      });
-
-      clubMembers.value =
-        (club.players || [])
-          .map((p) => {
-            const u = p.directus_users_id as Record<string, unknown> | null;
-            const userId = typeof u?.id === 'string' ? u.id : '';
-            const avatarId =
-              typeof u?.avatar === 'string' ? u.avatar : undefined;
-            return {
-              id: userId,
-              username:
-                typeof u?.username === 'string' ? u.username : undefined,
-              firstName:
-                typeof u?.first_name === 'string' ? u.first_name : undefined,
-              lastName:
-                typeof u?.last_name === 'string' ? u.last_name : undefined,
-              email: typeof u?.email === 'string' ? u.email : undefined,
-              rating: typeof u?.rating === 'number' ? u.rating : undefined,
-              duprId: typeof u?.dupr_id === 'string' ? u.dupr_id : undefined,
-              isAdmin: clubAdminIds.value.has(userId),
-              avatar: avatarId
-                ? `${likhaUrl.value}/assets/${avatarId}`
-                : undefined,
-              playerJunctionId: p.id || undefined,
-              adminJunctionId: adminJunctionMap.get(userId) || undefined,
-            };
-          })
-          .filter((m) => m.id) || [];
-
-      // Check if current user is a club member (skip for open play)
-      isCurrentUserMember.value =
-        isOpenPlay.value ||
-        clubMembers.value.some((m) => m.id === currentUserId.value);
-
-      // Persist club metadata for offline admin detection
-      LocalStorage.set(`club_meta_${clubId}`, {
-        clubUUID: club.id,
-        adminIds: Array.from(clubAdminIds.value),
-        members: clubMembers.value,
-        timestamp: Date.now(),
-      });
-
-      // Merge club players into local state
-      if (club.players && Array.isArray(club.players)) {
-        club.players.forEach((p) => {
-          const user = p.directus_users_id as Record<string, unknown> | null;
-          if (user && user.id) {
-            // Check if we already have a player with this userId (they might have been renamed locally)
-            const existingPlayer = Object.values(
-              MatchmakingApp.state.players,
-            ).find((player) => player.userId === user.id);
-
-            if (existingPlayer) {
-              // LWW: only adopt the DB rating when it's newer than our local one.
-              // If we have a local ratingUpdatedAt (from the rating engine or a
-              // prior manual edit) and the DB timestamp is missing/older, keep local.
-              const dbTs = Number(user.rating_updated_at || 0);
-              const localTs = Number(existingPlayer.ratingUpdatedAt || 0);
-              const dbIsNewer = dbTs > localTs;
-              const localHasTs = localTs > 0;
-              const shouldAdopt = dbTs > 0 ? dbIsNewer : !localHasTs; // if DB has no timestamp, only overwrite if local also has none
-
-              if (shouldAdopt) {
-                const userRating =
-                  typeof user.rating === 'number' ? user.rating : undefined;
-                existingPlayer.rating =
-                  userRating || existingPlayer.rating || 1450;
-                if (dbTs > 0) existingPlayer.ratingUpdatedAt = dbTs;
-                existingPlayer.updatedAt = Date.now();
-              }
-
-              // Update avatar if present
-              const avatarId =
-                typeof user.avatar === 'string' ? user.avatar : undefined;
-              if (avatarId) {
-                existingPlayer.avatar = `${likhaUrl.value}/assets/${avatarId}`;
-                existingPlayer.updatedAt = Date.now();
-              }
-
-              // Update firstName if present
-              const firstName =
-                typeof user.first_name === 'string'
-                  ? user.first_name
-                  : undefined;
-              if (firstName) {
-                existingPlayer.firstName = firstName;
-                existingPlayer.updatedAt = Date.now();
-              }
-            }
-            // Note: We do NOT add new club members automatically - that should be done via the "Add Club Members" UI
+        // Backward-compat: migrate old separate settings blocks into MatchmakingApp.state
+        if (club.appState?.courtSettings) {
+          const ac = club.appState.courtSettings.availableCourts;
+          if (MatchmakingApp.state.availableCourts === undefined) {
+            MatchmakingApp.state.availableCourts =
+              typeof ac === 'object'
+                ? (ac as CourtOption).value
+                : (ac as number);
           }
-        });
+          if (MatchmakingApp.state.autoAdvanceMatches === undefined) {
+            MatchmakingApp.state.autoAdvanceMatches =
+              club.appState.courtSettings.autoAdvanceMatches;
+          }
+        }
+        if (club.appState?.queueSettings) {
+          if (MatchmakingApp.state.queueReturnMethod === undefined) {
+            MatchmakingApp.state.queueReturnMethod =
+              club.appState.queueSettings.queueReturnMethod;
+          }
+          if (MatchmakingApp.state.autoSortQueue === undefined) {
+            MatchmakingApp.state.autoSortQueue =
+              club.appState.queueSettings.autoSortQueue;
+          }
+          if (MatchmakingApp.state.queuePriorityMode === undefined) {
+            MatchmakingApp.state.queuePriorityMode =
+              club.appState.queueSettings.queuePriorityMode;
+          }
+          if (MatchmakingApp.state.matchmakingMode === undefined) {
+            MatchmakingApp.state.matchmakingMode =
+              club.appState.queueSettings.matchmakingMode;
+          }
+        }
+        if (club.appState?.uiSettings) {
+          if (MatchmakingApp.state.sortBy === undefined) {
+            MatchmakingApp.state.sortBy = club.appState.uiSettings.sortBy;
+          }
+          if (MatchmakingApp.state.matchType === undefined) {
+            MatchmakingApp.state.matchType = club.appState.uiSettings.matchType;
+          }
+          if (MatchmakingApp.state.matchesFilterBy === undefined) {
+            MatchmakingApp.state.matchesFilterBy =
+              club.appState.uiSettings.matchesFilterBy;
+          }
+        }
+        // Ensure the club UUID is always present after any server state merge
+        if (currentClubUUID.value) {
+          MatchmakingApp.state.clubUUID = currentClubUUID.value;
+          // Backfill club on any completed matches that were created without it
+          MatchmakingApp.state.completedMatches.forEach((m) => {
+            if (!m.club) m.club = currentClubUUID.value;
+          });
+        }
+
         MatchmakingApp.persist();
+
+        // Update our concurrency token to the server's version so subsequent syncs
+        // don't falsely conflict with the state we just merged.
+        if (serverMatchmaking?.lastModified) {
+          lastSyncedServerTimestamp.value = serverMatchmaking.lastModified;
+          saveLastSyncedTimestamp(clubId, serverMatchmaking.lastModified);
+        }
+
+        // Build admin set and clubMembers list
+        clubAdminIds.value = new Set(
+          (club.admins || [])
+            .map((a) => a.directus_users_id?.id)
+            .filter((id): id is string => !!id),
+        );
+        // Build admin junction ID lookup for member management
+        const adminJunctionMap = new Map<string, string>();
+        (club.admins || []).forEach((a) => {
+          const adminUserId = a.directus_users_id?.id;
+          if (adminUserId && a.id) {
+            adminJunctionMap.set(adminUserId, a.id);
+          }
+        });
+
+        clubMembers.value =
+          (club.players || [])
+            .map((p) => {
+              const u = p.directus_users_id as Record<string, unknown> | null;
+              const userId = typeof u?.id === 'string' ? u.id : '';
+              const avatarId =
+                typeof u?.avatar === 'string' ? u.avatar : undefined;
+              return {
+                id: userId,
+                username:
+                  typeof u?.username === 'string' ? u.username : undefined,
+                firstName:
+                  typeof u?.first_name === 'string' ? u.first_name : undefined,
+                lastName:
+                  typeof u?.last_name === 'string' ? u.last_name : undefined,
+                email: typeof u?.email === 'string' ? u.email : undefined,
+                rating: typeof u?.rating === 'number' ? u.rating : undefined,
+                duprId: typeof u?.dupr_id === 'string' ? u.dupr_id : undefined,
+                isAdmin: clubAdminIds.value.has(userId),
+                avatar: avatarId
+                  ? `${likhaUrl.value}/assets/${avatarId}`
+                  : undefined,
+                playerJunctionId: p.id || undefined,
+                adminJunctionId: adminJunctionMap.get(userId) || undefined,
+              };
+            })
+            .filter((m) => m.id) || [];
+
+        // Check if current user is a club member (skip for open play)
+        isCurrentUserMember.value =
+          isOpenPlay.value ||
+          clubMembers.value.some((m) => m.id === currentUserId.value);
+
+        // Persist club metadata for offline admin detection
+        LocalStorage.set(`club_meta_${clubId}`, {
+          clubUUID: club.id,
+          adminIds: Array.from(clubAdminIds.value),
+          members: clubMembers.value,
+          timestamp: Date.now(),
+        });
+
+        // Merge club players into local state
+        if (club.players && Array.isArray(club.players)) {
+          club.players.forEach((p) => {
+            const user = p.directus_users_id as Record<string, unknown> | null;
+            if (user && user.id) {
+              // Check if we already have a player with this userId (they might have been renamed locally)
+              const existingPlayer = Object.values(
+                MatchmakingApp.state.players,
+              ).find((player) => player.userId === user.id);
+
+              if (existingPlayer) {
+                // LWW: only adopt the DB rating when it's newer than our local one.
+                // If we have a local ratingUpdatedAt (from the rating engine or a
+                // prior manual edit) and the DB timestamp is missing/older, keep local.
+                const dbTs = Number(user.rating_updated_at || 0);
+                const localTs = Number(existingPlayer.ratingUpdatedAt || 0);
+                const dbIsNewer = dbTs > localTs;
+                const localHasTs = localTs > 0;
+                const shouldAdopt = dbTs > 0 ? dbIsNewer : !localHasTs; // if DB has no timestamp, only overwrite if local also has none
+
+                if (shouldAdopt) {
+                  const userRating =
+                    typeof user.rating === 'number' ? user.rating : undefined;
+                  existingPlayer.rating =
+                    userRating || existingPlayer.rating || 1450;
+                  if (dbTs > 0) existingPlayer.ratingUpdatedAt = dbTs;
+                  existingPlayer.updatedAt = Date.now();
+                }
+
+                // Update avatar if present
+                const avatarId =
+                  typeof user.avatar === 'string' ? user.avatar : undefined;
+                if (avatarId) {
+                  existingPlayer.avatar = `${likhaUrl.value}/assets/${avatarId}`;
+                  existingPlayer.updatedAt = Date.now();
+                }
+
+                // Update firstName if present
+                const firstName =
+                  typeof user.first_name === 'string'
+                    ? user.first_name
+                    : undefined;
+                if (firstName) {
+                  existingPlayer.firstName = firstName;
+                  existingPlayer.updatedAt = Date.now();
+                }
+              }
+              // Note: We do NOT add new club members automatically - that should be done via the "Add Club Members" UI
+            }
+          });
+          MatchmakingApp.persist();
+        }
+      } catch (mergeErr) {
+        console.error('[loadClubData] merge/seed failed:', mergeErr);
+        notify({
+          color: 'warning',
+          message:
+            'Loaded club data, but some local sync failed. Refresh if data looks incorrect.',
+          timeout: 5000,
+        });
       }
 
       clubLoadingState.value = 'loaded';
@@ -4530,8 +4549,22 @@ const loadClubData = async (clubId: string) => {
       }
     }
 
-    console.warn(
-      'Failed to load club from server (offline?), using cache:',
+    // Extract the real error message (Directus SDK, Error, or string)
+    const rawErr = err as {
+      errors?: { message?: string }[];
+      message?: string;
+      response?: { status?: number };
+    };
+    const realMsg =
+      rawErr?.errors?.[0]?.message ||
+      rawErr?.message ||
+      (typeof err === 'string' ? err : 'Unknown error');
+    const statusCode = rawErr?.response?.status;
+    const actuallyOffline = !navigator.onLine;
+
+    console.error(
+      `[loadClubData] failed (status: ${statusCode ?? 'n/a'}, online: ${navigator.onLine}):`,
+      realMsg,
       err,
     );
 
@@ -4564,7 +4597,9 @@ const loadClubData = async (clubId: string) => {
       clubLoadingState.value = 'loaded';
       notify({
         color: 'warning',
-        message: 'Offline — showing cached club data',
+        message: actuallyOffline
+          ? 'Offline — showing cached club data'
+          : `Could not load club: ${realMsg}`,
       });
     } else {
       clubLoadingState.value = 'error';
@@ -5018,8 +5053,8 @@ const handleJoinClub = async () => {
     if (!result.alreadyMember) {
       notify({ type: 'positive', message: 'Joined club successfully!' });
     }
-    // Reload club data to reflect membership
-    void loadClubData(currentClubId.value);
+    // Reload club data to reflect membership (await to avoid overlapping with the initial load)
+    await loadClubData(currentClubId.value);
   } catch (err) {
     if (await handleAuthError(err, router)) return;
     notify({ color: 'negative', message: 'Failed to join club' });
@@ -5103,7 +5138,7 @@ onMounted(async () => {
       currentUserId.value &&
       isOnline.value
     ) {
-      void handleJoinClub();
+      await handleJoinClub();
     }
     // Restore optimistic-concurrency token so we don't false-conflict after refresh
     lastSyncedServerTimestamp.value = loadLastSyncedTimestamp(clubId);
