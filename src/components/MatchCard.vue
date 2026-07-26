@@ -73,15 +73,22 @@
           >
             {{ getMatchStatusLabel(match.status) }}
           </q-badge>
-          <q-badge
+          <q-chip
             v-if="match.status === 'in-progress' && match.startedAt"
+            dense
             rounded
-            color="accent"
-            text-color="white"
+            class="live-chip bg-accent-2 text-accent-9"
           >
-            <span class="live-dot" />
+            <q-avatar
+              class="live-dot-avatar"
+              color="accent"
+              text-color="white"
+              size="14px"
+            >
+              <span class="live-dot-inner" />
+            </q-avatar>
             {{ elapsed }}
-          </q-badge>
+          </q-chip>
         </div>
 
         <!-- Right: Team B players -->
@@ -370,13 +377,23 @@ onUnmounted(() => {
       font-size: 1rem;
     }
 
-    .live-dot {
+    .live-chip {
+      margin: 0;
+      background-color: rgba(118, 75, 162, 0.2) !important;
+      color: #4a2d6b !important;
+    }
+
+    .live-dot-avatar {
+      margin-left: -2px;
+      margin-right: 4px;
+    }
+
+    .live-dot-inner {
       display: inline-block;
       width: 6px;
       height: 6px;
       border-radius: 50%;
       background-color: #fff;
-      margin-right: 4px;
       animation: live-dot-pulse 2s ease-in-out infinite;
     }
   }
