@@ -1,1 +1,9 @@
 // app global css in SCSS form
+
+// Accent shade utilities (Quasar doesn't auto-generate these for custom colors)
+.bg-accent-2 {
+  background-color: rgba(118, 75, 162, 0.05) !important;
+}
+.text-accent-9 {
+  color: #4a2d6b !important;
+}
