@@ -1,7 +1,7 @@
 <template>
   <q-item
     class="match-item"
-    :class="{ 'bg-live': match.status === 'in-progress' }"
+    :class="{ 'bg-yellow-1': match.status === 'in-progress' }"
     @click="handleClick"
     clickable
   >
@@ -77,11 +77,11 @@
             v-if="match.status === 'in-progress' && match.startedAt"
             dense
             rounded
-            class="live-chip bg-accent-2 text-accent-9"
+            class="live-chip bg-amber-2 text-amber-10"
           >
             <q-avatar
               class="live-dot-avatar"
-              color="accent"
+              color="amber-7"
               text-color="white"
               size="14px"
             >
@@ -352,10 +352,6 @@ onUnmounted(() => {
 .match-item {
   transition: background-color 0.2s ease;
 
-  &.bg-live {
-    background-color: rgba(118, 75, 162, 0.08);
-  }
-
   &:hover {
     background-color: rgba(0, 0, 0, 0.02);
   }
@@ -379,8 +375,6 @@ onUnmounted(() => {
 
     .live-chip {
       margin: 0;
-      background-color: rgba(118, 75, 162, 0.2) !important;
-      color: #4a2d6b !important;
     }
 
     .live-dot-avatar {
