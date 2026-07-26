@@ -671,18 +671,13 @@
                       v-for="(match, index) in filteredMatches"
                       :key="match.id"
                       :match="match"
-                      :available-courts="getCourtCount()"
+                      :can-start="hasAvailableSlot"
                       :show-actions="isCurrentUserAdmin"
                       @completeMatch="openMatchResultDialog(index)"
                       @editMatch="editMatch(index)"
-                      @assignCourt="openCourtSelectionDialog(index)"
-                      @changeCourt="openCourtSelectionDialog(index)"
                       @startMatch="startMatch(index)"
                       @cancelMatch="cancelMatch(index)"
                       @custom-announce="handleCustomAnnounce"
-                      :is-court-available="
-                        match.court ? isCourtAvailable(match.court) : false
-                      "
                     />
                   </q-list>
                   <EmptyState
@@ -1063,18 +1058,13 @@
                         v-for="(match, index) in filteredMatches"
                         :key="match.id"
                         :match="match"
-                        :available-courts="getCourtCount()"
+                        :can-start="hasAvailableSlot"
                         :show-actions="isCurrentUserAdmin"
                         @completeMatch="openMatchResultDialog(index)"
                         @editMatch="editMatch(index)"
-                        @assignCourt="openCourtSelectionDialog(index)"
-                        @changeCourt="openCourtSelectionDialog(index)"
                         @startMatch="startMatch(index)"
                         @cancelMatch="cancelMatch(index)"
                         @custom-announce="handleCustomAnnounce"
-                        :is-court-available="
-                          match.court ? isCourtAvailable(match.court) : false
-                        "
                       />
                     </q-list>
                     <EmptyState
@@ -1351,7 +1341,7 @@
 
               <!-- Members list -->
               <div class="q-mt-md">
-                <q-list separator dense class="rounded-borders">
+                <q-list separator class="rounded-borders">
                   <q-item
                     v-for="member in availableClubMembers"
                     :key="member.id"
@@ -1912,15 +1902,22 @@
               <q-separator />
 
               <div>
-                <div class="text-subtitle2 q-mb-sm">Court Management</div>
+                <div class="text-subtitle2 q-mb-sm">Court Settings</div>
                 <div class="row q-col-gutter-md">
                   <div class="col-12 col-sm-6">
-                    <q-select
-                      v-model="availableCourts"
-                      :options="courtOptions"
-                      label="Number of available courts"
+                    <q-input
+                      v-model.number="availableCourts"
+                      type="number"
+                      label="Number of courts"
                       outlined
                       dense
+                      min="1"
+                      max="20"
+                      :rules="[
+                        (v) => v >= 1 || 'Minimum 1',
+                        (v) => v <= 20 || 'Maximum 20',
+                        (v) => Number.isInteger(v) || 'Whole numbers only',
+                      ]"
                     />
                   </div>
                   <div class="col-12 col-sm-6">
@@ -2528,113 +2525,6 @@
                   :create-balanced-match="createBalancedMatch"
                 />
               </div>
-
-              <!-- Step 3: Select Court -->
-              <div
-                v-if="manualSelectionStep === 3"
-                class="court-selection-step"
-              >
-                <div class="text-h6 q-mb-sm">Step 3: Select Court</div>
-                <div class="text-caption text-grey-7 q-mb-sm">
-                  Choose how to assign a court for this match
-                </div>
-
-                <!-- Smart Auto-Assign (Primary Option) -->
-                <q-card
-                  flat
-                  bordered
-                  class="cursor-pointer q-mb-sm primary-court-option"
-                  @click="selectAutoCourt"
-                  :class="{ selected: selectedCourt === null }"
-                >
-                  <q-card-section class="row items-center">
-                    <q-icon
-                      name="auto_awesome"
-                      color="accent"
-                      size="md"
-                      class="q-mr-md"
-                    />
-                    <div class="col">
-                      <div class="text-weight-medium">Auto-Assign Court</div>
-                      <div class="text-caption text-grey-6">
-                        {{ getAutoAssignDescription() }}
-                      </div>
-                    </div>
-                    <q-icon
-                      v-if="selectedCourt === null"
-                      name="check_circle"
-                      color="accent"
-                    />
-                    <q-icon
-                      v-else
-                      name="radio_button_unchecked"
-                      color="grey-6"
-                    />
-                  </q-card-section>
-                </q-card>
-
-                <!-- Manual Selection Toggle -->
-                <q-btn
-                  flat
-                  color="primary"
-                  icon="sports_tennis"
-                  @click="toggleManualSelection"
-                  class="q-mb-sm"
-                >
-                  <q-icon name="sports_tennis" class="q-mr-xs" />
-                  {{ showManualSelection ? 'Hide' : 'Choose' }} Specific Court
-                </q-btn>
-
-                <!-- Manual Court List (Collapsible) -->
-                <q-slide-transition>
-                  <div v-if="showManualSelection">
-                    <q-separator class="q-mb-sm" />
-                    <div class="text-subtitle2 q-mb-sm">Select Court</div>
-                    <q-list separator>
-                      <q-item
-                        v-for="court in courtSelectionOptions"
-                        :key="court.value"
-                        clickable
-                        @click="selectSpecificCourt(court.value)"
-                        :class="{
-                          'selected-court': selectedCourt === court.value,
-                        }"
-                      >
-                        <q-item-section avatar>
-                          <q-avatar
-                            :color="
-                              selectedCourt === court.value
-                                ? 'accent'
-                                : 'blue-6'
-                            "
-                            text-color="white"
-                          >
-                            {{ court.value }}
-                          </q-avatar>
-                        </q-item-section>
-                        <q-item-section>
-                          <q-item-label>Court {{ court.value }}</q-item-label>
-                          <q-item-label caption>
-                            {{ getCourtMatchCount(court.value) }} matches
-                          </q-item-label>
-                        </q-item-section>
-                        <q-item-section
-                          side
-                          v-if="selectedCourt === court.value"
-                        >
-                          <q-icon name="check_circle" color="accent" />
-                        </q-item-section>
-                        <q-item-section side v-else>
-                          <q-icon
-                            name="radio_button_unchecked"
-                            color="grey-6"
-                          />
-                        </q-item-section>
-                      </q-item>
-                    </q-list>
-                  </div>
-                </q-slide-transition>
-              </div>
             </div>
           </q-card-section>
 
@@ -2660,9 +2550,9 @@
               <q-btn
                 v-else
                 color="accent"
-                label="Next: Select Court"
-                icon="sports_tennis"
-                @click="proceedToCourtSelection"
+                label="Create Match"
+                icon="check"
+                @click="createManualMatchWithCourt"
                 :disable="selectedPlayers.length !== 2"
               />
             </template>
@@ -2690,37 +2580,10 @@
               />
               <q-btn
                 color="accent"
-                label="Next: Select Court"
-                icon="sports_tennis"
-                @click="proceedToCourtSelectionFromTeams"
-                :disable="manualTeam1.length !== 2 || manualTeam2.length !== 2"
-              />
-            </template>
-
-            <!-- Step 3 Actions (Court Selection) -->
-            <template v-else-if="manualSelectionStep === 3">
-              <q-btn
-                flat
-                label="Back"
-                icon="arrow_back"
-                color="grey"
-                @click="
-                  () => {
-                    manualSelectionStep = matchType === 'doubles' ? 2 : 1;
-                  }
-                "
-              />
-              <q-btn
-                flat
-                label="Cancel"
-                color="grey"
-                @click="cancelManualSelection"
-              />
-              <q-btn
-                color="accent"
                 label="Create Match"
                 icon="check"
                 @click="createManualMatchWithCourt"
+                :disable="manualTeam1.length !== 2 || manualTeam2.length !== 2"
               />
             </template>
           </q-card-actions>
@@ -3197,100 +3060,6 @@
           </q-card-actions>
         </q-card>
       </q-dialog>
-
-      <!-- Court Selection Dialog -->
-      <q-dialog v-model="showCourtSelectionDialog" :maximized="$q.screen.lt.md">
-        <q-card
-          class="bg-white"
-          style="
-            max-width: 500px;
-            width: 95vw;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-          "
-        >
-          <!-- Header -->
-          <DialogHeader title="Assign Court" icon="sports_tennis" />
-
-          <!-- Content -->
-          <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
-            <div class="q-gutter-y-md">
-              <div class="text-subtitle2 q-mb-sm">Select Court</div>
-
-              <!-- Auto-assign option -->
-              <q-card
-                flat
-                bordered
-                class="cursor-pointer"
-                @click="assignCourtAutomatically"
-              >
-                <q-card-section class="row items-center">
-                  <q-icon
-                    name="auto_awesome"
-                    color="accent"
-                    size="md"
-                    class="q-mr-md"
-                  />
-                  <div class="col">
-                    <div class="text-weight-medium">Auto-Assign</div>
-                    <div class="text-caption text-grey-6">
-                      Automatically assign next available court
-                    </div>
-                  </div>
-                  <q-icon name="arrow_forward" color="grey-6" />
-                </q-card-section>
-              </q-card>
-
-              <q-separator />
-
-              <!-- Manual court selection -->
-              <div class="text-subtitle2 q-mb-sm">Manual Selection</div>
-              <q-list separator>
-                <q-item
-                  v-for="court in courtSelectionOptions"
-                  :key="court.value"
-                  clickable
-                  @click="assignSpecificCourt(court.value)"
-                >
-                  <q-item-section avatar>
-                    <q-avatar color="accent" text-color="white">
-                      {{ court.value }}
-                    </q-avatar>
-                  </q-item-section>
-                  <q-item-section>
-                    <q-item-label>Court {{ court.value }}</q-item-label>
-                    <q-item-label caption>
-                      {{ getCourtMatchCount(court.value) }} matches
-                    </q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-icon name="check_circle" color="green-6" />
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </div>
-          </q-card-section>
-
-          <!-- Footer Actions -->
-          <q-separator />
-          <q-card-actions align="right" class="q-pa-md">
-            <q-btn
-              flat
-              label="Cancel"
-              color="grey"
-              @click="showCourtSelectionDialog = false"
-            >
-              <q-tooltip
-                anchor="top middle"
-                self="bottom middle"
-                :offset="[8, 8]"
-                >Cancel</q-tooltip
-              >
-            </q-btn>
-          </q-card-actions>
-        </q-card>
-      </q-dialog>
     </template>
 
     <q-page-sticky position="bottom-left" :offset="[18, 18]">
@@ -3393,16 +3162,16 @@ const handleCustomAnnounce = (match: {
       const nb = next.teamB.map((u) =>
         getPlayerName(MatchmakingApp.state.players, u),
       );
-      const text = buildMatchAnnounceText(na, nb, undefined, true);
+      const text = buildMatchAnnounceText(na, nb, true);
       announce(notify, text, next.matchId);
     }
     return;
   }
 
-  // For in-progress matches, announce the court match normally
+  // For in-progress matches, announce the match normally
   const a = match.teamA.map((p) => p.firstName || p.username);
   const b = match.teamB.map((p) => p.firstName || p.username);
-  const text = buildMatchAnnounceText(a, b, match.court);
+  const text = buildMatchAnnounceText(a, b);
   announce(notify, text, match.id);
 };
 
@@ -3603,19 +3372,59 @@ const updateAllBulkLevels = (val: 1 | 2 | 3) => {
 };
 
 // Court Management Settings
-interface CourtOption {
-  label: string;
-  value: number;
-}
-
-const availableCourts = computed<number | CourtOption>({
-  get: () =>
-    (MatchmakingApp.state.availableCourts ?? 1) as number | CourtOption,
+const availableCourts = computed<number>({
+  get: () => MatchmakingApp.state.availableCourts ?? 1,
   set: (val) => {
-    MatchmakingApp.state.availableCourts =
-      typeof val === 'object' ? (val as CourtOption).value : val;
+    const newCap = Math.max(1, Math.min(20, Math.floor(Number(val) || 1)));
+    const oldCap = MatchmakingApp.state.availableCourts ?? 1;
+
+    MatchmakingApp.state.availableCourts = newCap;
     MatchmakingApp.state.settingsUpdatedAt = Date.now();
     MatchmakingApp.persist();
+
+    if (newCap < oldCap) {
+      const demotedIds = MatchmakingApp.enforceConcurrencyLimit();
+      if (demotedIds.length > 0) {
+        notify({
+          type: 'warning',
+          message: `Reduced to ${newCap} court${newCap > 1 ? 's' : ''}. ${demotedIds.length} match${demotedIds.length > 1 ? 'es' : ''} moved to waiting.`,
+          timeout: 4000,
+        });
+      } else {
+        notify({
+          type: 'info',
+          message: `Number of courts set to ${newCap}.`,
+          timeout: 2000,
+        });
+      }
+    } else if (newCap > oldCap) {
+      // Auto-advance waiting matches into newly available slots
+      if (autoAdvanceMatches.value) {
+        for (let c = oldCap + 1; c <= newCap; c++) {
+          if (isCourtAvailable(c)) {
+            autoAdvanceNextMatchForCourt(c);
+          }
+        }
+        MatchmakingApp.persist();
+      }
+
+      const waitingCount = matches.value.filter(
+        (m) => m.status === 'waiting',
+      ).length;
+      if (waitingCount > 0) {
+        notify({
+          type: 'positive',
+          message: `Increased to ${newCap} court${newCap > 1 ? 's' : ''}. ${waitingCount} waiting match${waitingCount > 1 ? 'es' : ''} can start.`,
+          timeout: 4000,
+        });
+      } else {
+        notify({
+          type: 'info',
+          message: `Increased to ${newCap} court${newCap > 1 ? 's' : ''}. No waiting matches to start.`,
+          timeout: 3000,
+        });
+      }
+    }
   },
 });
 const autoAdvanceMatches = computed<boolean>({
@@ -3647,7 +3456,6 @@ const qrContinueScan = computed<boolean>({
     MatchmakingApp.persist();
   },
 });
-const maxCourts = ref<number>(8);
 
 // Route and Club state
 const route = useRoute();
@@ -4206,7 +4014,7 @@ const loadClubData = async (clubId: string) => {
               | 'losses'
               | 'name';
             matchType: 'singles' | 'doubles';
-            matchesFilterBy: 'all' | number;
+            matchesFilterBy: 'all' | 'in-progress' | 'waiting';
           };
         };
         players?: Array<{
@@ -4450,9 +4258,7 @@ const loadClubData = async (clubId: string) => {
           const ac = club.appState.courtSettings.availableCourts;
           if (MatchmakingApp.state.availableCourts === undefined) {
             MatchmakingApp.state.availableCourts =
-              typeof ac === 'object'
-                ? (ac as CourtOption).value
-                : (ac as number);
+              typeof ac === 'number' ? ac : 1;
           }
           if (MatchmakingApp.state.autoAdvanceMatches === undefined) {
             MatchmakingApp.state.autoAdvanceMatches =
@@ -5333,15 +5139,9 @@ onUnmounted(() => {
   }
 });
 
-// Helper function to extract court count from q-select value
+// Helper function to extract court count
 const getCourtCount = (): number => {
-  if (
-    typeof availableCourts.value === 'object' &&
-    availableCourts.value !== null
-  ) {
-    return availableCourts.value.value;
-  }
-  return availableCourts.value || 2;
+  return availableCourts.value || 1;
 };
 
 // Dialog states
@@ -5559,19 +5359,15 @@ const unreadClubFeedbackCount = computed(() => {
 const showMatchResultDialog = ref(false);
 const showMatchEditDialog = ref(false);
 const showReplacePlayerDialog = ref(false);
-const showCourtSelectionDialog = ref(false);
 const playerToReplaceInEdit = ref<Player | null>(null);
 const currentMatchIndex = ref<number>(-1);
-const currentMatchForCourtAssignment = ref<number>(-1);
 
 // Manual selection states
 const showManualSelectionDialog = ref(false);
-const manualSelectionStep = ref<1 | 2 | 3>(1);
+const manualSelectionStep = ref<1 | 2>(1);
 const selectedPlayers = ref<Player[]>([]);
 const manualTeam1 = ref<Player[]>([]);
 const manualTeam2 = ref<Player[]>([]);
-const selectedCourt = ref<number | null>(null);
-const showManualSelection = ref(false);
 
 // Tap-to-swap states
 const selectedForSwap = ref<Player | null>(null);
@@ -5683,8 +5479,13 @@ const sortBy = computed<
 const searchPlayers = ref<string>('');
 
 // Matches filter state
-const matchesFilterBy = computed<'all' | number>({
-  get: () => (MatchmakingApp.state.matchesFilterBy ?? 'all') as 'all' | number,
+const matchesFilterBy = computed<'all' | 'in-progress' | 'waiting'>({
+  get: () => {
+    const raw = MatchmakingApp.state.matchesFilterBy ?? 'all';
+    // Coerce legacy numeric values to 'all'
+    if (typeof raw === 'number') return 'all';
+    return raw as 'all' | 'in-progress' | 'waiting';
+  },
   set: (val) => {
     MatchmakingApp.state.matchesFilterBy = val;
     MatchmakingApp.state.settingsUpdatedAt = Date.now();
@@ -5773,7 +5574,7 @@ watch(
     return `${inProgress}::${nextInLineMatch.value?.matchId || ''}`;
   },
   () => {
-    // 1. Announce newly started matches (startedAt is new), sorted by court
+    // 1. Announce newly started matches (startedAt is new), sorted by start time
     const newlyStarted = matches.value
       .filter(
         (m) =>
@@ -5781,12 +5582,14 @@ watch(
           m.startedAt &&
           m.startedAt.getTime() > lastProcessedStartedAt.value,
       )
-      .sort((a, b) => (a.court ?? 0) - (b.court ?? 0));
+      .sort(
+        (a, b) => (a.startedAt?.getTime() ?? 0) - (b.startedAt?.getTime() ?? 0),
+      );
 
     for (const m of newlyStarted) {
       const a = m.teamA.map((p) => p.firstName || p.username);
       const b = m.teamB.map((p) => p.firstName || p.username);
-      const text = buildMatchAnnounceText(a, b, m.court);
+      const text = buildMatchAnnounceText(a, b);
       for (let i = 0; i < 2; i++) {
         announce(notify, text, m.id);
       }
@@ -5809,7 +5612,7 @@ watch(
       const nb = next.teamB.map((u) =>
         getPlayerName(MatchmakingApp.state.players, u),
       );
-      const text = buildMatchAnnounceText(na, nb, undefined, true);
+      const text = buildMatchAnnounceText(na, nb, true);
       announce(notify, text, next.matchId);
       prevNextInLineId.value = nextId;
     }
@@ -5889,19 +5692,11 @@ const sortOptions = [
 ];
 
 // Matches filter options
-const matchesFilterOptions = computed(() => {
-  const options: { label: string; value: string | number }[] = [
-    { label: 'All', value: 'all' },
-  ];
-  const courtCount =
-    typeof availableCourts.value === 'number'
-      ? availableCourts.value
-      : availableCourts.value.value;
-  for (let i = 1; i <= courtCount; i++) {
-    options.push({ label: `Court ${i}`, value: i });
-  }
-  return options;
-});
+const matchesFilterOptions = [
+  { label: 'All', value: 'all' },
+  { label: 'In Progress', value: 'in-progress' },
+  { label: 'Waiting', value: 'waiting' },
+];
 
 // Queue return options
 const queueReturnOptions = [
@@ -5971,22 +5766,6 @@ const matchmakingModeOptions = computed(() => [
     disable: isClubSubscriptionExpired.value,
   },
 ]);
-
-const courtOptions = computed(() =>
-  Array.from({ length: maxCourts.value }, (_, i) => ({
-    label: `${i + 1} Court${i > 0 ? 's' : ''}`,
-    value: i + 1,
-  })),
-);
-
-// Court options for manual selection (based on settings)
-const courtSelectionOptions = computed(() => {
-  const courtCount = Math.max(getCourtCount(), 2);
-  return Array.from({ length: courtCount }, (_, i) => ({
-    value: i + 1,
-    label: `Court ${i + 1}`,
-  }));
-});
 
 // Computed properties
 const displayPlayers = computed(() => {
@@ -6058,11 +5837,19 @@ const isPlayerInMatch = (username: string): boolean => {
   );
 };
 
+const hasAvailableSlot = computed(() => {
+  const cap = getCourtCount();
+  const inProgress = matches.value.filter(
+    (m) => m.status === 'in-progress',
+  ).length;
+  return inProgress < cap;
+});
+
 const filteredMatches = computed(() => {
   let filtered =
     matchesFilterBy.value === 'all'
       ? matches.value
-      : matches.value.filter((match) => match.court === matchesFilterBy.value);
+      : matches.value.filter((match) => match.status === matchesFilterBy.value);
 
   // Sort by status: in-progress first, then waiting, then by queue priority
   filtered = [...filtered].sort((a, b) => {
@@ -6735,7 +6522,7 @@ const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
       // Notify user about auto-advance
       notify({
         type: 'info',
-        message: `Match started on Court ${courtNumber}`,
+        message: 'Next match auto-started',
         timeout: 3000,
       });
     } else {
@@ -7316,8 +7103,6 @@ const cancelManualSelection = () => {
   manualSelectionStep.value = 1;
   selectedForSwap.value = null;
   selectedForSwapTeam.value = null;
-  selectedCourt.value = null;
-  showManualSelection.value = false;
   showManualSelectionDialog.value = false;
 };
 
@@ -7457,80 +7242,6 @@ const finalizeManualMatch = () => {
 };
 */
 
-const proceedToCourtSelection = () => {
-  if (selectedPlayers.value.length !== 2) {
-    notify({
-      type: 'warning',
-      message: 'Please select exactly 2 players',
-    });
-    return;
-  }
-  manualSelectionStep.value = 3;
-};
-
-const proceedToCourtSelectionFromTeams = () => {
-  if (manualTeam1.value.length !== 2 || manualTeam2.value.length !== 2) {
-    notify({
-      type: 'warning',
-      message: 'Please arrange both teams properly',
-    });
-    return;
-  }
-  manualSelectionStep.value = 3;
-};
-
-const selectAutoCourt = () => {
-  selectedCourt.value = null; // null means auto-assign
-};
-
-const toggleManualSelection = () => {
-  showManualSelection.value = !showManualSelection.value;
-};
-
-const getCourtMatchCount = (courtNumber: number): number => {
-  return matches.value.filter((match) => match.court === courtNumber).length;
-};
-
-const getAutoAssignDescription = (): string => {
-  // Calculate court load balancing
-  const courtMatchCounts = new Map<number, number>();
-
-  // Extract the actual number from the q-select value
-  const courtCount = getCourtCount();
-
-  // Initialize all courts with 0 matches
-  for (let court = 1; court <= courtCount; court++) {
-    courtMatchCounts.set(court, 0);
-  }
-
-  // Count matches per court (both in-progress and waiting)
-  matches.value.forEach((match) => {
-    if (match.court) {
-      const currentCount = courtMatchCounts.get(match.court) || 0;
-      courtMatchCounts.set(match.court, currentCount + 1);
-    }
-  });
-
-  // Find the least busy court
-  let leastBusyCourt = 1;
-  let minMatches = courtMatchCounts.get(1) || 0;
-
-  for (let court = 1; court <= courtCount; court++) {
-    const matchCount = courtMatchCounts.get(court) || 0;
-    if (matchCount < minMatches) {
-      minMatches = matchCount;
-      leastBusyCourt = court;
-    }
-  }
-
-  const leastBusyMatches = courtMatchCounts.get(leastBusyCourt) || 0;
-  return `Will assign Court ${leastBusyCourt} (least busy court, ${leastBusyMatches} matches)`;
-};
-
-const selectSpecificCourt = (courtNumber: number) => {
-  selectedCourt.value = courtNumber;
-};
-
 const createManualMatchWithCourt = () => {
   let matchPlayers: Player[];
 
@@ -7569,12 +7280,8 @@ const createManualMatchWithCourt = () => {
     return;
   }
 
-  let assignedCourt = selectedCourt.value || undefined;
-
-  // Auto-assign court if none selected
-  if (!assignedCourt) {
-    assignedCourt = assignCourt();
-  }
+  // Auto-assign a slot
+  const assignedCourt = assignCourt();
 
   const isCourtEmpty =
     !!assignedCourt &&
@@ -7625,12 +7332,11 @@ const createManualMatchWithCourt = () => {
   selectedPlayers.value = [];
   manualTeam1.value = [];
   manualTeam2.value = [];
-  selectedCourt.value = null;
   manualSelectionStep.value = 1;
 
   notify({
     type: 'positive',
-    message: `Manual match created successfully${isCourtEmpty && assignedCourt ? ` on Court ${assignedCourt}` : ''}!`,
+    message: 'Manual match created successfully!',
   });
 };
 
@@ -7781,46 +7487,6 @@ const cancelMatch = (filteredIndex: number) => {
   });
 };
 
-const openCourtSelectionDialog = (filteredIndex: number) => {
-  // Find the actual match in the global matches array
-  const filteredMatch = filteredMatches.value[filteredIndex];
-  const globalIndex = matches.value.findIndex(
-    (match) => match.id === filteredMatch.id,
-  );
-
-  currentMatchForCourtAssignment.value = globalIndex;
-  showCourtSelectionDialog.value = true;
-};
-
-const assignCourtAutomatically = () => {
-  const matchIndex = currentMatchForCourtAssignment.value;
-  const match = matches.value[matchIndex];
-  const court = assignCourt();
-
-  if (court > 0 && isCourtAvailable(court)) {
-    const actualMatch = MatchmakingApp.state.activeMatches.find(
-      (am) => am.matchId === match.id,
-    );
-    if (actualMatch) {
-      startMatchOnCourt(actualMatch, court);
-    }
-
-    MatchmakingApp.persist();
-
-    notify({
-      type: 'positive',
-      message: `Match started on Court ${court}`,
-    });
-  } else {
-    notify({
-      type: 'negative',
-      message: 'No available courts',
-    });
-  }
-
-  showCourtSelectionDialog.value = false;
-};
-
 // Check if a court is available (no in-progress match)
 const isCourtAvailable = (courtNumber: number): boolean => {
   return !matches.value.some(
@@ -7857,23 +7523,22 @@ const startMatch = (filteredIndex: number) => {
     return;
   }
 
-  // Assign a court if not already assigned
   const actualMatch = MatchmakingApp.state.activeMatches.find(
     (am) => am.matchId === match.id,
   );
   if (!actualMatch) return;
 
+  // Assign a slot if not already assigned
   if (!actualMatch.court) {
-    const assignedCourt = assignCourt();
-    actualMatch.court = assignedCourt;
+    actualMatch.court = assignCourt();
     actualMatch.updatedAt = Date.now();
   }
 
-  // Check if court is available
+  // Check if slot is available
   if (!isCourtAvailable(actualMatch.court)) {
     notify({
       type: 'negative',
-      message: `Court ${actualMatch.court} is currently in use`,
+      message: 'All slots are currently in use',
     });
     return;
   }
@@ -7886,82 +7551,8 @@ const startMatch = (filteredIndex: number) => {
 
   notify({
     type: 'positive',
-    message: `Match started on Court ${match.court}`,
+    message: 'Match started',
   });
-};
-
-const assignSpecificCourt = (courtNumber: number) => {
-  const matchIndex = currentMatchForCourtAssignment.value;
-  const match = matches.value[matchIndex];
-  const originalCourt = match.court;
-
-  // Check if the target court has an in-progress match
-  const existingInProgressMatch = matches.value.find(
-    (m) => m.court === courtNumber && m.status === 'in-progress',
-  );
-
-  if (existingInProgressMatch) {
-    // Court has an in-progress match - implement swap
-    $q.dialog({
-      title: 'Court Swap Required',
-      message: `Court ${courtNumber} already has a match in progress. Do you want to swap the matches?`,
-      cancel: { label: 'Cancel', color: 'grey', flat: true },
-      ok: {
-        label: 'Swap Matches',
-        color: 'accent',
-        icon: 'swap_horiz',
-      },
-      persistent: true,
-    }).onOk(() => {
-      // Perform the swap
-      const actualExisting = MatchmakingApp.state.activeMatches.find(
-        (am) => am.matchId === existingInProgressMatch.id,
-      );
-      if (actualExisting) {
-        actualExisting.court = originalCourt;
-        actualExisting.status = 'waiting';
-        delete (actualExisting as { startedAt?: number }).startedAt;
-        actualExisting.updatedAt = Date.now();
-      }
-
-      const actualMatch = MatchmakingApp.state.activeMatches.find(
-        (am) => am.matchId === match.id,
-      );
-      if (actualMatch) {
-        actualMatch.court = courtNumber;
-        // Only start if it was already in-progress (shouldn't happen for waiting matches)
-        if (actualMatch.status !== 'in-progress') {
-          startMatchOnCourt(actualMatch, courtNumber);
-        }
-      }
-
-      notify({
-        type: 'positive',
-        message: `Matches swapped! Match moved to Court ${courtNumber}`,
-      });
-
-      MatchmakingApp.persist();
-
-      showCourtSelectionDialog.value = false;
-    });
-  } else {
-    // Court is available - assign and auto-start
-    const actualMatch = MatchmakingApp.state.activeMatches.find(
-      (am) => am.matchId === match.id,
-    );
-    if (actualMatch) {
-      startMatchOnCourt(actualMatch, courtNumber);
-    }
-
-    MatchmakingApp.persist();
-
-    notify({
-      type: 'positive',
-      message: `Match started on Court ${courtNumber}`,
-    });
-
-    showCourtSelectionDialog.value = false;
-  }
 };
 
 const editMatch = (filteredIndex: number) => {
@@ -8974,49 +8565,6 @@ const savePlayerEdit = () => {
   box-shadow:
     0 20px 25px -5px rgba(0, 0, 0, 0.1),
     0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-}
-
-// Court Selection Styling
-.selected-court {
-  background-color: rgba(25, 118, 210, 0.1) !important;
-  border-left: 4px solid #1976d2;
-}
-
-.court-selection-step {
-  .q-item {
-    transition: background-color 0.2s ease;
-
-    &:hover:not(.bg-grey-1) {
-      background-color: rgba(25, 118, 210, 0.05);
-    }
-  }
-}
-
-// Enhanced Court Selection UX
-.primary-court-option {
-  transition: all 0.2s ease;
-  border: 2px solid transparent;
-
-  &.selected {
-    border-color: #1976d2;
-    background-color: rgba(25, 118, 210, 0.05);
-    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
-  }
-
-  &:hover {
-    background-color: rgba(25, 118, 210, 0.02);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-}
-
-// Manual selection toggle button
-.court-selection-step .q-btn {
-  transition: all 0.2s ease;
-
-  &:hover {
-    background-color: rgba(25, 118, 210, 0.05);
-  }
 }
 
 // Consistent Mobile Dialog Sizing
