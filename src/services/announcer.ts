@@ -202,7 +202,6 @@ export const getNextInLine = (
 export const buildMatchAnnounceText = (
   teamA: string[],
   teamB: string[],
-  court?: number,
   isNextInLine?: boolean,
 ): string => {
   const aStr =
@@ -212,20 +211,19 @@ export const buildMatchAnnounceText = (
   if (isNextInLine) {
     return `Next in line, please prepare..... ${aStr}... versus... ${bStr}....`;
   }
-  return `Court ${court ?? '?'}. ${aStr}... versus... ${bStr}... One minute dinking only....`;
+  return `${aStr}... versus... ${bStr}... Please take the next open court. One minute dinking only....`;
 };
 
 // ── Match Start Announcement ─────────────────────────────
 export const announceMatchStart = (
   notify: (opts: { type: string; message: string; timeout?: number }) => void,
   match: ActiveMatch,
-  court: number,
   _allMatches: ActiveMatch[],
   players: Record<string, Player>,
 ) => {
   const a = match.teamA.map((u) => getPlayerName(players, u));
   const b = match.teamB.map((u) => getPlayerName(players, u));
-  const text = buildMatchAnnounceText(a, b, court);
+  const text = buildMatchAnnounceText(a, b);
 
   // Announce the newly started match 2 times (ideal for noisy clubs)
   for (let i = 0; i < 2; i++) {

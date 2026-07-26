@@ -227,18 +227,6 @@ export const calculateMatchCapacity = (
   };
 };
 
-/**
- * Generate court selection options
- */
-export const generateCourtOptions = (
-  courtCount: number,
-): Array<{ label: string; value: number }> => {
-  return Array.from({ length: courtCount }, (_, i) => ({
-    label: `Court ${i + 1}`,
-    value: i + 1,
-  }));
-};
-
 const MONTHS = [
   'Jan',
   'Feb',

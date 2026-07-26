@@ -1,11 +1,7 @@
 <template>
   <q-item
     class="match-item"
-    :style="
-      match.status === 'in-progress'
-        ? 'background-color: rgba(118, 75, 162, 0.06)'
-        : ''
-    "
+    :class="{ 'bg-live': match.status === 'in-progress' }"
     @click="handleClick"
     clickable
   >
@@ -54,26 +50,8 @@
           </div>
         </div>
 
-        <!-- Center: Status + Icon + Court stacked -->
+        <!-- Center: Status + Icon stacked -->
         <div class="col-auto q-mx-md center-group">
-          <q-chip
-            v-if="match.court"
-            color="blue-grey-7"
-            text-color="white"
-            size="sm"
-            dense
-          >
-            Court
-            <q-avatar
-              color="blue-grey-9"
-              style="left: 10px"
-              dense
-              size="xs"
-              rounded
-              text-color="white"
-              >{{ match.court }}</q-avatar
-            >
-          </q-chip>
           <span class="text-caption text-grey-6">
             {{
               match.winProbability !== undefined
@@ -98,9 +76,10 @@
           <q-badge
             v-if="match.status === 'in-progress' && match.startedAt"
             rounded
-            color="amber-6"
-            text-color="black"
+            color="accent"
+            text-color="white"
           >
+            <span class="live-dot" />
             {{ elapsed }}
           </q-badge>
         </div>
@@ -216,27 +195,7 @@
             </q-item>
 
             <q-item
-              v-if="!match.court && availableCourts > 0"
-              clickable
-              @click="$emit('assignCourt')"
-            >
-              <q-item-section avatar>
-                <q-icon name="sports_tennis" />
-              </q-item-section>
-              <q-item-section>Assign Court</q-item-section>
-            </q-item>
-
-            <q-item v-if="match.court" clickable @click="$emit('changeCourt')">
-              <q-item-section avatar>
-                <q-icon name="swap_horiz" />
-              </q-item-section>
-              <q-item-section>Change Court</q-item-section>
-            </q-item>
-
-            <q-item
-              v-if="
-                match.status === 'waiting' && match.court && isCourtAvailable
-              "
+              v-if="match.status === 'waiting' && canStart"
               clickable
               @click="$emit('startMatch')"
             >
@@ -309,22 +268,18 @@ interface Match {
 interface Props {
   match: Match;
   showActions?: boolean;
-  availableCourts?: number;
-  isCourtAvailable?: boolean;
+  canStart?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showActions: true,
-  availableCourts: 0,
-  isCourtAvailable: true,
+  canStart: false,
 });
 
 const emit = defineEmits<{
   click: [match: Match];
   completeMatch: [];
   editMatch: [];
-  assignCourt: [];
-  changeCourt: [];
   startMatch: [];
   cancelMatch: [];
   customAnnounce: [match: Match];
@@ -390,11 +345,15 @@ onUnmounted(() => {
 .match-item {
   transition: background-color 0.2s ease;
 
+  &.bg-live {
+    background-color: rgba(118, 75, 162, 0.08);
+  }
+
   &:hover {
     background-color: rgba(0, 0, 0, 0.02);
   }
 
-  // Center group (status + icon + court) vertical stack
+  // Center group (status + icon) vertical stack
   .center-group {
     display: flex;
     flex-direction: column;
@@ -410,12 +369,28 @@ onUnmounted(() => {
       margin: 0;
       font-size: 1rem;
     }
+
+    .live-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #fff;
+      margin-right: 4px;
+      animation: live-dot-pulse 2s ease-in-out infinite;
+    }
   }
 
-  // Court chip styling
-  .court-chip {
-    font-size: 0.75rem;
-    min-height: 20px;
+  @keyframes live-dot-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.4;
+      transform: scale(0.8);
+    }
   }
 
   // Mobile adjustments
@@ -430,12 +405,6 @@ onUnmounted(() => {
       .q-icon {
         font-size: 0.8rem;
         margin: 0;
-      }
-
-      .court-avatar {
-        font-size: 0.7rem;
-        min-width: 22px;
-        min-height: 22px;
       }
     }
 

@@ -117,7 +117,7 @@ export interface AppState {
   sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
   matchType?: 'singles' | 'doubles';
   allStarSortDirection?: 'desc' | 'asc'; // Alternates each All-Star draft round
-  matchesFilterBy?: 'all' | number;
+  matchesFilterBy?: 'all' | 'in-progress' | 'waiting';
   scoreType?: 'RALLY' | 'SIDEOUT'; // For DUPR CSV export
   ttsEnabled?: boolean; // Text-to-speech announcements
   qrContinueScan?: boolean; // Continue QR scanning after each successful add
@@ -284,6 +284,54 @@ export function enforceOneMatchPerCourtOnState(state: AppState) {
   console.log(
     `[enforceOneMatchPerCourt] Removed ${matchesToRemove.size} conflicting match(es) from courts, returned players to queue`,
   );
+}
+
+// Standalone helper: enforce the concurrency cap (availableCourts).
+// If there are more in-progress matches than the cap, the newest matches are
+// demoted to 'waiting' (court and startedAt cleared). Teams stay intact —
+// players are NOT returned to the queue. Returns the list of demoted matchIds
+// so callers can notify the admin.
+export function enforceConcurrencyLimitOnState(state: AppState): string[] {
+  const cap = state.availableCourts ?? 1;
+
+  const inProgress = state.activeMatches
+    .filter((m) => !m.deletedAt && m.status === 'in-progress')
+    .sort((a, b) => {
+      // Oldest startedAt first (longest-running stays)
+      const diff = (a.startedAt ?? 0) - (b.startedAt ?? 0);
+      if (diff !== 0) return diff;
+      return (a.updatedAt ?? 0) - (b.updatedAt ?? 0);
+    });
+
+  if (inProgress.length <= cap) return [];
+
+  const toDemote = inProgress.slice(cap);
+  const demotedIds: string[] = [];
+  const now = Date.now();
+
+  for (const m of toDemote) {
+    m.status = 'waiting';
+    m.court = undefined;
+    delete m.startedAt;
+    m.updatedAt = now;
+    demotedIds.push(m.matchId);
+  }
+
+  // Compact surviving in-progress matches onto slots 1..cap
+  const survivors = inProgress.slice(0, cap);
+  survivors.forEach((m, i) => {
+    const newSlot = i + 1;
+    if (m.court !== newSlot) {
+      m.court = newSlot;
+      m.updatedAt = now;
+    }
+  });
+
+  console.log(
+    `[enforceConcurrencyLimit] Demoted ${demotedIds.length} match(es) to waiting, cap is ${cap}`,
+  );
+
+  return demotedIds;
 }
 
 /**
@@ -697,6 +745,10 @@ export class LocalMatchmakingSystem {
     // Losing matches are tombstoned and their players returned to queue.
     this.enforceOneMatchPerCourt();
 
+    // Enforce concurrency cap: at most `availableCourts` in-progress matches.
+    // Excess matches are demoted to 'waiting' (teams intact).
+    this.enforceConcurrencyLimit();
+
     // Enforce constraint: no player can be in both queue and active matches
     this.enforceQueueMatchConstraint();
     // Remove orphaned queue entries (entries without a matching player profile)
@@ -854,6 +906,12 @@ export class LocalMatchmakingSystem {
   // players from the losing match(es) are returned to the queue.
   public enforceOneMatchPerCourt() {
     enforceOneMatchPerCourtOnState(this.state);
+  }
+
+  // Enforce: at most `availableCourts` in-progress matches at once.
+  // Excess matches are demoted to 'waiting' (teams intact).
+  public enforceConcurrencyLimit(): string[] {
+    return enforceConcurrencyLimitOnState(this.state);
   }
 
   private loadState(): AppState | null {
@@ -1934,6 +1992,9 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   // Ensure no court ends up with more than one in-progress match after merge.
   // Losing matches are tombstoned and their players returned to queue.
   enforceOneMatchPerCourtOnState(mergedState);
+
+  // Enforce concurrency cap after merge.
+  enforceConcurrencyLimitOnState(mergedState);
 
   return mergedState;
 }
