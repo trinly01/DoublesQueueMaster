@@ -20,7 +20,7 @@
     "alias": "android"
   },
   "appVersionName": "1.0",
-  "appVersionCode": 1,
+  "appVersionCode": 3,
   "shortcuts": [],
   "generatorApp": "bubblewrap",
   "webManifestUrl": "https://dinkmatch.club/manifest.json",
@@ -34,6 +34,7 @@
   "isMetaQuest": false,
   "fullScopeUrl": "https://dinkmatch.club/",
   "minSdkVersion": 21,
+  "targetSdkVersion": 36,
   "orientation": "portrait",
   "fingerprints": [],
   "additionalTrustedOrigins": [],

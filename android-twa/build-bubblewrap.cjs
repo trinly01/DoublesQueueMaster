@@ -108,6 +108,27 @@ async function main() {
   const manifestFile = path.join(TARGET_DIR, 'twa-manifest.json');
   const twaManifest = await TwaManifest.fromFile(manifestFile);
   const signingKey = twaManifest.signingKey;
+
+  // Sync versionCode and targetSdkVersion from twa-manifest.json into build.gradle (single source of truth)
+  const buildGradlePath = path.join(TARGET_DIR, 'app', 'build.gradle');
+  let buildGradle = fs.readFileSync(buildGradlePath, 'utf8');
+  const newVersionCode = twaManifest.appVersionCode;
+  const newTargetSdk = twaManifest.targetSdkVersion;
+  buildGradle = buildGradle.replace(
+    /versionCode \d+/,
+    `versionCode ${newVersionCode}`,
+  );
+  if (newTargetSdk) {
+    buildGradle = buildGradle.replace(
+      /targetSdkVersion \d+/,
+      `targetSdkVersion ${newTargetSdk}`,
+    );
+  }
+  fs.writeFileSync(buildGradlePath, buildGradle);
+  console.log(
+    `Synced versionCode ${newVersionCode}${newTargetSdk ? `, targetSdkVersion ${newTargetSdk}` : ''} from twa-manifest.json into build.gradle`,
+  );
+
   const gradleWrapper = new GradleWrapper(process, androidSdkTools);
   const jarSigner = new JarSigner(jdkHelper);
 
