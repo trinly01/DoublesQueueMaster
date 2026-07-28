@@ -58,6 +58,20 @@ npm run format
 quasar build
 ```
 
+### Build the Android App Bundle (AAB)
+
+1. Update `appVersionCode` in `android-twa/twa-manifest.json` (increment for each release — Google Play rejects duplicate version codes)
+2. Run the build script (handles JDK setup, gradle build, and signing):
+
+```bash
+npm run build:aab
+```
+
+3. The signed `.aab` will be at `android-twa/app-release-bundle.aab`
+4. Upload it to the [Google Play Console](https://play.google.com/console)
+
+> **Note:** `build-bubblewrap.cjs` automatically syncs the version code from `twa-manifest.json` into `build.gradle` before building. Only update `twa-manifest.json` — no need to touch `build.gradle` manually.
+
 ### Customize the configuration
 
 See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-vite/quasar-config-js).

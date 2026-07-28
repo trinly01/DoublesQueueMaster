@@ -1,14 +1,25 @@
 const fs = require('fs');
 const path = require('path');
-const { TwaManifest, TwaGenerator, JdkHelper, KeyTool, Config, ConsoleLog, BufferedLog } = require('C:/nvm4w/nodejs/node_modules/@bubblewrap/cli/node_modules/@bubblewrap/core');
+const {
+  TwaManifest,
+  TwaGenerator,
+  JdkHelper,
+  KeyTool,
+  Config,
+  ConsoleLog,
+  BufferedLog,
+} = require('C:/nvm4w/nodejs/node_modules/@bubblewrap/cli/node_modules/@bubblewrap/core');
 const crypto = require('crypto');
 
-const TARGET_DIR = 'C:/Users/trinm/Documents/GitHub/DoublesQueueMaster/android-twa';
+const TARGET_DIR =
+  'C:/Users/trinm/Documents/GitHub/DoublesQueueMaster/android-twa';
 const CONFIG_PATH = 'C:/Users/trinm/.bubblewrap/config.json';
 const WEB_MANIFEST_URL = 'https://dinkmatch.club/manifest.json';
 
+// NOTE: This is a one-time setup script. For new releases, update appVersionCode
+// in twa-manifest.json instead — build-bubblewrap.cjs syncs it to build.gradle.
 const PACKAGE_ID = 'club.dinkmatch.app';
-const VERSION_CODE = 1;
+const VERSION_CODE = 3;
 const VERSION_NAME = '1.0';
 const KEYSTORE_PATH = path.join(TARGET_DIR, 'android.keystore');
 const KEY_ALIAS = 'android';
@@ -21,12 +32,24 @@ const SIGNER_ORG = 'DinkMatch';
 const SIGNER_COUNTRY = 'US';
 
 class MockPrompt {
-  async printMessage(msg) { console.log(msg); }
-  async promptInput(msg, defaultValue, validate) { return defaultValue; }
-  async promptChoice(msg, choices, defaultValue, validate) { return defaultValue; }
-  async promptConfirm(msg, defaultValue) { return defaultValue; }
-  async promptPassword(msg, validate) { return KEYSTORE_PASSWORD; }
-  async downloadFile(url, filename, totalSize) { console.log(`Downloading ${filename}...`); }
+  async printMessage(msg) {
+    console.log(msg);
+  }
+  async promptInput(msg, defaultValue, validate) {
+    return defaultValue;
+  }
+  async promptChoice(msg, choices, defaultValue, validate) {
+    return defaultValue;
+  }
+  async promptConfirm(msg, defaultValue) {
+    return defaultValue;
+  }
+  async promptPassword(msg, validate) {
+    return KEYSTORE_PASSWORD;
+  }
+  async downloadFile(url, filename, totalSize) {
+    console.log(`Downloading ${filename}...`);
+  }
 }
 
 async function main() {
@@ -62,8 +85,14 @@ async function main() {
 
   // Generate checksum
   const manifestContents = await fs.promises.readFile(manifestFile);
-  const checksum = crypto.createHash('sha1').update(manifestContents).digest('hex');
-  await fs.promises.writeFile(path.join(TARGET_DIR, 'manifest-checksum.txt'), checksum);
+  const checksum = crypto
+    .createHash('sha1')
+    .update(manifestContents)
+    .digest('hex');
+  await fs.promises.writeFile(
+    path.join(TARGET_DIR, 'manifest-checksum.txt'),
+    checksum,
+  );
   console.log('Generated manifest-checksum.txt');
 
   // Create signing key
@@ -97,12 +126,15 @@ async function main() {
     `Signer's organizational unit: ${SIGNER_ORG_UNIT}`,
     `Signer's country code: ${SIGNER_COUNTRY}`,
   ].join('\n');
-  await fs.promises.writeFile(path.join(TARGET_DIR, 'signing-key-info.txt'), keyInfo);
+  await fs.promises.writeFile(
+    path.join(TARGET_DIR, 'signing-key-info.txt'),
+    keyInfo,
+  );
   console.log('Saved signing-key-info.txt');
   console.log('Done. Run `bubblewrap build` in this folder to create the AAB.');
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
