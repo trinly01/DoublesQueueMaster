@@ -1131,6 +1131,10 @@ export class LocalMatchmakingSystem {
       .filter((q) => !q.deletedAt)
       .sort(sortFn);
 
+    // Alternator flag: when WINNERS and LOSERS brackets are tied on priority,
+    // alternate which bracket gets drafted first to prevent losers from being stuck
+    let preferWinners = true;
+
     while (prioritizedQueue.length >= playersNeeded) {
       let draftedEntries: QueueEntry[] = [];
 
@@ -1142,9 +1146,8 @@ export class LocalMatchmakingSystem {
         // Non-strict modes: respect bracket priority sequence.
         // 1. GENERAL-only match (if enough to form one)
         // 2. Overflow GENERAL + LOSERS (leftover GENERAL absorb into lower bracket)
-        // 3. WINNERS vs WINNERS
-        // 4. LOSERS vs LOSERS
-        // 5. Fallback: mix from top of overall sorted queue
+        // 3. WINNERS vs WINNERS or LOSERS vs LOSERS (priority-aware alternation)
+        // 4. Fallback: mix from top of overall sorted queue
         const general = prioritizedQueue.filter(
           (q) => q.queueType === 'GENERAL',
         );
@@ -1162,6 +1165,36 @@ export class LocalMatchmakingSystem {
           // Leftover GENERAL overflow into LOSERS bracket
           const neededFromLosers = playersNeeded - general.length;
           draftedEntries = [...general, ...losers.slice(0, neededFromLosers)];
+        } else if (
+          winners.length >= playersNeeded &&
+          losers.length >= playersNeeded
+        ) {
+          // Both brackets have enough players — use priority to decide, alternator as tiebreaker
+          const bestWinner = winners[0];
+          const bestLoser = losers[0];
+          const winnerPlayed =
+            this.state.players[bestWinner.username]?.matchesPlayed ?? 0;
+          const loserPlayed =
+            this.state.players[bestLoser.username]?.matchesPlayed ?? 0;
+
+          let draftWinnersFirst: boolean;
+          if (winnerPlayed !== loserPlayed) {
+            // Priority: fewer matches played goes first
+            draftWinnersFirst = winnerPlayed < loserPlayed;
+          } else if (bestWinner.enteredAt !== bestLoser.enteredAt) {
+            // Priority: earlier enteredAt goes first
+            draftWinnersFirst = bestWinner.enteredAt < bestLoser.enteredAt;
+          } else {
+            // True tie — use alternator to ensure both brackets get equal court time
+            draftWinnersFirst = preferWinners;
+            preferWinners = !preferWinners;
+          }
+
+          if (draftWinnersFirst) {
+            draftedEntries = winners.slice(0, playersNeeded);
+          } else {
+            draftedEntries = losers.slice(0, playersNeeded);
+          }
         } else if (winners.length >= playersNeeded) {
           draftedEntries = winners.slice(0, playersNeeded);
         } else if (losers.length >= playersNeeded) {

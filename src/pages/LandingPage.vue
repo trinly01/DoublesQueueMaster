@@ -3,6 +3,7 @@
     <LandingNav />
     <LandingHero />
     <LandingProblem />
+    <LandingPaddleStack />
     <LandingSolution />
     <LandingHowItWorks />
     <LandingAudience />
@@ -18,6 +19,7 @@
 import LandingNav from 'src/components/landing/LandingNav.vue';
 import LandingHero from 'src/components/landing/LandingHero.vue';
 import LandingProblem from 'src/components/landing/LandingProblem.vue';
+import LandingPaddleStack from 'src/components/landing/LandingPaddleStack.vue';
 import LandingSolution from 'src/components/landing/LandingSolution.vue';
 import LandingModes from 'src/components/landing/LandingModes.vue';
 import LandingAudience from 'src/components/landing/LandingAudience.vue';
