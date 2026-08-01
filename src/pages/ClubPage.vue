@@ -83,25 +83,18 @@
                   v-if="getClubLogoUrl"
                   size="40px"
                   class="q-mr-xs"
-                  style="padding-top: 12px"
+                  style="top: 8px"
                 >
                   <img :src="getClubLogoUrl" :alt="clubName" />
                 </q-avatar>
-                <q-avatar
-                  v-else
-                  size="40px"
-                  class="q-mr-xs"
-                  color="white"
-                  text-color="accent"
-                  style="padding-top: 2px"
-                >
-                  <q-icon name="groups" size="24px" />
+                <q-avatar v-else size="40px" class="q-mr-xs" style="top: 8px">
+                  <img :src="logoUrl" alt="DinkMatch" />
                 </q-avatar>
                 <div class="col">
                   <h1
                     :class="$q.screen.lt.md ? 'text-h6' : 'text-h5'"
                     class="text-weight-bold text-white q-ma-none ellipsis"
-                    style="line-height: 1.3; padding-top: 2px"
+                    style="line-height: 1.3"
                   >
                     {{ clubName }}
                   </h1>
@@ -119,7 +112,7 @@
                 </div>
               </div>
               <p
-                class="text-caption q-ma-none q-mt-xs"
+                class="text-caption q-ma-none"
                 :style="{
                   fontSize: $q.screen.lt.md ? '10px' : '12px',
                   color: 'rgba(255, 255, 255, 0.6)',
@@ -3206,6 +3199,7 @@ import { usePayment } from 'src/composables/usePayment';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar, LocalStorage, copyToClipboard } from 'quasar';
+import logoUrl from 'src/assets/queue master logo.png';
 import { useNotify } from 'src/composables/useNotify';
 import TeamArrangement from '../components/TeamArrangement.vue';
 import PlayerList from '../components/PlayerList.vue';
