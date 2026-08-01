@@ -1,8 +1,38 @@
 <template>
   <q-page class="clubs-page">
-    <div class="container q-pa-md">
-      <h1 class="page-title text-center q-mb-md">Clubs</h1>
+    <!-- Header Section -->
+    <div class="header-section">
+      <div class="container">
+        <div class="row items-center" style="line-height: 1">
+          <img
+            :src="logoUrl"
+            alt="DinkMatch"
+            style="height: 20px; margin-right: 6px"
+          />
+          <span class="text-caption text-weight-medium text-white">
+            DinkMatch.club
+          </span>
+        </div>
+        <p
+          class="text-caption q-ma-none"
+          :style="{
+            fontSize: $q.screen.lt.md ? '10px' : '12px',
+            lineHeight: 1.2,
+            color: 'rgba(255, 255, 255, 0.6)',
+          }"
+        >
+          Smart queue matchmaking
+        </p>
+        <h1
+          :class="$q.screen.lt.md ? 'text-h6' : 'text-h5'"
+          class="text-weight-bold text-white q-ma-none"
+        >
+          Browse and manage Clubs
+        </h1>
+      </div>
+    </div>
 
+    <div class="container q-pa-md">
       <q-btn-group spread class="full-width tab-buttons">
         <q-btn
           flat
@@ -365,6 +395,7 @@ import { PlayerProfile } from 'src/services/playerProfile';
 import { useNotify } from 'src/composables/useNotify';
 import { useAuth } from 'src/composables/useAuth';
 import { useQuasar, LocalStorage } from 'quasar';
+import logoUrl from 'src/assets/queue master logo.png';
 import EmptyState from 'src/components/EmptyState.vue';
 import DialogHeader from 'src/components/DialogHeader.vue';
 
@@ -647,17 +678,16 @@ onMounted(() => {
   padding-bottom: 2rem;
 }
 
+.header-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1rem 0;
+}
+
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
-}
-
-.page-title {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: #2d2d3a;
-  margin: 0;
 }
 
 .search-bar {

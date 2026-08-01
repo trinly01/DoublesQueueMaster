@@ -79,28 +79,52 @@
           <div class="row items-center justify-between">
             <div class="col">
               <div class="row items-center q-mb-none">
-                <q-avatar v-if="getClubLogoUrl" size="40px" class="q-mr-sm">
+                <q-avatar
+                  v-if="getClubLogoUrl"
+                  size="40px"
+                  class="q-mr-xs"
+                  style="padding-top: 12px"
+                >
                   <img :src="getClubLogoUrl" :alt="clubName" />
                 </q-avatar>
                 <q-avatar
                   v-else
                   size="40px"
-                  class="q-mr-sm"
+                  class="q-mr-xs"
                   color="white"
                   text-color="accent"
+                  style="padding-top: 2px"
                 >
                   <q-icon name="groups" size="24px" />
                 </q-avatar>
-                <h1
-                  :class="$q.screen.lt.md ? 'text-h6' : 'text-h5'"
-                  class="text-weight-bold text-white q-ma-none ellipsis"
-                >
-                  {{ clubName }}
-                </h1>
+                <div class="col">
+                  <h1
+                    :class="$q.screen.lt.md ? 'text-h6' : 'text-h5'"
+                    class="text-weight-bold text-white q-ma-none ellipsis"
+                    style="line-height: 1.3; padding-top: 2px"
+                  >
+                    {{ clubName }}
+                  </h1>
+                  <span
+                    class="text-caption text-weight-medium text-grey-1"
+                    style="
+                      line-height: 1;
+                      display: block;
+                      padding-top: 2px;
+                      padding-left: 4px;
+                    "
+                  >
+                    DinkMatch.club
+                  </span>
+                </div>
               </div>
               <p
-                class="text-caption text-grey-1 q-ma-none q-mt-xs"
-                :style="{ fontSize: $q.screen.lt.md ? '10px' : '12px' }"
+                class="text-caption q-ma-none q-mt-xs"
+                :style="{
+                  fontSize: $q.screen.lt.md ? '10px' : '12px',
+                  color: 'rgba(255, 255, 255, 0.6)',
+                  paddingLeft: '40px',
+                }"
               >
                 Smart queue matchmaking
               </p>
