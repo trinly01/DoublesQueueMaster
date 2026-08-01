@@ -4,6 +4,7 @@
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js
 
 import { configure } from 'quasar/wrappers';
+import basicSsl from '@vitejs/plugin-basic-ssl';
 
 export default configure((/* ctx */) => {
   return {
@@ -57,6 +58,7 @@ export default configure((/* ctx */) => {
       distDir: 'docs',
 
       extendViteConf(viteConf) {
+        viteConf.plugins = [...(viteConf.plugins || []), basicSsl()];
         viteConf.build = viteConf.build || {};
         // The vendor bundle is inherently large due to Quasar/Vue; raise the
         // warning limit so the build output stays clean.
@@ -100,7 +102,6 @@ export default configure((/* ctx */) => {
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#devServer
     devServer: {
-      // https: true
       open: true, // opens browser window automatically
     },
 

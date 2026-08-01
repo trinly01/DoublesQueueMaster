@@ -79,23 +79,27 @@
           <div class="row items-center justify-between">
             <div class="col">
               <div class="row items-center q-mb-none">
-                <img
-                  :src="logoUrl"
-                  alt="Logo"
-                  style="height: 20px; margin-right: 6px"
-                />
-                <span class="text-caption text-weight-medium text-white">
-                  DinkMatch
-                </span>
+                <q-avatar v-if="getClubLogoUrl" size="40px" class="q-mr-sm">
+                  <img :src="getClubLogoUrl" :alt="clubName" />
+                </q-avatar>
+                <q-avatar
+                  v-else
+                  size="40px"
+                  class="q-mr-sm"
+                  color="white"
+                  text-color="accent"
+                >
+                  <q-icon name="groups" size="24px" />
+                </q-avatar>
+                <h1
+                  :class="$q.screen.lt.md ? 'text-h6' : 'text-h5'"
+                  class="text-weight-bold text-white q-ma-none ellipsis"
+                >
+                  {{ clubName }}
+                </h1>
               </div>
-              <h1
-                :class="$q.screen.lt.md ? 'text-h6' : 'text-h5'"
-                class="text-weight-bold text-white q-mt-none q-mb-none"
-              >
-                {{ clubName }}
-              </h1>
               <p
-                class="text-caption text-grey-1 q-ma-none"
+                class="text-caption text-grey-1 q-ma-none q-mt-xs"
                 :style="{ fontSize: $q.screen.lt.md ? '10px' : '12px' }"
               >
                 Smart queue matchmaking
@@ -2055,6 +2059,86 @@
             style="flex: 1; overflow-y: auto"
           >
             <div class="q-gutter-y-md">
+              <!-- Club Info Section (admin only) -->
+              <div v-if="isCurrentUserAdmin">
+                <div class="text-subtitle2 q-mb-sm">Club Info</div>
+                <div class="row items-center q-mb-md">
+                  <q-avatar v-if="getClubLogoUrl" size="56px" class="q-mr-md">
+                    <img :src="getClubLogoUrl" :alt="clubName" />
+                  </q-avatar>
+                  <q-avatar
+                    v-else
+                    size="56px"
+                    class="q-mr-md"
+                    color="accent"
+                    text-color="white"
+                  >
+                    <q-icon name="groups" size="28px" />
+                  </q-avatar>
+                  <q-btn
+                    flat
+                    color="accent"
+                    icon="upload"
+                    label="Change Logo"
+                    size="sm"
+                    @click="clubLogoInput?.click()"
+                  />
+                  <input
+                    ref="clubLogoInput"
+                    type="file"
+                    accept="image/*"
+                    style="display: none"
+                    @change="onLogoSelected"
+                  />
+                </div>
+                <div class="row q-col-gutter-sm">
+                  <div class="col-12 col-sm-7">
+                    <q-input
+                      v-model="editClubName"
+                      filled
+                      label="Club Name"
+                      dense
+                      :rules="[
+                        (val) => !!val?.trim() || 'Club name is required',
+                      ]"
+                    />
+                  </div>
+                  <div class="col-12 col-sm-5">
+                    <q-input
+                      v-model="editClubId"
+                      filled
+                      label="Club ID"
+                      dense
+                      :rules="[
+                        (val) => !!val?.trim() || 'Club ID is required',
+                        (val) =>
+                          /^[a-z0-9._-]+$/.test(val?.trim() || '') ||
+                          'Only lowercase letters, numbers, periods, hyphens, and underscores',
+                      ]"
+                      @blur="
+                        editClubId = editClubId
+                          .trim()
+                          .toLowerCase()
+                          .replace(/[^a-z0-9._-]/g, '')
+                      "
+                    />
+                  </div>
+                </div>
+                <div class="row justify-end q-mt-xs">
+                  <q-btn
+                    flat
+                    label="Save Club Info"
+                    color="primary"
+                    size="sm"
+                    :loading="editClubLoading"
+                    :disable="!editClubName?.trim() || !editClubId?.trim()"
+                    @click="saveClubDetails"
+                  />
+                </div>
+                <q-separator class="q-my-md" />
+              </div>
+
+              <!-- Members Section -->
               <div class="row q-col-gutter-sm items-center">
                 <div class="col-12 col-sm-7">
                   <q-input
@@ -3083,13 +3167,18 @@
 <script setup lang="ts">
 import { MatchmakingApp, mergeAppState } from '../services/matchmaking';
 import type { Player, AppState } from '../services/matchmaking';
-import { readItems, updateItem, readMe, readUsers } from '@likha-erp/likha-sdk';
-import { likhaClient } from 'src/services/likhaClient';
+import {
+  readItems,
+  updateItem,
+  readMe,
+  readUsers,
+  uploadFiles,
+} from '@likha-erp/likha-sdk';
+import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
 import { useAuth } from 'src/composables/useAuth';
 import { usePayment } from 'src/composables/usePayment';
 
-import logoUrl from 'src/assets/queue master logo.png';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar, LocalStorage, copyToClipboard } from 'quasar';
@@ -3464,6 +3553,21 @@ const isOpenPlay = computed(() => route.path === '/openplay');
 const currentClubId = ref<string>('');
 const currentClubUUID = ref<string>('');
 const clubName = ref<string>('');
+const clubLogo = ref<string>('');
+const getClubLogoUrl = computed(() => {
+  if (!clubLogo.value) return '';
+  if (
+    clubLogo.value.startsWith('http://') ||
+    clubLogo.value.startsWith('https://')
+  ) {
+    return clubLogo.value;
+  }
+  return `${LIKHA_URL}/assets/${clubLogo.value}`;
+});
+const editClubName = ref('');
+const editClubId = ref('');
+const editClubLoading = ref(false);
+const clubLogoInput = ref<HTMLInputElement | null>(null);
 const clubLoadingState = ref<
   'loading' | 'loaded' | 'not-found' | 'unpublished' | 'error'
 >('loading');
@@ -3878,6 +3982,77 @@ const copyClubLink = async () => {
     });
 };
 
+const populateEditClubFields = () => {
+  editClubName.value = clubName.value;
+  editClubId.value = currentClubId.value;
+};
+
+const onLogoSelected = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file || !currentClubUUID.value) return;
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const uploadResult = await likhaClient.request(uploadFiles(formData));
+    const uploaded = Array.isArray(uploadResult)
+      ? uploadResult[0]
+      : uploadResult;
+    const logoId = uploaded?.id;
+
+    if (logoId) {
+      await likhaClient.request(
+        updateItem('club', currentClubUUID.value, { logo: logoId }),
+      );
+      clubLogo.value = logoId;
+      notify({ color: 'positive', message: 'Logo updated!' });
+    }
+  } catch (err) {
+    console.error('Logo upload failed:', err);
+    notify({ color: 'negative', message: 'Failed to upload logo' });
+  } finally {
+    input.value = '';
+  }
+};
+
+const saveClubDetails = async () => {
+  if (
+    !editClubName.value.trim() ||
+    !editClubId.value.trim() ||
+    !currentClubUUID.value
+  )
+    return;
+  editClubLoading.value = true;
+  try {
+    const trimmedName = editClubName.value.trim();
+    const trimmedId = editClubId.value.trim();
+    const idChanged = trimmedId !== currentClubId.value;
+
+    await likhaClient.request(
+      updateItem('club', currentClubUUID.value, {
+        name: trimmedName,
+        clubId: trimmedId,
+      }),
+    );
+
+    clubName.value = trimmedName;
+    currentClubId.value = trimmedId;
+    notify({ color: 'positive', message: 'Club details updated!' });
+
+    if (idChanged) {
+      router.replace(`/club/${trimmedId}`);
+    }
+  } catch (err) {
+    console.error('Update club details failed:', err);
+    const error = err as { errors?: { message?: string }[] };
+    const msg = error?.errors?.[0]?.message || 'Failed to update club';
+    notify({ color: 'negative', message: msg });
+  } finally {
+    editClubLoading.value = false;
+  }
+};
+
 // Cloud sync state
 const isOnline = ref(navigator.onLine);
 const hasPendingCloudSync = ref(false);
@@ -3948,6 +4123,7 @@ const loadClubData = async (clubId: string) => {
           'id',
           'clubId',
           'name',
+          'logo',
           'status',
           'appState',
           'players.id',
@@ -3984,6 +4160,7 @@ const loadClubData = async (clubId: string) => {
         id: string;
         clubId: string;
         name?: string;
+        logo?: string;
         status?: string;
         appState?: {
           matchmaking?: unknown;
@@ -4041,6 +4218,7 @@ const loadClubData = async (clubId: string) => {
       currentClubId.value = clubId;
       currentClubUUID.value = club.id;
       clubName.value = club.name || clubId;
+      clubLogo.value = club.logo || '';
       MatchmakingApp.state.clubId = clubId;
       MatchmakingApp.state.clubUUID = club.id;
 
@@ -5176,6 +5354,12 @@ watch(showAddPlayerDialog, (open) => {
 const showSettingsDialog = ref(false);
 const showLeaderboardDialog = ref(false);
 const settingsTab = ref<'matchmaking' | 'club' | 'feedback'>('matchmaking');
+
+watch([showSettingsDialog, settingsTab], ([showDialog, tab]) => {
+  if (showDialog && tab === 'club') {
+    populateEditClubFields();
+  }
+});
 
 type ClubLeaderboardEntry = {
   id: string;
