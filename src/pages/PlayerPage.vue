@@ -118,68 +118,15 @@
           </div>
         </q-card-section>
 
-        <q-card-section class="q-px-lg q-mt-sm">
-          <div
-            class="text-subtitle1 text-weight-medium q-mb-sm text-center text-grey-8"
-          >
-            Join a Club
-          </div>
-          <div class="row q-col-gutter-sm items-center justify-center">
-            <div class="col-8 col-md-9">
-              <q-select
-                filled
-                v-model="clubId"
-                :options="clubOptions"
-                option-value="clubId"
-                option-label="clubId"
-                emit-value
-                map-options
-                use-input
-                hide-selected
-                fill-input
-                input-debounce="300"
-                label="Enter Club ID"
-                dense
-                color="primary"
-                behavior="menu"
-                menu-anchor="top middle"
-                menu-self="bottom middle"
-                hide-bottom-space
-                @filter="filterClubs"
-                @keyup.enter="joinClub"
-              >
-                <template #option="scope">
-                  <q-item v-bind="scope.itemProps">
-                    <q-item-section>
-                      <q-item-label>{{ scope.opt.name }}</q-item-label>
-                      <q-item-label caption class="text-grey-7">{{
-                        scope.opt.clubId
-                      }}</q-item-label>
-                    </q-item-section>
-                  </q-item>
-                </template>
-              </q-select>
-            </div>
-            <div class="col-4 col-md-3">
-              <q-btn
-                label="Join"
-                color="accent"
-                @click="joinClub"
-                :disable="!clubId"
-                class="full-width"
-              />
-            </div>
-          </div>
-          <div class="text-center q-mt-sm">
-            <q-btn
-              flat
-              color="accent"
-              size="sm"
-              icon="add_circle"
-              label="Create New Club"
-              @click="showCreateClubDialog = true"
-            />
-          </div>
+        <q-card-section class="q-px-lg q-mt-sm text-center">
+          <q-btn
+            label="Browse Clubs"
+            icon="groups"
+            color="accent"
+            rounded
+            unelevated
+            @click="router.push('/clubs')"
+          />
         </q-card-section>
 
         <div style="flex-grow: 1"></div>
@@ -205,79 +152,6 @@
             @click="onLogout"
           />
         </q-card-actions>
-
-        <!-- Create Club Dialog -->
-        <q-dialog v-model="showCreateClubDialog" persistent>
-          <q-card style="min-width: 320px; max-width: 90vw">
-            <q-card-section class="row items-center q-pb-none">
-              <div class="text-h6">Create Club</div>
-              <q-space />
-              <q-btn icon="close" flat round dense v-close-popup>
-                <q-tooltip
-                  anchor="top middle"
-                  self="bottom middle"
-                  :offset="[8, 8]"
-                  >Close</q-tooltip
-                >
-              </q-btn>
-            </q-card-section>
-
-            <q-card-section class="q-pt-md">
-              <q-input
-                v-model="newClubId"
-                filled
-                label="Club ID"
-                dense
-                class="q-mb-sm"
-                :rules="[
-                  (val) => !!val?.trim() || 'Club ID is required',
-                  (val) =>
-                    /^[a-z0-9._-]+$/.test(val?.trim() || '') ||
-                    'Only lowercase letters, numbers, periods, hyphens, and underscores',
-                ]"
-                hint="e.g. san-fabian-dinkers"
-                @blur="
-                  newClubId = newClubId
-                    .trim()
-                    .toLowerCase()
-                    .replace(/[^a-z0-9._-]/g, '')
-                "
-              />
-              <q-input
-                v-model="newClubName"
-                filled
-                label="Club Name"
-                dense
-                :rules="[(val) => !!val?.trim() || 'Club name is required']"
-              />
-              <q-input
-                v-model="newReferralCode"
-                filled
-                label="Referral Code (optional)"
-                dense
-                class="q-mt-sm"
-                :rules="[
-                  (val) =>
-                    !val ||
-                    /^[a-z0-9._-]+$/.test(val) ||
-                    'Only lowercase letters, numbers, periods, hyphens, and underscores',
-                ]"
-              />
-            </q-card-section>
-
-            <q-card-actions align="right">
-              <q-btn flat label="Cancel" color="primary" v-close-popup />
-              <q-btn
-                flat
-                label="Request"
-                color="primary"
-                :loading="createClubLoading"
-                :disable="!newClubId?.trim() || !newClubName?.trim()"
-                @click="createClub"
-              />
-            </q-card-actions>
-          </q-card>
-        </q-dialog>
 
         <!-- Player Stats Dialog -->
         <q-dialog v-model="showHistoryDialog">
@@ -959,38 +833,46 @@
               <q-input
                 v-model="editDuprId"
                 filled
-                label="DUPR ID"
+                label="DUPR ID (optional)"
                 dense
                 class="q-mb-sm"
               />
-              <q-input
-                v-model="currentPassword"
-                filled
-                type="password"
-                label="Current Password"
-                dense
-                class="q-mb-sm"
-              />
-              <q-input
-                v-model="newPassword"
-                filled
-                type="password"
-                label="New Password (optional)"
-                dense
-                class="q-mb-sm"
-                hint="Leave blank to keep current password"
-              />
-              <q-input
-                v-if="newPassword"
-                v-model="confirmNewPassword"
-                filled
-                type="password"
-                label="Confirm New Password"
-                dense
-                :rules="[
-                  (val) => val === newPassword || 'Passwords do not match',
-                ]"
-              />
+              <template v-if="!isSsoUser">
+                <q-separator class="q-my-sm" />
+                <div class="text-subtitle2 text-grey-8 q-mb-xs">
+                  Change Password
+                </div>
+                <q-input
+                  v-model="newPassword"
+                  filled
+                  type="password"
+                  label="New Password (optional)"
+                  dense
+                  class="q-mb-sm"
+                  hint="Leave blank to keep current password"
+                />
+                <q-input
+                  v-if="newPassword"
+                  v-model="currentPassword"
+                  filled
+                  type="password"
+                  label="Current Password"
+                  dense
+                  class="q-mb-sm"
+                  hint="Enter your current password for verification"
+                />
+                <q-input
+                  v-if="newPassword"
+                  v-model="confirmNewPassword"
+                  filled
+                  type="password"
+                  label="Confirm New Password"
+                  dense
+                  :rules="[
+                    (val) => val === newPassword || 'Passwords do not match',
+                  ]"
+                />
+              </template>
             </q-card-section>
 
             <q-card-actions align="right">
@@ -1019,9 +901,7 @@ import { useNotify } from 'src/composables/useNotify';
 import { likhaClient } from 'src/services/likhaClient';
 import PlayerFeedbackButton from 'src/components/PlayerFeedbackButton.vue';
 import {
-  readItems,
   readUsers,
-  createItem,
   uploadFiles,
   updateUser,
   updateMe,
@@ -1060,6 +940,7 @@ const ratingColor = computed(() => getRatingColor(playerRating.value));
 const ratingCategory = computed(() => getRatingCategory(playerRating.value));
 const username = computed(() => PlayerProfile.state.username);
 const currentUserId = computed(() => PlayerProfile.state.id);
+const isSsoUser = computed(() => PlayerProfile.state.provider === 'google');
 const isPaymentExpired = computed(() => {
   const lastPayment = PlayerProfile.state.lastPayment;
   if (!lastPayment) return false;
@@ -1088,11 +969,7 @@ const avatarUrl = computed(() => {
   return `https://api.dinkmatch.club/assets/${avatar}`;
 });
 
-const LAST_CLUB_KEY = 'lastClubId';
 const LEADERBOARD_CACHE_KEY = 'leaderboard_cache';
-const clubId = ref<string | { clubId: string; name: string }>(
-  (LocalStorage.getItem(LAST_CLUB_KEY) as string) || '',
-);
 
 const loadLeaderboardCache = () => {
   const cached = LocalStorage.getItem(LEADERBOARD_CACHE_KEY) as
@@ -1125,7 +1002,6 @@ const saveLeaderboardCache = () => {
     matches: matchesLeaderboard.value,
   });
 };
-const clubOptions = ref<{ clubId: string; name: string }[]>([]);
 const loading = computed(() => PlayerProfile.loading.value);
 const avatarInput = ref<HTMLInputElement | null>(null);
 
@@ -1150,23 +1026,12 @@ watch(
 
 const isEditProfileDisabled = computed(() => {
   const hasNoFirstName = !editFirstName.value?.trim();
-  const hasNoCurrentPassword = !currentPassword.value;
   const passwordTooShort = !!newPassword.value && newPassword.value.length < 8;
   const passwordMismatch =
     !!newPassword.value && newPassword.value !== confirmNewPassword.value;
-  return (
-    hasNoFirstName ||
-    hasNoCurrentPassword ||
-    passwordTooShort ||
-    passwordMismatch
-  );
+  return hasNoFirstName || passwordTooShort || passwordMismatch;
 });
 
-const showCreateClubDialog = ref(false);
-const newClubId = ref('');
-const newClubName = ref('');
-const newReferralCode = ref('');
-const createClubLoading = ref(false);
 const showHistoryDialog = ref(false);
 const activeTab = ref<'history' | 'matches' | 'partners' | 'rivals' | 'clutch'>(
   'history',
@@ -1879,11 +1744,13 @@ const editProfile = async () => {
   if (!currentUserId.value || !editFirstName.value.trim()) return;
   editProfileLoading.value = true;
   try {
-    // 1. Verify current password by attempting login
-    await likhaClient.login({
-      email: PlayerProfile.state.email,
-      password: currentPassword.value,
-    });
+    // 1. If email/password user provided current password, verify it
+    if (!isSsoUser.value && currentPassword.value && newPassword.value) {
+      await likhaClient.login({
+        email: PlayerProfile.state.email,
+        password: currentPassword.value,
+      });
+    }
 
     // 2. Update first name and DUPR ID
     await likhaClient.request(
@@ -1928,82 +1795,6 @@ const editProfile = async () => {
   }
 };
 
-const createClub = async () => {
-  if (
-    !newClubId.value.trim() ||
-    !newClubName.value.trim() ||
-    !currentUserId.value
-  )
-    return;
-  createClubLoading.value = true;
-  try {
-    const payload: Record<string, unknown> = {
-      clubId: newClubId.value.trim(),
-      name: newClubName.value.trim(),
-      admins: { create: [{ directus_users_id: currentUserId.value }] },
-      players: { create: [{ directus_users_id: currentUserId.value }] },
-    };
-    const referral = newReferralCode.value.replace(/\s/g, '');
-    if (referral) payload.referral_code = referral;
-    await likhaClient.request(createItem('club', payload));
-
-    const createdId = newClubId.value;
-    showCreateClubDialog.value = false;
-    newClubId.value = '';
-    newClubName.value = '';
-    newReferralCode.value = '';
-
-    router.push(`/club/${createdId}`);
-  } catch (err) {
-    console.error('Create club failed:', err);
-    const error = err as { errors?: { message?: string }[] };
-    const msg = error?.errors?.[0]?.message || 'Failed to create club';
-    notify({ color: 'negative', message: msg });
-  } finally {
-    createClubLoading.value = false;
-  }
-};
-
-const filterClubs = async (
-  val: string,
-  update: (callback: () => void) => void,
-) => {
-  if (!val || val.length < 2) {
-    update(() => {
-      clubOptions.value = [];
-    });
-    return;
-  }
-  try {
-    const clubs = await likhaClient.request(
-      readItems('club', {
-        filter: {
-          _or: [{ clubId: { _icontains: val } }, { name: { _icontains: val } }],
-        },
-        fields: ['clubId', 'name'],
-        limit: 10,
-      }),
-    );
-    update(() => {
-      clubOptions.value = (clubs || []).map((c: unknown) => {
-        const club = c as { clubId: string; name?: string };
-        return { clubId: club.clubId, name: club.name || club.clubId };
-      });
-    });
-  } catch (err) {
-    console.error('Club search failed:', err);
-    update(() => {
-      clubOptions.value = [];
-    });
-  }
-};
-
-const joinClub = () => {
-  if (!clubId.value) return;
-  LocalStorage.set(LAST_CLUB_KEY, clubId.value);
-  router.push(`/club/${clubId.value}`);
-};
-
 onMounted(async () => {
   // Load from cache instantly (for offline / fast startup)
   if (!PlayerProfile.hasCachedProfile()) {
@@ -2030,28 +1821,6 @@ onMounted(async () => {
       color: 'warning',
       message: PlayerProfile.error.value,
     });
-  }
-
-  // Fetch club details if there's a cached clubId to display it in the select
-  if (clubId.value) {
-    try {
-      const clubs = await likhaClient.request(
-        readItems('club', {
-          filter: { clubId: { _eq: clubId.value } },
-          fields: ['clubId', 'name'],
-          limit: 1,
-        }),
-      );
-      if (clubs && clubs.length > 0) {
-        const club = clubs[0] as { clubId: string; name?: string };
-        clubOptions.value = [
-          { clubId: club.clubId, name: club.name || club.clubId },
-        ];
-      }
-    } catch (err) {
-      // Silently fail - club might not exist or offline
-      console.warn('Failed to fetch cached club details:', err);
-    }
   }
 });
 

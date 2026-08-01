@@ -312,9 +312,9 @@ onMounted(async () => {
     googleLoading.value = true;
     try {
       // After Google SSO, Directus sets a refresh token cookie. Exchange it
-      // for JSON tokens via the SDK. With api.dinkmatch.club proxying to
-      // Directus, cookies are same-site (*.dinkmatch.club), so iOS ITP
-      // won't block them.
+      // for JSON tokens via the SDK. On localhost (HTTPS), cross-site cookies
+      // work because Directus is configured with SameSite=None; Secure.
+      // On production, cookies are same-site (*.dinkmatch.club).
       try {
         await likhaClient.refresh({ mode: 'cookie' });
       } catch (refreshErr) {

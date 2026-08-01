@@ -29,7 +29,14 @@ class QuasarStorage {
 const storage = new QuasarStorage();
 
 const likhaClient = createLikha(LIKHA_URL)
-  .with(authentication('json', { storage, credentials: 'include' }))
+  .with(
+    authentication('json', {
+      storage,
+      credentials: 'include',
+      autoRefresh: true,
+      msRefreshBeforeExpires: 5 * 60 * 1000,
+    }),
+  )
   .with(rest())
   .with(
     realtime({

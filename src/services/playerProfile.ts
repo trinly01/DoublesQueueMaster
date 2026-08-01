@@ -68,6 +68,7 @@ export interface UserProfile {
   rating: number;
   duprId?: string;
   avatar?: string;
+  provider?: string;
   lastPayment?: string;
   lastModified?: number;
   events?: RatingEvent[];
@@ -92,6 +93,7 @@ export class PlayerProfileService {
       rating: saved?.rating ?? 1450,
       duprId: saved?.duprId || '',
       avatar: saved?.avatar || '',
+      provider: saved?.provider || '',
       lastPayment: saved?.lastPayment || '',
       lastModified: saved?.lastModified || 0,
       events: saved?.events || [],
@@ -164,6 +166,8 @@ export class PlayerProfileService {
         this.state.email = (userObj.email ?? '') as string;
         this.state.username = (userObj.username ?? '') as string;
         this.state.avatar = (userObj.avatar ?? '') as string;
+        this.state.provider =
+          (userObj.provider as string | undefined) ?? 'default';
         this.state.duprId = (userObj.dupr_id as string | undefined) ?? '';
         this.state.lastPayment =
           (userObj.last_payment as string | undefined) ?? '';
@@ -269,6 +273,7 @@ export class PlayerProfileService {
     this.state.rating = 1450;
     this.state.duprId = '';
     this.state.avatar = '';
+    this.state.provider = '';
     this.state.lastModified = 0;
     this.state.events = [];
     this.state.completedMatches = [];
