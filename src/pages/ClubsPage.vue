@@ -3,11 +3,11 @@
     <div class="container q-pa-md">
       <h1 class="page-title text-center q-mb-md">Clubs</h1>
 
-      <q-btn-group spread class="full-width q-mb-md">
+      <q-btn-group spread class="full-width tab-buttons">
         <q-btn
           flat
           color="accent"
-          :class="activeTab === 'mine' ? 'bg-accent text-white' : ''"
+          :class="activeTab === 'mine' ? 'bg-accent text-white' : 'bg-white'"
           icon="groups"
           label="My Clubs"
           dense
@@ -17,7 +17,7 @@
         <q-btn
           flat
           color="accent"
-          :class="activeTab === 'browse' ? 'bg-accent text-white' : ''"
+          :class="activeTab === 'browse' ? 'bg-accent text-white' : 'bg-white'"
           icon="search"
           label="Browse Clubs"
           dense
@@ -26,222 +26,230 @@
         />
       </q-btn-group>
 
-      <q-tab-panels v-model="activeTab" animated>
-        <!-- Browse Tab -->
-        <q-tab-panel name="browse">
-          <div class="search-bar q-mb-md">
-            <q-input
-              v-model="searchQuery"
-              filled
-              dense
-              clearable
-              clear-icon="close"
-              debounce="300"
-              label="Search by club name or ID"
-              bg-color="white"
-              @update:model-value="onSearch"
-            >
-              <template #prepend>
-                <q-icon name="search" />
-              </template>
-            </q-input>
-          </div>
+      <div class="tab-content">
+        <q-tab-panels v-model="activeTab" animated>
+          <!-- Browse Tab -->
+          <q-tab-panel name="browse" class="q-pa-none">
+            <div class="search-bar q-mb-xl">
+              <q-input
+                class="q-pb-sm"
+                v-model="searchQuery"
+                outlined
+                rounded
+                color="accent"
+                dense
+                clearable
+                clear-icon="close"
+                debounce="300"
+                label="Search by club name or ID"
+                bg-color="white"
+                @update:model-value="onSearch"
+              >
+                <template #prepend>
+                  <q-icon name="search" />
+                </template>
+              </q-input>
+            </div>
 
-          <div v-if="loading" class="flex flex-center q-py-xl">
-            <q-spinner-gears size="60px" color="accent" />
-          </div>
+            <div v-if="loading" class="flex flex-center q-py-xl">
+              <q-spinner-gears size="60px" color="accent" />
+            </div>
 
-          <div
-            v-else-if="searchQuery && searchResults.length === 0"
-            class="q-py-xl"
-          >
-            <EmptyState
-              icon="search_off"
-              title="No clubs found"
-              subtitle="Try a different name or club ID"
-            />
-          </div>
-
-          <div v-else-if="searchResults.length > 0" class="row q-col-gutter-md">
             <div
-              v-for="club in searchResults"
-              :key="club.id"
-              class="col-12 col-sm-6 col-md-4"
+              v-else-if="searchQuery && searchResults.length === 0"
+              class="q-py-xl"
             >
-              <q-card class="club-card" flat @click="openClub(club.clubId)">
-                <q-card-section class="q-pa-md">
-                  <div class="row items-center no-wrap">
-                    <q-avatar
-                      v-if="getLogoUrl(club)"
-                      size="48px"
-                      class="q-mr-md"
-                    >
-                      <img
-                        :src="getLogoUrl(club)"
-                        :alt="club.name || club.clubId"
-                      />
-                    </q-avatar>
-                    <q-avatar
-                      v-else
-                      size="48px"
-                      class="q-mr-md"
-                      color="accent"
-                      text-color="white"
-                    >
-                      <q-icon name="groups" size="28px" />
-                    </q-avatar>
-                    <div class="col">
-                      <div class="text-subtitle1 text-weight-bold ellipsis">
-                        {{ club.name || club.clubId }}
-                      </div>
-                      <div class="text-caption text-grey-6 ellipsis">
-                        @{{ club.clubId }}
+              <EmptyState
+                icon="search_off"
+                title="No clubs found"
+                subtitle="Try a different name or club ID"
+              />
+            </div>
+
+            <div
+              v-else-if="searchResults.length > 0"
+              class="row q-col-gutter-md"
+            >
+              <div
+                v-for="club in searchResults"
+                :key="club.id"
+                class="col-12 col-sm-6 col-md-4"
+              >
+                <q-card class="club-card" flat>
+                  <q-card-section class="q-pa-md">
+                    <div class="row items-center no-wrap">
+                      <q-avatar
+                        v-if="getLogoUrl(club)"
+                        size="48px"
+                        class="q-mr-md"
+                      >
+                        <img
+                          :src="getLogoUrl(club)"
+                          :alt="club.name || club.clubId"
+                        />
+                      </q-avatar>
+                      <q-avatar
+                        v-else
+                        size="48px"
+                        class="q-mr-md"
+                        color="accent"
+                        text-color="white"
+                      >
+                        <q-icon name="groups" size="28px" />
+                      </q-avatar>
+                      <div class="col">
+                        <div class="text-subtitle1 text-weight-bold ellipsis">
+                          {{ club.name || club.clubId }}
+                        </div>
+                        <div class="text-caption text-grey-6 ellipsis">
+                          @{{ club.clubId }}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </q-card-section>
+                  </q-card-section>
 
-                <q-card-actions class="q-px-md q-pb-md q-pt-none">
-                  <q-chip
-                    icon="people"
-                    color="grey-3"
-                    text-color="grey-9"
-                    dense
-                    size="sm"
-                  >
-                    {{ getMemberCount(club) }}
-                  </q-chip>
-                  <q-space />
-                  <q-btn
-                    v-if="!isMemberOf(club)"
-                    label="Join"
-                    color="accent"
-                    rounded
-                    unelevated
-                    size="sm"
-                    :loading="joiningClubId === club.clubId"
-                    @click.stop="handleJoinClub(club)"
-                  />
-                  <q-btn
-                    v-else
-                    label="Open"
-                    color="primary"
-                    rounded
-                    outline
-                    size="sm"
-                    @click.stop="openClub(club.clubId)"
-                  />
-                </q-card-actions>
-              </q-card>
-            </div>
-          </div>
-
-          <div v-else class="q-py-xl text-center">
-            <EmptyState
-              icon="search"
-              title="Search for a club"
-              subtitle="Type a club name or ID to find clubs to join"
-            />
-          </div>
-
-          <div class="text-center q-mt-lg">
-            <q-btn
-              flat
-              color="accent"
-              icon="add_circle"
-              label="Create New Club"
-              @click="showCreateClubDialog = true"
-            />
-          </div>
-        </q-tab-panel>
-
-        <!-- My Clubs Tab -->
-        <q-tab-panel name="mine">
-          <div v-if="myClubsLoading" class="flex flex-center q-py-xl">
-            <q-spinner-gears size="60px" color="accent" />
-          </div>
-
-          <div v-else-if="myClubs.length === 0" class="q-py-xl">
-            <EmptyState
-              icon="groups"
-              title="You haven't joined any clubs yet"
-              subtitle="Browse clubs to find one to join"
-            />
-          </div>
-
-          <div v-else class="row q-col-gutter-md">
-            <div
-              v-for="club in myClubs"
-              :key="club.id"
-              class="col-12 col-sm-6 col-md-4"
-            >
-              <q-card class="club-card" flat @click="openClub(club.clubId)">
-                <q-card-section class="q-pa-md">
-                  <div class="row items-center no-wrap">
-                    <q-avatar
-                      v-if="getLogoUrl(club)"
-                      size="48px"
-                      class="q-mr-md"
+                  <q-card-actions class="q-px-md q-pb-md q-pt-none">
+                    <q-chip
+                      icon="people"
+                      color="grey-3"
+                      text-color="grey-9"
+                      dense
+                      size="sm"
                     >
-                      <img
-                        :src="getLogoUrl(club)"
-                        :alt="club.name || club.clubId"
-                      />
-                    </q-avatar>
-                    <q-avatar
-                      v-else
-                      size="48px"
-                      class="q-mr-md"
+                      {{ getMemberCount(club) }}
+                    </q-chip>
+                    <q-space />
+                    <q-btn
+                      v-if="!isMemberOf(club)"
+                      label="Join"
                       color="accent"
-                      text-color="white"
-                    >
-                      <q-icon name="groups" size="28px" />
-                    </q-avatar>
-                    <div class="col">
-                      <div class="text-subtitle1 text-weight-bold ellipsis">
-                        {{ club.name || club.clubId }}
-                      </div>
-                      <div class="text-caption text-grey-6 ellipsis">
-                        @{{ club.clubId }}
+                      rounded
+                      unelevated
+                      size="sm"
+                      :loading="joiningClubId === club.clubId"
+                      @click.stop="handleJoinClub(club)"
+                    />
+                    <q-btn
+                      v-else
+                      label="Open"
+                      color="primary"
+                      rounded
+                      outline
+                      size="sm"
+                      @click.stop="openClub(club.clubId)"
+                    />
+                  </q-card-actions>
+                </q-card>
+              </div>
+            </div>
+
+            <div v-else class="q-py-xl text-center">
+              <EmptyState
+                icon="search"
+                title="Search for a club"
+                subtitle="Type a club name or ID to find clubs to join"
+              />
+            </div>
+
+            <div class="text-center q-mt-lg">
+              <q-btn
+                flat
+                color="accent"
+                icon="add_circle"
+                label="Create New Club"
+                @click="showCreateClubDialog = true"
+              />
+            </div>
+          </q-tab-panel>
+
+          <!-- My Clubs Tab -->
+          <q-tab-panel name="mine" class="q-pa-none">
+            <div v-if="myClubsLoading" class="flex flex-center q-py-xl">
+              <q-spinner-gears size="60px" color="accent" />
+            </div>
+
+            <div v-else-if="myClubs.length === 0" class="q-py-xl">
+              <EmptyState
+                icon="groups"
+                title="You haven't joined any clubs yet"
+                subtitle="Browse clubs to find one to join"
+              />
+            </div>
+
+            <div v-else class="row q-col-gutter-md">
+              <div
+                v-for="club in myClubs"
+                :key="club.id"
+                class="col-12 col-sm-6 col-md-4"
+              >
+                <q-card class="club-card" flat>
+                  <q-card-section class="q-pa-md">
+                    <div class="row items-center no-wrap">
+                      <q-avatar
+                        v-if="getLogoUrl(club)"
+                        size="48px"
+                        class="q-mr-md"
+                      >
+                        <img
+                          :src="getLogoUrl(club)"
+                          :alt="club.name || club.clubId"
+                        />
+                      </q-avatar>
+                      <q-avatar
+                        v-else
+                        size="48px"
+                        class="q-mr-md"
+                        color="accent"
+                        text-color="white"
+                      >
+                        <q-icon name="groups" size="28px" />
+                      </q-avatar>
+                      <div class="col">
+                        <div class="text-subtitle1 text-weight-bold ellipsis">
+                          {{ club.name || club.clubId }}
+                        </div>
+                        <div class="text-caption text-grey-6 ellipsis">
+                          @{{ club.clubId }}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </q-card-section>
+                  </q-card-section>
 
-                <q-card-actions class="q-px-md q-pb-md q-pt-none">
-                  <q-chip
-                    icon="people"
-                    color="grey-3"
-                    text-color="grey-9"
-                    dense
-                    size="sm"
-                  >
-                    {{ getMemberCount(club) }}
-                  </q-chip>
-                  <q-space />
-                  <q-btn
-                    label="Leave"
-                    color="grey-6"
-                    rounded
-                    outline
-                    size="sm"
-                    :loading="leavingClubId === club.id"
-                    @click.stop="confirmLeaveClub(club)"
-                  />
-                  <q-btn
-                    label="Open"
-                    color="primary"
-                    rounded
-                    outline
-                    size="sm"
-                    @click.stop="openClub(club.clubId)"
-                  />
-                </q-card-actions>
-              </q-card>
+                  <q-card-actions class="q-px-md q-pb-md q-pt-none">
+                    <q-chip
+                      icon="people"
+                      color="grey-3"
+                      text-color="grey-9"
+                      dense
+                      size="sm"
+                    >
+                      {{ getMemberCount(club) }}
+                    </q-chip>
+                    <q-space />
+                    <q-btn
+                      label="Leave"
+                      color="grey-6"
+                      rounded
+                      outline
+                      size="sm"
+                      :loading="leavingClubId === club.id"
+                      @click.stop="confirmLeaveClub(club)"
+                    />
+                    <q-btn
+                      label="Open"
+                      color="primary"
+                      rounded
+                      outline
+                      size="sm"
+                      @click.stop="openClub(club.clubId)"
+                    />
+                  </q-card-actions>
+                </q-card>
+              </div>
             </div>
-          </div>
-        </q-tab-panel>
-      </q-tab-panels>
+          </q-tab-panel>
+        </q-tab-panels>
+      </div>
     </div>
 
     <!-- Create Club Dialog -->
@@ -657,6 +665,16 @@ onMounted(() => {
   margin: 0 auto;
 }
 
+.tab-buttons {
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+}
+
+.tab-content {
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
+}
+
 .club-card {
   border-radius: 16px;
   background: linear-gradient(
@@ -665,7 +683,6 @@ onMounted(() => {
     rgba(102, 126, 234, 0.03) 100%
   );
   overflow: hidden;
-  cursor: pointer;
   border: 1px solid rgba(118, 75, 162, 0.12);
   box-shadow:
     0 10px 20px -8px rgba(0, 0, 0, 0.08),
