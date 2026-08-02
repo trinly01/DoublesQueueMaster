@@ -2,7 +2,13 @@
   <div class="play-page">
     <!-- 3D Scene -->
     <div class="scene-container">
-      <GameScene :refs="engine.refs" :step="engine.step" />
+      <GameScene
+        :refs="engine.refs"
+        :step="engine.step"
+        :flip-view="flipView"
+        :player-palette="engine.playerPalette.value"
+        :ai-palette="engine.aiPalette.value"
+      />
     </div>
 
     <!-- Top-left: Score (mobile: same row) -->
@@ -16,7 +22,7 @@
             "
             class="server-dot"
             >●</span
-          >YOU</span
+          >{{ playerLabel }}</span
         >
         <span class="score-num score-you-num">{{
           engine.playerScore.value
@@ -24,13 +30,22 @@
         <span class="score-sep">—</span>
         <span class="score-num score-ai-num">{{ engine.aiScore.value }}</span>
         <span class="score-label score-ai-label"
-          >AI<span
+          >{{ pvpLabel
+          }}<span
             v-if="
               engine.rules.value === 'authentic' && engine.server.value === 'ai'
             "
             class="server-dot"
             >●</span
           ></span
+        >
+        <span
+          v-if="
+            engine.mode.value === 'pvp' && engine.p2p.opponentPing.value > 0
+          "
+          class="ping-display"
+          :class="pingClass"
+          >{{ engine.p2p.opponentPing.value }}ms</span
         >
       </div>
     </div>
@@ -44,7 +59,7 @@
     <div
       v-if="
         engine.servePending.value &&
-        engine.server.value === 'player' &&
+        engine.myServeTurn.value &&
         engine.gameState.value === 'playing'
       "
       class="serve-hint-container"
@@ -84,7 +99,8 @@
       v-if="
         engine.gameState.value === 'playing' ||
         engine.gameState.value === 'point-scored' ||
-        engine.gameState.value === 'paused'
+        engine.gameState.value === 'paused' ||
+        engine.gameState.value === 'reconnecting'
       "
       class="top-right-controls"
     >
@@ -176,7 +192,7 @@
     <!-- Menu overlay -->
     <div v-if="engine.gameState.value === 'menu'" class="menu-overlay">
       <div class="menu-card">
-        <h1 class="menu-title">DinkMatch AI</h1>
+        <h1 class="menu-title">DinkMatch Trainer</h1>
         <p class="menu-subtitle">First to 11</p>
 
         <div class="difficulty-section">
@@ -230,8 +246,26 @@
           </p>
         </div>
 
+        <div class="difficulty-section">
+          <p class="difficulty-label">Room Code (PvP)</p>
+          <input
+            ref="roomInputRef"
+            v-model="roomCode"
+            type="text"
+            placeholder="Leave empty for AI"
+            class="room-input"
+            :class="isNavFocused('room-code') ? 'nav-focused' : ''"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            @input="onRoomCodeChange"
+            @keydown.enter.prevent="startPlaying"
+          />
+          <p class="rules-hint">Share a code with a friend for real-time PvP</p>
+        </div>
+
         <q-btn
-          label="Play"
+          :label="roomCode ? 'Play PvP' : 'Play AI'"
           color="white"
           text-color="accent"
           unelevated
@@ -264,7 +298,7 @@
     <div v-if="engine.gameState.value === 'game-over'" class="menu-overlay">
       <div class="menu-card">
         <h1 class="menu-title">
-          {{ engine.winner.value === 'player' ? 'You Win!' : 'AI Wins!' }}
+          {{ gameOverTitle }}
         </h1>
         <p class="menu-subtitle">
           {{ engine.playerScore.value }} - {{ engine.aiScore.value }}
@@ -280,7 +314,7 @@
           @click="engine.resetScore()"
         />
         <q-btn
-          label="Play Again"
+          :label="roomCode ? 'Play PvP' : 'Play Again'"
           color="white"
           text-color="accent"
           unelevated
@@ -289,6 +323,72 @@
           class="play-btn"
           :class="isNavFocused('play-again') ? 'nav-focused' : ''"
           @click="startPlaying"
+        />
+      </div>
+    </div>
+
+    <!-- Connecting overlay -->
+    <div v-if="engine.gameState.value === 'connecting'" class="menu-overlay">
+      <div class="menu-card">
+        <q-spinner-dots size="48px" color="white" />
+        <h1 class="menu-title" style="font-size: 24px; margin-top: 16px">
+          Connecting…
+        </h1>
+        <p class="menu-subtitle">Room: {{ roomCode }}</p>
+        <q-btn
+          label="Cancel"
+          color="white"
+          text-color="grey-7"
+          rounded
+          outline
+          class="play-btn"
+          @click="engine.cancelPvP()"
+        />
+      </div>
+    </div>
+
+    <!-- Waiting for opponent overlay -->
+    <div v-if="engine.gameState.value === 'waiting'" class="menu-overlay">
+      <div class="menu-card">
+        <q-spinner-orbit size="48px" color="white" />
+        <h1 class="menu-title" style="font-size: 24px; margin-top: 16px">
+          Waiting for Opponent
+        </h1>
+        <p class="menu-subtitle">Room: {{ roomCode }}</p>
+        <p class="rules-hint">Share this code with a friend to play</p>
+        <q-btn
+          label="Cancel"
+          color="white"
+          text-color="grey-7"
+          rounded
+          outline
+          class="play-btn"
+          @click="engine.cancelPvP()"
+        />
+      </div>
+    </div>
+
+    <!-- Reconnecting overlay -->
+    <div v-if="engine.gameState.value === 'reconnecting'" class="menu-overlay">
+      <div class="menu-card">
+        <q-spinner-orbit size="48px" color="warning" />
+        <h1
+          class="menu-title"
+          style="font-size: 24px; margin-top: 16px; color: #fbbf24"
+        >
+          Reconnecting…
+        </h1>
+        <p class="menu-subtitle">
+          Opponent will forfeit in {{ engine.p2p.reconnectTimer.value }}s
+        </p>
+        <q-btn
+          label="Forfeit Match"
+          color="white"
+          text-color="grey-7"
+          rounded
+          outline
+          class="play-btn"
+          @click="engine.resetScore()"
         />
       </div>
     </div>
@@ -331,6 +431,7 @@ import {
   type Difficulty,
   type Rules,
 } from 'src/composables/useGameEngine';
+import { PlayerProfile } from 'src/services/playerProfile';
 
 const engine = useGameEngine();
 const router = useRouter();
@@ -470,9 +571,55 @@ function onGamepadDisconnected() {
 function startPlaying() {
   engine.sound.ensureCtx();
   engine.sound.startMusic();
-  engine.startGame();
+  if (roomCode.value.trim()) {
+    engine.setRoomId(roomCode.value.trim());
+    engine.startPvP();
+  } else {
+    engine.startGame();
+  }
   engine.startLoop();
 }
+
+// --- PvP UI helpers ---
+const roomCode = ref(engine.roomId.value || '');
+
+function onRoomCodeChange(e: Event) {
+  const v = (e.target as HTMLInputElement).value;
+  engine.setRoomId(v.trim());
+}
+
+const playerLabel = computed(() => {
+  const name = PlayerProfile.state.firstName;
+  return name?.trim() || 'YOU';
+});
+
+const pvpLabel = computed(() => {
+  if (engine.mode.value !== 'pvp') return 'AI';
+  const name = engine.opponentName.value;
+  return name?.trim() || 'OPP';
+});
+
+const flipView = computed(() => {
+  return engine.mode.value === 'pvp' && engine.p2p.role.value === 'guest';
+});
+
+const gameOverTitle = computed(() => {
+  if (engine.mode.value === 'pvp') {
+    const myName = PlayerProfile.state.firstName?.trim() || 'You';
+    const oppName = engine.opponentName.value?.trim() || 'Opponent';
+    return engine.winner.value === 'player'
+      ? `${myName} Wins!`
+      : `${oppName} Wins!`;
+  }
+  return engine.winner.value === 'player' ? 'You Win!' : 'AI Wins!';
+});
+
+const pingClass = computed(() => {
+  const ping = engine.p2p.opponentPing.value;
+  if (ping < 50) return 'ping-good';
+  if (ping < 100) return 'ping-ok';
+  return 'ping-bad';
+});
 
 // --- Menu navigation (keyboard + gamepad) ---
 // 2D grid: rows = sections, columns = options within a section
@@ -501,6 +648,10 @@ const menuNavRows = computed<NavRow[]>(() => {
           id: `rules-${r.value}`,
           action: () => engine.setRules(r.value),
         })),
+      },
+      {
+        id: 'room-code',
+        items: [{ id: 'room-code', action: () => focusRoomInput() }],
       },
       {
         id: 'play',
@@ -609,6 +760,13 @@ function navActivate() {
   row.items[menuColIndex.value]?.action();
 }
 
+const roomInputRef = ref<HTMLInputElement | null>(null);
+
+function focusRoomInput() {
+  roomInputRef.value?.focus();
+  roomInputRef.value?.select();
+}
+
 // Gamepad menu navigation state
 let prevMenuButtons = {
   up: false,
@@ -676,6 +834,14 @@ function pollGamepadMenu() {
 }
 
 function onKeyDown(e: KeyboardEvent) {
+  // If room input is focused, let the user type — don't intercept keys
+  if (document.activeElement === roomInputRef.value) {
+    if (e.key === 'Escape') {
+      roomInputRef.value?.blur();
+    }
+    return;
+  }
+
   const state = engine.gameState.value;
 
   // Escape toggles pause/resume during gameplay
@@ -688,6 +854,16 @@ function onKeyDown(e: KeyboardEvent) {
     if (state === 'paused') {
       e.preventDefault();
       engine.resumeGame();
+      return;
+    }
+    if (state === 'connecting' || state === 'waiting') {
+      e.preventDefault();
+      engine.cancelPvP();
+      return;
+    }
+    if (state === 'reconnecting') {
+      e.preventDefault();
+      engine.resetScore();
       return;
     }
   }
@@ -729,7 +905,10 @@ function onWindowBlur() {
     engine.gameState.value === 'playing' ||
     engine.gameState.value === 'point-scored'
   ) {
-    engine.pauseGame();
+    // Don't auto-pause in PvP — disconnection handling is managed by P2P keepalive
+    if (engine.mode.value !== 'pvp') {
+      engine.pauseGame();
+    }
   }
 }
 
@@ -1031,7 +1210,7 @@ onUnmounted(() => {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 24px;
-  padding: 40px 64px;
+  padding: 32px 48px 36px;
   text-align: center;
   max-width: 400px;
   width: 90%;
@@ -1039,46 +1218,47 @@ onUnmounted(() => {
 }
 
 .menu-title {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 800;
   color: white;
-  line-height: 1.1;
+  line-height: 1.2;
   white-space: nowrap;
   display: flex;
   justify-content: center;
-  margin: 0 auto 16px;
+  margin: 0 auto 8px;
 }
 
 .menu-subtitle {
-  font-size: 16px;
+  font-size: 15px;
   color: rgba(255, 255, 255, 0.9);
-  margin: 0 0 24px;
+  margin: 0 0 20px;
+  line-height: 1.3;
 }
 
 .difficulty-section {
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 
 .difficulty-label {
-  font-size: 14px;
+  font-size: 13px;
   color: rgba(255, 255, 255, 0.85);
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
 .rules-hint {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.75);
-  margin: 8px 0 0;
-  line-height: 1.4;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 6px 0 0;
+  line-height: 1.5;
 }
 
 .difficulty-buttons {
   display: flex;
   gap: 8px;
   justify-content: center;
-  padding: 8px 16px;
+  padding: 4px 12px;
 }
 
 .diff-btn {
@@ -1089,7 +1269,8 @@ onUnmounted(() => {
 
 .play-btn {
   width: 100%;
-  margin-bottom: 16px;
+  margin-top: 4px;
+  margin-bottom: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
@@ -1172,6 +1353,66 @@ kbd {
   transition:
     background 0.15s ease,
     box-shadow 0.15s ease;
+}
+
+.room-input {
+  display: block;
+  margin: 0 auto;
+  max-width: 260px;
+  width: 100%;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-align: center;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.room-input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.room-input:focus {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.room-input.nav-focused {
+  border-color: rgba(255, 255, 255, 0.7);
+  border-width: 2px;
+  transform: scale(1.04);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.4);
+}
+
+.ping-display {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  margin-left: 4px;
+}
+
+.ping-good {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.15);
+}
+
+.ping-ok {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+}
+
+.ping-bad {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.15);
 }
 </style>
 
