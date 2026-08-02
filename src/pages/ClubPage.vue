@@ -214,6 +214,12 @@
           color="amber-4"
           size="3px"
         />
+        <q-ajax-bar
+          ref="dataFetchBar"
+          position="top"
+          color="amber-4"
+          size="3px"
+        />
       </div>
 
       <q-dialog v-model="showLeaderboardDialog">
@@ -4075,6 +4081,7 @@ const saveClubDetails = async () => {
 const isOnline = ref(navigator.onLine);
 const hasPendingCloudSync = ref(false);
 const syncAjaxBar = ref<{ start: () => void; stop: () => void } | null>(null);
+const dataFetchBar = ref<{ start: () => void; stop: () => void } | null>(null);
 // The server's matchmaking.lastModified that our local state was last PUSHED to.
 // Used as an optimistic-concurrency token: set ONLY after a successful write.
 const lastSyncedServerTimestamp = ref(0);
@@ -4110,6 +4117,38 @@ const likhaUrl = ref(
 const likhaToken = ref(localStorage.getItem('likhaToken') || '');
 
 // Load club data from cloud
+const restoreFromCache = (clubId: string): boolean => {
+  const cached = LocalStorage.getItem('matchmaking_state') as Record<
+    string,
+    unknown
+  > | null;
+  const meta = LocalStorage.getItem(`club_meta_${clubId}`) as {
+    clubUUID?: string;
+    adminIds?: string[];
+    members?: typeof clubMembers.value;
+    clubName?: string;
+    clubLogo?: string;
+    clubStatus?: string;
+  } | null;
+
+  if (cached && Object.keys(cached).length > 0 && meta) {
+    currentClubId.value = clubId;
+    MatchmakingApp.state.clubId = clubId;
+    currentClubUUID.value = meta.clubUUID || '';
+    MatchmakingApp.state.clubUUID = meta.clubUUID || '';
+    clubAdminIds.value = new Set(meta.adminIds || []);
+    clubMembers.value = meta.members || [];
+    isCurrentUserMember.value =
+      isOpenPlay.value ||
+      clubMembers.value.some((m) => m.id === currentUserId.value);
+    clubName.value = meta.clubName || clubId;
+    clubLogo.value = meta.clubLogo || '';
+    clubStatus.value = meta.clubStatus || 'published';
+    return true;
+  }
+  return false;
+};
+
 const loadClubData = async (clubId: string) => {
   if (!clubId || !likhaUrl.value) {
     clubStatus.value = 'published';
@@ -4128,7 +4167,15 @@ const loadClubData = async (clubId: string) => {
   // Capture expected club so we can abort if the user switched clubs while the API was in-flight
   const expectedClubId = clubId;
 
-  clubLoadingState.value = 'loading';
+  // Check for cached data — if available, restore immediately and fetch in background
+  const hasCache = restoreFromCache(clubId);
+  if (hasCache) {
+    clubLoadingState.value = 'loaded';
+    dataFetchBar.value?.start();
+  } else {
+    clubLoadingState.value = 'loading';
+  }
+
   try {
     const result = await likhaClient.request(
       readItems('club', {
@@ -4562,6 +4609,9 @@ const loadClubData = async (clubId: string) => {
           clubUUID: club.id,
           adminIds: Array.from(clubAdminIds.value),
           members: clubMembers.value,
+          clubName: club.name || clubId,
+          clubLogo: club.logo || '',
+          clubStatus: club.status || 'published',
           timestamp: Date.now(),
         });
 
@@ -4628,12 +4678,15 @@ const loadClubData = async (clubId: string) => {
       }
 
       clubLoadingState.value = 'loaded';
+      if (hasCache) dataFetchBar.value?.stop();
     } else {
       // Club truly not found
+      if (hasCache) dataFetchBar.value?.stop();
       clubLoadingState.value = 'not-found';
       clubErrorMessage.value = `Club "${clubId}" not found.`;
     }
   } catch (err) {
+    if (hasCache) dataFetchBar.value?.stop();
     // Handle 401 Unauthorized errors
     if (await handleAuthError(err, router)) return;
 
@@ -4714,40 +4767,33 @@ const loadClubData = async (clubId: string) => {
       err,
     );
 
-    // Offline fallback: use cached matchmaking state if available
-    const cached = LocalStorage.getItem('matchmaking_state') as Record<
-      string,
-      unknown
-    > | null;
-    if (cached && Object.keys(cached).length > 0) {
-      currentClubId.value = clubId;
-      MatchmakingApp.state.clubId = clubId;
-
-      // Restore club metadata for admin detection
-      const meta = LocalStorage.getItem(`club_meta_${clubId}`) as {
-        clubUUID?: string;
-        adminIds?: string[];
-        members?: typeof clubMembers.value;
-      } | null;
-      if (meta) {
-        currentClubUUID.value = meta.clubUUID || '';
-        MatchmakingApp.state.clubUUID = meta.clubUUID || '';
-        clubAdminIds.value = new Set(meta.adminIds || []);
-        clubMembers.value = meta.members || [];
-        isCurrentUserMember.value =
-          isOpenPlay.value ||
-          clubMembers.value.some((m) => m.id === currentUserId.value);
-      }
-
-      clubStatus.value = 'published';
-      clubLoadingState.value = 'loaded';
+    // If cache was already restored at the start, just notify — app is usable
+    if (hasCache) {
       notify({
         color: 'warning',
         message: actuallyOffline
           ? 'Offline — showing cached club data'
-          : `Could not load club: ${realMsg}`,
+          : `Could not refresh club data: ${realMsg}`,
       });
     } else {
+      // No cache available — try offline fallback one more time
+      const cached = LocalStorage.getItem('matchmaking_state') as Record<
+        string,
+        unknown
+      > | null;
+      if (cached && Object.keys(cached).length > 0) {
+        if (restoreFromCache(clubId)) {
+          clubStatus.value = 'published';
+          clubLoadingState.value = 'loaded';
+          notify({
+            color: 'warning',
+            message: actuallyOffline
+              ? 'Offline — showing cached club data'
+              : `Could not load club: ${realMsg}`,
+          });
+          return;
+        }
+      }
       clubLoadingState.value = 'error';
       clubErrorMessage.value =
         'Failed to load club data. No cached data available.';
@@ -5259,33 +5305,35 @@ onMounted(async () => {
   window.addEventListener('pageshow', handlePageShow);
   document.addEventListener('resume', handlePageShow);
 
+  // Restore cached user ID immediately so the page is usable before API calls
+  const cachedUserId = LocalStorage.getItem('current_user_id') as string | null;
+  if (cachedUserId) {
+    currentUserId.value = cachedUserId;
+  }
+
   if (!isOpenPlay.value) {
     // Fetch payment settings
     console.log('fetching settings');
     void fetchPaymentSettings();
 
-    // Fetch current user (or restore from cache if offline)
-    try {
-      const me = await likhaClient.request(readMe());
-      currentUserId.value =
-        ((me as Record<string, unknown>).id as string) || '';
-      if (currentUserId.value) {
-        LocalStorage.set('current_user_id', currentUserId.value);
-      }
-    } catch (err) {
-      // If token is fully expired (no valid refresh), force re-login
-      if (await handleAuthError(err, router)) return;
-
-      const cachedUserId = LocalStorage.getItem('current_user_id') as
-        | string
-        | null;
-      if (cachedUserId) {
-        currentUserId.value = cachedUserId;
-      }
-    }
+    // Fetch current user in background (don't block page load)
+    likhaClient
+      .request(readMe())
+      .then((me) => {
+        currentUserId.value =
+          ((me as Record<string, unknown>).id as string) || '';
+        if (currentUserId.value) {
+          LocalStorage.set('current_user_id', currentUserId.value);
+        }
+      })
+      .catch(async (err) => {
+        // If token is fully expired (no valid refresh), force re-login
+        if (await handleAuthError(err, router)) return;
+        // Already restored from cache above, nothing more to do
+      });
   }
 
-  // Load club from URL param
+  // Load club from URL param — restoreFromCache will show cached data immediately
   const clubId = route.params['clubId'] as string;
   if (clubId) {
     await loadClubData(clubId);

@@ -1,5 +1,6 @@
 <template>
   <q-page class="clubs-page">
+    <q-ajax-bar ref="dataFetchBar" position="top" color="amber-4" size="3px" />
     <!-- Header Section -->
     <div class="header-section">
       <div class="container">
@@ -194,7 +195,10 @@
 
           <!-- My Clubs Tab -->
           <q-tab-panel name="mine" class="q-pa-none">
-            <div v-if="myClubsLoading" class="flex flex-center q-py-xl">
+            <div
+              v-if="myClubsLoading && myClubs.length === 0"
+              class="flex flex-center q-py-xl"
+            >
               <q-spinner-gears size="60px" color="accent" />
             </div>
 
@@ -420,6 +424,8 @@ const searchResults = ref<Club[]>([]);
 const loading = ref(false);
 const myClubs = ref<Club[]>([]);
 const myClubsLoading = ref(false);
+const dataFetchBar = ref<{ start: () => void; stop: () => void } | null>(null);
+const MY_CLUBS_CACHE_KEY = 'my_clubs_cache';
 const joiningClubId = ref<string | null>(null);
 const leavingClubId = ref<string | null>(null);
 const leaveClubTarget = ref<Club | null>(null);
@@ -486,72 +492,77 @@ const onSearch = async (val: string | number | null) => {
 
 const loadMyClubs = async () => {
   if (!currentUserId) return;
-  myClubsLoading.value = true;
+
+  // Load from cache instantly for offline / fast startup
+  const cached = LocalStorage.getItem(MY_CLUBS_CACHE_KEY) as Club[] | null;
+  const hasCache = cached && cached.length > 0;
+  if (hasCache) {
+    myClubs.value = cached;
+  } else {
+    myClubsLoading.value = true;
+  }
+  dataFetchBar.value?.start();
+
   try {
-    const clubs = await likhaClient.request(
-      readItems('club', {
+    // Single request: fetch completed matches with nested club data, sorted by recency.
+    // Deduplicate by club ID — first occurrence is the most recent match.
+    const matches = await likhaClient.request(
+      readItems('completed_match', {
         filter: {
-          players: {
-            directus_users_id: {
-              id: { _eq: currentUserId },
-            },
-          },
+          players: { directus_users_id: { _eq: currentUserId } },
         },
         fields: [
-          'id',
-          'clubId',
-          'name',
-          'logo',
-          'players.id',
-          'players.directus_users_id.id',
+          'completed_at',
+          'club.id',
+          'club.clubId',
+          'club.name',
+          'club.logo',
+          'club.players.id',
+          'club.players.directus_users_id.id',
         ],
+        sort: ['-completed_at'],
+        limit: 250,
       }),
     );
-    const clubsData = (clubs || []) as unknown as Club[];
-    myClubs.value = clubsData;
-    if (myClubs.value.length === 0) {
-      activeTab.value = 'browse';
-    } else {
-      // Sort by most recent match of the logged-in user
-      try {
-        const matches = await likhaClient.request(
-          readItems('completed_match', {
-            filter: {
-              players: { directus_users_id: { _eq: currentUserId } },
-            },
-            fields: ['club', 'completed_at'],
-            sort: ['-completed_at'],
-            limit: 250,
-          }),
-        );
-        const matchList = (matches || []) as unknown as {
-          club: string;
-          completed_at: string;
-        }[];
-        const recencyMap = new Map<string, number>();
-        for (const m of matchList) {
-          const clubId =
-            typeof m.club === 'string'
-              ? m.club
-              : (m.club as { id?: string })?.id;
-          if (clubId && !recencyMap.has(clubId)) {
-            recencyMap.set(clubId, new Date(m.completed_at).getTime());
-          }
-        }
-        myClubs.value.sort((a, b) => {
-          const aTime = recencyMap.get(a.id) ?? 0;
-          const bTime = recencyMap.get(b.id) ?? 0;
-          return bTime - aTime;
-        });
-      } catch (err) {
-        console.warn('Failed to load match recency for sorting:', err);
+
+    const matchList = (matches || []) as unknown as {
+      completed_at: string;
+      club: Club;
+    }[];
+
+    const seen = new Set<string>();
+    const sortedClubs: Club[] = [];
+    for (const m of matchList) {
+      const club = m.club;
+      if (club && club.id && !seen.has(club.id)) {
+        seen.add(club.id);
+        sortedClubs.push(club);
       }
     }
+
+    // Merge any cached clubs that have no matches (user joined but hasn't played yet)
+    if (hasCache) {
+      for (const c of cached!) {
+        if (!seen.has(c.id)) {
+          sortedClubs.push(c);
+        }
+      }
+    }
+
+    if (sortedClubs.length === 0 && !hasCache) {
+      activeTab.value = 'browse';
+    }
+
+    myClubs.value = sortedClubs;
+    LocalStorage.set(MY_CLUBS_CACHE_KEY, sortedClubs);
   } catch (err) {
     console.error('Failed to load my clubs:', err);
-    myClubs.value = [];
+    if (!hasCache) {
+      myClubs.value = [];
+    }
   } finally {
     myClubsLoading.value = false;
+    dataFetchBar.value?.stop();
   }
 };
 
