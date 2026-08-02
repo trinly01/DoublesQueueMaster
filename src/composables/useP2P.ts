@@ -69,8 +69,8 @@ export interface PingPayload {
 
 const APP_ID = 'dinkmatch';
 const PING_INTERVAL = 5000; // 5 seconds
-const PONG_TIMEOUT = 15000; // 15 seconds (3 missed pings)
-const RECONNECT_WINDOW = 30000; // 30 seconds
+const PONG_TIMEOUT = 10000; // 10 seconds (2 missed pings) — detect fast, minimize unfair play
+const RECONNECT_WINDOW = 45000; // 45 seconds
 
 export function useP2P() {
   const connectionState = ref<ConnectionStatus>('idle');
@@ -180,6 +180,7 @@ export function useP2P() {
       opponentId.value = peerId;
       connectionState.value = 'connected';
       lastPongReceived = performance.now();
+      cancelReconnect();
       startKeepalive();
 
       if (wasWaiting || role.value === 'host') {

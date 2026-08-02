@@ -423,7 +423,11 @@ export function useGameEngine() {
           gameState.value = 'playing';
           // Snap to new serve position (host just called resetBall)
           refs.playerPos.set(data.ap[0], 0, data.ap[2]);
-        } else if (data.gs === 'paused' && gameState.value !== 'paused') {
+        } else if (
+          data.gs === 'paused' &&
+          gameState.value !== 'paused' &&
+          !isPvP.value
+        ) {
           gameState.value = 'paused';
         } else if (data.gs === 'game-over' && gameState.value !== 'game-over') {
           gameState.value = 'game-over';
@@ -436,8 +440,11 @@ export function useGameEngine() {
             if (isGuest.value) sound.win();
             else sound.lose();
           }
-        } else if (data.gs === 'playing' && gameState.value === 'paused') {
-          // Host resumed
+        } else if (
+          data.gs === 'playing' &&
+          gameState.value === 'paused' &&
+          !isPvP.value
+        ) {
           gameState.value = 'playing';
         }
       }
@@ -474,6 +481,18 @@ export function useGameEngine() {
         refs.playerPos.set(0, 0, -(COURT_LENGTH / 2 - 1));
       } else if (data.type === 'resync' && isGuest.value) {
         snapBallNextFrame = true;
+      } else if (data.type === 'pause') {
+        if (
+          gameState.value === 'playing' ||
+          gameState.value === 'point-scored'
+        ) {
+          pausedFromState = gameState.value;
+          gameState.value = 'paused';
+        }
+      } else if (data.type === 'resume') {
+        if (gameState.value === 'paused') {
+          gameState.value = pausedFromState;
+        }
       } else if (data.type === 'game-over' && isGuest.value) {
         winReason.value = data.data === 'forfeit' ? 'forfeit' : 'score';
         gameState.value = 'game-over';
@@ -535,6 +554,9 @@ export function useGameEngine() {
       pausedFromState = gameState.value;
       gameState.value = 'paused';
       prevGamepadButtons = [];
+      if (isPvP.value) {
+        p2p.broadcastEvent({ type: 'pause' });
+      }
     }
   }
 
@@ -542,6 +564,9 @@ export function useGameEngine() {
     if (gameState.value === 'paused') {
       gameState.value = pausedFromState;
       prevGamepadButtons = [];
+      if (isPvP.value) {
+        p2p.broadcastEvent({ type: 'resume' });
+      }
     }
   }
 
