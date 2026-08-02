@@ -1,6 +1,7 @@
 import { ref, onUnmounted } from 'vue';
 import { joinRoom, type Room } from '@trystero-p2p/nostr';
 import type { CharacterPalette } from './useRandomPalette';
+import { PlayerProfile } from 'src/services/playerProfile';
 
 export type ConnectionStatus =
   | 'idle'
@@ -33,6 +34,7 @@ export interface StatePayload {
   pmz: number; // playerMoveZ (forward/back velocity -1..1)
   bbp: [number, number, number] | null; // ballBouncePredict
   hn?: string; // host name (sent in every state update)
+  gn?: string; // guest name (echoed back by host so guest knows what name host uses)
   pp2?: CharacterPalette; // host's player palette
   ap2?: CharacterPalette; // host's AI palette
   lpm?: string; // lastPointMsg
@@ -65,6 +67,8 @@ export interface EventPayload {
     | 'fault-ack';
   data?: number | string | boolean;
   seq?: number; // event sequence number for dedup
+  ballY?: number; // ball height at collision time (guest reports to prove ball was in air)
+  name?: string; // player name (sent in 'ready' event for early name sync)
 }
 
 export interface PingPayload {
@@ -191,21 +195,30 @@ export function useP2P() {
       cancelReconnect();
       startKeepalive();
 
+      // Send our name to the peer via ready event
+      const myName =
+        (typeof PlayerProfile !== 'undefined' &&
+          PlayerProfile.state.firstName) ||
+        '';
+
       if (wasWaiting || role.value === 'host') {
         // We were already waiting in the room — we're the host
         role.value = 'host';
-        eventActionSend({ type: 'ready', data: 'guest' }, peerId);
+        eventActionSend({ type: 'ready', data: 'guest', name: myName }, peerId);
       } else if (role.value === 'guest') {
         // Guest already has role — host reconnected after refresh
         // Send ready back so host can re-establish its role
-        eventActionSend({ type: 'ready', data: 'host' }, peerId);
+        eventActionSend({ type: 'ready', data: 'host', name: myName }, peerId);
       } else if (role.value === null) {
         // We just joined — wait for 'ready' event from host
         // Fallback: if no 'ready' in 3s, assume host (edge case: both joined simultaneously)
         setTimeout(() => {
           if (role.value === null && opponentId.value) {
             role.value = 'host';
-            eventActionSend({ type: 'ready', data: 'guest' }, opponentId.value);
+            eventActionSend(
+              { type: 'ready', data: 'guest', name: myName },
+              opponentId.value,
+            );
           }
         }, 3000);
       }

@@ -197,16 +197,26 @@ export function useGameEngine() {
   let rallyHitCount = 0; // 0 = serve, 1 = return, 2 = third shot, volleys allowed from 3rd on
   let bounceCountThisSide = 0; // bounces on current side since last hit
   let ballBouncedOnSide = false; // has the ball bounced since crossing to current side
-  let firstBounceWasOut = false; // was the first bounce out of bounds
+  let ballClippedNet = false; // ball clipped net but continued — fault should say Net! not In!
   let currentSide: 'player' | 'ai' | null = null; // which side the ball is currently on
   let serveTimer = 0;
   let serveFromX = 0; // server's X position when serving (to check wrong court)
   let servePosZ = 0; // server's Z position when serving (to snap back on serve trigger)
   let lastFaultEventSeq = -1; // host: last fault event seq processed (dedup)
+  let lastPointMsgSeq = -1; // guest: highest state seq from which lpm was synced
   let pendingFaultAck: {
     seq: number;
     type: string;
+    ballY: number;
     retries: number;
+    timer: ReturnType<typeof setTimeout> | null;
+  } | null = null;
+  // Delayed bounce fault: in PvP, bounce-based faults on guest's side are delayed
+  // to give guest collision reports time to arrive. If a collision report arrives
+  // with ballY proving the ball was in the air, the bounce fault is cancelled.
+  let pendingBounceFault: {
+    forWhom: 'player' | 'ai';
+    reason: string;
     timer: ReturnType<typeof setTimeout> | null;
   } | null = null;
   let aiDinkRead: boolean | null = null; // null = not evaluated, true/false = committed
@@ -428,6 +438,18 @@ export function useGameEngine() {
       // Sync servingTo: from host's perspective, 'ai' = guest (opponent)
       servingTo.value = data.sv;
 
+      // Sync last point message immediately (not just in interpolateGuestState)
+      // so the guest sees fault messages during point-scored state too.
+      // Use seq ordering to prevent older snapshots from regressing the message.
+      if (data.lpm && data.seq > lastPointMsgSeq) {
+        lastPointMsgSeq = data.seq;
+        lastPointMsg.value = guestLpm(
+          data.lpm,
+          data.hn || '',
+          data.gn || PlayerProfile.state.firstName || 'Opp',
+        );
+      }
+
       // Sync game state from host
       if (
         data.gs === 'playing' ||
@@ -504,6 +526,8 @@ export function useGameEngine() {
 
     p2p.onEventReceived((data: EventPayload) => {
       if (data.type === 'ready' && p2p.role.value === null) {
+        // Sync opponent name from ready event
+        if (data.name) opponentName.value = data.name;
         if (data.data === 'host') {
           // Guest tells us we're the host (reconnection after host refresh)
           p2p.role.value = 'host';
@@ -529,6 +553,9 @@ export function useGameEngine() {
           // Flip player to opposite side of court
           refs.playerPos.set(0, 0, -(COURT_LENGTH / 2 - 1));
         }
+      } else if (data.type === 'ready' && data.name) {
+        // Already have a role — just sync the name (reconnect scenario)
+        opponentName.value = data.name;
       } else if (data.type === 'resync' && isGuest.value) {
         p2p.clearJitterBuffer();
         snapBallNextFrame = true;
@@ -610,13 +637,24 @@ export function useGameEngine() {
         lastFaultEventSeq = seq;
         // Ack so guest stops retrying
         p2p.broadcastEvent({ type: 'fault-ack' });
-        if (gameState.value === 'playing' && !servePending.value) {
-          // Process the collision through tryHit — it will determine if it's a
-          // good return, volley fault, or kitchen fault based on game rules.
-          // Use aiPos (guest's position on host side) and current ball state.
-          // confirmed=true skips body volume check since guest already detected it.
+        // Check if this collision overrides a pending bounce fault.
+        // If guest's ballY proves the ball was in the air, the collision
+        // happened before the bounce — cancel the bounce fault.
+        const guestBallY = data.ballY ?? 0;
+        const overridden = cancelPendingBounceFault(guestBallY);
+        if (overridden) {
+          // Bounce fault was cancelled — process the collision instead
+          tryHit(refs.aiPos, refs.ballPos, refs.ballVel, false, true);
+        } else if (
+          !pendingBounceFault &&
+          gameState.value === 'playing' &&
+          !servePending.value
+        ) {
+          // No pending bounce fault — normal collision processing
           tryHit(refs.aiPos, refs.ballPos, refs.ballVel, false, true);
         }
+        // If pendingBounceFault exists and wasn't overridden, the ball had
+        // already bounced — the bounce fault takes priority, ignore the collision.
       } else if (data.type === 'fault-ack' && isGuest.value) {
         // Host acknowledged our fault report — stop retrying
         handleFaultAck();
@@ -643,6 +681,7 @@ export function useGameEngine() {
     winner.value = null;
     winReason.value = null;
     lastPointMsg.value = '';
+    lastPointMsgSeq = -1;
     scoringSide.value = null;
     gameState.value = 'playing';
     servingTo.value = 'player';
@@ -661,6 +700,7 @@ export function useGameEngine() {
     winner.value = null;
     winReason.value = null;
     lastPointMsg.value = '';
+    lastPointMsgSeq = -1;
     scoringSide.value = null;
     gameState.value = 'menu';
   }
@@ -745,13 +785,16 @@ export function useGameEngine() {
     rallyHitCount = 0;
     bounceCountThisSide = 0;
     ballBouncedOnSide = false;
-    firstBounceWasOut = false;
+    ballClippedNet = false;
     currentSide = null;
     aiDinkRead = null;
     lastFaultEventSeq = -1;
     // Clear any pending fault ack on new rally
     if (pendingFaultAck?.timer) clearTimeout(pendingFaultAck.timer);
     pendingFaultAck = null;
+    // Clear any pending bounce fault on new rally
+    if (pendingBounceFault?.timer) clearTimeout(pendingBounceFault.timer);
+    pendingBounceFault = null;
     servePending.value = true;
     serveTimer = 0; // not used for player serve; AI uses its own timer
 
@@ -846,11 +889,54 @@ export function useGameEngine() {
     rallyHitCount = 1; // serve = hit 1; return = 2; third shot = 3 (volleys allowed from 3rd on)
     bounceCountThisSide = 0;
     ballBouncedOnSide = false;
-    firstBounceWasOut = false;
+    ballClippedNet = false;
     currentSide = serveTo; // ball starts on server's side
     aiDinkRead = null;
     hostPlaySfx('serve');
     hostPlaySfx('paddleHit');
+  }
+
+  // In PvP, delay bounce-based faults on the guest's side to give guest collision
+  // reports time to arrive. If a collision report arrives with ballY proving the
+  // ball was in the air, the pending bounce fault is cancelled.
+  // In AI mode or for host's own faults, score immediately.
+  function delayedBounceFault(
+    forWhom: 'player' | 'ai',
+    reason: string,
+    faultOnGuest: boolean,
+  ) {
+    if (!isPvP.value || !faultOnGuest) {
+      scorePoint(forWhom, reason);
+      return;
+    }
+    // Cancel any existing pending bounce fault (shouldn't happen, but safety)
+    if (pendingBounceFault?.timer) clearTimeout(pendingBounceFault.timer);
+    // Delay by RTT estimate (min 150ms) to wait for guest collision report
+    const delay = Math.max((p2p.opponentPing.value || 100) * 2, 150);
+    pendingBounceFault = {
+      forWhom,
+      reason,
+      timer: setTimeout(() => {
+        if (pendingBounceFault) {
+          const pf = pendingBounceFault;
+          pendingBounceFault = null;
+          scorePoint(pf.forWhom, pf.reason);
+        }
+      }, delay),
+    };
+  }
+
+  // Cancel a pending bounce fault if a guest collision report proves the ball was
+  // still in the air (hadn't bounced) at collision time.
+  function cancelPendingBounceFault(guestBallY: number) {
+    if (!pendingBounceFault) return false;
+    // Ball was in the air (above bounce threshold) — collision happened before bounce
+    if (guestBallY > BALL_RADIUS * 2) {
+      if (pendingBounceFault.timer) clearTimeout(pendingBounceFault.timer);
+      pendingBounceFault = null;
+      return true;
+    }
+    return false;
   }
 
   function scorePoint(forWhom: 'player' | 'ai', reason?: string) {
@@ -864,15 +950,18 @@ export function useGameEngine() {
     // A fault (reason present) means the non-scoring side made an error.
     let msg: string;
     if (reason) {
-      // Fault — identify who faulted from this device's perspective
-      const faultedBy = forWhom === 'player' ? 'ai' : 'player';
+      // For 'In!' the label is the scorer (who hit the ball in), not the
+      // faulting side (who didn't return). For all other faults (Out!, Net!,
+      // etc.) the label is the faulting side (who made the error).
+      const labelSide =
+        reason === 'In!' ? forWhom : forWhom === 'player' ? 'ai' : 'player';
       // From host's perspective: 'player' = host, 'ai' = guest
       // From guest's perspective: 'player' = host (opponent), 'ai' = guest (self)
       const faultLabel = isGuest.value
-        ? faultedBy === 'ai'
+        ? labelSide === 'ai'
           ? 'You'
           : oppName || 'Opp'
-        : faultedBy === 'player'
+        : labelSide === 'player'
           ? 'You'
           : aiName;
       msg = `${faultLabel}: ${reason}`;
@@ -1485,7 +1574,7 @@ export function useGameEngine() {
     rallyHitCount++;
     bounceCountThisSide = 0;
     ballBouncedOnSide = false;
-    firstBounceWasOut = false;
+    ballClippedNet = false;
     currentSide = isPlayer ? 'ai' : 'player';
     aiDinkRead = null;
 
@@ -1621,6 +1710,9 @@ export function useGameEngine() {
     // Gravity
     refs.ballVel.y += GRAVITY * dt;
 
+    // Track previous z for net-crossing detection (tunneling)
+    const prevBallZ = refs.ballPos.z;
+
     // Move
     refs.ballPos.x += refs.ballVel.x * dt;
     refs.ballPos.y += refs.ballVel.y * dt;
@@ -1689,36 +1781,46 @@ export function useGameEngine() {
       const bounceOutZ = Math.abs(refs.ballPos.z) > HALF_COURT_L;
       const bounceIsOut = bounceOutX || bounceOutZ;
 
+      // If a bounce fault is already pending (delayed for guest collision check),
+      // don't process further bounces — let the timer fire
+      if (pendingBounceFault) return;
+
       // First bounce during rally: call out immediately if clearly OOB
       if (rallyHitCount > 1 && bounceCountThisSide === 1 && bounceIsOut) {
         const faultBy = lastHitBy;
         if (faultBy) {
-          scorePoint(faultBy === 'player' ? 'ai' : 'player', 'Out!');
+          delayedBounceFault(
+            faultBy === 'player' ? 'ai' : 'player',
+            'Out!',
+            faultBy === 'ai',
+          );
         }
         return;
       }
 
-      // OOB check on SECOND bounce — opponent didn't return
+      // Second bounce = opponent didn't return
       if (rallyHitCount > 1 && bounceCountThisSide >= 2) {
-        if (firstBounceWasOut) {
-          // First bounce was out — fault against last hitter
+        if (ballClippedNet) {
+          // Ball clipped net then bounced twice — fault the hitter (lastHitBy), not the receiver
           const faultBy = lastHitBy;
           if (faultBy) {
-            scorePoint(faultBy === 'player' ? 'ai' : 'player', 'Out!');
+            delayedBounceFault(
+              faultBy === 'player' ? 'ai' : 'player',
+              'Net!',
+              faultBy === 'ai',
+            );
           }
-          return;
-        }
-        // First bounce was in, second bounce = opponent didn't return
-        const faultSide = currentSide;
-        if (faultSide) {
-          scorePoint(faultSide === 'player' ? 'ai' : 'player', 'In!');
+        } else {
+          const faultSide = currentSide;
+          if (faultSide) {
+            delayedBounceFault(
+              faultSide === 'player' ? 'ai' : 'player',
+              'In!',
+              faultSide === 'ai',
+            );
+          }
         }
         return;
-      }
-
-      // Record first bounce in/out status (for second bounce check)
-      if (bounceCountThisSide === 1) {
-        firstBounceWasOut = bounceIsOut;
       }
 
       // Serve-specific checks — only on FIRST bounce
@@ -1779,7 +1881,8 @@ export function useGameEngine() {
     // Back walls — ball went past baseline
     // Only score after second bounce, or if ball is well past baseline (+2m) after first bounce
     // This gives player/AI a chance to hit the ball after the first bounce
-    if (rallyHitCount > 0 && ballBouncedOnSide) {
+    // Skip if a bounce fault is already pending
+    if (!pendingBounceFault && rallyHitCount > 0 && ballBouncedOnSide) {
       const pastPlayerBack =
         refs.ballPos.z > HALF_COURT_L + 0.5 && refs.ballVel.z > 0;
       const pastAiBack =
@@ -1787,8 +1890,19 @@ export function useGameEngine() {
       if (pastPlayerBack || pastAiBack) {
         // After second bounce — point is over
         if (bounceCountThisSide >= 2) {
-          if (pastPlayerBack) scorePoint('ai', 'In!');
-          else scorePoint('player', 'In!');
+          if (ballClippedNet) {
+            const faultBy = lastHitBy;
+            if (faultBy) {
+              delayedBounceFault(
+                faultBy === 'player' ? 'ai' : 'player',
+                'Net!',
+                faultBy === 'ai',
+              );
+            }
+          } else {
+            if (pastPlayerBack) delayedBounceFault('ai', 'In!', false);
+            else delayedBounceFault('player', 'In!', true);
+          }
           return;
         }
         // After first bounce — only call if ball is far past reach (+3m beyond baseline)
@@ -1796,16 +1910,34 @@ export function useGameEngine() {
           refs.ballPos.z > HALF_COURT_L + 3 ||
           refs.ballPos.z < -HALF_COURT_L - 3
         ) {
-          if (pastPlayerBack) scorePoint('ai', 'In!');
-          else scorePoint('player', 'In!');
+          if (ballClippedNet) {
+            const faultBy = lastHitBy;
+            if (faultBy) {
+              delayedBounceFault(
+                faultBy === 'player' ? 'ai' : 'player',
+                'Net!',
+                faultBy === 'ai',
+              );
+            }
+          } else {
+            if (pastPlayerBack) delayedBounceFault('ai', 'In!', false);
+            else delayedBounceFault('player', 'In!', true);
+          }
           return;
         }
       }
     }
 
     // Net collision — ball hits net and doesn't cross (fault)
-    // If ball clips net but still has enough velocity to cross, let it continue
-    if (Math.abs(refs.ballPos.z) < 0.05 && refs.ballPos.y < NET_HEIGHT) {
+    // Detect both direct hits (abs(z) < 0.05) and tunneling (crossed z=0 between frames)
+    // Skip if a bounce fault is already pending (don't double-score)
+    const crossedNet = prevBallZ * refs.ballPos.z < 0; // sign change = crossed z=0
+    const nearNet = Math.abs(refs.ballPos.z) < 0.05;
+    if (
+      !pendingBounceFault &&
+      (nearNet || crossedNet) &&
+      refs.ballPos.y < NET_HEIGHT
+    ) {
       // Check if ball is moving fast enough to still cross
       const speedTowardOpponent = Math.abs(refs.ballVel.z);
       if (speedTowardOpponent < 1.0) {
@@ -1813,27 +1945,43 @@ export function useGameEngine() {
         // Ball moving toward player (z>0) = AI hit it = player's point
         // Ball moving toward AI (z<0) = player hit it = AI's point
         if (refs.ballVel.z > 0) {
-          scorePoint('player', 'Net!');
+          delayedBounceFault('player', 'Net!', false);
         } else {
-          scorePoint('ai', 'Net!');
+          delayedBounceFault('ai', 'Net!', true);
         }
         return;
       }
       // Ball clips net — reduce velocity but let it continue
       refs.ballVel.z *= 0.5;
       refs.ballVel.y *= 0.5;
+      ballClippedNet = true;
       hostPlaySfx('netHit');
     }
 
-    // Ball stopped on same side (didn't get hit)
-    const speedSq = refs.ballVel.lengthSq();
-    if (speedSq < 0.25 && refs.ballPos.y < 0.15) {
-      if (refs.ballPos.z > 0) {
-        scorePoint('ai', 'Ball stopped!');
-      } else {
-        scorePoint('player', 'Ball stopped!');
+    // Ball stopped on same side — same as "In!" (opponent hit it in, this side didn't return)
+    // But if ball clipped the net, fault the hitter (lastHitBy) with "Net!"
+    // Skip if a bounce fault is already pending
+    if (!pendingBounceFault) {
+      const speedSq = refs.ballVel.lengthSq();
+      if (speedSq < 0.25 && refs.ballPos.y < 0.15) {
+        if (ballClippedNet) {
+          const faultBy = lastHitBy;
+          if (faultBy) {
+            delayedBounceFault(
+              faultBy === 'player' ? 'ai' : 'player',
+              'Net!',
+              faultBy === 'ai',
+            );
+          }
+        } else {
+          if (refs.ballPos.z > 0) {
+            delayedBounceFault('ai', 'In!', false);
+          } else {
+            delayedBounceFault('player', 'In!', true);
+          }
+        }
+        return;
       }
-      return;
     }
 
     // Track which side the ball is on
@@ -1842,7 +1990,6 @@ export function useGameEngine() {
       currentSide = newSide;
       bounceCountThisSide = 0;
       ballBouncedOnSide = false;
-      firstBounceWasOut = false;
       aiDinkRead = null;
     }
 
@@ -2154,14 +2301,20 @@ export function useGameEngine() {
   }
 
   // Send fault event to host with ack-based retry.
-  // Guest sends { type: 'fault', data: faultType }, waits for { type: 'fault-ack' }.
+  // Guest sends { type: 'fault', data: faultType, ballY }, waits for { type: 'fault-ack' }.
+  // ballY proves the ball was in the air (hadn't bounced) at collision time.
   // Retries up to 3 times with 500ms timeout.
   function sendGuestFault(faultType: string) {
-    p2p.broadcastEvent({ type: 'fault', data: faultType });
+    p2p.broadcastEvent({
+      type: 'fault',
+      data: faultType,
+      ballY: refs.ballPos.y,
+    });
 
     pendingFaultAck = {
       seq: 0, // seq is assigned by broadcastEvent, but we track retries locally
       type: faultType,
+      ballY: refs.ballPos.y,
       retries: 0,
       timer: setTimeout(() => {
         retryGuestFault();
@@ -2178,7 +2331,11 @@ export function useGameEngine() {
       return;
     }
     pendingFaultAck.retries++;
-    p2p.broadcastEvent({ type: 'fault', data: pendingFaultAck.type });
+    p2p.broadcastEvent({
+      type: 'fault',
+      data: pendingFaultAck.type,
+      ballY: pendingFaultAck.ballY,
+    });
     pendingFaultAck.timer = setTimeout(() => {
       retryGuestFault();
     }, 500);
@@ -2193,21 +2350,28 @@ export function useGameEngine() {
   }
 
   // Flip host's lastPointMsg perspective for the guest.
-  // Host sends "You: Out!" or "Jane: Out!" — guest needs the opposite label.
-  function guestLpm(hostLpm: string, hostName: string): string {
+  // Host sends "You: Out!" (host faulted) or "Jane: Out!" (guest faulted).
+  // Guest needs: "John: Out!" (host faulted) or "You: Out!" (guest faulted).
+  // hostName = host's name, guestName = guest's own name (as host sees it).
+  function guestLpm(
+    hostLpm: string,
+    hostName: string,
+    guestName: string,
+  ): string {
     if (!hostLpm) return hostLpm;
-    const oppName = hostName || 'Opp';
-    // Replace "You:" with opponent name, and opponent name with "You:"
+    const hName = hostName || 'Opp';
+    const gName = guestName || 'You';
+    // Replace "You:" (host self) with host's name, and guest's name with "You:"
     let result = hostLpm.replace(/^You:/, '__SELF__');
-    result = result.replace(new RegExp(`^${escapeRegExp(oppName)}:`), 'You:');
-    result = result.replace('__SELF__', `${oppName}:`);
+    result = result.replace(new RegExp(`^${escapeRegExp(gName)}:`), 'You:');
+    result = result.replace('__SELF__', `${hName}:`);
     // Also handle inline labels in side-out messages (e.g., "You: Out!\nSide Out")
     result = result.replace(/(?<=\n)You:/, '__SELF__');
     result = result.replace(
-      new RegExp(`(?<=\\n)${escapeRegExp(oppName)}:`),
+      new RegExp(`(?<=\\n)${escapeRegExp(gName)}:`),
       'You:',
     );
-    result = result.replace('__SELF__', `${oppName}:`);
+    result = result.replace('__SELF__', `${hName}:`);
     return result;
   }
 
@@ -2248,6 +2412,7 @@ export function useGameEngine() {
           ]
         : null,
       hn: PlayerProfile.state.firstName || '',
+      gn: opponentName.value || 'Opp',
       pp2: playerPalette.value,
       ap2: aiPalette.value,
       lpm: lastPointMsg.value,
@@ -2298,8 +2463,15 @@ export function useGameEngine() {
       if (s1.pp2) aiPalette.value = s1.pp2;
       if (s1.ap2) playerPalette.value = s1.ap2;
       // Sync last point message — flip perspective for guest
-      if (s1.lpm !== undefined)
-        lastPointMsg.value = guestLpm(s1.lpm, s1.hn || '');
+      // Guard with seq check so older snapshots don't regress the message
+      if (s1.lpm && s1.seq > lastPointMsgSeq) {
+        lastPointMsgSeq = s1.seq;
+        lastPointMsg.value = guestLpm(
+          s1.lpm,
+          s1.hn || '',
+          s1.gn || PlayerProfile.state.firstName || 'Opp',
+        );
+      }
       return;
     }
 
@@ -2378,8 +2550,15 @@ export function useGameEngine() {
     if (s1.pp2) aiPalette.value = s1.pp2;
     if (s1.ap2) playerPalette.value = s1.ap2;
     // Sync last point message — flip perspective for guest
-    if (s1.lpm !== undefined)
-      lastPointMsg.value = guestLpm(s1.lpm, s1.hn || '');
+    // Guard with seq check so older snapshots don't regress the message
+    if (s1.lpm && s1.seq > lastPointMsgSeq) {
+      lastPointMsgSeq = s1.seq;
+      lastPointMsg.value = guestLpm(
+        s1.lpm,
+        s1.hn || '',
+        s1.gn || PlayerProfile.state.firstName || 'Opp',
+      );
+    }
 
     // Extrapolation: if no state received for >100ms, predict ball with velocity + gravity
     const timeSinceUpdate = performance.now() - lastStateReceivedAt;
