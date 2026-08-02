@@ -9,7 +9,7 @@
   <!-- Player character -->
   <CuteCharacter
     ref="playerRef"
-    :rotation="playerFacing > 0 ? 0 : Math.PI"
+    :rotation="playerBaseRot"
     :body-color="playerPalette.bodyColor"
     :hair-color="playerPalette.hairColor"
     :hat-color="playerPalette.hatColor"
@@ -28,7 +28,7 @@
   <!-- AI character -->
   <CuteCharacter
     ref="aiRef"
-    :rotation="aiFacing > 0 ? 0 : Math.PI"
+    :rotation="aiBaseRot"
     :body-color="aiPalette.bodyColor"
     head-color="#FFD3B6"
     :hair-color="aiPalette.hairColor"
@@ -109,6 +109,45 @@ const aiPalette = computed(() => props.aiPalette);
 const playerFacing = computed(() => (props.flipView ? 1 : -1));
 const aiFacing = computed(() => -playerFacing.value);
 
+// Base rotation from facing: +1 → 0 (faces +Z), -1 → PI (faces -Z)
+const baseRotOf = (f: number) => (f > 0 ? 0 : Math.PI);
+const playerBaseRot = computed(() => baseRotOf(playerFacing.value));
+const aiBaseRot = computed(() => baseRotOf(aiFacing.value));
+
+// Animation tuning constants
+const ANIM = {
+  BODY_TURN_FACTOR: 0.6,
+  LEAN_FACTOR: 0.4,
+  PITCH_FACTOR: 0.3,
+  FREE_ARM_FACTOR: 0.7,
+  SWING_AMPLITUDE: 0.6,
+  WALK_SPEED_BASE: 6,
+  WALK_SPEED_GAIN: 8,
+  MOVE_THRESHOLD: 0.08,
+  HEAD_HEIGHT: 0.68,
+  PADDLE_Y: 0.22,
+  HANDLE_X: 0.15,
+  HANDLE_Z: 0.22,
+  BALL_HANDLE_X: 0.1,
+  BALL_HANDLE_Z: 0.06,
+  PADDLE_X_CLAMP: 0.2,
+  PADDLE_Z_MIN: 0.2,
+  PADDLE_Z_MAX: 0.45,
+  PADDLE_Z_ABS_MAX: 0.5,
+  CENTER_PUSH: 0.08,
+  SWING_TILT_X: 0.52,
+  SWING_TILT_Z: 0.26,
+  SHOULDER_X: 0.22,
+  SHOULDER_Y: 0.38,
+  K_BODY: 6,
+  K_LEAN: 8,
+  K_LIMB: 12,
+  K_HEAD: 8,
+  K_PADDLE: 8,
+  K_ARM: 10,
+  K_DAMP: 8,
+} as const;
+
 const playerRef = ref();
 const aiRef = ref();
 const ballRef = ref();
@@ -143,12 +182,11 @@ watch(
       );
     }
     camLookTarget.set(0, 0, flipped ? -3 : 3);
-    const pf = flipped ? 1 : -1;
     if (playerRef.value?.groupRef) {
-      playerRef.value.groupRef.rotation.y = pf > 0 ? 0 : Math.PI;
+      playerRef.value.groupRef.rotation.y = baseRotOf(flipped ? 1 : -1);
     }
     if (aiRef.value?.groupRef) {
-      aiRef.value.groupRef.rotation.y = -pf > 0 ? 0 : Math.PI;
+      aiRef.value.groupRef.rotation.y = baseRotOf(flipped ? -1 : 1);
     }
   },
 );
@@ -209,57 +247,81 @@ interface CharacterHandle {
   pupilPositions?: { value: Record<string, number> };
 }
 
+interface CharacterUpdate {
+  facing: number;
+  pos: { x: number; z: number };
+  moveDir: number;
+  moveZ: number;
+  swing: number;
+  swingDir: number;
+  reach: number;
+  paddleAngle: number;
+  ballPos: { x: number; y: number; z: number };
+  opponentPos: { x: number; z: number };
+  servePending: boolean;
+  anim: CharAnimState;
+  dt: number;
+}
+
 function updateCharacter(
   char: CharacterHandle | undefined,
-  f: number,
-  pos: { x: number; z: number },
-  moveDir: number,
-  moveZ: number,
-  swing: number,
-  swingDir: number,
-  reach: number,
-  paddleAngle: number,
-  ballPos: { x: number; y: number; z: number },
-  opponentPos: { x: number; z: number },
-  servePending: boolean,
-  anim: CharAnimState,
-  dt: number,
+  u: CharacterUpdate,
 ) {
   if (!char?.groupRef) return;
+  const {
+    facing: f,
+    pos,
+    moveDir,
+    moveZ,
+    swing,
+    swingDir,
+    reach,
+    paddleAngle,
+    ballPos,
+    opponentPos,
+    servePending,
+    anim,
+    dt,
+  } = u;
 
   // --- Body position + rotation ---
   char.groupRef.position.set(pos.x, 0, pos.z);
-  const baseRot = f > 0 ? 0 : Math.PI;
+  const baseRot = baseRotOf(f);
   const moveAngle = Math.atan2(f * moveDir, f * moveZ);
   const moveMagBody = Math.sqrt(moveDir * moveDir + moveZ * moveZ);
   let targetBodyY: number;
   if (moveMagBody < 0.05) {
     targetBodyY = baseRot;
   } else {
-    targetBodyY = baseRot + moveAngle * 0.6;
+    targetBodyY = baseRot + moveAngle * ANIM.BODY_TURN_FACTOR;
   }
-  const targetLean = f * moveDir * 0.4;
-  const targetPitch = f * moveZ * 0.3;
-  const k = Math.min(1, dt * 6);
-  const kLean = Math.min(1, dt * 8);
+  const targetLean = f * moveDir * ANIM.LEAN_FACTOR;
+  const targetPitch = f * moveZ * ANIM.PITCH_FACTOR;
+  const k = Math.min(1, dt * ANIM.K_BODY);
+  const kLean = Math.min(1, dt * ANIM.K_LEAN);
   char.groupRef.rotation.y += (targetBodyY - char.groupRef.rotation.y) * k;
   char.groupRef.rotation.z += (targetLean - char.groupRef.rotation.z) * kLean;
   char.groupRef.rotation.x += (targetPitch - char.groupRef.rotation.x) * kLean;
 
   // --- Walk cycle (legs + free arm) ---
   const moveMag = Math.min(1, moveMagBody);
-  anim.animMagSmooth = THREE.MathUtils.damp(anim.animMagSmooth, moveMag, 8, dt);
+  anim.animMagSmooth = THREE.MathUtils.damp(
+    anim.animMagSmooth,
+    moveMag,
+    ANIM.K_DAMP,
+    dt,
+  );
   const animMag = anim.animMagSmooth;
-  if (moveMag > 0.08) {
+  if (moveMag > ANIM.MOVE_THRESHOLD) {
     anim.moveAngleStable = moveAngle;
   }
   const stableAngle = anim.moveAngleStable;
-  const walkSpeed = 6 + animMag * 8;
+  const walkSpeed = ANIM.WALK_SPEED_BASE + animMag * ANIM.WALK_SPEED_GAIN;
   anim.walkPhase += dt * walkSpeed;
-  const swingBase = Math.sin(anim.walkPhase) * 0.6 * animMag;
+  const swingBase = Math.sin(anim.walkPhase) * ANIM.SWING_AMPLITUDE * animMag;
   const swingX = swingBase * Math.cos(stableAngle);
   const swingZ = swingBase * Math.sin(stableAngle);
-  const kLimb = Math.min(1, dt * 12);
+  const kLimb = Math.min(1, dt * ANIM.K_LIMB);
   if (char.leftLegRef) {
     char.leftLegRef.rotation.x += (swingX - char.leftLegRef.rotation.x) * kLimb;
     char.leftLegRef.rotation.z += (swingZ - char.leftLegRef.rotation.z) * kLimb;
@@ -272,9 +334,9 @@ function updateCharacter(
   }
   if (char.leftArmRef) {
     char.leftArmRef.rotation.x +=
-      (-swingX * 0.7 - char.leftArmRef.rotation.x) * kLimb;
+      (-swingX * ANIM.FREE_ARM_FACTOR - char.leftArmRef.rotation.x) * kLimb;
     char.leftArmRef.rotation.z +=
-      (-swingZ * 0.7 - char.leftArmRef.rotation.z) * kLimb;
+      (-swingZ * ANIM.FREE_ARM_FACTOR - char.leftArmRef.rotation.z) * kLimb;
   }
 
   // --- Head tracking (opponent during serve, ball during rally) ---
@@ -292,13 +354,13 @@ function updateCharacter(
       -Math.PI / 3,
       Math.min(Math.PI / 3, normYaw),
     );
-    const dyTarget = servePending ? 0 : ballPos.y - 0.68;
+    const dyTarget = servePending ? 0 : ballPos.y - ANIM.HEAD_HEIGHT;
     const targetHeadPitch = Math.atan2(dyTarget, Math.max(targetDist, 0.1));
     const clampedHeadPitch = Math.max(
       -Math.PI / 4,
       Math.min((Math.PI * 5) / 12, targetHeadPitch),
     );
-    const kHead = Math.min(1, dt * 8);
+    const kHead = Math.min(1, dt * ANIM.K_HEAD);
     char.headRef.rotation.y +=
       (clampedHeadYaw - char.headRef.rotation.y) * kHead;
     char.headRef.rotation.x +=
@@ -313,7 +375,7 @@ function updateCharacter(
     const ballDist = Math.sqrt(dxBall * dxBall + dzBall * dzBall);
     const nx = ballDist > 0 ? dxBall / ballDist : 0;
     const nz = ballDist > 0 ? dzBall / ballDist : 0;
-    const dy = (ballPos.y - 0.68) / Math.max(ballDist, 0.5);
+    const dy = (ballPos.y - ANIM.HEAD_HEIGHT) / Math.max(ballDist, 0.5);
     const pupilOffX = nx * 0.03;
     const pupilOffY = Math.max(-0.025, Math.min(0.025, dy * 0.03));
     const pupilOffZ = f * nz * 0.02;
@@ -333,48 +395,53 @@ function updateCharacter(
 
   // --- Paddle position + rotation ---
   if (char.paddleRef) {
-    const baseY = 0.22;
-    const handleX = moveDir < -0.1 ? -0.15 : 0.15;
-    const handleZ = 0.22;
-    const ballHandleX = Math.sin(paddleAngle) * 0.1;
-    const ballHandleZ = f * Math.cos(paddleAngle) * 0.06;
+    const handleX = moveDir < -0.1 ? -ANIM.HANDLE_X : ANIM.HANDLE_X;
+    const ballHandleX = Math.sin(paddleAngle) * ANIM.BALL_HANDLE_X;
+    const ballHandleZ = f * Math.cos(paddleAngle) * ANIM.BALL_HANDLE_Z;
     const targetX = (handleX * (1 - reach) + ballHandleX * reach) * -f;
-    const targetZ = handleZ * (1 - reach) + ballHandleZ * reach;
+    const targetZ = ANIM.HANDLE_Z * (1 - reach) + ballHandleZ * reach;
     const curX = char.paddleRef.position.x;
-    let newPaddleX = curX + (targetX - curX) * Math.min(1, dt * 8);
+    let newPaddleX = curX + (targetX - curX) * Math.min(1, dt * ANIM.K_PADDLE);
     const curZ = char.paddleRef.position.z;
-    let newPaddleZ = curZ + (targetZ - curZ) * Math.min(1, dt * 8);
-    newPaddleX = Math.max(-0.2, Math.min(0.2, newPaddleX));
-    newPaddleZ = Math.max(0.2, Math.min(0.45, newPaddleZ));
-    const centerProximity = 1 - Math.min(1, Math.abs(newPaddleX) / 0.2);
-    newPaddleZ += centerProximity * 0.08;
-    newPaddleZ = Math.min(0.5, newPaddleZ);
-    char.paddleRef.position.set(newPaddleX, baseY, newPaddleZ);
+    let newPaddleZ = curZ + (targetZ - curZ) * Math.min(1, dt * ANIM.K_PADDLE);
+    newPaddleX = Math.max(
+      -ANIM.PADDLE_X_CLAMP,
+      Math.min(ANIM.PADDLE_X_CLAMP, newPaddleX),
+    );
+    newPaddleZ = Math.max(
+      ANIM.PADDLE_Z_MIN,
+      Math.min(ANIM.PADDLE_Z_MAX, newPaddleZ),
+    );
+    const centerProximity =
+      1 - Math.min(1, Math.abs(newPaddleX) / ANIM.PADDLE_X_CLAMP);
+    newPaddleZ += centerProximity * ANIM.CENTER_PUSH;
+    newPaddleZ = Math.min(ANIM.PADDLE_Z_ABS_MAX, newPaddleZ);
+    char.paddleRef.position.set(newPaddleX, ANIM.PADDLE_Y, newPaddleZ);
 
     // Paddle yaw faces the ball
     const dxBall = ballPos.x - pos.x;
     const dzBall = ballPos.z - pos.z;
     const paddleYaw = Math.atan2(dxBall, f * dzBall) - char.groupRef.rotation.y;
     char.paddleRef.rotation.set(
-      -swing * 0.52 * swingDir,
+      -swing * ANIM.SWING_TILT_X * swingDir,
       paddleYaw,
-      -swing * 0.26 * swingDir,
+      -swing * ANIM.SWING_TILT_Z * swingDir,
     );
 
     // Paddle-side arm points toward paddle
     if (char.rightArmRef) {
-      const shoulderX = -f * 0.22;
-      const shoulderY = 0.38;
+      const shoulderX = -f * ANIM.SHOULDER_X;
+      const shoulderY = ANIM.SHOULDER_Y;
       const shoulderZ = 0;
       const dx = newPaddleX - shoulderX;
-      const dy = baseY - shoulderY;
+      const dy = ANIM.PADDLE_Y - shoulderY;
       const dz = newPaddleZ - shoulderZ;
       const armYaw = Math.atan2(dx, dz);
       const armPitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz));
       char.rightArmRef.rotation.y +=
-        (armYaw - char.rightArmRef.rotation.y) * Math.min(1, dt * 10);
+        (armYaw - char.rightArmRef.rotation.y) * Math.min(1, dt * ANIM.K_ARM);
       char.rightArmRef.rotation.x +=
-        (armPitch - char.rightArmRef.rotation.x) * Math.min(1, dt * 10);
+        (armPitch - char.rightArmRef.rotation.x) * Math.min(1, dt * ANIM.K_ARM);
     }
   }
 }
@@ -382,10 +449,10 @@ function updateCharacter(
 onMounted(() => {
   // Set initial base rotations from facing
   if (playerRef.value?.groupRef) {
-    playerRef.value.groupRef.rotation.y = playerFacing.value > 0 ? 0 : Math.PI;
+    playerRef.value.groupRef.rotation.y = playerBaseRot.value;
   }
   if (aiRef.value?.groupRef) {
-    aiRef.value.groupRef.rotation.y = aiFacing.value > 0 ? 0 : Math.PI;
+    aiRef.value.groupRef.rotation.y = aiBaseRot.value;
   }
   onBeforeRender(({ elapsed }) => {
     // Run game physics step first (merged from separate RAF)
@@ -398,39 +465,37 @@ onMounted(() => {
 
     // Animate both characters via shared helper — all flipView logic
     // is captured by the facing sign, no conditionals below this point.
-    updateCharacter(
-      playerRef.value,
-      playerFacing.value,
-      r.playerPos,
-      r.playerMoveDir,
-      r.playerMoveZ,
-      r.playerSwing,
-      r.playerSwingDir,
-      r.playerReach,
-      r.playerPaddleAngle,
-      r.ballPos,
-      r.aiPos,
-      r.servePending,
-      playerAnim,
+    updateCharacter(playerRef.value, {
+      facing: playerFacing.value,
+      pos: r.playerPos,
+      moveDir: r.playerMoveDir,
+      moveZ: r.playerMoveZ,
+      swing: r.playerSwing,
+      swingDir: r.playerSwingDir,
+      reach: r.playerReach,
+      paddleAngle: r.playerPaddleAngle,
+      ballPos: r.ballPos,
+      opponentPos: r.aiPos,
+      servePending: r.servePending,
+      anim: playerAnim,
       dt,
-    );
+    });
 
-    updateCharacter(
-      aiRef.value,
-      aiFacing.value,
-      r.aiPos,
-      r.aiMoveDir,
-      r.aiMoveZ,
-      r.aiSwing,
-      r.aiSwingDir,
-      r.aiReach,
-      r.aiPaddleAngle,
-      r.ballPos,
-      r.playerPos,
-      r.servePending,
-      aiAnim,
+    updateCharacter(aiRef.value, {
+      facing: aiFacing.value,
+      pos: r.aiPos,
+      moveDir: r.aiMoveDir,
+      moveZ: r.aiMoveZ,
+      swing: r.aiSwing,
+      swingDir: r.aiSwingDir,
+      reach: r.aiReach,
+      paddleAngle: r.aiPaddleAngle,
+      ballPos: r.ballPos,
+      opponentPos: r.playerPos,
+      servePending: r.servePending,
+      anim: aiAnim,
       dt,
-    );
+    });
 
     // Update ball position
     if (ballRef.value) {
