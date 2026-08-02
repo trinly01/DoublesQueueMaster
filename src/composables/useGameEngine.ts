@@ -226,6 +226,54 @@ export function useGameEngine() {
   const _tempVel = new THREE.Vector3();
   const _tempTarget = new THREE.Vector3();
 
+  // Sound effects queue — host queues sounds for guest to play
+  const sfxQueue: string[] = [];
+  function hostPlaySfx(name: string) {
+    sfxQueue.push(name);
+    switch (name) {
+      case 'paddleHit':
+        sound.paddleHit();
+        break;
+      case 'ballBounce':
+        sound.ballBounce();
+        break;
+      case 'netHit':
+        sound.netHit();
+        break;
+      case 'serve':
+        sound.serve();
+        break;
+      case 'fault':
+        sound.fault();
+        break;
+      case 'pointScored':
+        sound.pointScored();
+        break;
+    }
+  }
+  function playGuestSfx(name: string) {
+    switch (name) {
+      case 'paddleHit':
+        sound.paddleHit();
+        break;
+      case 'ballBounce':
+        sound.ballBounce();
+        break;
+      case 'netHit':
+        sound.netHit();
+        break;
+      case 'serve':
+        sound.serve();
+        break;
+      case 'fault':
+        sound.fault();
+        break;
+      case 'pointScored':
+        sound.pointScored();
+        break;
+    }
+  }
+
   function setDifficulty(d: Difficulty) {
     difficulty.value = d;
     if (typeof window !== 'undefined')
@@ -320,18 +368,15 @@ export function useGameEngine() {
         refs.playerPos.set(0, 0, -(COURT_LENGTH / 2 - 1));
       }
       if (!isGuest.value) return;
-      console.log(
-        '[DEBUG] Guest received state: sp=',
-        data.sp,
-        'sv=',
-        data.sv,
-        'gs=',
-        data.gs,
-        'servingTo will be=',
-        data.sv,
-      );
       p2p.pushToJitterBuffer(data);
       lastStateReceivedAt = performance.now();
+
+      // Play sound effects queued by host
+      if (data.sfx && data.sfx.length > 0) {
+        for (const sfxName of data.sfx) {
+          playGuestSfx(sfxName);
+        }
+      }
 
       // Update scores and server from state
       playerScore.value = data.ps;
@@ -347,11 +392,15 @@ export function useGameEngine() {
       }
 
       // Sync servingTo: from host's perspective, 'ai' = guest (opponent)
-      // From guest's perspective, when host says 'ai' is serving, that's the guest
       servingTo.value = data.sv;
 
       // Sync game state from host
-      if (data.gs === 'playing' || data.gs === 'point-scored') {
+      if (
+        data.gs === 'playing' ||
+        data.gs === 'point-scored' ||
+        data.gs === 'paused' ||
+        data.gs === 'game-over'
+      ) {
         if (gameState.value === 'connecting' || gameState.value === 'waiting') {
           gameState.value = 'playing';
           // Snap to host's position for guest (host's aiPos = guest's playerPos)
@@ -369,6 +418,22 @@ export function useGameEngine() {
           gameState.value = 'playing';
           // Snap to new serve position (host just called resetBall)
           refs.playerPos.set(data.ap[0], 0, data.ap[2]);
+        } else if (data.gs === 'paused' && gameState.value !== 'paused') {
+          gameState.value = 'paused';
+        } else if (data.gs === 'game-over' && gameState.value !== 'game-over') {
+          gameState.value = 'game-over';
+          if (playerScore.value >= WIN_SCORE) {
+            winner.value = 'player';
+            if (isGuest.value) sound.lose();
+            else sound.win();
+          } else {
+            winner.value = 'ai';
+            if (isGuest.value) sound.win();
+            else sound.lose();
+          }
+        } else if (data.gs === 'playing' && gameState.value === 'paused') {
+          // Host resumed
+          gameState.value = 'playing';
         }
       }
     });
@@ -380,16 +445,6 @@ export function useGameEngine() {
       lastInputSeq = data.seq;
       remoteInput.ax = data.ax;
       remoteInput.az = data.az;
-      if (Math.abs(data.ax) > 0.01 || Math.abs(data.az) > 0.01) {
-        console.log(
-          '[DEBUG] Host received input: ax=',
-          data.ax,
-          'az=',
-          data.az,
-          'seq=',
-          data.seq,
-        );
-      }
       // Sync guest name
       if (data.gn) opponentName.value = data.gn;
       if (data.sv && servePending.value && servingTo.value === 'ai') {
@@ -418,10 +473,10 @@ export function useGameEngine() {
         gameState.value = 'game-over';
         if (playerScore.value >= WIN_SCORE) {
           winner.value = 'player';
-          sound.win();
+          sound.lose();
         } else {
           winner.value = 'ai';
-          sound.lose();
+          sound.win();
         }
       }
     });
@@ -611,8 +666,8 @@ export function useGameEngine() {
     firstBounceWasOut = false;
     currentSide = serveTo; // ball starts on server's side
     aiDinkRead = null;
-    sound.serve();
-    sound.paddleHit();
+    hostPlaySfx('serve');
+    hostPlaySfx('paddleHit');
   }
 
   function scorePoint(forWhom: 'player' | 'ai', reason?: string) {
@@ -628,12 +683,12 @@ export function useGameEngine() {
       // Harsh error sound when player faults (AI gets the point)
       // Softer sound when AI faults (player gets the point)
       if (forWhom === 'ai') {
-        sound.fault();
+        hostPlaySfx('fault');
       } else {
-        sound.pointScored();
+        hostPlaySfx('pointScored');
       }
     } else {
-      sound.pointScored();
+      hostPlaySfx('pointScored');
     }
 
     if (rules.value === 'authentic') {
@@ -1233,7 +1288,7 @@ export function useGameEngine() {
       refs.aiSwingDir = aiVel.x >= 0 ? 1 : -1;
     }
 
-    sound.paddleHit();
+    hostPlaySfx('paddleHit');
     return true;
   }
 
@@ -1283,14 +1338,6 @@ export function useGameEngine() {
     if (isPvP.value) {
       if (isGuest.value) {
         // Guest sends serve trigger to host (only when it's guest's turn)
-        console.log(
-          '[DEBUG] Guest triggerServe: servePending=',
-          servePending.value,
-          'servingTo=',
-          servingTo.value,
-          'myServeTurn=',
-          myServeTurn.value,
-        );
         if (servePending.value && servingTo.value === 'ai') {
           p2p.broadcastInput({
             ax: input.axisX,
@@ -1424,7 +1471,7 @@ export function useGameEngine() {
       // Track bounce for rules
       bounceCountThisSide++;
       ballBouncedOnSide = true;
-      sound.ballBounce();
+      hostPlaySfx('ballBounce');
 
       // Check if bounce is in or out of bounds
       const bounceOutX = Math.abs(refs.ballPos.x) > HALF_COURT_W;
@@ -1564,7 +1611,7 @@ export function useGameEngine() {
       // Ball clips net — reduce velocity but let it continue
       refs.ballVel.z *= 0.5;
       refs.ballVel.y *= 0.5;
-      sound.netHit();
+      hostPlaySfx('netHit');
     }
 
     // Ball stopped on same side (didn't get hit)
@@ -1800,18 +1847,6 @@ export function useGameEngine() {
     // Use remote input instead of AI logic
     const dx = THREE.MathUtils.clamp(remoteInput.ax, -1.2, 1.2);
     const dz = THREE.MathUtils.clamp(remoteInput.az, -1.2, 1.2);
-    if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
-      console.log(
-        '[DEBUG] Host updateRemotePlayer: dx=',
-        dx,
-        'dz=',
-        dz,
-        'aiPos.x=',
-        refs.aiPos.x,
-        'aiPos.z=',
-        refs.aiPos.z,
-      );
-    }
     const targetVx = dx * PLAYER_MAX_SPEED;
     const targetVz = dz * PLAYER_MAX_SPEED;
     const accelX = dx !== 0 ? PLAYER_ACCEL : PLAYER_FRICTION;
@@ -1899,8 +1934,10 @@ export function useGameEngine() {
       pp2: playerPalette.value,
       ap2: aiPalette.value,
       lpm: lastPointMsg.value,
+      sfx: sfxQueue.length > 0 ? sfxQueue.slice() : undefined,
       gs: gameState.value,
     });
+    sfxQueue.length = 0; // clear queue after broadcast
   }
 
   // PvP guest: interpolate state from host
@@ -2021,7 +2058,7 @@ export function useGameEngine() {
     // Sync palettes from host (host's player = guest's AI, host's AI = guest's player)
     if (s1.pp2) aiPalette.value = s1.pp2;
     if (s1.ap2) playerPalette.value = s1.ap2;
-    // Sync last point message
+    // Sync last point message — host uses real player names so it's correct for both sides
     if (s1.lpm !== undefined) lastPointMsg.value = s1.lpm;
 
     // Extrapolation: if no state received for >100ms, predict ball with velocity + gravity
@@ -2046,9 +2083,6 @@ export function useGameEngine() {
     if (input.backward) az += 1;
     ax = THREE.MathUtils.clamp(ax, -1.2, 1.2);
     az = THREE.MathUtils.clamp(az, -1.2, 1.2);
-    if (Math.abs(ax) > 0.01 || Math.abs(az) > 0.01) {
-      console.log('[DEBUG] Guest sendInputToHost: ax=', ax, 'az=', az);
-    }
     p2p.broadcastInput({
       ax,
       az,
@@ -2102,6 +2136,9 @@ export function useGameEngine() {
       }
     } else if (gameState.value === 'paused') {
       pollGamepadButtons();
+      if (isPvP.value && isHost.value) {
+        broadcastStateToGuest(dt);
+      }
     } else if (gameState.value === 'reconnecting') {
       // Check if opponent reconnected
       if (p2p.connectionState.value === 'connected') {
@@ -2110,11 +2147,10 @@ export function useGameEngine() {
           p2p.broadcastEvent({ type: 'resync' });
         }
       } else if (p2p.connectionState.value === 'disconnected') {
-        // Opponent forfeited
+        // Opponent forfeited — local player wins
         winner.value = isHost.value ? 'player' : 'ai';
         gameState.value = 'game-over';
-        if (winner.value === 'player') sound.win();
-        else sound.lose();
+        sound.win();
       }
     }
   }
@@ -2224,13 +2260,7 @@ export function useGameEngine() {
   ) {
     // Auto-serve on any touch movement
     if (active && servePending.value && myServeTurn.value) {
-      console.log('[DEBUG] setTouchInput: calling triggerServe');
       triggerServe();
-    } else if (active && servePending.value) {
-      console.log(
-        '[DEBUG] setTouchInput: servePending=true but myServeTurn=',
-        myServeTurn.value,
-      );
     }
     // Flip directions for guest (camera is on opposite side, both axes mirrored)
     if (isGuest.value) {
@@ -2250,13 +2280,7 @@ export function useGameEngine() {
       servePending.value &&
       myServeTurn.value
     ) {
-      console.log('[DEBUG] setAxis: calling triggerServe');
       triggerServe();
-    } else if ((Math.abs(x) > 0.1 || Math.abs(z) > 0.1) && servePending.value) {
-      console.log(
-        '[DEBUG] setAxis: servePending=true but myServeTurn=',
-        myServeTurn.value,
-      );
     }
     // Flip axes for guest (camera is on opposite side, so both X and Z are mirrored)
     input.axisX = isGuest.value ? -x : x;

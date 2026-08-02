@@ -16,25 +16,18 @@
       <div v-if="engine.gameState.value !== 'menu'" class="score-pill">
         <span class="score-label score-you-label">
           <span
-            v-if="
-              engine.rules.value === 'authentic' &&
-              engine.server.value === 'player'
-            "
+            v-if="engine.rules.value === 'authentic' && myServer"
             class="server-dot"
             >●</span
           >{{ playerLabel }}</span
         >
-        <span class="score-num score-you-num">{{
-          engine.playerScore.value
-        }}</span>
+        <span class="score-num score-you-num">{{ myScore }}</span>
         <span class="score-sep">—</span>
-        <span class="score-num score-ai-num">{{ engine.aiScore.value }}</span>
+        <span class="score-num score-ai-num">{{ oppScore }}</span>
         <span class="score-label score-ai-label"
           >{{ pvpLabel
           }}<span
-            v-if="
-              engine.rules.value === 'authentic' && engine.server.value === 'ai'
-            "
+            v-if="engine.rules.value === 'authentic' && !myServer"
             class="server-dot"
             >●</span
           ></span
@@ -69,7 +62,7 @@
         <template v-else-if="isTouch">Move to serve</template>
         <template v-else>Move to serve</template>
         , serve
-        {{ engine.playerScore.value % 2 === 0 ? 'RIGHT' : 'LEFT' }} court
+        {{ myScore % 2 === 0 ? 'RIGHT' : 'LEFT' }} court
       </p>
     </div>
 
@@ -300,9 +293,7 @@
         <h1 class="menu-title">
           {{ gameOverTitle }}
         </h1>
-        <p class="menu-subtitle">
-          {{ engine.playerScore.value }} - {{ engine.aiScore.value }}
-        </p>
+        <p class="menu-subtitle">{{ myScore }} - {{ oppScore }}</p>
         <q-btn
           label="Main Menu"
           color="white"
@@ -603,13 +594,30 @@ const flipView = computed(() => {
   return engine.mode.value === 'pvp' && engine.p2p.role.value === 'guest';
 });
 
+// Guest perspective: host's playerScore = opponent, host's aiScore = guest (self)
+const isGuest = computed(
+  () => engine.mode.value === 'pvp' && engine.p2p.role.value === 'guest',
+);
+const myScore = computed(() =>
+  isGuest.value ? engine.aiScore.value : engine.playerScore.value,
+);
+const oppScore = computed(() =>
+  isGuest.value ? engine.playerScore.value : engine.aiScore.value,
+);
+const myServer = computed(() =>
+  isGuest.value
+    ? engine.server.value === 'ai'
+    : engine.server.value === 'player',
+);
+
 const gameOverTitle = computed(() => {
   if (engine.mode.value === 'pvp') {
     const myName = PlayerProfile.state.firstName?.trim() || 'You';
     const oppName = engine.opponentName.value?.trim() || 'Opponent';
-    return engine.winner.value === 'player'
-      ? `${myName} Wins!`
-      : `${oppName} Wins!`;
+    const iWon = isGuest.value
+      ? engine.winner.value === 'ai'
+      : engine.winner.value === 'player';
+    return iWon ? `${myName} Wins!` : `${oppName} Wins!`;
   }
   return engine.winner.value === 'player' ? 'You Win!' : 'AI Wins!';
 });
