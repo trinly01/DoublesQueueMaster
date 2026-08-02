@@ -1,6 +1,17 @@
-import { ref, reactive, onUnmounted } from 'vue';
+import { ref, reactive, computed, onUnmounted } from 'vue';
 import * as THREE from 'three';
 import { useSound } from 'src/composables/useSound';
+import {
+  useP2P,
+  type StatePayload,
+  type InputPayload,
+  type EventPayload,
+} from 'src/composables/useP2P';
+import {
+  useRandomPalette,
+  type CharacterPalette,
+} from 'src/composables/useRandomPalette';
+import { PlayerProfile } from 'src/services/playerProfile';
 
 // Court dimensions (scaled to scene units: 1 unit = 1 meter)
 const COURT_LENGTH = 13.41; // 44ft
@@ -23,7 +34,10 @@ export type GameState =
   | 'playing'
   | 'point-scored'
   | 'game-over'
-  | 'paused';
+  | 'paused'
+  | 'connecting'
+  | 'waiting'
+  | 'reconnecting';
 export type Rules = 'arcade' | 'authentic';
 
 interface AIConfig {
@@ -102,7 +116,12 @@ export interface GameRefs {
 
 export function useGameEngine() {
   const sound = useSound();
+  const p2p = useP2P();
   const gameState = ref<GameState>('menu');
+  const mode = ref<'ai' | 'pvp'>('ai');
+  const roomId = ref(
+    (typeof window !== 'undefined' && localStorage.getItem('dqm_room')) || '',
+  );
   const difficulty = ref<Difficulty>(
     (typeof window !== 'undefined' &&
       (localStorage.getItem('dqm_difficulty') as Difficulty)) ||
@@ -142,6 +161,17 @@ export function useGameEngine() {
     servePending: false,
   };
 
+  // Character palettes — generated once, synced from host to guest via P2P
+  const { randomPalette } = useRandomPalette();
+  const playerPalette = ref<CharacterPalette>(randomPalette());
+  const aiPalette = ref<CharacterPalette>(randomPalette());
+  if (aiPalette.value.bodyColor === playerPalette.value.bodyColor) {
+    aiPalette.value = randomPalette();
+  }
+
+  // Opponent display name (synced via P2P in PvP)
+  const opponentName = ref('');
+
   // Input state
   const input = reactive({
     left: false,
@@ -158,7 +188,7 @@ export function useGameEngine() {
   let aiReactionTimer = 0;
   let aiTargetX = 0;
   let pointPauseTimer = 0;
-  let servingTo: 'player' | 'ai' = 'player';
+  const servingTo = ref<'player' | 'ai'>('player');
 
   // Rules tracking
   let lastHitBy: 'player' | 'ai' | null = null;
@@ -169,6 +199,7 @@ export function useGameEngine() {
   let currentSide: 'player' | 'ai' | null = null; // which side the ball is currently on
   let serveTimer = 0;
   let serveFromX = 0; // server's X position when serving (to check wrong court)
+  let servePosZ = 0; // server's Z position when serving (to snap back on serve trigger)
   let aiDinkRead: boolean | null = null; // null = not evaluated, true/false = committed
 
   // Precomputed constants for hot loops
@@ -206,19 +237,226 @@ export function useGameEngine() {
     if (typeof window !== 'undefined') localStorage.setItem('dqm_rules', r);
   }
 
+  function setRoomId(id: string) {
+    roomId.value = id;
+    if (typeof window !== 'undefined') localStorage.setItem('dqm_room', id);
+  }
+
+  // --- PvP state ---
+  // Remote input (host receives from guest)
+  const remoteInput = reactive({ ax: 0, az: 0, sv: false, seq: 0 });
+  let lastInputSeq = -1;
+
+  // Guest-side interpolation state
+  let lastStateReceivedAt = 0;
+  let stateBroadcastTimer = 0;
+  const STATE_BROADCAST_INTERVAL = 0.05; // 20Hz
+
+  // Clear role indicators for readable conditionals
+  const isPvP = computed(() => mode.value === 'pvp');
+  const isHost = computed(() => isPvP.value && p2p.role.value === 'host');
+  const isGuest = computed(() => isPvP.value && p2p.role.value === 'guest');
+
+  // Player side multiplier: 1 = z>0 half (host/AI), -1 = z<0 half (PvP guest)
+  // Used only for physics clamping in updatePlayer
+  const playerSide = computed(() => (isGuest.value ? -1 : 1));
+
+  // Whose turn to serve? Host serves when servingTo === 'player', guest when 'ai'
+  const myServeTurn = computed(() =>
+    isGuest.value ? servingTo.value === 'ai' : servingTo.value === 'player',
+  );
+
+  // Hermite interpolation helper for ball position
+  function hermiteLerp(
+    p0: THREE.Vector3,
+    v0: THREE.Vector3,
+    p1: THREE.Vector3,
+    v1: THREE.Vector3,
+    t: number,
+  ): THREE.Vector3 {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const h00 = 2 * t3 - 3 * t2 + 1;
+    const h10 = t3 - 2 * t2 + t;
+    const h01 = -2 * t3 + 3 * t2;
+    const h11 = t3 - t2;
+    return new THREE.Vector3(
+      h00 * p0.x + h10 * v0.x + h01 * p1.x + h11 * v1.x,
+      h00 * p0.y + h10 * v0.y + h01 * p1.y + h11 * v1.y,
+      h00 * p0.z + h10 * v0.z + h01 * p1.z + h11 * v1.z,
+    );
+  }
+
+  // Snap ball to host state (on events like paddle hit, bounce)
+  let snapBallNextFrame = false;
+
+  function startPvP() {
+    mode.value = 'pvp';
+    gameState.value = 'connecting';
+    p2p.joinGameRoom(roomId.value);
+
+    // Set up callbacks
+    p2p.onPeerJoin(() => {
+      if (gameState.value === 'waiting' || gameState.value === 'connecting') {
+        // Only host starts the game; guest waits for state sync
+        if (isHost.value) {
+          startGame();
+        }
+      }
+    });
+
+    p2p.onPeerLeave(() => {
+      if (gameState.value === 'playing' || gameState.value === 'point-scored') {
+        gameState.value = 'reconnecting';
+      }
+    });
+
+    p2p.onStateReceived((data: StatePayload) => {
+      // Guest receives authoritative state from host
+      if (!isPvP.value) return;
+      // If we receive state, we must be the guest (host doesn't receive state)
+      if (p2p.role.value === null) {
+        p2p.role.value = 'guest';
+        refs.playerPos.set(0, 0, -(COURT_LENGTH / 2 - 1));
+      }
+      if (!isGuest.value) return;
+      console.log(
+        '[DEBUG] Guest received state: sp=',
+        data.sp,
+        'sv=',
+        data.sv,
+        'gs=',
+        data.gs,
+        'servingTo will be=',
+        data.sv,
+      );
+      p2p.pushToJitterBuffer(data);
+      lastStateReceivedAt = performance.now();
+
+      // Update scores and server from state
+      playerScore.value = data.ps;
+      aiScore.value = data.as;
+      server.value = data.sv;
+
+      // Detect serve reset: servePending went from false→true, snap guest to serve position
+      const wasServePending = servePending.value;
+      servePending.value = data.sp;
+      if (data.sp && !wasServePending) {
+        // Host just called resetBall — snap to new serve position
+        refs.playerPos.set(data.ap[0], 0, data.ap[2]);
+      }
+
+      // Sync servingTo: from host's perspective, 'ai' = guest (opponent)
+      // From guest's perspective, when host says 'ai' is serving, that's the guest
+      servingTo.value = data.sv;
+
+      // Sync game state from host
+      if (data.gs === 'playing' || data.gs === 'point-scored') {
+        if (gameState.value === 'connecting' || gameState.value === 'waiting') {
+          gameState.value = 'playing';
+          // Snap to host's position for guest (host's aiPos = guest's playerPos)
+          refs.playerPos.set(data.ap[0], 0, data.ap[2]);
+        } else if (
+          gameState.value === 'playing' &&
+          data.gs === 'point-scored'
+        ) {
+          gameState.value = 'point-scored';
+          pointPauseTimer = POINT_PAUSE;
+        } else if (
+          gameState.value === 'point-scored' &&
+          data.gs === 'playing'
+        ) {
+          gameState.value = 'playing';
+          // Snap to new serve position (host just called resetBall)
+          refs.playerPos.set(data.ap[0], 0, data.ap[2]);
+        }
+      }
+    });
+
+    p2p.onInputReceived((data: InputPayload) => {
+      // Host receives input from guest
+      if (!isHost.value) return;
+      if (data.seq <= lastInputSeq) return; // discard stale
+      lastInputSeq = data.seq;
+      remoteInput.ax = data.ax;
+      remoteInput.az = data.az;
+      if (Math.abs(data.ax) > 0.01 || Math.abs(data.az) > 0.01) {
+        console.log(
+          '[DEBUG] Host received input: ax=',
+          data.ax,
+          'az=',
+          data.az,
+          'seq=',
+          data.seq,
+        );
+      }
+      // Sync guest name
+      if (data.gn) opponentName.value = data.gn;
+      if (data.sv && servePending.value && servingTo.value === 'ai') {
+        // Execute guest's serve on host side
+        // Snap AI back to serve position (guest may have drifted forward while triggering serve)
+        refs.aiPos.z = servePosZ;
+        if (refs.aiPos.z > -COURT_LENGTH / 2) {
+          scorePoint('player', 'Foot fault!');
+          servePending.value = false;
+        } else {
+          servePending.value = false;
+          doServe();
+        }
+      }
+    });
+
+    p2p.onEventReceived((data: EventPayload) => {
+      if (data.type === 'ready' && p2p.role.value === null) {
+        // Host told us we're the guest
+        p2p.role.value = 'guest';
+        // Flip player to opposite side of court
+        refs.playerPos.set(0, 0, -(COURT_LENGTH / 2 - 1));
+      } else if (data.type === 'resync' && isGuest.value) {
+        snapBallNextFrame = true;
+      } else if (data.type === 'game-over' && isGuest.value) {
+        gameState.value = 'game-over';
+        if (playerScore.value >= WIN_SCORE) {
+          winner.value = 'player';
+          sound.win();
+        } else {
+          winner.value = 'ai';
+          sound.lose();
+        }
+      }
+    });
+
+    // Transition to waiting after connection
+    setTimeout(() => {
+      if (gameState.value === 'connecting') {
+        gameState.value = 'waiting';
+      }
+    }, 2000);
+  }
+
+  function cancelPvP() {
+    p2p.leaveRoom();
+    mode.value = 'ai';
+    gameState.value = 'menu';
+  }
+
   function startGame() {
     playerScore.value = 0;
     aiScore.value = 0;
     winner.value = null;
     lastPointMsg.value = '';
     gameState.value = 'playing';
-    servingTo = 'player';
+    servingTo.value = 'player';
     server.value = 'player';
     resetBall('player');
     prevGamepadButtons = [];
   }
 
   function resetScore() {
+    if (mode.value === 'pvp') {
+      p2p.leaveRoom();
+      mode.value = 'ai';
+    }
     playerScore.value = 0;
     aiScore.value = 0;
     winner.value = null;
@@ -253,6 +491,7 @@ export function useGameEngine() {
     // Place BOTH players outside the court (behind their baselines) for serve
     const serverZ =
       serveTo === 'player' ? COURT_LENGTH / 2 + 0.8 : -COURT_LENGTH / 2 - 0.8;
+    servePosZ = serverZ;
     const receiverZ =
       serveTo === 'player' ? -COURT_LENGTH / 2 - 0.8 : COURT_LENGTH / 2 + 0.8;
     if (serveTo === 'player') {
@@ -286,7 +525,7 @@ export function useGameEngine() {
   }
 
   function doServe() {
-    const serveTo = servingTo;
+    const serveTo = servingTo.value;
     // Record server's X position for wrong court check
     serveFromX = serveTo === 'player' ? refs.playerPos.x : refs.aiPos.x;
     // Ball starts from paddle position (on top of paddle)
@@ -377,7 +616,13 @@ export function useGameEngine() {
   }
 
   function scorePoint(forWhom: 'player' | 'ai', reason?: string) {
-    const msg = reason || (forWhom === 'player' ? 'Point!' : 'AI Point!');
+    const myName = PlayerProfile.state.firstName || '';
+    const oppName = opponentName.value || '';
+    const playerName = myName || 'You';
+    const aiName = isPvP.value ? oppName || 'Opp' : 'AI';
+    const msg =
+      reason ||
+      (forWhom === 'player' ? `${playerName} scores!` : `${aiName} scores!`);
 
     if (reason) {
       // Harsh error sound when player faults (AI gets the point)
@@ -420,12 +665,18 @@ export function useGameEngine() {
       winner.value = 'player';
       gameState.value = 'game-over';
       sound.win();
+      if (isHost.value) {
+        p2p.broadcastEvent({ type: 'game-over' });
+      }
       return;
     }
     if (aiScore.value >= WIN_SCORE) {
       winner.value = 'ai';
       gameState.value = 'game-over';
       sound.lose();
+      if (isHost.value) {
+        p2p.broadcastEvent({ type: 'game-over' });
+      }
       return;
     }
 
@@ -433,15 +684,16 @@ export function useGameEngine() {
     pointPauseTimer = POINT_PAUSE;
     // Arcade: serve alternates to rally winner. Authentic: serve stays with server if they scored, passes on side-out
     if (rules.value === 'arcade') {
-      servingTo = forWhom === 'player' ? 'player' : 'ai';
+      servingTo.value = forWhom === 'player' ? 'player' : 'ai';
     } else {
-      servingTo = server.value;
+      servingTo.value = server.value;
     }
   }
 
   function updatePlayer(dt: number) {
     const maxSpeed = PLAYER_MAX_SPEED;
     const cfg = AI_CONFIGS[difficulty.value];
+    const ps = playerSide.value; // 1 = z>0 half, -1 = z<0 half
     // Combine keyboard (boolean) and analog (joystick) inputs
     let dx = input.axisX;
     let dz = input.axisZ;
@@ -454,13 +706,17 @@ export function useGameEngine() {
     dz = THREE.MathUtils.clamp(dz, -1.2, 1.2);
 
     // Ball magnet: gently guide player toward ball X when ball is incoming
-    if (cfg.playerMagnet > 0 && refs.ballVel.z > 0 && !servePending.value) {
+    // For guest (ps=-1), ball is incoming when ballVel.z < 0 (toward z<0)
+    if (
+      cfg.playerMagnet > 0 &&
+      refs.ballVel.z * ps > 0 &&
+      !servePending.value
+    ) {
       // Predict where ball will be when it reaches player's Z
       const timeToPlayer = (refs.playerPos.z - refs.ballPos.z) / refs.ballVel.z;
       if (timeToPlayer > 0 && timeToPlayer < 2) {
         const predictedX = refs.ballPos.x + refs.ballVel.x * timeToPlayer;
         const xDiff = predictedX - refs.playerPos.x;
-        // Blend magnet with player input — magnet adds a gentle pull
         dx = THREE.MathUtils.clamp(
           dx + xDiff * cfg.playerMagnet * 0.5,
           -1.2,
@@ -522,50 +778,28 @@ export function useGameEngine() {
       );
     }
 
-    // Clamp to player's half — wall at net only within court width
-    // Outside court width, player can walk around the wall
-    const insideCourt = Math.abs(refs.playerPos.x) < HALF_COURT_W;
+    // Clamp to player's half — always blocked by net wall
     refs.playerPos.x = THREE.MathUtils.clamp(
       refs.playerPos.x,
       -CLAMP_HALF_W,
       CLAMP_HALF_W,
     );
-    if (servePending.value) {
-      // During serve: allow behind baseline, still block crossing net
-      if (insideCourt) {
-        refs.playerPos.z = THREE.MathUtils.clamp(
-          refs.playerPos.z,
-          0.3,
-          CLAMP_BACK,
-        );
-      } else {
-        refs.playerPos.z = THREE.MathUtils.clamp(
-          refs.playerPos.z,
-          -CLAMP_BACK,
-          CLAMP_BACK,
-        );
-      }
-    } else if (insideCourt) {
-      // Within court width: blocked by wall at net
-      refs.playerPos.z = THREE.MathUtils.clamp(
-        refs.playerPos.z,
-        0.3,
-        CLAMP_BACK,
-      );
-    } else {
-      // Outside court width: can walk around the wall
-      refs.playerPos.z = THREE.MathUtils.clamp(
-        refs.playerPos.z,
-        -CLAMP_BACK,
-        CLAMP_BACK,
-      );
-    }
+    // Player's half boundaries: net wall at 0.3*ps, baseline at CLAMP_BACK*ps
+    // For host (ps=1): z in [0.3, CLAMP_BACK] — z>0 half
+    // For guest (ps=-1): z in [-CLAMP_BACK, -0.3] — z<0 half
+    const netZ = 0.3 * ps;
+    const backZ = CLAMP_BACK * ps;
+    refs.playerPos.z = THREE.MathUtils.clamp(
+      refs.playerPos.z,
+      Math.min(netZ, backZ),
+      Math.max(netZ, backZ),
+    );
 
     // Swing animation decay
     refs.playerSwing = Math.max(0, refs.playerSwing - dt * 3);
 
     // Compute reach toward ball and paddle angle
-    if (!servePending.value && refs.ballVel.z > 0) {
+    if (!servePending.value && refs.ballVel.z * ps > 0) {
       const distToBall = refs.playerPos.distanceTo(refs.ballPos);
       const reachRange = 2.5;
       const targetReach = THREE.MathUtils.clamp(
@@ -763,32 +997,13 @@ export function useGameEngine() {
       refs.aiPos.z += aiCurrentVel.z * dt;
     }
 
-    // Clamp to AI's half — wall at net only within court width
-    const aiInsideCourt = Math.abs(refs.aiPos.x) < HALF_COURT_W;
+    // Clamp to AI's half — always blocked by net wall
     refs.aiPos.x = THREE.MathUtils.clamp(
       refs.aiPos.x,
       -CLAMP_HALF_W,
       CLAMP_HALF_W,
     );
-    if (servePending.value) {
-      if (aiInsideCourt) {
-        refs.aiPos.z = THREE.MathUtils.clamp(refs.aiPos.z, CLAMP_AI_BACK, -0.3);
-      } else {
-        refs.aiPos.z = THREE.MathUtils.clamp(
-          refs.aiPos.z,
-          CLAMP_AI_BACK,
-          CLAMP_BACK,
-        );
-      }
-    } else if (aiInsideCourt) {
-      refs.aiPos.z = THREE.MathUtils.clamp(refs.aiPos.z, CLAMP_AI_BACK, -0.3);
-    } else {
-      refs.aiPos.z = THREE.MathUtils.clamp(
-        refs.aiPos.z,
-        CLAMP_AI_BACK,
-        CLAMP_BACK,
-      );
-    }
+    refs.aiPos.z = THREE.MathUtils.clamp(refs.aiPos.z, CLAMP_AI_BACK, -0.3);
 
     // Compute velocity
     if (dt > 0) {
@@ -959,8 +1174,8 @@ export function useGameEngine() {
 
     if (!isPlayer && cfg.targetBias > 0) {
       // AI: bias toward opposite side of player based on difficulty
-      const playerSide = refs.playerPos.x > 0 ? -1 : 1;
-      const targetCenter = playerSide * cfg.targetBias;
+      const playerXSide = refs.playerPos.x > 0 ? -1 : 1;
+      const targetCenter = playerXSide * cfg.targetBias;
       targetXAdj =
         targetCenter +
         (Math.random() - 0.5) * 2.0 +
@@ -1065,7 +1280,44 @@ export function useGameEngine() {
 
   // Player triggers serve manually
   function triggerServe() {
-    if (servePending.value && servingTo === 'player') {
+    if (isPvP.value) {
+      if (isGuest.value) {
+        // Guest sends serve trigger to host (only when it's guest's turn)
+        console.log(
+          '[DEBUG] Guest triggerServe: servePending=',
+          servePending.value,
+          'servingTo=',
+          servingTo.value,
+          'myServeTurn=',
+          myServeTurn.value,
+        );
+        if (servePending.value && servingTo.value === 'ai') {
+          p2p.broadcastInput({
+            ax: input.axisX,
+            az: input.axisZ,
+            sv: true,
+            gn: PlayerProfile.state.firstName || '',
+          });
+        }
+        return;
+      }
+      // Host: serve normally for player, remote serve handled in onInputReceived
+      if (servePending.value && servingTo.value === 'player') {
+        // Snap player back to serve position (may have drifted forward while triggering serve)
+        refs.playerPos.z = servePosZ;
+        if (refs.playerPos.z < COURT_LENGTH / 2) {
+          scorePoint('ai', 'Foot fault!');
+          servePending.value = false;
+          return;
+        }
+        servePending.value = false;
+        doServe();
+      }
+      return;
+    }
+    if (servePending.value && servingTo.value === 'player') {
+      // Snap player back to serve position (may have drifted forward while triggering serve)
+      refs.playerPos.z = servePosZ;
       // Fault if server is inside the court when serving
       if (refs.playerPos.z < COURT_LENGTH / 2) {
         scorePoint('ai', 'Foot fault!');
@@ -1080,7 +1332,7 @@ export function useGameEngine() {
   function updateBall(dt: number) {
     // If serve is pending, ball stays with the server (held by player)
     if (servePending.value) {
-      if (servingTo === 'player') {
+      if (servingTo.value === 'player') {
         // Ball held on top of paddle (paddle at +0.25x, 0.35y, +0.15z relative to player)
         refs.ballPos.set(
           refs.playerPos.x + 0.25,
@@ -1090,6 +1342,8 @@ export function useGameEngine() {
       } else {
         // AI: ball held on top of paddle (paddle at +0.25x, 0.35y, +0.15z relative to AI)
         refs.ballPos.set(refs.aiPos.x + 0.25, 0.45, refs.aiPos.z + 0.15);
+        // Skip auto-serve in PvP — guest triggers serve via input
+        if (mode.value === 'pvp') return;
         // AI auto-serves after a short delay
         serveTimer += dt;
         if (serveTimer >= 0.8) {
@@ -1212,6 +1466,7 @@ export function useGameEngine() {
       // Serve-specific checks — only on FIRST bounce
       if (rallyHitCount === 1 && bounceCountThisSide === 1) {
         const serverSide = lastHitBy;
+        if (!serverSide) return;
         const opponentSide = serverSide === 'player' ? 'ai' : 'player';
         // Check if serve landed on server's own side (didn't cross net)
         const onServerSide =
@@ -1538,6 +1793,270 @@ export function useGameEngine() {
     prevGamepadButtons = curButtons;
   }
 
+  // PvP host: apply guest's remote input to opponent (aiPos) using same physics as player
+  function updateRemotePlayer(dt: number) {
+    prevAiPos.copy(refs.aiPos);
+
+    // Use remote input instead of AI logic
+    const dx = THREE.MathUtils.clamp(remoteInput.ax, -1.2, 1.2);
+    const dz = THREE.MathUtils.clamp(remoteInput.az, -1.2, 1.2);
+    if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+      console.log(
+        '[DEBUG] Host updateRemotePlayer: dx=',
+        dx,
+        'dz=',
+        dz,
+        'aiPos.x=',
+        refs.aiPos.x,
+        'aiPos.z=',
+        refs.aiPos.z,
+      );
+    }
+    const targetVx = dx * PLAYER_MAX_SPEED;
+    const targetVz = dz * PLAYER_MAX_SPEED;
+    const accelX = dx !== 0 ? PLAYER_ACCEL : PLAYER_FRICTION;
+    const accelZ = dz !== 0 ? PLAYER_ACCEL : PLAYER_FRICTION;
+    aiCurrentVel.x = THREE.MathUtils.damp(aiCurrentVel.x, targetVx, accelX, dt);
+    aiCurrentVel.z = THREE.MathUtils.damp(aiCurrentVel.z, targetVz, accelZ, dt);
+    refs.aiPos.x += aiCurrentVel.x * dt;
+    refs.aiPos.z += aiCurrentVel.z * dt;
+
+    // Clamp to opponent's half — always blocked by net wall
+    refs.aiPos.x = THREE.MathUtils.clamp(
+      refs.aiPos.x,
+      -CLAMP_HALF_W,
+      CLAMP_HALF_W,
+    );
+    refs.aiPos.z = THREE.MathUtils.clamp(refs.aiPos.z, CLAMP_AI_BACK, -0.3);
+
+    // Compute velocity for animation
+    if (dt > 0) {
+      aiVel.subVectors(refs.aiPos, prevAiPos).divideScalar(dt);
+      refs.aiMoveDir = THREE.MathUtils.damp(
+        refs.aiMoveDir,
+        THREE.MathUtils.clamp(aiVel.x / PLAYER_MAX_SPEED, -1, 1),
+        10,
+        dt,
+      );
+      refs.aiMoveZ = THREE.MathUtils.damp(
+        refs.aiMoveZ,
+        THREE.MathUtils.clamp(aiVel.z / PLAYER_MAX_SPEED, -1, 1),
+        10,
+        dt,
+      );
+    }
+
+    // Swing animation decay
+    refs.aiSwing = Math.max(0, refs.aiSwing - dt * 3);
+
+    // Compute reach toward ball and paddle angle
+    if (!servePending.value && refs.ballVel.z < 0) {
+      const distToBall = refs.aiPos.distanceTo(refs.ballPos);
+      const targetReach = THREE.MathUtils.clamp(1 - distToBall / 2.5, 0, 1);
+      refs.aiReach = THREE.MathUtils.damp(refs.aiReach, targetReach, 8, dt);
+      refs.aiPaddleAngle = Math.atan2(
+        refs.ballPos.x - refs.aiPos.x,
+        refs.ballPos.z - refs.aiPos.z,
+      );
+    } else {
+      refs.aiReach = THREE.MathUtils.damp(refs.aiReach, 0, 8, dt);
+    }
+  }
+
+  // PvP host: broadcast state to guest at 20Hz
+  function broadcastStateToGuest(dt: number) {
+    stateBroadcastTimer += dt;
+    if (stateBroadcastTimer < STATE_BROADCAST_INTERVAL) return;
+    stateBroadcastTimer = 0;
+
+    p2p.broadcastState({
+      pp: [refs.playerPos.x, refs.playerPos.y, refs.playerPos.z],
+      ap: [refs.aiPos.x, refs.aiPos.y, refs.aiPos.z],
+      bp: [refs.ballPos.x, refs.ballPos.y, refs.ballPos.z],
+      bv: [refs.ballVel.x, refs.ballVel.y, refs.ballVel.z],
+      ps: playerScore.value,
+      as: aiScore.value,
+      sv: server.value,
+      sp: servePending.value,
+      psw: refs.playerSwing,
+      asw: refs.aiSwing,
+      pr: refs.playerReach,
+      ar: refs.aiReach,
+      ppa: refs.playerPaddleAngle,
+      apa: refs.aiPaddleAngle,
+      pmd: refs.playerMoveDir,
+      pmz: refs.playerMoveZ,
+      amd: refs.aiMoveDir,
+      amz: refs.aiMoveZ,
+      bbp: refs.ballBouncePredict
+        ? [
+            refs.ballBouncePredict.x,
+            refs.ballBouncePredict.y,
+            refs.ballBouncePredict.z,
+          ]
+        : null,
+      hn: PlayerProfile.state.firstName || '',
+      pp2: playerPalette.value,
+      ap2: aiPalette.value,
+      lpm: lastPointMsg.value,
+      gs: gameState.value,
+    });
+  }
+
+  // PvP guest: interpolate state from host
+  function interpolateGuestState(dt: number) {
+    const buffer = p2p.getJitterBuffer();
+    if (buffer.length === 0) {
+      // No state received yet — extrapolate ball using last known velocity
+      refs.ballVel.y += GRAVITY * dt;
+      refs.ballPos.x += refs.ballVel.x * dt;
+      refs.ballPos.y += refs.ballVel.y * dt;
+      refs.ballPos.z += refs.ballVel.z * dt;
+      return;
+    }
+
+    if (buffer.length === 1) {
+      // Only one snapshot — snap directly
+      const s1 = buffer[0];
+      if (snapBallNextFrame) {
+        refs.ballPos.set(s1.bp[0], s1.bp[1], s1.bp[2]);
+        refs.ballVel.set(s1.bv[0], s1.bv[1], s1.bv[2]);
+        snapBallNextFrame = false;
+      }
+      // Damp opponent toward host state
+      refs.aiPos.x = THREE.MathUtils.damp(refs.aiPos.x, s1.pp[0], 10, dt);
+      refs.aiPos.z = THREE.MathUtils.damp(refs.aiPos.z, s1.pp[2], 10, dt);
+      // Sync opponent movement direction for animation
+      refs.aiMoveDir = THREE.MathUtils.damp(refs.aiMoveDir, s1.pmd, 8, dt);
+      refs.aiMoveZ = THREE.MathUtils.damp(refs.aiMoveZ, s1.pmz, 8, dt);
+      // Sync bounce marker
+      if (s1.bbp) {
+        if (!refs.ballBouncePredict)
+          refs.ballBouncePredict = new THREE.Vector3();
+        refs.ballBouncePredict.set(s1.bbp[0], s1.bbp[1], s1.bbp[2]);
+      } else {
+        refs.ballBouncePredict = null;
+      }
+      // Sync opponent name from host
+      if (s1.hn) opponentName.value = s1.hn;
+      // Sync palettes from host (host's player = guest's AI, host's AI = guest's player)
+      if (s1.pp2) aiPalette.value = s1.pp2;
+      if (s1.ap2) playerPalette.value = s1.ap2;
+      // Sync last point message
+      if (s1.lpm !== undefined) lastPointMsg.value = s1.lpm;
+      return;
+    }
+
+    const s0 = buffer[buffer.length - 2];
+    const s1 = buffer[buffer.length - 1];
+
+    // Interpolation factor (0..1) between the two snapshots
+    const timeSinceLast = (performance.now() - lastStateReceivedAt) / 1000;
+    const snapshotInterval = STATE_BROADCAST_INTERVAL;
+    const t = Math.min(timeSinceLast / snapshotInterval, 1.0);
+
+    // Snap ball on events
+    if (snapBallNextFrame) {
+      refs.ballPos.set(s1.bp[0], s1.bp[1], s1.bp[2]);
+      refs.ballVel.set(s1.bv[0], s1.bv[1], s1.bv[2]);
+      snapBallNextFrame = false;
+    } else {
+      // Hermite interpolation for ball
+      const p0 = new THREE.Vector3(s0.bp[0], s0.bp[1], s0.bp[2]);
+      const v0 = new THREE.Vector3(s0.bv[0], s0.bv[1], s0.bv[2]).multiplyScalar(
+        snapshotInterval,
+      );
+      const p1 = new THREE.Vector3(s1.bp[0], s1.bp[1], s1.bp[2]);
+      const v1 = new THREE.Vector3(s1.bv[0], s1.bv[1], s1.bv[2]).multiplyScalar(
+        snapshotInterval,
+      );
+      const ballPos = hermiteLerp(p0, v0, p1, v1, t);
+      refs.ballPos.copy(ballPos);
+      refs.ballVel.set(s1.bv[0], s1.bv[1], s1.bv[2]);
+    }
+
+    // Damp player positions toward latest received state
+    // From guest's perspective: host's playerPos = opponent, host's aiPos = guest (self)
+    // Guest sees opponent at host's playerPos, and self at host's aiPos
+    // Opponent (host's player): damp toward received position
+    refs.aiPos.x = THREE.MathUtils.damp(refs.aiPos.x, s1.pp[0], 10, dt);
+    refs.aiPos.z = THREE.MathUtils.damp(refs.aiPos.z, s1.pp[2], 10, dt);
+
+    // Self (guest): trust local prediction entirely.
+    // Only snap to host state on explicit resync event (snapBallNextFrame).
+    // Do NOT damp toward host position — that fights local input and causes "can't move".
+
+    // Damp swing/reach/paddleAngle toward received values
+    refs.playerSwing = THREE.MathUtils.damp(refs.playerSwing, s1.asw, 8, dt);
+    refs.aiSwing = THREE.MathUtils.damp(refs.aiSwing, s1.psw, 8, dt);
+    refs.playerReach = THREE.MathUtils.damp(refs.playerReach, s1.ar, 8, dt);
+    refs.aiReach = THREE.MathUtils.damp(refs.aiReach, s1.pr, 8, dt);
+    refs.aiPaddleAngle = THREE.MathUtils.damp(
+      refs.aiPaddleAngle,
+      s1.ppa,
+      8,
+      dt,
+    );
+    refs.playerPaddleAngle = THREE.MathUtils.damp(
+      refs.playerPaddleAngle,
+      s1.apa,
+      8,
+      dt,
+    );
+
+    // Sync opponent movement direction for animation
+    refs.aiMoveDir = THREE.MathUtils.damp(refs.aiMoveDir, s1.pmd, 8, dt);
+    refs.aiMoveZ = THREE.MathUtils.damp(refs.aiMoveZ, s1.pmz, 8, dt);
+
+    // Sync bounce marker from host
+    if (s1.bbp) {
+      if (!refs.ballBouncePredict) refs.ballBouncePredict = new THREE.Vector3();
+      refs.ballBouncePredict.set(s1.bbp[0], s1.bbp[1], s1.bbp[2]);
+    } else {
+      refs.ballBouncePredict = null;
+    }
+
+    // Sync opponent name from host
+    if (s1.hn) opponentName.value = s1.hn;
+    // Sync palettes from host (host's player = guest's AI, host's AI = guest's player)
+    if (s1.pp2) aiPalette.value = s1.pp2;
+    if (s1.ap2) playerPalette.value = s1.ap2;
+    // Sync last point message
+    if (s1.lpm !== undefined) lastPointMsg.value = s1.lpm;
+
+    // Extrapolation: if no state received for >100ms, predict ball with velocity + gravity
+    const timeSinceUpdate = performance.now() - lastStateReceivedAt;
+    if (timeSinceUpdate > 100 && timeSinceUpdate < 200) {
+      const extDt = (timeSinceUpdate - 100) / 1000;
+      refs.ballPos.x += refs.ballVel.x * extDt;
+      refs.ballPos.y += refs.ballVel.y * extDt + 0.5 * GRAVITY * extDt * extDt;
+      refs.ballPos.z += refs.ballVel.z * extDt;
+      refs.ballVel.y += GRAVITY * extDt;
+    }
+  }
+
+  // PvP guest: send local input to host
+  function sendInputToHost() {
+    // Combine keyboard booleans and analog axis into a single axis value
+    let ax = input.axisX;
+    let az = input.axisZ;
+    if (input.left) ax -= 1;
+    if (input.right) ax += 1;
+    if (input.forward) az -= 1;
+    if (input.backward) az += 1;
+    ax = THREE.MathUtils.clamp(ax, -1.2, 1.2);
+    az = THREE.MathUtils.clamp(az, -1.2, 1.2);
+    if (Math.abs(ax) > 0.01 || Math.abs(az) > 0.01) {
+      console.log('[DEBUG] Guest sendInputToHost: ax=', ax, 'az=', az);
+    }
+    p2p.broadcastInput({
+      ax,
+      az,
+      sv: false, // serve trigger handled via triggerServe
+      gn: PlayerProfile.state.firstName || '',
+    });
+  }
+
   function step(time: number) {
     if (lastTime === 0) lastTime = time;
     const dt = Math.min(time - lastTime, 0.05);
@@ -1549,17 +2068,54 @@ export function useGameEngine() {
       playerHitCooldown = Math.max(0, playerHitCooldown - dt);
       aiHitCooldown = Math.max(0, aiHitCooldown - dt);
 
-      updatePlayer(dt);
-      updateAI(dt);
-      updateBall(dt);
+      if (mode.value === 'pvp') {
+        if (isHost.value) {
+          // Host: run full simulation, apply remote input to opponent
+          updatePlayer(dt);
+          updateRemotePlayer(dt);
+          updateBall(dt);
+          broadcastStateToGuest(dt);
+        } else if (isGuest.value) {
+          // Guest: predict local player, send input, interpolate ball/state from host
+          updatePlayer(dt);
+          sendInputToHost();
+          interpolateGuestState(dt);
+        }
+      } else {
+        // AI mode (original)
+        updatePlayer(dt);
+        updateAI(dt);
+        updateBall(dt);
+      }
     } else if (gameState.value === 'point-scored') {
-      pointPauseTimer -= dt;
-      if (pointPauseTimer <= 0) {
-        gameState.value = 'playing';
-        resetBall(servingTo);
+      // Only host runs the point timer and ball reset; guest transitions via state sync
+      if (!isPvP.value || isHost.value) {
+        pointPauseTimer -= dt;
+        // Keep broadcasting state during point-scored so guest sees the toast
+        if (isPvP.value && isHost.value) {
+          broadcastStateToGuest(dt);
+        }
+        if (pointPauseTimer <= 0) {
+          gameState.value = 'playing';
+          resetBall(servingTo.value);
+        }
       }
     } else if (gameState.value === 'paused') {
       pollGamepadButtons();
+    } else if (gameState.value === 'reconnecting') {
+      // Check if opponent reconnected
+      if (p2p.connectionState.value === 'connected') {
+        gameState.value = 'playing';
+        if (isHost.value) {
+          p2p.broadcastEvent({ type: 'resync' });
+        }
+      } else if (p2p.connectionState.value === 'disconnected') {
+        // Opponent forfeited
+        winner.value = isHost.value ? 'player' : 'ai';
+        gameState.value = 'game-over';
+        if (winner.value === 'player') sound.win();
+        else sound.lose();
+      }
     }
   }
 
@@ -1582,7 +2138,7 @@ export function useGameEngine() {
   // Keyboard handlers
   function onKeyDown(e: KeyboardEvent) {
     // Auto-serve on any movement key
-    if (servePending.value && servingTo === 'player') {
+    if (servePending.value && myServeTurn.value) {
       if (
         [
           'a',
@@ -1606,22 +2162,28 @@ export function useGameEngine() {
       case 'a':
       case 'A':
       case 'ArrowLeft':
-        input.left = true;
+        // Guest camera is mirrored: "left" on screen means +X
+        if (isGuest.value) input.right = true;
+        else input.left = true;
         break;
       case 'd':
       case 'D':
       case 'ArrowRight':
-        input.right = true;
+        if (isGuest.value) input.left = true;
+        else input.right = true;
         break;
       case 'w':
       case 'W':
       case 'ArrowUp':
-        input.forward = true;
+        // Guest camera is flipped: "forward" (up) means toward +Z
+        if (isGuest.value) input.backward = true;
+        else input.forward = true;
         break;
       case 's':
       case 'S':
       case 'ArrowDown':
-        input.backward = true;
+        if (isGuest.value) input.forward = true;
+        else input.backward = true;
         break;
     }
   }
@@ -1631,22 +2193,26 @@ export function useGameEngine() {
       case 'a':
       case 'A':
       case 'ArrowLeft':
-        input.left = false;
+        if (isGuest.value) input.right = false;
+        else input.left = false;
         break;
       case 'd':
       case 'D':
       case 'ArrowRight':
-        input.right = false;
+        if (isGuest.value) input.left = false;
+        else input.right = false;
         break;
       case 'w':
       case 'W':
       case 'ArrowUp':
-        input.forward = false;
+        if (isGuest.value) input.backward = false;
+        else input.forward = false;
         break;
       case 's':
       case 'S':
       case 'ArrowDown':
-        input.backward = false;
+        if (isGuest.value) input.forward = false;
+        else input.backward = false;
         break;
     }
   }
@@ -1657,8 +2223,21 @@ export function useGameEngine() {
     active: boolean,
   ) {
     // Auto-serve on any touch movement
-    if (active && servePending.value && servingTo === 'player') {
+    if (active && servePending.value && myServeTurn.value) {
+      console.log('[DEBUG] setTouchInput: calling triggerServe');
       triggerServe();
+    } else if (active && servePending.value) {
+      console.log(
+        '[DEBUG] setTouchInput: servePending=true but myServeTurn=',
+        myServeTurn.value,
+      );
+    }
+    // Flip directions for guest (camera is on opposite side, both axes mirrored)
+    if (isGuest.value) {
+      if (dir === 'forward') dir = 'backward';
+      else if (dir === 'backward') dir = 'forward';
+      else if (dir === 'left') dir = 'right';
+      else if (dir === 'right') dir = 'left';
     }
     input[dir] = active;
   }
@@ -1669,12 +2248,19 @@ export function useGameEngine() {
     if (
       (Math.abs(x) > 0.1 || Math.abs(z) > 0.1) &&
       servePending.value &&
-      servingTo === 'player'
+      myServeTurn.value
     ) {
+      console.log('[DEBUG] setAxis: calling triggerServe');
       triggerServe();
+    } else if ((Math.abs(x) > 0.1 || Math.abs(z) > 0.1) && servePending.value) {
+      console.log(
+        '[DEBUG] setAxis: servePending=true but myServeTurn=',
+        myServeTurn.value,
+      );
     }
-    input.axisX = x;
-    input.axisZ = z;
+    // Flip axes for guest (camera is on opposite side, so both X and Z are mirrored)
+    input.axisX = isGuest.value ? -x : x;
+    input.axisZ = isGuest.value ? -z : z;
   }
 
   function cleanup() {
@@ -1700,6 +2286,9 @@ export function useGameEngine() {
     refs,
     input,
     sound,
+    playerPalette,
+    aiPalette,
+    opponentName,
     setDifficulty,
     setRules,
     startGame,
@@ -1714,6 +2303,14 @@ export function useGameEngine() {
     setTouchInput,
     setAxis,
     triggerServe,
+    myServeTurn,
     cleanup,
+    // PvP
+    mode,
+    roomId,
+    p2p,
+    setRoomId,
+    startPvP,
+    cancelPvP,
   };
 }

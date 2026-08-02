@@ -120,18 +120,28 @@
     </TresMesh>
 
     <!-- Dynamic actors (player, AI, ball) — updated per-frame via useRenderLoop -->
-    <GameActors :refs="refs" :step="step" />
+    <GameActors
+      :refs="refs"
+      :step="step"
+      :flip-view="flipView"
+      :player-palette="playerPalette"
+      :ai-palette="aiPalette"
+    />
   </TresCanvas>
 </template>
 
 <script setup lang="ts">
 import { TresCanvas } from '@tresjs/core';
 import type { GameRefs } from 'src/composables/useGameEngine';
+import type { CharacterPalette } from 'src/composables/useRandomPalette';
 import GameActors from 'components/play/GameActors.vue';
 
 defineProps<{
   refs: GameRefs;
   step: (time: number) => void;
+  flipView?: boolean;
+  playerPalette: CharacterPalette;
+  aiPalette: CharacterPalette;
 }>();
 
 const COURT_LENGTH = 13.41;

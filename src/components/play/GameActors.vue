@@ -9,7 +9,7 @@
   <!-- Player character -->
   <CuteCharacter
     ref="playerRef"
-    :rotation="Math.PI"
+    :rotation="flipView ? 0 : Math.PI"
     :body-color="playerPalette.bodyColor"
     :hair-color="playerPalette.hairColor"
     :hat-color="playerPalette.hatColor"
@@ -22,13 +22,13 @@
     :paddle-grip-color="playerPalette.paddleGripColor"
     :paddle-edge-color="playerPalette.paddleEdgeColor"
     :swing="refs.playerSwing"
-    :paddle-side="-1"
+    :paddle-side="flipView ? 1 : -1"
   />
 
   <!-- AI character -->
   <CuteCharacter
     ref="aiRef"
-    :rotation="0"
+    :rotation="flipView ? Math.PI : 0"
     :body-color="aiPalette.bodyColor"
     head-color="#FFD3B6"
     :hair-color="aiPalette.hairColor"
@@ -42,7 +42,7 @@
     :paddle-grip-color="aiPalette.paddleGripColor"
     :paddle-edge-color="aiPalette.paddleEdgeColor"
     :swing="refs.aiSwing"
-    :paddle-side="1"
+    :paddle-side="flipView ? -1 : 1"
   />
 
   <!-- Ball (enlarged for mobile visibility) -->
@@ -85,25 +85,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useLoop } from '@tresjs/core';
 import * as THREE from 'three';
 import type { GameRefs } from 'src/composables/useGameEngine';
+import type { CharacterPalette } from 'src/composables/useRandomPalette';
 import CuteCharacter from 'components/play/CuteCharacter.vue';
-import { useRandomPalette } from 'src/composables/useRandomPalette';
 
 const props = defineProps<{
   refs: GameRefs;
   step: (time: number) => void;
+  flipView?: boolean;
+  playerPalette: CharacterPalette;
+  aiPalette: CharacterPalette;
 }>();
 
-const { randomPalette } = useRandomPalette();
-const playerPalette = ref(randomPalette());
-const aiPalette = ref(randomPalette());
-// Ensure player and AI always have different colors
-if (aiPalette.value.bodyColor === playerPalette.value.bodyColor) {
-  aiPalette.value = randomPalette();
-}
+const playerPalette = computed(() => props.playerPalette);
+const aiPalette = computed(() => props.aiPalette);
 
 const playerRef = ref();
 const aiRef = ref();
@@ -116,11 +114,37 @@ const cameraRef = ref();
 
 const COURT_LENGTH = 13.41;
 
-// Initial camera position: behind player, elevated
-const initialCamPos: [number, number, number] = [0, 6, COURT_LENGTH / 2 + 10];
+// Camera Z position depends on flipView (guest sees from opposite side)
+const camZ = computed(() =>
+  props.flipView ? -(COURT_LENGTH / 2 + 10) : COURT_LENGTH / 2 + 10,
+);
+
+// Initial camera position (used for first render, updated reactively)
+const initialCamPos: [number, number, number] = [0, 6, camZ.value];
 
 // Smooth follow look target — shifted toward AI to see more of their side
-const camLookTarget = new THREE.Vector3(0, 0, 3);
+const camLookTarget = new THREE.Vector3(0, 0, props.flipView ? -3 : 3);
+
+// When flipView changes, snap camera and character rotations to new perspective
+watch(
+  () => props.flipView,
+  (flipped) => {
+    if (cameraRef.value) {
+      cameraRef.value.position.set(
+        0,
+        6,
+        flipped ? -(COURT_LENGTH / 2 + 10) : COURT_LENGTH / 2 + 10,
+      );
+    }
+    camLookTarget.set(0, 0, flipped ? -3 : 3);
+    if (playerRef.value?.groupRef) {
+      playerRef.value.groupRef.rotation.y = flipped ? 0 : Math.PI;
+    }
+    if (aiRef.value?.groupRef) {
+      aiRef.value.groupRef.rotation.y = flipped ? Math.PI : 0;
+    }
+  },
+);
 
 const { onBeforeRender } = useLoop();
 
@@ -143,12 +167,12 @@ let markerMissTime = 0;
 let markerHasTarget = false;
 
 onMounted(() => {
-  // Set initial base rotations
+  // Set initial base rotations (flipped for guest view)
   if (playerRef.value?.groupRef) {
-    playerRef.value.groupRef.rotation.y = Math.PI;
+    playerRef.value.groupRef.rotation.y = props.flipView ? 0 : Math.PI;
   }
   if (aiRef.value?.groupRef) {
-    aiRef.value.groupRef.rotation.y = 0;
+    aiRef.value.groupRef.rotation.y = props.flipView ? Math.PI : 0;
   }
   onBeforeRender(({ elapsed }) => {
     // Run game physics step first (merged from separate RAF)
@@ -162,7 +186,8 @@ onMounted(() => {
     // Update player position + body rotation toward movement + leg/arm animation
     if (playerRef.value?.groupRef) {
       playerRef.value.groupRef.position.set(r.playerPos.x, 0, r.playerPos.z);
-      // Body rotation (imperative — player base rotation is PI)
+      // Body rotation (imperative — player base rotation depends on view)
+      const baseRot = props.flipView ? 0 : Math.PI;
       const moveAngle = Math.atan2(-r.playerMoveDir, -r.playerMoveZ);
       const moveMagBody = Math.sqrt(
         r.playerMoveDir * r.playerMoveDir + r.playerMoveZ * r.playerMoveZ,
@@ -170,10 +195,9 @@ onMounted(() => {
       // When at rest, face forward toward opponent
       let targetBodyY: number;
       if (moveMagBody < 0.05) {
-        // Player base facing is PI (toward -Z / opponent)
-        targetBodyY = Math.PI;
+        targetBodyY = baseRot;
       } else {
-        targetBodyY = Math.PI + moveAngle * 0.6;
+        targetBodyY = baseRot + moveAngle * 0.6;
       }
       const targetLean = -r.playerMoveDir * 0.4;
       const targetPitch = -r.playerMoveZ * 0.3;
@@ -320,11 +344,12 @@ onMounted(() => {
       newPaddleZ = Math.min(0.5, newPaddleZ);
       playerRef.value.paddleRef.position.set(newPaddleX, baseY, newPaddleZ);
       // Paddle Y rotation faces the ball
-      // Player faces -Z, so paddle yaw = atan2(dxBall, -dzBall) to face ball
+      // Player faces -Z (PI) normally, +Z (0) when flipped
       const dxBall = r.ballPos.x - r.playerPos.x;
       const dzBall = r.ballPos.z - r.playerPos.z;
-      const paddleYaw =
-        Math.atan2(dxBall, -dzBall) - playerRef.value.groupRef.rotation.y;
+      const paddleYaw = props.flipView
+        ? Math.atan2(dxBall, dzBall) - playerRef.value.groupRef.rotation.y
+        : Math.atan2(dxBall, -dzBall) - playerRef.value.groupRef.rotation.y;
       playerRef.value.paddleRef.rotation.set(
         -swing * 0.52 * swingDir, // X: tilt ~30° based on hit direction
         paddleYaw, // Y: face the ball
@@ -352,7 +377,8 @@ onMounted(() => {
     // Update AI position + body rotation toward movement + leg/arm animation
     if (aiRef.value?.groupRef) {
       aiRef.value.groupRef.position.set(r.aiPos.x, 0, r.aiPos.z);
-      // Body rotation (imperative — AI base rotation is 0, faces +Z)
+      // Body rotation (imperative — AI base rotation depends on view)
+      const aiBaseRot = props.flipView ? Math.PI : 0;
       const aiMoveAngle = Math.atan2(-r.aiMoveDir, r.aiMoveZ);
       const aiMoveMagBody = Math.sqrt(
         r.aiMoveDir * r.aiMoveDir + r.aiMoveZ * r.aiMoveZ,
@@ -360,10 +386,9 @@ onMounted(() => {
       // When at rest, face forward toward opponent
       let targetBodyY: number;
       if (aiMoveMagBody < 0.05) {
-        // AI base facing is 0 (toward +Z / opponent)
-        targetBodyY = 0;
+        targetBodyY = aiBaseRot;
       } else {
-        targetBodyY = aiMoveAngle * 0.6;
+        targetBodyY = aiBaseRot + aiMoveAngle * 0.6;
       }
       const targetLean = r.aiMoveDir * 0.4;
       const targetPitch = r.aiMoveZ * 0.3;
@@ -504,11 +529,12 @@ onMounted(() => {
       newPaddleZ = Math.min(0.5, newPaddleZ);
       aiRef.value.paddleRef.position.set(newPaddleX, baseY, newPaddleZ);
       // Paddle Y rotation faces the ball
-      // AI faces +Z, so paddle yaw = atan2(dxBall, dzBall) to face ball
+      // AI faces +Z normally, -Z when flipped
       const aiDxBall = r.ballPos.x - r.aiPos.x;
       const aiDzBall = r.ballPos.z - r.aiPos.z;
-      const paddleYaw =
-        Math.atan2(aiDxBall, aiDzBall) - aiRef.value.groupRef.rotation.y;
+      const paddleYaw = props.flipView
+        ? Math.atan2(aiDxBall, -aiDzBall) - aiRef.value.groupRef.rotation.y
+        : Math.atan2(aiDxBall, aiDzBall) - aiRef.value.groupRef.rotation.y;
       aiRef.value.paddleRef.rotation.set(
         -swing * 0.52 * swingDir, // X: tilt ~30° based on hit direction
         paddleYaw, // Y: face the ball
@@ -596,13 +622,15 @@ onMounted(() => {
     // Soft-follow camera: follow midpoint of player and AI, keep height & z fixed
     if (cameraRef.value) {
       const cam = cameraRef.value;
-      // Blend: weight player more since camera is behind player
+      const flipped = props.flipView;
       const midX = r.playerPos.x * 0.6 + r.aiPos.x * 0.2;
       cam.position.x += (midX - cam.position.x) * Math.min(1, dt * 4);
-
-      // Look target follows both player and AI
+      // Keep camera Z fixed at the correct side
+      cam.position.z = camZ.value;
       camLookTarget.x = r.playerPos.x * 0.35 + r.aiPos.x * 0.15;
-      camLookTarget.z = 3 + r.playerPos.z * 0.1 - r.aiPos.z * 0.05;
+      camLookTarget.z = flipped
+        ? -3 + r.playerPos.z * 0.1 - r.aiPos.z * 0.05
+        : 3 + r.playerPos.z * 0.1 - r.aiPos.z * 0.05;
       cam.lookAt(camLookTarget);
     }
   });
