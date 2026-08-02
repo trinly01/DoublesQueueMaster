@@ -3174,7 +3174,7 @@
     <q-page-sticky position="bottom-right" :offset="[18, 18]">
       <q-btn round icon="sports_esports" color="primary" @click="goPlay">
         <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-          >Play with AI</q-tooltip
+          >Play 3D Game</q-tooltip
         >
       </q-btn>
     </q-page-sticky>
