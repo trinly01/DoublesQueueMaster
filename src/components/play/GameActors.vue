@@ -188,7 +188,9 @@ onMounted(() => {
       playerRef.value.groupRef.position.set(r.playerPos.x, 0, r.playerPos.z);
       // Body rotation (imperative — player base rotation depends on view)
       const baseRot = props.flipView ? 0 : Math.PI;
-      const moveAngle = Math.atan2(-r.playerMoveDir, -r.playerMoveZ);
+      const moveAngle = props.flipView
+        ? Math.atan2(r.playerMoveDir, r.playerMoveZ)
+        : Math.atan2(-r.playerMoveDir, -r.playerMoveZ);
       const moveMagBody = Math.sqrt(
         r.playerMoveDir * r.playerMoveDir + r.playerMoveZ * r.playerMoveZ,
       );
@@ -199,8 +201,9 @@ onMounted(() => {
       } else {
         targetBodyY = baseRot + moveAngle * 0.6;
       }
-      const targetLean = -r.playerMoveDir * 0.4;
-      const targetPitch = -r.playerMoveZ * 0.3;
+      const pFlip = props.flipView ? 1 : -1;
+      const targetLean = pFlip * r.playerMoveDir * 0.4;
+      const targetPitch = pFlip * r.playerMoveZ * 0.3;
       const k = Math.min(1, dt * 6);
       const kLean = Math.min(1, dt * 8);
       playerRef.value.groupRef.rotation.y +=
@@ -321,13 +324,14 @@ onMounted(() => {
       const reach = r.playerReach; // 0..1 based on ball distance
       const angle = r.playerPaddleAngle; // direction toward ball
       const baseY = 0.22;
-      // Handle moves left/forward/right — never backward into body
       const handleX = moveDir < -0.1 ? -0.15 : 0.15;
       const handleZ = 0.22; // always forward enough to clear body
       // Ball-direction handle offset when ball is near
       const ballHandleX = Math.sin(angle) * 0.1;
-      const ballHandleZ = -Math.cos(angle) * 0.06;
-      const targetX = handleX * (1 - reach) + ballHandleX * reach;
+      const ballHandleZ = (props.flipView ? 1 : -1) * Math.cos(angle) * 0.06;
+      const targetX =
+        (handleX * (1 - reach) + ballHandleX * reach) *
+        (props.flipView ? -1 : 1);
       const targetZ = handleZ * (1 - reach) + ballHandleZ * reach;
       // Smoothly animate handle position
       const curX = playerRef.value.paddleRef.position.x;
@@ -379,7 +383,9 @@ onMounted(() => {
       aiRef.value.groupRef.position.set(r.aiPos.x, 0, r.aiPos.z);
       // Body rotation (imperative — AI base rotation depends on view)
       const aiBaseRot = props.flipView ? Math.PI : 0;
-      const aiMoveAngle = Math.atan2(-r.aiMoveDir, r.aiMoveZ);
+      const aiMoveAngle = props.flipView
+        ? Math.atan2(-r.aiMoveDir, -r.aiMoveZ)
+        : Math.atan2(r.aiMoveDir, r.aiMoveZ);
       const aiMoveMagBody = Math.sqrt(
         r.aiMoveDir * r.aiMoveDir + r.aiMoveZ * r.aiMoveZ,
       );
@@ -390,8 +396,9 @@ onMounted(() => {
       } else {
         targetBodyY = aiBaseRot + aiMoveAngle * 0.6;
       }
-      const targetLean = r.aiMoveDir * 0.4;
-      const targetPitch = r.aiMoveZ * 0.3;
+      const aFlip = props.flipView ? -1 : 1;
+      const targetLean = aFlip * r.aiMoveDir * 0.4;
+      const targetPitch = aFlip * r.aiMoveZ * 0.3;
       const k = Math.min(1, dt * 6);
       const kLean = Math.min(1, dt * 8);
       aiRef.value.groupRef.rotation.y +=
@@ -506,14 +513,15 @@ onMounted(() => {
       const reach = r.aiReach;
       const angle = r.aiPaddleAngle;
       const baseY = 0.22;
-      // Handle moves left/forward/right — never backward into body
       const handleX = moveDir < -0.1 ? -0.15 : 0.15;
       const handleZ = 0.22; // always forward enough to clear body
       // Ball-direction handle offset when ball is near
       const ballHandleX = Math.sin(angle) * 0.1;
-      const ballHandleZ = Math.cos(angle) * 0.06;
-      const targetX = handleX * (1 - reach) + ballHandleX * reach;
-      const targetZ = handleZ * (1 - reach) + ballHandleZ * reach;
+      const aiBallHandleZ = (props.flipView ? -1 : 1) * Math.cos(angle) * 0.06;
+      const targetX =
+        (handleX * (1 - reach) + ballHandleX * reach) *
+        (props.flipView ? 1 : -1);
+      const targetZ = handleZ * (1 - reach) + aiBallHandleZ * reach;
       // Smoothly animate handle position
       const curX = aiRef.value.paddleRef.position.x;
       let newPaddleX = curX + (targetX - curX) * Math.min(1, dt * 8);
