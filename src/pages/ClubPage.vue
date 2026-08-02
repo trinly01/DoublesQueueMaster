@@ -4300,135 +4300,137 @@ const loadClubData = async (clubId: string) => {
       // On merge failure we keep whatever server data was fetched and still
       // mark the club as loaded — the outer catch handles only network/API errors.
       try {
+        // Determine admin status from raw club data (needed before any merge logic)
+        const isAdminFromData = (club.admins || []).some(
+          (a) => a.directus_users_id?.id === currentUserId.value,
+        );
+
         if (serverMatchmaking) {
-          // Only merge settings that are missing locally — never overwrite queues/matches/players
-          if (
-            MatchmakingApp.state.availableCourts === undefined &&
-            serverMatchmaking.availableCourts !== undefined
-          ) {
-            MatchmakingApp.state.availableCourts =
-              serverMatchmaking.availableCourts;
+          if (isAdminFromData) {
+            // Admins: only merge settings that are missing locally — never overwrite existing
+            if (
+              MatchmakingApp.state.availableCourts === undefined &&
+              serverMatchmaking.availableCourts !== undefined
+            ) {
+              MatchmakingApp.state.availableCourts =
+                serverMatchmaking.availableCourts;
+            }
+            if (
+              MatchmakingApp.state.autoAdvanceMatches === undefined &&
+              serverMatchmaking.autoAdvanceMatches !== undefined
+            ) {
+              MatchmakingApp.state.autoAdvanceMatches =
+                serverMatchmaking.autoAdvanceMatches;
+            }
+            if (
+              MatchmakingApp.state.queueReturnMethod === undefined &&
+              serverMatchmaking.queueReturnMethod !== undefined
+            ) {
+              MatchmakingApp.state.queueReturnMethod =
+                serverMatchmaking.queueReturnMethod;
+            }
+            if (
+              MatchmakingApp.state.autoSortQueue === undefined &&
+              serverMatchmaking.autoSortQueue !== undefined
+            ) {
+              MatchmakingApp.state.autoSortQueue =
+                serverMatchmaking.autoSortQueue;
+            }
+            if (
+              MatchmakingApp.state.queuePriorityMode === undefined &&
+              serverMatchmaking.queuePriorityMode !== undefined
+            ) {
+              MatchmakingApp.state.queuePriorityMode =
+                serverMatchmaking.queuePriorityMode;
+            }
+            if (
+              MatchmakingApp.state.matchmakingMode === undefined &&
+              serverMatchmaking.matchmakingMode !== undefined
+            ) {
+              MatchmakingApp.state.matchmakingMode =
+                serverMatchmaking.matchmakingMode;
+            }
+            if (
+              MatchmakingApp.state.sortBy === undefined &&
+              serverMatchmaking.sortBy !== undefined
+            ) {
+              MatchmakingApp.state.sortBy = serverMatchmaking.sortBy;
+            }
+            if (
+              MatchmakingApp.state.matchType === undefined &&
+              serverMatchmaking.matchType !== undefined
+            ) {
+              MatchmakingApp.state.matchType = serverMatchmaking.matchType;
+            }
+            if (
+              MatchmakingApp.state.matchesFilterBy === undefined &&
+              serverMatchmaking.matchesFilterBy !== undefined
+            ) {
+              MatchmakingApp.state.matchesFilterBy =
+                serverMatchmaking.matchesFilterBy;
+            }
+            if (
+              MatchmakingApp.state.ttsEnabled === undefined &&
+              serverMatchmaking.ttsEnabled !== undefined
+            ) {
+              MatchmakingApp.state.ttsEnabled = serverMatchmaking.ttsEnabled;
+            }
           }
-          if (
-            MatchmakingApp.state.autoAdvanceMatches === undefined &&
-            serverMatchmaking.autoAdvanceMatches !== undefined
-          ) {
-            MatchmakingApp.state.autoAdvanceMatches =
-              serverMatchmaking.autoAdvanceMatches;
-          }
-          if (
-            MatchmakingApp.state.queueReturnMethod === undefined &&
-            serverMatchmaking.queueReturnMethod !== undefined
-          ) {
-            MatchmakingApp.state.queueReturnMethod =
-              serverMatchmaking.queueReturnMethod;
-          }
-          if (
-            MatchmakingApp.state.autoSortQueue === undefined &&
-            serverMatchmaking.autoSortQueue !== undefined
-          ) {
-            MatchmakingApp.state.autoSortQueue =
-              serverMatchmaking.autoSortQueue;
-          }
-          if (
-            MatchmakingApp.state.queuePriorityMode === undefined &&
-            serverMatchmaking.queuePriorityMode !== undefined
-          ) {
-            MatchmakingApp.state.queuePriorityMode =
-              serverMatchmaking.queuePriorityMode;
-          }
-          if (
-            MatchmakingApp.state.matchmakingMode === undefined &&
-            serverMatchmaking.matchmakingMode !== undefined
-          ) {
-            MatchmakingApp.state.matchmakingMode =
-              serverMatchmaking.matchmakingMode;
-          }
-          if (
-            MatchmakingApp.state.sortBy === undefined &&
-            serverMatchmaking.sortBy !== undefined
-          ) {
-            MatchmakingApp.state.sortBy = serverMatchmaking.sortBy;
-          }
-          if (
-            MatchmakingApp.state.matchType === undefined &&
-            serverMatchmaking.matchType !== undefined
-          ) {
-            MatchmakingApp.state.matchType = serverMatchmaking.matchType;
-          }
-          if (
-            MatchmakingApp.state.matchesFilterBy === undefined &&
-            serverMatchmaking.matchesFilterBy !== undefined
-          ) {
-            MatchmakingApp.state.matchesFilterBy =
-              serverMatchmaking.matchesFilterBy;
-          }
-          if (
-            MatchmakingApp.state.ttsEnabled === undefined &&
-            serverMatchmaking.ttsEnabled !== undefined
-          ) {
-            MatchmakingApp.state.ttsEnabled = serverMatchmaking.ttsEnabled;
-          }
+          // Non-admins: settings are overwritten directly in the non-admin block below
         } else {
           // Cloud appState is blank/null — clear local data so UI starts fresh
           MatchmakingApp.resetState();
           MatchmakingApp.state.clubId = clubId;
         }
-        // Determine admin status from raw club data
-        const isAdminFromData = (club.admins || []).some(
-          (a) => a.directus_users_id?.id === currentUserId.value,
-        );
-
-        // Seed / sync player roster, queue, and matches from appState
-        // Admins: smart-merge so a refresh picks up other admins' newly created
-        //   queues/matches (latest-writer-wins) while preserving player stats.
-        // Non-admins: server is source of truth — always overwrite.
         if (serverMatchmaking) {
-          // Detect remote reset: another admin cleared all data (full reset).
-          // Partial checkpoint advances (session resets) are handled by mergeAppState.
-          const serverHasNoPlayers =
-            Object.keys(serverMatchmaking.players || {}).length === 0;
-          const serverHasNoQueues =
-            (serverMatchmaking.queues || []).length === 0;
-          const serverHasNoMatches =
-            (serverMatchmaking.activeMatches || []).filter((m) => !m.deletedAt)
-              .length === 0;
-          const serverTime = serverMatchmaking.lastModified ?? 0;
-          const localTime = MatchmakingApp.state.lastModified ?? 0;
-          const isRemoteReset =
-            serverHasNoPlayers &&
-            serverHasNoQueues &&
-            serverHasNoMatches &&
-            serverTime > localTime;
+          if (isAdminFromData) {
+            // Admins: smart-merge so a refresh picks up other admins' newly created
+            //   queues/matches (latest-writer-wins) while preserving player stats.
+            // Detect remote reset: another admin cleared all data (full reset).
+            // Partial checkpoint advances (session resets) are handled by mergeAppState.
+            const serverHasNoPlayers =
+              Object.keys(serverMatchmaking.players || {}).length === 0;
+            const serverHasNoQueues =
+              (serverMatchmaking.queues || []).length === 0;
+            const serverHasNoMatches =
+              (serverMatchmaking.activeMatches || []).filter(
+                (m) => !m.deletedAt,
+              ).length === 0;
+            const serverTime = serverMatchmaking.lastModified ?? 0;
+            const localTime = MatchmakingApp.state.lastModified ?? 0;
+            const isRemoteReset =
+              serverHasNoPlayers &&
+              serverHasNoQueues &&
+              serverHasNoMatches &&
+              serverTime > localTime;
 
-          if (isRemoteReset) {
-            // Another admin performed a reset — adopt server state (mergeAppState will purge)
-            MatchmakingApp.state.players = {};
-            MatchmakingApp.state.queues = [];
-            MatchmakingApp.state.activeMatches = [];
-            MatchmakingApp.state.completedMatches = [];
-            MatchmakingApp.state.lastModified = serverTime;
-            MatchmakingApp.state.playersResetAt =
-              serverMatchmaking.playersResetAt ?? 0;
-            MatchmakingApp.state.queuesResetAt =
-              serverMatchmaking.queuesResetAt ?? 0;
-            MatchmakingApp.state.matchesResetAt =
-              serverMatchmaking.matchesResetAt ?? 0;
-            notify({
-              type: 'info',
-              message: 'Club data was reset by another admin',
-              timeout: 3000,
-            });
-          } else {
-            // Check if local state is "fresh" (no meaningful data) - e.g., incognito/private mode
-            // In this case, directly adopt server state instead of merging to prevent
-            // timestamp-based logic from keeping empty local data.
-            const isFreshState =
-              Object.keys(MatchmakingApp.state.players).length === 0 &&
-              MatchmakingApp.state.queues.length === 0 &&
-              MatchmakingApp.state.activeMatches.length === 0;
+            if (isRemoteReset) {
+              // Another admin performed a reset — adopt server state (mergeAppState will purge)
+              MatchmakingApp.state.players = {};
+              MatchmakingApp.state.queues = [];
+              MatchmakingApp.state.activeMatches = [];
+              MatchmakingApp.state.completedMatches = [];
+              MatchmakingApp.state.lastModified = serverTime;
+              MatchmakingApp.state.playersResetAt =
+                serverMatchmaking.playersResetAt ?? 0;
+              MatchmakingApp.state.queuesResetAt =
+                serverMatchmaking.queuesResetAt ?? 0;
+              MatchmakingApp.state.matchesResetAt =
+                serverMatchmaking.matchesResetAt ?? 0;
+              notify({
+                type: 'info',
+                message: 'Club data was reset by another admin',
+                timeout: 3000,
+              });
+            } else {
+              // Check if local state is "fresh" (no meaningful data) - e.g., incognito/private mode
+              // In this case, directly adopt server state instead of merging to prevent
+              // timestamp-based logic from keeping empty local data.
+              const isFreshState =
+                Object.keys(MatchmakingApp.state.players).length === 0 &&
+                MatchmakingApp.state.queues.length === 0 &&
+                MatchmakingApp.state.activeMatches.length === 0;
 
-            if (isAdminFromData) {
               if (isFreshState) {
                 // Fresh state: directly adopt server data
                 if (serverMatchmaking.players) {
@@ -4466,38 +4468,76 @@ const loadClubData = async (clubId: string) => {
                 // Extra safety: ensure no player appears in multiple matches
                 MatchmakingApp.enforceOneMatchPerPlayer();
               }
-            } else {
-              // Non-admins: server is source of truth — always overwrite
-              if (serverMatchmaking.players) {
-                MatchmakingApp.state.players = {
-                  ...serverMatchmaking.players,
-                };
-              }
-              if (serverMatchmaking.queues) {
-                MatchmakingApp.state.queues = [...serverMatchmaking.queues];
-              }
-              if (serverMatchmaking.activeMatches) {
-                MatchmakingApp.state.activeMatches = [
-                  ...serverMatchmaking.activeMatches,
-                ];
-              }
-              if (serverMatchmaking.completedMatches) {
-                MatchmakingApp.state.completedMatches = [
-                  ...serverMatchmaking.completedMatches,
-                ];
-              }
-              // Carry checkpoint timestamps so resets propagate
-              MatchmakingApp.state.playersResetAt =
-                serverMatchmaking.playersResetAt ?? 0;
-              MatchmakingApp.state.queuesResetAt =
-                serverMatchmaking.queuesResetAt ?? 0;
-              MatchmakingApp.state.matchesResetAt =
-                serverMatchmaking.matchesResetAt ?? 0;
             }
+          } else {
+            // Non-admins: server is source of truth — directly overwrite everything, no merge
+            if (serverMatchmaking.players) {
+              MatchmakingApp.state.players = {
+                ...serverMatchmaking.players,
+              };
+            }
+            if (serverMatchmaking.queues) {
+              MatchmakingApp.state.queues = [...serverMatchmaking.queues];
+            }
+            if (serverMatchmaking.activeMatches) {
+              MatchmakingApp.state.activeMatches = [
+                ...serverMatchmaking.activeMatches,
+              ];
+            }
+            if (serverMatchmaking.completedMatches) {
+              MatchmakingApp.state.completedMatches = [
+                ...serverMatchmaking.completedMatches,
+              ];
+            }
+            // Overwrite settings too — non-admins don't have local settings to preserve
+            if (serverMatchmaking.availableCourts !== undefined) {
+              MatchmakingApp.state.availableCourts =
+                serverMatchmaking.availableCourts;
+            }
+            if (serverMatchmaking.autoAdvanceMatches !== undefined) {
+              MatchmakingApp.state.autoAdvanceMatches =
+                serverMatchmaking.autoAdvanceMatches;
+            }
+            if (serverMatchmaking.queueReturnMethod !== undefined) {
+              MatchmakingApp.state.queueReturnMethod =
+                serverMatchmaking.queueReturnMethod;
+            }
+            if (serverMatchmaking.autoSortQueue !== undefined) {
+              MatchmakingApp.state.autoSortQueue =
+                serverMatchmaking.autoSortQueue;
+            }
+            if (serverMatchmaking.queuePriorityMode !== undefined) {
+              MatchmakingApp.state.queuePriorityMode =
+                serverMatchmaking.queuePriorityMode;
+            }
+            if (serverMatchmaking.matchmakingMode !== undefined) {
+              MatchmakingApp.state.matchmakingMode =
+                serverMatchmaking.matchmakingMode;
+            }
+            if (serverMatchmaking.sortBy !== undefined) {
+              MatchmakingApp.state.sortBy = serverMatchmaking.sortBy;
+            }
+            if (serverMatchmaking.matchType !== undefined) {
+              MatchmakingApp.state.matchType = serverMatchmaking.matchType;
+            }
+            if (serverMatchmaking.matchesFilterBy !== undefined) {
+              MatchmakingApp.state.matchesFilterBy =
+                serverMatchmaking.matchesFilterBy;
+            }
+            if (serverMatchmaking.ttsEnabled !== undefined) {
+              MatchmakingApp.state.ttsEnabled = serverMatchmaking.ttsEnabled;
+            }
+            // Carry checkpoint timestamps so resets propagate
+            MatchmakingApp.state.playersResetAt =
+              serverMatchmaking.playersResetAt ?? 0;
+            MatchmakingApp.state.queuesResetAt =
+              serverMatchmaking.queuesResetAt ?? 0;
+            MatchmakingApp.state.matchesResetAt =
+              serverMatchmaking.matchesResetAt ?? 0;
           }
         }
-        // Backward-compat: migrate old separate settings blocks into MatchmakingApp.state
-        if (club.appState?.courtSettings) {
+        // Backward-compat: migrate old separate settings blocks into MatchmakingApp.state (admin only)
+        if (isAdminFromData && club.appState?.courtSettings) {
           const ac = club.appState.courtSettings.availableCourts;
           if (MatchmakingApp.state.availableCourts === undefined) {
             MatchmakingApp.state.availableCourts =
@@ -4508,7 +4548,7 @@ const loadClubData = async (clubId: string) => {
               club.appState.courtSettings.autoAdvanceMatches;
           }
         }
-        if (club.appState?.queueSettings) {
+        if (isAdminFromData && club.appState?.queueSettings) {
           if (MatchmakingApp.state.queueReturnMethod === undefined) {
             MatchmakingApp.state.queueReturnMethod =
               club.appState.queueSettings.queueReturnMethod;
@@ -4526,7 +4566,7 @@ const loadClubData = async (clubId: string) => {
               club.appState.queueSettings.matchmakingMode;
           }
         }
-        if (club.appState?.uiSettings) {
+        if (isAdminFromData && club.appState?.uiSettings) {
           if (MatchmakingApp.state.sortBy === undefined) {
             MatchmakingApp.state.sortBy = club.appState.uiSettings.sortBy;
           }
