@@ -63,12 +63,15 @@ export function useSessionGuard() {
   };
 
   // Proactively refresh the token when the phone wakes up or tab regains focus.
-  // If refresh succeeds, reset the idle timer so the user stays logged in.
-  // If refresh fails, the session is invalid — force logout.
+  // Only refresh if the session might be stale (page was hidden).
+  // If refresh fails, DON'T force logout — let the SDK's 401 handler deal with it
+  // on the next API call. This avoids false logouts from transient refresh failures.
+  let isRefreshing = false;
+  let wasHidden = false;
   const refreshOnWake = async (router: Router): Promise<boolean> => {
     if (!LocalStorage.has(SESSION_KEY)) return false;
 
-    // If idle timeout already exceeded, don't bother refreshing — just logout
+    // If idle timeout already exceeded, logout
     if (isSessionExpired()) {
       await forceLogout(
         router,
@@ -77,16 +80,30 @@ export function useSessionGuard() {
       return true;
     }
 
+    // Only attempt refresh if the page was actually hidden (screen lock, tab switch)
+    // Don't refresh on every visibility change (scroll, address bar, etc.)
+    if (!wasHidden) return false;
+    wasHidden = false;
+
+    // Prevent concurrent refresh attempts
+    if (isRefreshing) return false;
+    isRefreshing = true;
+
     try {
       await likhaClient.refresh();
-      // Refresh succeeded — token is valid, reset idle timer
       touchActivity();
-      return false;
     } catch {
-      // Refresh failed — refresh token expired or invalid
-      await forceLogout(router, 'Session expired. Please log in again.');
-      return true;
+      // Refresh failed — but DON'T force logout. The SDK's reactive 401 handler
+      // will attempt refresh on the next API call. If that also fails, handleAuthError
+      // will log out. This avoids false logouts from transient network errors.
+      console.warn(
+        '[SessionGuard] Proactive refresh failed, will retry on next API call',
+      );
+    } finally {
+      isRefreshing = false;
     }
+
+    return false;
   };
 
   const startSessionGuard = (router: Router) => {
@@ -130,8 +147,10 @@ export function useSessionGuard() {
       document.removeEventListener('visibilitychange', visibilityHandler);
     }
     visibilityHandler = () => {
-      if (!document.hidden) {
-        // User came back — proactively refresh token and check idle timeout
+      if (document.hidden) {
+        wasHidden = true;
+      } else if (wasHidden) {
+        // Page went from hidden to visible (screen unlock, tab switch back)
         void refreshOnWake(router);
       }
     };
