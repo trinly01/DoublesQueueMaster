@@ -12,7 +12,7 @@
           flat
           no-caps
           color="white"
-          label="Play with AI"
+          label="Play 3D Game"
           icon="sports_esports"
           @click="goPlay"
         />

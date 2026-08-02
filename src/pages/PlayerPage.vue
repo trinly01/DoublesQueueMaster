@@ -88,7 +88,7 @@
             <q-btn
               color="primary"
               icon="sports_esports"
-              label="Play with AI"
+              label="Play 3D Game"
               size="sm"
               dense
               rounded
