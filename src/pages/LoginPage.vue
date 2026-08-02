@@ -200,6 +200,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { LocalStorage } from 'quasar';
 import { useNotify } from 'src/composables/useNotify';
+import { startSession } from 'src/composables/useSessionGuard';
 import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import { registerUserVerify } from '@likha-erp/likha-sdk';
 import { PlayerProfile } from 'src/services/playerProfile';
@@ -326,6 +327,7 @@ onMounted(async () => {
       // retry logic. A 401 here means the session is invalid.
       await PlayerProfile.fetchProfile();
       LocalStorage.set('dink-auth', true);
+      startSession();
 
       notify({
         color: 'positive',
@@ -362,6 +364,7 @@ const onSubmit = async () => {
   try {
     await likhaClient.login({ email: email.value, password: password.value });
     LocalStorage.set('dink-auth', true);
+    startSession();
 
     notify({
       color: 'positive',
