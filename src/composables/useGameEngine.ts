@@ -135,6 +135,7 @@ export function useGameEngine() {
   const playerScore = ref(0);
   const aiScore = ref(0);
   const winner = ref<'player' | 'ai' | null>(null);
+  const winReason = ref<'score' | 'forfeit' | null>(null);
   const lastPointMsg = ref('');
   const server = ref<'player' | 'ai'>('player');
   const servePending = ref(false);
@@ -354,7 +355,11 @@ export function useGameEngine() {
     });
 
     p2p.onPeerLeave(() => {
-      if (gameState.value === 'playing' || gameState.value === 'point-scored') {
+      if (
+        gameState.value === 'playing' ||
+        gameState.value === 'point-scored' ||
+        gameState.value === 'paused'
+      ) {
         gameState.value = 'reconnecting';
       }
     });
@@ -470,13 +475,16 @@ export function useGameEngine() {
       } else if (data.type === 'resync' && isGuest.value) {
         snapBallNextFrame = true;
       } else if (data.type === 'game-over' && isGuest.value) {
+        winReason.value = data.data === 'forfeit' ? 'forfeit' : 'score';
         gameState.value = 'game-over';
-        if (playerScore.value >= WIN_SCORE) {
-          winner.value = 'player';
-          sound.lose();
-        } else {
-          winner.value = 'ai';
-          sound.win();
+        if (winReason.value !== 'forfeit') {
+          if (playerScore.value >= WIN_SCORE) {
+            winner.value = 'player';
+            sound.lose();
+          } else {
+            winner.value = 'ai';
+            sound.win();
+          }
         }
       }
     });
@@ -499,6 +507,7 @@ export function useGameEngine() {
     playerScore.value = 0;
     aiScore.value = 0;
     winner.value = null;
+    winReason.value = null;
     lastPointMsg.value = '';
     gameState.value = 'playing';
     servingTo.value = 'player';
@@ -515,6 +524,7 @@ export function useGameEngine() {
     playerScore.value = 0;
     aiScore.value = 0;
     winner.value = null;
+    winReason.value = null;
     lastPointMsg.value = '';
     gameState.value = 'menu';
   }
@@ -2147,10 +2157,13 @@ export function useGameEngine() {
           p2p.broadcastEvent({ type: 'resync' });
         }
       } else if (p2p.connectionState.value === 'disconnected') {
-        // Opponent forfeited — local player wins
+        // Opponent failed to reconnect — match cancelled
+        winReason.value = 'forfeit';
         winner.value = isHost.value ? 'player' : 'ai';
         gameState.value = 'game-over';
-        sound.win();
+        if (isHost.value) {
+          p2p.broadcastEvent({ type: 'game-over', data: 'forfeit' });
+        }
       }
     }
   }
@@ -2306,6 +2319,7 @@ export function useGameEngine() {
     playerScore,
     aiScore,
     winner,
+    winReason,
     lastPointMsg,
     refs,
     input,

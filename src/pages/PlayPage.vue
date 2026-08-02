@@ -11,36 +11,31 @@
       />
     </div>
 
-    <!-- Top-left: Score (mobile: same row) -->
-    <div class="top-left-row">
+    <!-- Top-center: Score pill + ping -->
+    <div class="score-bar">
       <div v-if="engine.gameState.value !== 'menu'" class="score-pill">
         <span class="score-label score-you-label">
-          <span
-            v-if="engine.rules.value === 'authentic' && myServer"
-            class="server-dot"
-            >●</span
+          <span v-if="myServer" class="server-indicator"></span
           >{{ playerLabel }}</span
         >
         <span class="score-num score-you-num">{{ myScore }}</span>
         <span class="score-sep">—</span>
         <span class="score-num score-ai-num">{{ oppScore }}</span>
         <span class="score-label score-ai-label"
-          >{{ pvpLabel
-          }}<span
-            v-if="engine.rules.value === 'authentic' && !myServer"
-            class="server-dot"
-            >●</span
-          ></span
-        >
-        <span
-          v-if="
-            engine.mode.value === 'pvp' && engine.p2p.opponentPing.value > 0
-          "
-          class="ping-display"
-          :class="pingClass"
-          >{{ engine.p2p.opponentPing.value }}ms</span
-        >
+          >{{ pvpLabel }}<span v-if="!myServer" class="server-indicator"></span
+        ></span>
       </div>
+      <span
+        v-if="engine.gameState.value !== 'menu' && !engine.servePending.value"
+        class="serving-label"
+        >{{ myServer ? playerLabel : pvpLabel }} serving</span
+      >
+      <span
+        v-if="engine.mode.value === 'pvp' && engine.p2p.opponentPing.value > 0"
+        class="ping-display"
+        :class="pingClass"
+        >{{ engine.p2p.opponentPing.value }}ms</span
+      >
     </div>
 
     <!-- Point toast -->
@@ -293,7 +288,7 @@
         <h1 class="menu-title">
           {{ gameOverTitle }}
         </h1>
-        <p class="menu-subtitle">{{ myScore }} - {{ oppScore }}</p>
+        <p class="menu-subtitle">{{ gameOverSubtitle }}</p>
         <q-btn
           label="Main Menu"
           color="white"
@@ -370,10 +365,10 @@
           Reconnecting…
         </h1>
         <p class="menu-subtitle">
-          Opponent will forfeit in {{ engine.p2p.reconnectTimer.value }}s
+          {{ engine.p2p.reconnectTimer.value }}s remaining
         </p>
         <q-btn
-          label="Forfeit Match"
+          label="Cancel Match"
           color="white"
           text-color="grey-7"
           rounded
@@ -580,14 +575,16 @@ function onRoomCodeChange(e: Event) {
 }
 
 const playerLabel = computed(() => {
-  const name = PlayerProfile.state.firstName;
-  return name?.trim() || 'YOU';
+  const name = PlayerProfile.state.firstName?.trim() || 'YOU';
+  const maxLen = isTouch ? 4 : 8;
+  return name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
 });
 
 const pvpLabel = computed(() => {
   if (engine.mode.value !== 'pvp') return 'AI';
-  const name = engine.opponentName.value;
-  return name?.trim() || 'OPP';
+  const name = engine.opponentName.value?.trim() || 'OPP';
+  const maxLen = isTouch ? 4 : 8;
+  return name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
 });
 
 const flipView = computed(() => {
@@ -612,6 +609,9 @@ const myServer = computed(() =>
 
 const gameOverTitle = computed(() => {
   if (engine.mode.value === 'pvp') {
+    if (engine.winReason.value === 'forfeit') {
+      return 'Match Cancelled';
+    }
     const myName = PlayerProfile.state.firstName?.trim() || 'You';
     const oppName = engine.opponentName.value?.trim() || 'Opponent';
     const iWon = isGuest.value
@@ -620,6 +620,13 @@ const gameOverTitle = computed(() => {
     return iWon ? `${myName} Wins!` : `${oppName} Wins!`;
   }
   return engine.winner.value === 'player' ? 'You Win!' : 'AI Wins!';
+});
+
+const gameOverSubtitle = computed(() => {
+  if (engine.winReason.value === 'forfeit') {
+    return 'Opponent lost connection';
+  }
+  return `${myScore.value} - ${oppScore.value}`;
 });
 
 const pingClass = computed(() => {
@@ -964,14 +971,18 @@ onUnmounted(() => {
   inset: 0;
 }
 
-.top-left-row {
-  position: absolute;
+.score-bar {
+  position: fixed;
   top: 16px;
-  left: 16px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 30;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 4px;
+  pointer-events: none;
+  max-width: calc(100vw - 120px);
 }
 
 .score-pill {
@@ -987,34 +998,34 @@ onUnmounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-@media (max-width: 767px) {
-  .score-pill {
-    position: fixed;
-    top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10;
-  }
-}
-
-@media (min-width: 768px) {
-  .top-left-row {
-    gap: 16px;
-  }
-  .score-pill {
-    position: fixed;
-    top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10;
-  }
-}
-
 .score-label {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+  min-width: 60px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .score-label {
+    min-width: 40px;
+    font-size: 11px;
+  }
+  .score-pill {
+    padding: 6px 12px;
+    gap: 4px;
+  }
+  .score-num {
+    font-size: 22px;
+    min-width: 22px;
+  }
+  .score-sep {
+    font-size: 18px;
+    margin: 0 2px;
+  }
 }
 
 .score-num {
@@ -1027,10 +1038,12 @@ onUnmounted(() => {
 
 .score-you-label {
   color: #ffffff;
+  text-align: right;
 }
 
 .score-ai-label {
   color: #ffffff;
+  text-align: left;
 }
 
 .score-you-num {
@@ -1050,10 +1063,37 @@ onUnmounted(() => {
   margin: 0 4px;
 }
 
-.server-dot {
-  color: #fde047;
+.server-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fde047;
+  margin-right: 4px;
+  animation: server-pulse 1.5s ease-in-out infinite;
+}
+
+.score-ai-label .server-indicator {
+  margin-right: 0;
+  margin-left: 4px;
+}
+
+@keyframes server-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.serving-label {
   font-size: 10px;
-  margin-right: 2px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .point-toast {
@@ -1403,9 +1443,9 @@ kbd {
 .ping-display {
   font-size: 11px;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 2px 8px;
   border-radius: 999px;
-  margin-left: 4px;
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .ping-good {
