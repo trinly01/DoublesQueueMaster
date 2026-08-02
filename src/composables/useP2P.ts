@@ -36,6 +36,7 @@ export interface StatePayload {
   pp2?: CharacterPalette; // host's player palette
   ap2?: CharacterPalette; // host's AI palette
   lpm?: string; // lastPointMsg
+  sfx?: string[]; // sound effects played since last broadcast (for guest)
   seq: number; // sequence number for jitter buffer
   gs: string; // host's game state for guest sync
 }
