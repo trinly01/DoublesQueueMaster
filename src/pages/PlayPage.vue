@@ -135,6 +135,9 @@
         dense
         :icon="engine.gameState.value === 'paused' ? 'play_arrow' : 'pause'"
         color="white"
+        :disable="
+          engine.gameState.value !== 'paused' && !engine.servePending.value
+        "
         @click="
           engine.gameState.value === 'paused'
             ? engine.resumeGame()
@@ -143,7 +146,11 @@
         :class="isNavFocused('ctrl-pause') ? 'nav-focused-icon' : ''"
       >
         <q-tooltip anchor="center end" self="center start">{{
-          engine.gameState.value === 'paused' ? 'Resume' : 'Pause'
+          engine.gameState.value === 'paused'
+            ? 'Resume'
+            : engine.servePending.value
+              ? 'Pause'
+              : 'Pause (available during serve)'
         }}</q-tooltip>
       </q-btn>
     </div>
@@ -859,9 +866,12 @@ function onKeyDown(e: KeyboardEvent) {
 
   const state = engine.gameState.value;
 
-  // Escape toggles pause/resume during gameplay
+  // Escape toggles pause/resume during gameplay (only during serve, not mid-rally)
   if (e.key === 'Escape') {
-    if (state === 'playing' || state === 'point-scored') {
+    if (
+      (state === 'playing' || state === 'point-scored') &&
+      engine.servePending.value
+    ) {
       e.preventDefault();
       engine.pauseGame();
       return;

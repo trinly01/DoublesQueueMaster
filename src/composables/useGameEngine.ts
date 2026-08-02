@@ -301,6 +301,10 @@ export function useGameEngine() {
   let stateBroadcastTimer = 0;
   const STATE_BROADCAST_INTERVAL = 0.05; // 20Hz
 
+  // Reconnect handshake: wait for fresh data before resuming
+  let waitingForReconnectData = false;
+  let reconnectGraceTimer = 0;
+
   // Clear role indicators for readable conditionals
   const isPvP = computed(() => mode.value === 'pvp');
   const isHost = computed(() => isPvP.value && p2p.role.value === 'host');
@@ -339,6 +343,8 @@ export function useGameEngine() {
   // Snap ball to host state (on events like paddle hit, bounce)
   let snapBallNextFrame = false;
 
+  let pendingStartTimer: ReturnType<typeof setTimeout> | null = null;
+
   function startPvP() {
     mode.value = 'pvp';
     gameState.value = 'connecting';
@@ -349,7 +355,17 @@ export function useGameEngine() {
       if (gameState.value === 'waiting' || gameState.value === 'connecting') {
         // Only host starts the game; guest waits for state sync
         if (isHost.value) {
-          startGame();
+          // Delay start to allow a reconnecting guest to send pause event first
+          if (pendingStartTimer) clearTimeout(pendingStartTimer);
+          pendingStartTimer = setTimeout(() => {
+            pendingStartTimer = null;
+            if (
+              gameState.value === 'waiting' ||
+              gameState.value === 'connecting'
+            ) {
+              startGame();
+            }
+          }, 1000);
         }
       }
     });
@@ -361,6 +377,7 @@ export function useGameEngine() {
         gameState.value === 'paused'
       ) {
         gameState.value = 'reconnecting';
+        waitingForReconnectData = false;
       }
     });
 
@@ -388,12 +405,16 @@ export function useGameEngine() {
       aiScore.value = data.as;
       server.value = data.sv;
 
-      // Detect serve reset: servePending went from false→true, snap guest to serve position
+      // Serve state — snap both players to baseline on serve reset (false→true transition only)
       const wasServePending = servePending.value;
       servePending.value = data.sp;
       if (data.sp && !wasServePending) {
-        // Host just called resetBall — snap to new serve position
+        // Host just called resetBall — snap to correct positions
+        // Host's playerPos (pp) = opponent on guest → aiPos
+        // Host's aiPos (ap) = self on guest → playerPos
+        refs.aiPos.set(data.pp[0], 0, data.pp[2]);
         refs.playerPos.set(data.ap[0], 0, data.ap[2]);
+        p2p.clearJitterBuffer();
       }
 
       // Sync servingTo: from host's perspective, 'ai' = guest (opponent)
@@ -475,23 +496,85 @@ export function useGameEngine() {
 
     p2p.onEventReceived((data: EventPayload) => {
       if (data.type === 'ready' && p2p.role.value === null) {
-        // Host told us we're the guest
-        p2p.role.value = 'guest';
-        // Flip player to opposite side of court
-        refs.playerPos.set(0, 0, -(COURT_LENGTH / 2 - 1));
+        if (data.data === 'host') {
+          // Guest tells us we're the host (reconnection after host refresh)
+          p2p.role.value = 'host';
+          // onPeerJoin already fired but isHost was false — start delayed game start now
+          if (
+            (gameState.value === 'connecting' ||
+              gameState.value === 'waiting') &&
+            !pendingStartTimer
+          ) {
+            pendingStartTimer = setTimeout(() => {
+              pendingStartTimer = null;
+              if (
+                gameState.value === 'waiting' ||
+                gameState.value === 'connecting'
+              ) {
+                startGame();
+              }
+            }, 1000);
+          }
+        } else {
+          // Host told us we're the guest
+          p2p.role.value = 'guest';
+          // Flip player to opposite side of court
+          refs.playerPos.set(0, 0, -(COURT_LENGTH / 2 - 1));
+        }
       } else if (data.type === 'resync' && isGuest.value) {
+        p2p.clearJitterBuffer();
         snapBallNextFrame = true;
+      } else if (data.type === 'sync-scores' && isHost.value) {
+        // Guest sends scores after host refresh reconnection
+        if (typeof data.data === 'string') {
+          const parts = data.data.split(',');
+          playerScore.value = parseInt(parts[0]) || 0;
+          aiScore.value = parseInt(parts[1]) || 0;
+          if (parts[2] === 'player' || parts[2] === 'ai') {
+            server.value = parts[2] as 'player' | 'ai';
+          }
+          if (parts[3] === 'player' || parts[3] === 'ai') {
+            servingTo.value = parts[3] as 'player' | 'ai';
+          }
+          servePending.value = parts[4] === 'true';
+          // Cancel pending startGame — this is a reconnection, not a new game
+          if (pendingStartTimer) {
+            clearTimeout(pendingStartTimer);
+            pendingStartTimer = null;
+          }
+          // Transition to paused so players can resume manually
+          if (
+            gameState.value === 'connecting' ||
+            gameState.value === 'waiting' ||
+            gameState.value === 'reconnecting'
+          ) {
+            pausedFromState = 'playing';
+            gameState.value = 'paused';
+            p2p.broadcastEvent({ type: 'resync' });
+            p2p.broadcastEvent({ type: 'pause' });
+            // Always replay from serve after reconnection (let rule)
+            servePending.value = true;
+            resetBall(servingTo.value);
+          }
+        }
       } else if (data.type === 'pause') {
         if (
           gameState.value === 'playing' ||
-          gameState.value === 'point-scored'
+          gameState.value === 'point-scored' ||
+          gameState.value === 'reconnecting' ||
+          gameState.value === 'connecting' ||
+          gameState.value === 'waiting' ||
+          gameState.value === 'menu'
         ) {
-          pausedFromState = gameState.value;
+          pausedFromState = 'playing';
           gameState.value = 'paused';
         }
       } else if (data.type === 'resume') {
         if (gameState.value === 'paused') {
           gameState.value = pausedFromState;
+          // Reset both players to serve positions
+          resetBall(servingTo.value);
+          p2p.clearJitterBuffer();
         }
       } else if (data.type === 'game-over' && isGuest.value) {
         winReason.value = data.data === 'forfeit' ? 'forfeit' : 'score';
@@ -550,7 +633,12 @@ export function useGameEngine() {
 
   let pausedFromState: GameState = 'playing';
   function pauseGame() {
-    if (gameState.value === 'playing' || gameState.value === 'point-scored') {
+    // Only allow pause during serve state (ball not yet moving)
+    // Pausing mid-rally is not allowed — prevents unfair position freezes
+    if (
+      (gameState.value === 'playing' || gameState.value === 'point-scored') &&
+      servePending.value
+    ) {
       pausedFromState = gameState.value;
       gameState.value = 'paused';
       prevGamepadButtons = [];
@@ -565,6 +653,10 @@ export function useGameEngine() {
       gameState.value = pausedFromState;
       prevGamepadButtons = [];
       if (isPvP.value) {
+        // Both host and guest reset to serve positions
+        // resetBall sets playerPos (opponent for guest) and aiPos (self for guest) correctly
+        resetBall(servingTo.value);
+        p2p.clearJitterBuffer();
         p2p.broadcastEvent({ type: 'resume' });
       }
     }
@@ -584,12 +676,30 @@ export function useGameEngine() {
     servePosZ = serverZ;
     const receiverZ =
       serveTo === 'player' ? -COURT_LENGTH / 2 - 0.8 : COURT_LENGTH / 2 + 0.8;
-    if (serveTo === 'player') {
-      refs.playerPos.set(serverX, 0, serverZ);
-      refs.aiPos.set(receiverX, 0, receiverZ);
+
+    // On host: playerPos = self (z>0), aiPos = opponent (z<0)
+    // On guest: playerPos = self (z<0), aiPos = opponent (z>0)
+    // servingTo 'player' = host serves, 'ai' = guest serves
+    if (isGuest.value) {
+      // Guest perspective: playerPos = self, aiPos = opponent
+      if (serveTo === 'player') {
+        // Host serves — host is opponent (aiPos), guest is receiver (playerPos)
+        refs.aiPos.set(serverX, 0, serverZ);
+        refs.playerPos.set(receiverX, 0, receiverZ);
+      } else {
+        // Guest serves — guest is server (playerPos), host is receiver (aiPos)
+        refs.playerPos.set(serverX, 0, serverZ);
+        refs.aiPos.set(receiverX, 0, receiverZ);
+      }
     } else {
-      refs.aiPos.set(serverX, 0, serverZ);
-      refs.playerPos.set(receiverX, 0, receiverZ);
+      // Host perspective: playerPos = self, aiPos = opponent
+      if (serveTo === 'player') {
+        refs.playerPos.set(serverX, 0, serverZ);
+        refs.aiPos.set(receiverX, 0, receiverZ);
+      } else {
+        refs.aiPos.set(serverX, 0, serverZ);
+        refs.playerPos.set(receiverX, 0, receiverZ);
+      }
     }
 
     // Ball starts at server's paddle height, at server position
@@ -2107,7 +2217,12 @@ export function useGameEngine() {
     }
   }
 
-  // PvP guest: send local input to host
+  // PvP guest: send local input to host (rate-limited to 30Hz)
+  let inputSendTimer = 0;
+  const INPUT_SEND_INTERVAL = 1 / 30; // 30Hz
+  let lastSentAx = 0;
+  let lastSentAz = 0;
+
   function sendInputToHost() {
     // Combine keyboard booleans and analog axis into a single axis value
     let ax = input.axisX;
@@ -2118,6 +2233,18 @@ export function useGameEngine() {
     if (input.backward) az += 1;
     ax = THREE.MathUtils.clamp(ax, -1.2, 1.2);
     az = THREE.MathUtils.clamp(az, -1.2, 1.2);
+
+    // Rate-limit: only send at 30Hz or when values change significantly
+    const now = performance.now();
+    const timeSinceLastSend = (now - inputSendTimer) / 1000;
+    const changed =
+      Math.abs(ax - lastSentAx) > 0.05 || Math.abs(az - lastSentAz) > 0.05;
+
+    if (timeSinceLastSend < INPUT_SEND_INTERVAL && !changed) return;
+    inputSendTimer = now;
+    lastSentAx = ax;
+    lastSentAz = az;
+
     p2p.broadcastInput({
       ax,
       az,
@@ -2177,9 +2304,56 @@ export function useGameEngine() {
     } else if (gameState.value === 'reconnecting') {
       // Check if opponent reconnected
       if (p2p.connectionState.value === 'connected') {
-        gameState.value = 'playing';
+        // Give action streams a moment to initialize, then resume
+        if (!waitingForReconnectData) {
+          waitingForReconnectData = true;
+          reconnectGraceTimer = 0;
+          // Clear stale data so fresh data is recognized
+          if (isHost.value) {
+            lastInputSeq = -1;
+          } else {
+            p2p.clearJitterBuffer();
+            lastStateReceivedAt = 0;
+            // Guest sends its scores to host so host can restore after refresh
+            p2p.broadcastEvent({
+              type: 'sync-scores',
+              data: `${playerScore.value},${aiScore.value},${server.value},${servingTo.value},${servePending.value}`,
+            });
+          }
+        }
+        // Host keeps broadcasting, guest keeps sending input during grace period
         if (isHost.value) {
-          p2p.broadcastEvent({ type: 'resync' });
+          broadcastStateToGuest(dt);
+        } else if (isGuest.value) {
+          sendInputToHost();
+        }
+        // Wait a short grace period for action streams to be ready
+        reconnectGraceTimer += dt;
+        if (reconnectGraceTimer >= 0.5) {
+          waitingForReconnectData = false;
+          // Pause so players can resume manually
+          pausedFromState = 'playing';
+          gameState.value = 'paused';
+          if (isHost.value) {
+            p2p.broadcastEvent({ type: 'resync' });
+            p2p.broadcastEvent({ type: 'pause' });
+            // If in serve state, reset ball to serve position
+            // If mid-rally, replay the point (let rule) — ball was frozen during disconnect
+            // and resuming from stale position could cause unfair net/out faults
+            if (servePending.value) {
+              resetBall(servingTo.value);
+            } else {
+              servePending.value = true;
+              resetBall(servingTo.value);
+            }
+          } else {
+            // Re-send scores now that event streams are ready
+            p2p.broadcastEvent({
+              type: 'sync-scores',
+              data: `${playerScore.value},${aiScore.value},${server.value},${servingTo.value},${servePending.value}`,
+            });
+            // No ball snap needed — host replays from serve after reconnection
+          }
         }
       } else if (p2p.connectionState.value === 'disconnected') {
         // Opponent failed to reconnect — match cancelled

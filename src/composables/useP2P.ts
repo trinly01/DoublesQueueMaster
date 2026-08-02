@@ -58,7 +58,8 @@ export interface EventPayload {
     | 'pause'
     | 'resume'
     | 'resync'
-    | 'snap';
+    | 'snap'
+    | 'sync-scores';
   data?: number | string | boolean;
 }
 
@@ -187,6 +188,10 @@ export function useP2P() {
         // We were already waiting in the room — we're the host
         role.value = 'host';
         eventActionSend({ type: 'ready', data: 'guest' }, peerId);
+      } else if (role.value === 'guest') {
+        // Guest already has role — host reconnected after refresh
+        // Send ready back so host can re-establish its role
+        eventActionSend({ type: 'ready', data: 'host' }, peerId);
       } else if (role.value === null) {
         // We just joined — wait for 'ready' event from host
         // Fallback: if no 'ready' in 3s, assume host (edge case: both joined simultaneously)
