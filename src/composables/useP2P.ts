@@ -39,6 +39,7 @@ export interface StatePayload {
   sfx?: string[]; // sound effects played since last broadcast (for guest)
   seq: number; // sequence number for jitter buffer
   gs: string; // host's game state for guest sync
+  ss?: 'player' | 'ai'; // scoring side (who scored the last point) for guest message personalization
 }
 
 export interface InputPayload {
@@ -59,8 +60,11 @@ export interface EventPayload {
     | 'resume'
     | 'resync'
     | 'snap'
-    | 'sync-scores';
+    | 'sync-scores'
+    | 'fault'
+    | 'fault-ack';
   data?: number | string | boolean;
+  seq?: number; // event sequence number for dedup
 }
 
 export interface PingPayload {
@@ -107,6 +111,9 @@ export function useP2P() {
   let reconnectStartedAt = 0;
   let inputSeq = 0;
   let stateSeq = 0;
+  let eventSeq = 0;
+  let lastStateSeq = -1; // highest state seq received (for dedup)
+  let lastEventSeq = -1; // highest event seq received (for dedup)
 
   // Jitter buffer for state snapshots
   const jitterBuffer: StatePayload[] = [];
@@ -272,7 +279,8 @@ export function useP2P() {
 
   function broadcastEvent(event: EventPayload) {
     if (!opponentId.value) return;
-    eventActionSend(event, opponentId.value);
+    const payload: EventPayload = { ...event, seq: eventSeq++ };
+    eventActionSend(payload, opponentId.value);
   }
 
   function onStateReceived(cb: (data: StatePayload) => void) {
@@ -284,7 +292,14 @@ export function useP2P() {
   }
 
   function onEventReceived(cb: (data: EventPayload) => void) {
-    eventCb = cb;
+    // Wrap callback with dedup: ignore events with seq already seen
+    eventCb = (data: EventPayload) => {
+      if (data.seq !== undefined) {
+        if (data.seq <= lastEventSeq) return; // stale or duplicate
+        lastEventSeq = data.seq;
+      }
+      cb(data);
+    };
   }
 
   function onPeerJoin(cb: (peerId: string) => void) {
@@ -301,6 +316,9 @@ export function useP2P() {
   }
 
   function pushToJitterBuffer(state: StatePayload) {
+    // Dedup: ignore stale state packets (seq already seen)
+    if (state.seq <= lastStateSeq) return;
+    lastStateSeq = state.seq;
     jitterBuffer.push(state);
     if (jitterBuffer.length > JITTER_BUFFER_SIZE) {
       jitterBuffer.shift();
@@ -340,6 +358,9 @@ export function useP2P() {
     clearJitterBuffer();
     stateSeq = 0;
     inputSeq = 0;
+    eventSeq = 0;
+    lastStateSeq = -1;
+    lastEventSeq = -1;
   }
 
   onUnmounted(leaveRoom);

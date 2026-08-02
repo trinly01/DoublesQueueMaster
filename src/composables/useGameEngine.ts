@@ -137,6 +137,7 @@ export function useGameEngine() {
   const winner = ref<'player' | 'ai' | null>(null);
   const winReason = ref<'score' | 'forfeit' | null>(null);
   const lastPointMsg = ref('');
+  const scoringSide = ref<'player' | 'ai' | null>(null);
   const server = ref<'player' | 'ai'>('player');
   const servePending = ref(false);
 
@@ -201,6 +202,13 @@ export function useGameEngine() {
   let serveTimer = 0;
   let serveFromX = 0; // server's X position when serving (to check wrong court)
   let servePosZ = 0; // server's Z position when serving (to snap back on serve trigger)
+  let lastFaultEventSeq = -1; // host: last fault event seq processed (dedup)
+  let pendingFaultAck: {
+    seq: number;
+    type: string;
+    retries: number;
+    timer: ReturnType<typeof setTimeout> | null;
+  } | null = null;
   let aiDinkRead: boolean | null = null; // null = not evaluated, true/false = committed
 
   // Precomputed constants for hot loops
@@ -588,6 +596,30 @@ export function useGameEngine() {
             sound.win();
           }
         }
+      } else if (data.type === 'fault' && isHost.value) {
+        // Guest reported a local body/paddle collision.
+        // Host processes it via tryHit — host's rule logic determines outcome
+        // (good return, volley fault, or kitchen fault).
+        // Dedup using event seq: ignore if already processed.
+        const seq = data.seq ?? -1;
+        if (seq <= lastFaultEventSeq) {
+          // Duplicate — still ack so guest stops retrying
+          p2p.broadcastEvent({ type: 'fault-ack' });
+          return;
+        }
+        lastFaultEventSeq = seq;
+        // Ack so guest stops retrying
+        p2p.broadcastEvent({ type: 'fault-ack' });
+        if (gameState.value === 'playing' && !servePending.value) {
+          // Process the collision through tryHit — it will determine if it's a
+          // good return, volley fault, or kitchen fault based on game rules.
+          // Use aiPos (guest's position on host side) and current ball state.
+          // confirmed=true skips body volume check since guest already detected it.
+          tryHit(refs.aiPos, refs.ballPos, refs.ballVel, false, true);
+        }
+      } else if (data.type === 'fault-ack' && isGuest.value) {
+        // Host acknowledged our fault report — stop retrying
+        handleFaultAck();
       }
     });
 
@@ -611,6 +643,7 @@ export function useGameEngine() {
     winner.value = null;
     winReason.value = null;
     lastPointMsg.value = '';
+    scoringSide.value = null;
     gameState.value = 'playing';
     servingTo.value = 'player';
     server.value = 'player';
@@ -628,6 +661,7 @@ export function useGameEngine() {
     winner.value = null;
     winReason.value = null;
     lastPointMsg.value = '';
+    scoringSide.value = null;
     gameState.value = 'menu';
   }
 
@@ -714,6 +748,10 @@ export function useGameEngine() {
     firstBounceWasOut = false;
     currentSide = null;
     aiDinkRead = null;
+    lastFaultEventSeq = -1;
+    // Clear any pending fault ack on new rally
+    if (pendingFaultAck?.timer) clearTimeout(pendingFaultAck.timer);
+    pendingFaultAck = null;
     servePending.value = true;
     serveTimer = 0; // not used for player serve; AI uses its own timer
 
@@ -820,9 +858,28 @@ export function useGameEngine() {
     const oppName = opponentName.value || '';
     const playerName = myName || 'You';
     const aiName = isPvP.value ? oppName || 'Opp' : 'AI';
-    const msg =
-      reason ||
-      (forWhom === 'player' ? `${playerName} scores!` : `${aiName} scores!`);
+
+    // Build personalized fault message from this device's perspective.
+    // In PvP: host's 'player' = host, 'ai' = guest. Guest flips perspective.
+    // A fault (reason present) means the non-scoring side made an error.
+    let msg: string;
+    if (reason) {
+      // Fault — identify who faulted from this device's perspective
+      const faultedBy = forWhom === 'player' ? 'ai' : 'player';
+      // From host's perspective: 'player' = host, 'ai' = guest
+      // From guest's perspective: 'player' = host (opponent), 'ai' = guest (self)
+      const faultLabel = isGuest.value
+        ? faultedBy === 'ai'
+          ? 'You'
+          : oppName || 'Opp'
+        : faultedBy === 'player'
+          ? 'You'
+          : aiName;
+      msg = `${faultLabel}: ${reason}`;
+    } else {
+      msg =
+        forWhom === 'player' ? `${playerName} scores!` : `${aiName} scores!`;
+    }
 
     if (reason) {
       // Harsh error sound when player faults (AI gets the point)
@@ -845,10 +902,12 @@ export function useGameEngine() {
           aiScore.value++;
         }
         lastPointMsg.value = msg;
+        scoringSide.value = forWhom;
       } else {
         // Side out — serve passes to rally winner, no point scored
-        lastPointMsg.value = reason ? `${reason}!\nSide Out` : 'Side Out';
+        lastPointMsg.value = reason ? `${msg}\nSide Out` : 'Side Out';
         server.value = forWhom;
+        scoringSide.value = forWhom;
       }
     } else {
       // Arcade: rally scoring
@@ -859,6 +918,7 @@ export function useGameEngine() {
       }
       lastPointMsg.value = msg;
       server.value = forWhom;
+      scoringSide.value = forWhom;
     }
 
     if (playerScore.value >= WIN_SCORE) {
@@ -1253,6 +1313,7 @@ export function useGameEngine() {
     ballPos: THREE.Vector3,
     ballVel: THREE.Vector3,
     isPlayer: boolean,
+    confirmed = false,
   ): boolean {
     // 3D body volume collision — player body + head + paddle reach
     // Paddle reach extends based on how far paddle is reaching toward ball
@@ -1262,23 +1323,28 @@ export function useGameEngine() {
     const bodyHeightMax = 1.2; // top of head
     const bodyHalfDepth = 0.35 + reach * 0.3; // paddle extends deeper when reaching
 
-    const dx = Math.abs(pos.x - ballPos.x);
-    const dz = Math.abs(pos.z - ballPos.z);
-    const dy = ballPos.y;
+    // Skip collision check if confirmed by guest's local detection (split-authority).
+    // The ball may have already moved past on the host's simulation by the time
+    // the guest's collision report arrives due to network latency.
+    if (!confirmed) {
+      const dx = Math.abs(pos.x - ballPos.x);
+      const dz = Math.abs(pos.z - ballPos.z);
+      const dy = ballPos.y;
 
-    // Check if ball is within the player's 3D volume (body + paddle reach)
-    if (
-      dx > bodyHalfWidth ||
-      dz > bodyHalfDepth ||
-      dy < bodyHeightMin ||
-      dy > bodyHeightMax
-    ) {
-      // Ball outside body volume — check paddle reach zone (extended forward)
-      const paddleY = 0.55;
-      const paddleReach = 0.6; // paddle extends forward
-      const dyPaddle = Math.abs(paddleY - dy);
-      if (dx > bodyHalfWidth || dz > paddleReach || dyPaddle > 0.5) {
-        return false;
+      // Check if ball is within the player's 3D volume (body + paddle reach)
+      if (
+        dx > bodyHalfWidth ||
+        dz > bodyHalfDepth ||
+        dy < bodyHeightMin ||
+        dy > bodyHeightMax
+      ) {
+        // Ball outside body volume — check paddle reach zone (extended forward)
+        const paddleY = 0.55;
+        const paddleReach = 0.6; // paddle extends forward
+        const dyPaddle = Math.abs(paddleY - dy);
+        if (dx > bodyHalfWidth || dz > paddleReach || dyPaddle > 0.5) {
+          return false;
+        }
       }
     }
 
@@ -1783,8 +1849,9 @@ export function useGameEngine() {
     // Try hits — enforce pickleball rules (volley fault if ball hits body before bounce)
     if (refs.ballPos.z > 0) {
       tryHit(refs.playerPos, refs.ballPos, refs.ballVel, true);
-    } else {
-      // AI: don't attempt hit if ball is going out
+    } else if (!isPvP.value) {
+      // AI mode: host runs collision detection for AI side
+      // In PvP: guest detects its own collisions and reports via 'fault' event
       const ballIsGoingOut = willBallLandOut();
       if (!ballIsGoingOut) {
         tryHit(refs.aiPos, refs.ballPos, refs.ballVel, false);
@@ -2043,6 +2110,111 @@ export function useGameEngine() {
     }
   }
 
+  // Guest-side collision detection: detect body/paddle collision locally.
+  // Uses split-authority pattern — guest owns its own body collision, reports to host.
+  // Host processes the collision via tryHit to determine outcome (good return, volley fault, kitchen fault).
+  // Body hitbox expanded by 20% to compensate for ball interpolation lag (~150ms).
+  function checkGuestFaults() {
+    if (pendingFaultAck) return; // already sent a collision report, waiting for ack
+    if (servePending.value) return;
+    if (gameState.value !== 'playing') return;
+
+    // Ball must be moving toward guest (z < 0)
+    if (refs.ballVel.z >= 0) return;
+
+    // Guest is on z < 0 side. Check body/paddle collision using same volume as tryHit,
+    // expanded by 20% to account for interpolation lag.
+    const reach = refs.playerReach;
+    const lagTolerance = 1.2; // 20% expansion for interpolation lag
+    const bodyHalfWidth = (0.35 + reach * 0.3) * lagTolerance;
+    const bodyHalfDepth = (0.35 + reach * 0.3) * lagTolerance;
+    const dx = Math.abs(refs.playerPos.x - refs.ballPos.x);
+    const dz = Math.abs(refs.playerPos.z - refs.ballPos.z);
+    const dy = refs.ballPos.y;
+
+    // Check body volume
+    const bodyHit =
+      dx <= bodyHalfWidth && dz <= bodyHalfDepth && dy >= 0 && dy <= 1.2;
+
+    if (bodyHit) {
+      sendGuestFault('collision');
+      return;
+    }
+
+    // Check paddle reach zone (extended forward)
+    const paddleY = 0.55;
+    const paddleReach = 0.6 * lagTolerance;
+    const dyPaddle = Math.abs(paddleY - dy);
+    const paddleHit =
+      dx <= bodyHalfWidth && dz <= paddleReach && dyPaddle <= 0.5;
+
+    if (paddleHit) {
+      sendGuestFault('collision');
+    }
+  }
+
+  // Send fault event to host with ack-based retry.
+  // Guest sends { type: 'fault', data: faultType }, waits for { type: 'fault-ack' }.
+  // Retries up to 3 times with 500ms timeout.
+  function sendGuestFault(faultType: string) {
+    p2p.broadcastEvent({ type: 'fault', data: faultType });
+
+    pendingFaultAck = {
+      seq: 0, // seq is assigned by broadcastEvent, but we track retries locally
+      type: faultType,
+      retries: 0,
+      timer: setTimeout(() => {
+        retryGuestFault();
+      }, 500),
+    };
+  }
+
+  // Retry fault event if no ack received from host
+  function retryGuestFault() {
+    if (!pendingFaultAck) return;
+    if (pendingFaultAck.retries >= 3) {
+      // Give up — host likely disconnected or processing game-over
+      pendingFaultAck = null;
+      return;
+    }
+    pendingFaultAck.retries++;
+    p2p.broadcastEvent({ type: 'fault', data: pendingFaultAck.type });
+    pendingFaultAck.timer = setTimeout(() => {
+      retryGuestFault();
+    }, 500);
+  }
+
+  // Handle fault-ack from host — clears pending fault retry
+  function handleFaultAck() {
+    if (pendingFaultAck?.timer) {
+      clearTimeout(pendingFaultAck.timer);
+    }
+    pendingFaultAck = null;
+  }
+
+  // Flip host's lastPointMsg perspective for the guest.
+  // Host sends "You: Out!" or "Jane: Out!" — guest needs the opposite label.
+  function guestLpm(hostLpm: string, hostName: string): string {
+    if (!hostLpm) return hostLpm;
+    const oppName = hostName || 'Opp';
+    // Replace "You:" with opponent name, and opponent name with "You:"
+    let result = hostLpm.replace(/^You:/, '__SELF__');
+    result = result.replace(new RegExp(`^${escapeRegExp(oppName)}:`), 'You:');
+    result = result.replace('__SELF__', `${oppName}:`);
+    // Also handle inline labels in side-out messages (e.g., "You: Out!\nSide Out")
+    result = result.replace(/(?<=\n)You:/, '__SELF__');
+    result = result.replace(
+      new RegExp(`(?<=\\n)${escapeRegExp(oppName)}:`),
+      'You:',
+    );
+    result = result.replace('__SELF__', `${oppName}:`);
+    return result;
+  }
+
+  function escapeRegExp(s: string): string {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   // PvP host: broadcast state to guest at 20Hz
   function broadcastStateToGuest(dt: number) {
     stateBroadcastTimer += dt;
@@ -2081,6 +2253,7 @@ export function useGameEngine() {
       lpm: lastPointMsg.value,
       sfx: sfxQueue.length > 0 ? sfxQueue.slice() : undefined,
       gs: gameState.value,
+      ss: scoringSide.value ?? undefined,
     });
     sfxQueue.length = 0; // clear queue after broadcast
   }
@@ -2124,8 +2297,9 @@ export function useGameEngine() {
       // Sync palettes from host (host's player = guest's AI, host's AI = guest's player)
       if (s1.pp2) aiPalette.value = s1.pp2;
       if (s1.ap2) playerPalette.value = s1.ap2;
-      // Sync last point message
-      if (s1.lpm !== undefined) lastPointMsg.value = s1.lpm;
+      // Sync last point message — flip perspective for guest
+      if (s1.lpm !== undefined)
+        lastPointMsg.value = guestLpm(s1.lpm, s1.hn || '');
       return;
     }
 
@@ -2203,8 +2377,9 @@ export function useGameEngine() {
     // Sync palettes from host (host's player = guest's AI, host's AI = guest's player)
     if (s1.pp2) aiPalette.value = s1.pp2;
     if (s1.ap2) playerPalette.value = s1.ap2;
-    // Sync last point message — host uses real player names so it's correct for both sides
-    if (s1.lpm !== undefined) lastPointMsg.value = s1.lpm;
+    // Sync last point message — flip perspective for guest
+    if (s1.lpm !== undefined)
+      lastPointMsg.value = guestLpm(s1.lpm, s1.hn || '');
 
     // Extrapolation: if no state received for >100ms, predict ball with velocity + gravity
     const timeSinceUpdate = performance.now() - lastStateReceivedAt;
@@ -2276,6 +2451,7 @@ export function useGameEngine() {
           updatePlayer(dt);
           sendInputToHost();
           interpolateGuestState(dt);
+          checkGuestFaults();
         }
       } else {
         // AI mode (original)
