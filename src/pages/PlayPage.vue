@@ -14,22 +14,28 @@
     <!-- Top-center: Score pill + ping -->
     <div class="score-bar">
       <div v-if="engine.gameState.value !== 'menu'" class="score-pill">
-        <span class="score-label score-you-label">
+        <span
+          class="score-label score-you-label"
+          :class="{
+            'label-host': engine.mode.value === 'pvp' && !isGuest,
+            'label-guest': engine.mode.value === 'pvp' && isGuest,
+          }"
+        >
           <span v-if="myServer" class="server-indicator"></span
           >{{ playerLabel }}</span
         >
         <span class="score-num score-you-num">{{ myScore }}</span>
         <span class="score-sep">—</span>
         <span class="score-num score-ai-num">{{ oppScore }}</span>
-        <span class="score-label score-ai-label"
+        <span
+          class="score-label score-ai-label"
+          :class="{
+            'label-host': engine.mode.value === 'pvp' && isGuest,
+            'label-guest': engine.mode.value === 'pvp' && !isGuest,
+          }"
           >{{ pvpLabel }}<span v-if="!myServer" class="server-indicator"></span
         ></span>
       </div>
-      <span
-        v-if="engine.gameState.value !== 'menu' && !engine.servePending.value"
-        class="serving-label"
-        >{{ myServer ? playerLabel : pvpLabel }} serving</span
-      >
       <span
         v-if="engine.mode.value === 'pvp' && engine.p2p.opponentPing.value > 0"
         class="ping-display"
@@ -1056,6 +1062,14 @@ onUnmounted(() => {
   text-align: left;
 }
 
+.label-host {
+  color: #fbbf24 !important;
+}
+
+.label-guest {
+  color: #60a5fa !important;
+}
+
 .score-you-num {
   color: #ffffff;
   text-shadow: 0 0 8px rgba(199, 210, 254, 0.6);
@@ -1096,14 +1110,6 @@ onUnmounted(() => {
   50% {
     opacity: 0.5;
   }
-}
-
-.serving-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .point-toast {

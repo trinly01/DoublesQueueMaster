@@ -64,7 +64,8 @@ export interface EventPayload {
     | 'snap'
     | 'sync-scores'
     | 'fault'
-    | 'fault-ack';
+    | 'fault-ack'
+    | 'double-bounce';
   data?: number | string | boolean;
   seq?: number; // event sequence number for dedup
   ballY?: number; // ball height at collision time (guest reports to prove ball was in air)
@@ -201,8 +202,6 @@ export function useP2P() {
         trickleIce: true,
         rtcConfig: {
           iceServers,
-          iceCandidatePoolSize: 10,
-          bundlePolicy: 'max-bundle',
         },
       },
       `${APP_ID}-${roomId}`,
