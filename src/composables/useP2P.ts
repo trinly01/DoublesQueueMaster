@@ -1,5 +1,5 @@
 import { ref, onUnmounted } from 'vue';
-import { joinRoom, type Room } from '@trystero-p2p/nostr';
+import { joinRoom, selfId, type Room } from '@trystero-p2p/nostr';
 import type { CharacterPalette } from './useRandomPalette';
 import { PlayerProfile } from 'src/services/playerProfile';
 
@@ -81,6 +81,58 @@ const PING_INTERVAL = 5000; // 5 seconds
 const PONG_TIMEOUT = 10000; // 10 seconds (2 missed pings) — detect fast, minimize unfair play
 const RECONNECT_WINDOW = 45000; // 45 seconds
 
+const TURN_CREDENTIALS_URL =
+  'https://api.dinkmatch.club/flows/trigger/8fb22d38-4bee-4463-9fda-08d809c708cd';
+const TURN_CREDENTIALS_TTL = 23 * 60 * 60 * 1000; // 23h (Cloudflare TTL is 24h)
+const TURN_FETCH_TIMEOUT = 5000; // 5s abort timeout
+
+let cachedTurnIceServers: RTCIceServer[] | null = null;
+let cachedTurnExpiresAt = 0;
+let turnFetchPromise: Promise<RTCIceServer[]> | null = null;
+
+async function fetchCloudflareTurnServers(): Promise<RTCIceServer[]> {
+  if (cachedTurnIceServers && Date.now() < cachedTurnExpiresAt) {
+    return cachedTurnIceServers;
+  }
+  if (turnFetchPromise) return turnFetchPromise;
+
+  turnFetchPromise = (async () => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), TURN_FETCH_TIMEOUT);
+      const response = await fetch(TURN_CREDENTIALS_URL, {
+        method: 'POST',
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!response.ok)
+        throw new Error(`TURN flow returned ${response.status}`);
+      const data = await response.json();
+      const iceServers = data?.data?.iceServers ?? data?.iceServers;
+      if (Array.isArray(iceServers) && iceServers.length > 0) {
+        cachedTurnIceServers = iceServers as RTCIceServer[];
+        cachedTurnExpiresAt = Date.now() + TURN_CREDENTIALS_TTL;
+        console.log(
+          '[TURN] Cloudflare TURN credentials cached:',
+          cachedTurnIceServers.length,
+          'servers',
+        );
+        return cachedTurnIceServers;
+      }
+    } catch (err) {
+      console.warn('[TURN] Failed to fetch Cloudflare TURN credentials:', err);
+    }
+    return [];
+  })().finally(() => {
+    turnFetchPromise = null;
+  });
+
+  return turnFetchPromise;
+}
+
+// Kick off fetch immediately on module load (non-blocking)
+fetchCloudflareTurnServers();
+
 export function useP2P() {
   const connectionState = ref<ConnectionStatus>('idle');
   const role = ref<PeerRole>(null);
@@ -130,16 +182,25 @@ export function useP2P() {
     role.value = null;
     opponentId.value = null;
 
+    const iceServers = [
+      ...(cachedTurnIceServers ?? []),
+      { urls: ['stun:stun.l.google.com:19302'] },
+      { urls: ['stun:global.stun.twilio.com:3478'] },
+    ];
+    console.log(
+      '[TURN] joinGameRoom ICE servers:',
+      iceServers.length,
+      'cached TURN:',
+      cachedTurnIceServers ? 'yes' : 'no',
+    );
+
     room = joinRoom(
       {
         appId: APP_ID,
         relayConfig: { redundancy: 3, manualReconnection: false },
         trickleIce: true,
         rtcConfig: {
-          iceServers: [
-            { urls: ['stun:stun.l.google.com:19302'] },
-            { urls: ['stun:global.stun.twilio.com:3478'] },
-          ],
+          iceServers,
           iceCandidatePoolSize: 10,
           bundlePolicy: 'max-bundle',
         },
@@ -188,7 +249,6 @@ export function useP2P() {
     };
 
     room.onPeerJoin = (peerId: string) => {
-      const wasWaiting = connectionState.value === 'waiting';
       opponentId.value = peerId;
       connectionState.value = 'connected';
       lastPongReceived = performance.now();
@@ -201,26 +261,34 @@ export function useP2P() {
           PlayerProfile.state.firstName) ||
         '';
 
-      if (wasWaiting || role.value === 'host') {
-        // We were already waiting in the room — we're the host
-        role.value = 'host';
+      if (role.value === 'host') {
+        // Already host (reconnection) — re-send ready
         eventActionSend({ type: 'ready', data: 'guest', name: myName }, peerId);
       } else if (role.value === 'guest') {
-        // Guest already has role — host reconnected after refresh
-        // Send ready back so host can re-establish its role
+        // Already guest (reconnection) — re-send ready
         eventActionSend({ type: 'ready', data: 'host', name: myName }, peerId);
       } else if (role.value === null) {
-        // We just joined — wait for 'ready' event from host
-        // Fallback: if no 'ready' in 3s, assume host (edge case: both joined simultaneously)
-        setTimeout(() => {
-          if (role.value === null && opponentId.value) {
-            role.value = 'host';
-            eventActionSend(
-              { type: 'ready', data: 'guest', name: myName },
-              opponentId.value,
-            );
-          }
-        }, 3000);
+        // Deterministic role assignment: lower selfId becomes host
+        // This is immune to ICE timing — no race condition with the 2s waiting timeout
+        if (selfId <= peerId) {
+          role.value = 'host';
+          eventActionSend(
+            { type: 'ready', data: 'guest', name: myName },
+            peerId,
+          );
+        } else {
+          // We're the guest — wait for host's 'ready' event
+          // Fallback: if no 'ready' in 3s, claim host (edge case: host didn't see us)
+          setTimeout(() => {
+            if (role.value === null && opponentId.value) {
+              role.value = 'host';
+              eventActionSend(
+                { type: 'ready', data: 'guest', name: myName },
+                opponentId.value,
+              );
+            }
+          }, 3000);
+        }
       }
 
       if (peerJoinCb) peerJoinCb(peerId);
