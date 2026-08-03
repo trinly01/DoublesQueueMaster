@@ -382,6 +382,60 @@
     "accountability": "all"
   },
   {
+    "id": "8fb22d38-4bee-4463-9fda-08d809c708cd",
+    "name": "Cloudflare TURN Server",
+    "icon": "bolt",
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {},
+    "operation": "7334ebde-6afc-4f34-a6f4-9bb9b8a9d2f9",
+    "operations": [
+      {
+        "id": "7334ebde-6afc-4f34-a6f4-9bb9b8a9d2f9",
+        "name": "Read Cloudflare Settings",
+        "key": "read_cloudflare_settings",
+        "type": "item-read",
+        "position_x": 31,
+        "position_y": 2,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "cloudflare"
+        },
+        "resolve": "89531cf5-71b1-42a5-977c-73ac9b3a354f",
+        "reject": null
+      },
+      {
+        "id": "89531cf5-71b1-42a5-977c-73ac9b3a354f",
+        "name": "request cloudflare credentials",
+        "key": "request_cloudflare_credentials",
+        "type": "request",
+        "position_x": 49,
+        "position_y": 2,
+        "options": {
+          "method": "POST",
+          "url": "https://rtc.live.cloudflare.com/v1/turn/keys/{{read_cloudflare_settings[0].turn_token_id}}/credentials/generate-ice-servers",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "Bearer {{read_cloudflare_settings[0].turn_api_token}}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\"ttl\": 86400}"
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "acf9d9d3-e91e-4944-b6ee-ef5f8f39a660",
     "name": "block multi club creation",
     "icon": "bolt",
@@ -573,7 +627,7 @@
         "position_x": 21,
         "position_y": 1,
         "options": {
-          "code": "const K_DOUBLES = 64;\nconst K_SINGLES = 36;\nconst MARGIN_WEIGHT = 0.15;\nconst PARTNER_GAP_FACTOR = 0.5;\nconst LOSS_UNDERDOG_BLEND = 1.0;\nconst RATING_FLOOR = 100;\nconst MAX_PARTNER_RATIO = 2.0;\n\nconst computeArithmeticMean = (team) => {\n  if (!team || team.length === 0) return 1450;\n  return team.reduce((sum, p) => sum + (Number(p.rating) || 1450), 0) / team.length;\n};\n\nconst allocateInteger = (total, weights) => {\n  const sum = weights.reduce((s, w) => s + w, 0);\n  const norm = sum > 0\n    ? weights.map((w) => w / sum)\n    : weights.map(() => 1 / weights.length);\n  const raw = norm.map((n) => n * total);\n  const floors = raw.map((r) => Math.floor(r));\n  const remainder = total - floors.reduce((s, f) => s + f, 0);\n  const order = raw\n    .map((r, i) => ({ i, frac: r - Math.floor(r) }))\n    .sort((a, b) => b.frac - a.frac);\n  const result = [...floors];\n  for (let k = 0; k < remainder; k++) result[order[k % order.length].i] += 1;\n  return result;\n};\n\nconst capWeights = (weights, maxRatio) => {\n  if (weights.length < 2) return weights;\n  const max = Math.max(...weights);\n  if (max <= 0) return weights;\n  const minAllowed = max / maxRatio;\n  return weights.map((w) => Math.max(w, minAllowed));\n};\n\nconst calculateShift = (winners, losers, scoreW, scoreL) => {\n  const ratingW = computeArithmeticMean(winners);\n  const ratingL = computeArithmeticMean(losers);\n\n  const margin = Math.abs(scoreW - scoreL);\n  const multiplier = 1 + MARGIN_WEIGHT * Math.log(1 + margin);\n\n  const K = winners.length === 1 ? K_SINGLES : K_DOUBLES;\n\n  const expectedW = 1 / (1 + Math.pow(10, (ratingL - ratingW) / 400));\n  const pool = Math.round(K * multiplier * (1 - expectedW));\n\n  const winnerCredits = winners.map((p, i) => {\n    const partner = winners[(i + 1) % winners.length];\n    const gap = Math.abs(partner.rating - p.rating);\n    const base = 1 - 1 / (1 + Math.pow(10, (ratingL - p.rating) / 400));\n    const weaker = p.rating < partner.rating;\n    const penalty = weaker\n      ? Math.max(0.1, 1 - (PARTNER_GAP_FACTOR * gap) / 400)\n      : 1;\n    return base * penalty;\n  });\n  const winnerGains = allocateInteger(pool, capWeights(winnerCredits, MAX_PARTNER_RATIO));\n\n  const loserBlames = losers.map((p) => {\n    const expectedVsWinners = 1 / (1 + Math.pow(10, (ratingW - p.rating) / 400));\n    return 1 - LOSS_UNDERDOG_BLEND + LOSS_UNDERDOG_BLEND * expectedVsWinners;\n  });\n  const loserLosses = allocateInteger(pool, capWeights(loserBlames, MAX_PARTNER_RATIO));\n\n  return { winnerGains, loserLosses };\n};\n\nmodule.exports = async function(data) {\n  const match = data.$trigger.payload || data.$trigger;\n\n  const teamA = match.teamA || [];\n  const teamB = match.teamB || [];\n  const teamAScore = Number(match.teamAScore) || 0;\n  const teamBScore = Number(match.teamBScore) || 0;\n\n  // Determine winners and losers\n  let winners, losers, scoreW, scoreL;\n  if (teamAScore > teamBScore) {\n    winners = teamA;\n    losers = teamB;\n    scoreW = teamAScore;\n    scoreL = teamBScore;\n  } else {\n    winners = teamB;\n    losers = teamA;\n    scoreW = teamBScore;\n    scoreL = teamAScore;\n  }\n\n  const { winnerGains, loserLosses } = calculateShift(\n    winners,\n    losers,\n    scoreW,\n    scoreL\n  );\n\n  const now = new Date().toISOString();\n\n  const updatedWinners = winners\n    .filter(p => p.userId)\n    .map((player, i) => ({\n      uuid: player.userId,\n      rating: Math.max(RATING_FLOOR, (Number(player.rating) || 1450) + winnerGains[i]),\n      rating_updated_at: now,\n      matches_played: (Number(player.matchesPlayed) || 0) + 1,\n      wins: (Number(player.wins) || 0) + 1\n    }));\n\n  const updatedLosers = losers\n    .filter(p => p.userId)\n    .map((player, i) => ({\n      uuid: player.userId,\n      rating: Math.max(RATING_FLOOR, (Number(player.rating) || 1450) - loserLosses[i]),\n      rating_updated_at: now,\n      matches_played: (Number(player.matchesPlayed) || 0) + 1,\n      losses: (Number(player.losses) || 0) + 1\n    }));\n\n  const completedMatch = {\n    match_key: `${match.completedAt}_${match.matchId}`,\n    match_id: match.matchId,\n    match_type: match.matchType,\n    team_a: match.teamA,\n    team_b: match.teamB,\n    team_a_score: match.teamAScore,\n    team_b_score: match.teamBScore,\n    started_at: new Date(match.startedAt).toISOString(),\n    completed_at: new Date(match.completedAt).toISOString(),\n    players: [...teamA, ...teamB]\n      .filter(p => p.userId)\n      .map(p => ({ \"directus_users_id\": p.userId })),\n    club: match.club\n  };\n\n  return {\n    match,\n    completedMatch,\n    newPlayersRatings: [...updatedWinners, ...updatedLosers]\n  };\n};"
+          "code": "const K_DOUBLES = 64;\nconst K_SINGLES = 36;\nconst MARGIN_WEIGHT = 0.15;\nconst PARTNER_GAP_FACTOR = 0.5;\nconst LOSS_UNDERDOG_BLEND = 1.0;\nconst RATING_FLOOR = 100;\nconst MAX_PARTNER_RATIO = 2.0;\n\nconst computeArithmeticMean = (team) => {\n  if (!team || team.length === 0) return 1450;\n  return team.reduce((sum, p) => sum + (Number(p.rating) || 1450), 0) / team.length;\n};\n\nconst allocateInteger = (total, weights) => {\n  const sum = weights.reduce((s, w) => s + w, 0);\n  const norm = sum > 0\n    ? weights.map((w) => w / sum)\n    : weights.map(() => 1 / weights.length);\n  const raw = norm.map((n) => n * total);\n  const floors = raw.map((r) => Math.floor(r));\n  const remainder = total - floors.reduce((s, f) => s + f, 0);\n  const order = raw\n    .map((r, i) => ({ i, frac: r - Math.floor(r) }))\n    .sort((a, b) => b.frac - a.frac);\n  const result = [...floors];\n  for (let k = 0; k < remainder; k++) result[order[k % order.length].i] += 1;\n  return result;\n};\n\nconst capWeights = (weights, maxRatio) => {\n  if (weights.length < 2) return weights;\n  const max = Math.max(...weights);\n  if (max <= 0) return weights;\n  const minAllowed = max / maxRatio;\n  return weights.map((w) => Math.max(w, minAllowed));\n};\n\nconst calculateShift = (winners, losers, scoreW, scoreL) => {\n  const ratingW = computeArithmeticMean(winners);\n  const ratingL = computeArithmeticMean(losers);\n\n  const margin = Math.abs(scoreW - scoreL);\n  const multiplier = 1 + MARGIN_WEIGHT * Math.log(1 + margin);\n\n  const K = winners.length === 1 ? K_SINGLES : K_DOUBLES;\n\n  const expectedW = 1 / (1 + Math.pow(10, (ratingL - ratingW) / 400));\n  const pool = Math.round(K * multiplier * (1 - expectedW));\n\n  const winnerCredits = winners.map((p, i) => {\n    const partner = winners[(i + 1) % winners.length];\n    const gap = Math.abs(partner.rating - p.rating);\n    const base = 1 - 1 / (1 + Math.pow(10, (ratingL - p.rating) / 400));\n    const weaker = p.rating < partner.rating;\n    const penalty = weaker\n      ? Math.max(0.1, 1 - (PARTNER_GAP_FACTOR * gap) / 400)\n      : 1;\n    return base * penalty;\n  });\n  const winnerGains = allocateInteger(pool, capWeights(winnerCredits, MAX_PARTNER_RATIO));\n\n  const loserBlames = losers.map((p) => {\n    const expectedVsWinners = 1 / (1 + Math.pow(10, (ratingW - p.rating) / 400));\n    return 1 - LOSS_UNDERDOG_BLEND + LOSS_UNDERDOG_BLEND * expectedVsWinners;\n  });\n  const loserLosses = allocateInteger(pool, capWeights(loserBlames, MAX_PARTNER_RATIO));\n\n  return { winnerGains, loserLosses };\n};\n\nmodule.exports = async function(data) {\n  const match = data.$trigger.payload || data.$trigger;\n\n  const teamA = match.teamA || [];\n  const teamB = match.teamB || [];\n  const teamAScore = Number(match.teamAScore) || 0;\n  const teamBScore = Number(match.teamBScore) || 0;\n\n  // Determine winners and losers\n  let winners, losers, scoreW, scoreL;\n  if (teamAScore > teamBScore) {\n    winners = teamA;\n    losers = teamB;\n    scoreW = teamAScore;\n    scoreL = teamBScore;\n  } else {\n    winners = teamB;\n    losers = teamA;\n    scoreW = teamBScore;\n    scoreL = teamAScore;\n  }\n\n  const { winnerGains, loserLosses } = calculateShift(\n    winners,\n    losers,\n    scoreW,\n    scoreL\n  );\n\n  const now = new Date().toISOString();\n\n  const updatedWinners = winners\n    .filter(p => p.userId)\n    .map((player, i) => ({\n      uuid: player.userId,\n      rating: Math.max(RATING_FLOOR, (Number(player.rating) || 1450) + winnerGains[i]),\n      rating_updated_at: now,\n      matches_played: (Number(player.matchesPlayed) || 0) + 1,\n      wins: (Number(player.wins) || 0) + 1\n    }));\n\n  const updatedLosers = losers\n    .filter(p => p.userId)\n    .map((player, i) => ({\n      uuid: player.userId,\n      rating: Math.max(RATING_FLOOR, (Number(player.rating) || 1450) - loserLosses[i]),\n      rating_updated_at: now,\n      matches_played: (Number(player.matchesPlayed) || 0) + 1,\n      losses: (Number(player.losses) || 0) + 1\n    }));\n\n  const completedMatch = {\n    match_key: `${match.completedAt}_${match.matchId}`,\n    match_id: match.matchId,\n    match_type: match.matchType,\n    team_a: match.teamA,\n    team_b: match.teamB,\n    team_a_score: match.teamAScore,\n    team_b_score: match.teamBScore,\n    started_at: new Date(match.startedAt).toISOString(),\n    completed_at: new Date(match.completedAt).toISOString(),\n    players: [...teamA, ...teamB]\n      .filter(p => p.userId)\n      .map(p => ({ \"directus_users_id\": p.userId })),\n    club: match.club,\n    meta: match.meta || null\n  };\n\n  return {\n    match,\n    completedMatch,\n    newPlayersRatings: [...updatedWinners, ...updatedLosers]\n  };\n};"
         },
         "resolve": "db5679d6-f6a9-49fd-a69e-b96503a39e55",
         "reject": null
