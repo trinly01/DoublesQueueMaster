@@ -42,6 +42,10 @@ export interface StatePayload {
   seq: number; // sequence number for jitter buffer
   gs: string; // host's game state for guest sync
   ss?: 'player' | 'ai'; // scoring side (who scored the last point) for guest message personalization
+  rhc?: number; // rallyHitCount (for guest bounce fault detection)
+  lhb?: 'player' | 'ai' | null; // lastHitBy (for guest bounce fault detection)
+  sfx2?: number; // serveFromX (for guest serve fault detection)
+  bcn?: boolean; // ballClippedNet (for guest Net! vs In! distinction)
 }
 
 export interface InputPayload {
@@ -65,11 +69,13 @@ export interface EventPayload {
     | 'sync-scores'
     | 'fault'
     | 'fault-ack'
-    | 'double-bounce';
+    | 'bounce-fault'
+    | 'fault-notify';
   data?: number | string | boolean;
   seq?: number; // event sequence number for dedup
   ballY?: number; // ball height at collision time (guest reports to prove ball was in air)
   name?: string; // player name (sent in 'ready' event for early name sync)
+  ss?: 'player' | 'ai'; // scoring side (sent in 'fault-notify' for guest message perspective)
 }
 
 export interface PingPayload {
