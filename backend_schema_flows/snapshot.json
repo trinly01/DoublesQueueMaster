@@ -5,143 +5,6 @@
     "vendor": "postgres",
     "collections": [
       {
-        "collection": "Court",
-        "meta": {
-          "accountability": "all",
-          "archive_app_filter": true,
-          "archive_field": "status",
-          "archive_value": "archived",
-          "collapse": "open",
-          "collection": "Court",
-          "color": null,
-          "display_template": null,
-          "group": "Match",
-          "hidden": false,
-          "icon": null,
-          "item_duplication_fields": null,
-          "note": null,
-          "preview_url": null,
-          "singleton": false,
-          "sort": 2,
-          "sort_field": "sort",
-          "translations": null,
-          "unarchive_value": "draft",
-          "versioning": false
-        },
-        "schema": {
-          "name": "Court"
-        }
-      },
-      {
-        "collection": "Match",
-        "meta": {
-          "accountability": "all",
-          "archive_app_filter": true,
-          "archive_field": "status",
-          "archive_value": "archived",
-          "collapse": "open",
-          "collection": "Match",
-          "color": null,
-          "display_template": null,
-          "group": "Models",
-          "hidden": false,
-          "icon": null,
-          "item_duplication_fields": null,
-          "note": null,
-          "preview_url": null,
-          "singleton": false,
-          "sort": 3,
-          "sort_field": null,
-          "translations": null,
-          "unarchive_value": "draft",
-          "versioning": false
-        },
-        "schema": {
-          "name": "Match"
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "meta": {
-          "accountability": "all",
-          "archive_app_filter": true,
-          "archive_field": "status",
-          "archive_value": "archived",
-          "collapse": "open",
-          "collection": "Match_Players",
-          "color": null,
-          "display_template": null,
-          "group": "Match",
-          "hidden": false,
-          "icon": null,
-          "item_duplication_fields": null,
-          "note": null,
-          "preview_url": null,
-          "singleton": false,
-          "sort": 1,
-          "sort_field": null,
-          "translations": null,
-          "unarchive_value": "draft",
-          "versioning": false
-        },
-        "schema": {
-          "name": "Match_Players"
-        }
-      },
-      {
-        "collection": "Models",
-        "meta": {
-          "accountability": "all",
-          "archive_app_filter": true,
-          "archive_field": null,
-          "archive_value": null,
-          "collapse": "open",
-          "collection": "Models",
-          "color": null,
-          "display_template": null,
-          "group": null,
-          "hidden": false,
-          "icon": "folder",
-          "item_duplication_fields": null,
-          "note": null,
-          "preview_url": null,
-          "singleton": false,
-          "sort": 1,
-          "sort_field": null,
-          "translations": null,
-          "unarchive_value": null,
-          "versioning": false
-        }
-      },
-      {
-        "collection": "Player",
-        "meta": {
-          "accountability": "all",
-          "archive_app_filter": true,
-          "archive_field": "status",
-          "archive_value": "archived",
-          "collapse": "open",
-          "collection": "Player",
-          "color": null,
-          "display_template": null,
-          "group": "Models",
-          "hidden": false,
-          "icon": null,
-          "item_duplication_fields": null,
-          "note": null,
-          "preview_url": null,
-          "singleton": false,
-          "sort": 1,
-          "sort_field": "sort",
-          "translations": null,
-          "unarchive_value": "draft",
-          "versioning": false
-        },
-        "schema": {
-          "name": "Player"
-        }
-      },
-      {
         "collection": "Trin_Dink_It",
         "meta": {
           "accountability": "all",
@@ -159,7 +22,7 @@
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": 4,
+          "sort": 3,
           "sort_field": null,
           "translations": null,
           "unarchive_value": null,
@@ -184,7 +47,7 @@
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": 5,
+          "sort": 4,
           "sort_field": "sort",
           "translations": null,
           "unarchive_value": "draft",
@@ -192,6 +55,34 @@
         },
         "schema": {
           "name": "ai_prompts"
+        }
+      },
+      {
+        "collection": "cloudflare",
+        "meta": {
+          "accountability": "all",
+          "archive_app_filter": true,
+          "archive_field": null,
+          "archive_value": null,
+          "collapse": "open",
+          "collection": "cloudflare",
+          "color": null,
+          "display_template": null,
+          "group": "Trin_Dink_It",
+          "hidden": false,
+          "icon": null,
+          "item_duplication_fields": null,
+          "note": null,
+          "preview_url": null,
+          "singleton": true,
+          "sort": 1,
+          "sort_field": null,
+          "translations": null,
+          "unarchive_value": null,
+          "versioning": false
+        },
+        "schema": {
+          "name": "cloudflare"
         }
       },
       {
@@ -212,7 +103,7 @@
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": 5,
+          "sort": 7,
           "sort_field": "sort",
           "translations": null,
           "unarchive_value": "draft",
@@ -296,7 +187,7 @@
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": 3,
+          "sort": 5,
           "sort_field": "sort",
           "translations": null,
           "unarchive_value": "draft",
@@ -352,7 +243,7 @@
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": 4,
+          "sort": 6,
           "sort_field": "sort",
           "translations": null,
           "unarchive_value": "draft",
@@ -436,7 +327,7 @@
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": 3,
+          "sort": 2,
           "sort_field": null,
           "translations": null,
           "unarchive_value": null,
@@ -517,7 +408,7 @@
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": 2,
+          "sort": 4,
           "sort_field": "sort",
           "translations": null,
           "unarchive_value": "draft",
@@ -545,7 +436,7 @@
           "note": null,
           "preview_url": null,
           "singleton": true,
-          "sort": 1,
+          "sort": 2,
           "sort_field": null,
           "translations": null,
           "unarchive_value": "draft",
@@ -594,14 +485,14 @@
           "collection": "report_player",
           "color": null,
           "display_template": null,
-          "group": null,
+          "group": "Trin_Dink_It",
           "hidden": false,
           "icon": null,
           "item_duplication_fields": null,
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": null,
+          "sort": 3,
           "sort_field": "sort",
           "translations": null,
           "unarchive_value": null,
@@ -769,7 +660,7 @@
           "note": null,
           "preview_url": null,
           "singleton": false,
-          "sort": 2,
+          "sort": 1,
           "sort_field": null,
           "translations": null,
           "unarchive_value": null,
@@ -778,2323 +669,6 @@
       }
     ],
     "fields": [
-      {
-        "collection": "Court",
-        "field": "id",
-        "type": "uuid",
-        "meta": {
-          "collection": "Court",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "id",
-          "group": null,
-          "hidden": true,
-          "interface": "input",
-          "note": null,
-          "options": null,
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 1,
-          "special": [
-            "uuid"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "id",
-          "table": "Court",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": false,
-          "is_unique": true,
-          "is_indexed": false,
-          "is_primary_key": true,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Court",
-        "field": "status",
-        "type": "string",
-        "meta": {
-          "collection": "Court",
-          "conditions": null,
-          "display": "labels",
-          "display_options": {
-            "choices": null,
-            "showAsDot": true
-          },
-          "field": "status",
-          "group": null,
-          "hidden": false,
-          "interface": "select-dropdown",
-          "note": null,
-          "options": {
-            "choices": [
-              {
-                "text": "Free",
-                "value": "Free"
-              },
-              {
-                "text": "Occupied",
-                "value": "Occupied"
-              }
-            ]
-          },
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 3,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "status",
-          "table": "Court",
-          "data_type": "character varying",
-          "default_value": "draft",
-          "max_length": 255,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": false,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Court",
-        "field": "sort",
-        "type": "integer",
-        "meta": {
-          "collection": "Court",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "sort",
-          "group": null,
-          "hidden": true,
-          "interface": "input",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 6,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "sort",
-          "table": "Court",
-          "data_type": "integer",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": 32,
-          "numeric_scale": 0,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Court",
-        "field": "user_created",
-        "type": "uuid",
-        "meta": {
-          "collection": "Court",
-          "conditions": null,
-          "display": "user",
-          "display_options": null,
-          "field": "user_created",
-          "group": null,
-          "hidden": true,
-          "interface": "select-dropdown-m2o",
-          "note": null,
-          "options": {
-            "template": "{{avatar}} {{first_name}} {{last_name}}"
-          },
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 7,
-          "special": [
-            "user-created"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "user_created",
-          "table": "Court",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id"
-        }
-      },
-      {
-        "collection": "Court",
-        "field": "date_created",
-        "type": "timestamp",
-        "meta": {
-          "collection": "Court",
-          "conditions": null,
-          "display": "datetime",
-          "display_options": {
-            "relative": true
-          },
-          "field": "date_created",
-          "group": null,
-          "hidden": true,
-          "interface": "datetime",
-          "note": null,
-          "options": null,
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 8,
-          "special": [
-            "date-created"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "date_created",
-          "table": "Court",
-          "data_type": "timestamp with time zone",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Court",
-        "field": "user_updated",
-        "type": "uuid",
-        "meta": {
-          "collection": "Court",
-          "conditions": null,
-          "display": "user",
-          "display_options": null,
-          "field": "user_updated",
-          "group": null,
-          "hidden": true,
-          "interface": "select-dropdown-m2o",
-          "note": null,
-          "options": {
-            "template": "{{avatar}} {{first_name}} {{last_name}}"
-          },
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 9,
-          "special": [
-            "user-updated"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "user_updated",
-          "table": "Court",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id"
-        }
-      },
-      {
-        "collection": "Court",
-        "field": "date_updated",
-        "type": "timestamp",
-        "meta": {
-          "collection": "Court",
-          "conditions": null,
-          "display": "datetime",
-          "display_options": {
-            "relative": true
-          },
-          "field": "date_updated",
-          "group": null,
-          "hidden": true,
-          "interface": "datetime",
-          "note": null,
-          "options": null,
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 10,
-          "special": [
-            "date-updated"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "date_updated",
-          "table": "Court",
-          "data_type": "timestamp with time zone",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Court",
-        "field": "courtNo",
-        "type": "integer",
-        "meta": {
-          "collection": "Court",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "courtNo",
-          "group": null,
-          "hidden": false,
-          "interface": "input",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 2,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "courtNo",
-          "table": "Court",
-          "data_type": "integer",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": 32,
-          "numeric_scale": 0,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Court",
-        "field": "currentMatchId",
-        "type": "uuid",
-        "meta": {
-          "collection": "Court",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "currentMatchId",
-          "group": null,
-          "hidden": false,
-          "interface": "select-dropdown-m2o",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 4,
-          "special": [
-            "m2o"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "currentMatchId",
-          "table": "Court",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": "Match",
-          "foreign_key_column": "id"
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "id",
-        "type": "uuid",
-        "meta": {
-          "collection": "Match",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "id",
-          "group": null,
-          "hidden": true,
-          "interface": "input",
-          "note": null,
-          "options": null,
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 1,
-          "special": [
-            "uuid"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "id",
-          "table": "Match",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": false,
-          "is_unique": true,
-          "is_indexed": false,
-          "is_primary_key": true,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "status",
-        "type": "string",
-        "meta": {
-          "collection": "Match",
-          "conditions": null,
-          "display": "labels",
-          "display_options": {
-            "choices": [
-              {
-                "background": "var(--theme--primary-background)",
-                "color": "var(--theme--primary)",
-                "foreground": "var(--theme--primary)",
-                "text": "$t:published",
-                "value": "published"
-              },
-              {
-                "background": "var(--theme--background-normal)",
-                "color": "var(--theme--foreground)",
-                "foreground": "var(--theme--foreground)",
-                "text": "$t:draft",
-                "value": "draft"
-              },
-              {
-                "background": "var(--theme--warning-background)",
-                "color": "var(--theme--warning)",
-                "foreground": "var(--theme--warning)",
-                "text": "$t:archived",
-                "value": "archived"
-              }
-            ],
-            "showAsDot": true
-          },
-          "field": "status",
-          "group": null,
-          "hidden": false,
-          "interface": "select-dropdown",
-          "note": null,
-          "options": {
-            "choices": [
-              {
-                "color": "#E35169",
-                "text": "Pending",
-                "value": "Pending"
-              },
-              {
-                "color": "#FFC23B",
-                "text": "Ongoing ",
-                "value": "Ongoing"
-              },
-              {
-                "color": "#2ECDA7",
-                "text": "Finished",
-                "value": "Finished"
-              }
-            ]
-          },
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 4,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "status",
-          "table": "Match",
-          "data_type": "character varying",
-          "default_value": "draft",
-          "max_length": 255,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": false,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "user_created",
-        "type": "uuid",
-        "meta": {
-          "collection": "Match",
-          "conditions": null,
-          "display": "user",
-          "display_options": null,
-          "field": "user_created",
-          "group": null,
-          "hidden": true,
-          "interface": "select-dropdown-m2o",
-          "note": null,
-          "options": {
-            "template": "{{avatar}} {{first_name}} {{last_name}}"
-          },
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 9,
-          "special": [
-            "user-created"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "user_created",
-          "table": "Match",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id"
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "date_created",
-        "type": "timestamp",
-        "meta": {
-          "collection": "Match",
-          "conditions": null,
-          "display": "datetime",
-          "display_options": {
-            "relative": true
-          },
-          "field": "date_created",
-          "group": null,
-          "hidden": true,
-          "interface": "datetime",
-          "note": null,
-          "options": null,
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 10,
-          "special": [
-            "date-created"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "date_created",
-          "table": "Match",
-          "data_type": "timestamp with time zone",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "user_updated",
-        "type": "uuid",
-        "meta": {
-          "collection": "Match",
-          "conditions": null,
-          "display": "user",
-          "display_options": null,
-          "field": "user_updated",
-          "group": null,
-          "hidden": true,
-          "interface": "select-dropdown-m2o",
-          "note": null,
-          "options": {
-            "template": "{{avatar}} {{first_name}} {{last_name}}"
-          },
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 11,
-          "special": [
-            "user-updated"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "user_updated",
-          "table": "Match",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id"
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "date_updated",
-        "type": "timestamp",
-        "meta": {
-          "collection": "Match",
-          "conditions": null,
-          "display": "datetime",
-          "display_options": {
-            "relative": true
-          },
-          "field": "date_updated",
-          "group": null,
-          "hidden": true,
-          "interface": "datetime",
-          "note": null,
-          "options": null,
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 12,
-          "special": [
-            "date-updated"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "date_updated",
-          "table": "Match",
-          "data_type": "timestamp with time zone",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "matchType",
-        "type": "string",
-        "meta": {
-          "collection": "Match",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "matchType",
-          "group": null,
-          "hidden": false,
-          "interface": "select-dropdown",
-          "note": null,
-          "options": {
-            "choices": [
-              {
-                "text": "Singles",
-                "value": "1v1"
-              },
-              {
-                "text": "Doubles",
-                "value": "2v2"
-              }
-            ]
-          },
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 2,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "matchType",
-          "table": "Match",
-          "data_type": "character varying",
-          "default_value": null,
-          "max_length": 255,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "courtNo",
-        "type": "integer",
-        "meta": {
-          "collection": "Match",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "courtNo",
-          "group": null,
-          "hidden": false,
-          "interface": "input",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": true,
-          "searchable": true,
-          "sort": 3,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "courtNo",
-          "table": "Match",
-          "data_type": "integer",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": 32,
-          "numeric_scale": 0,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "scoreA",
-        "type": "integer",
-        "meta": {
-          "collection": "Match",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "scoreA",
-          "group": null,
-          "hidden": false,
-          "interface": "input",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 5,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "scoreA",
-          "table": "Match",
-          "data_type": "integer",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": 32,
-          "numeric_scale": 0,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "scoreB",
-        "type": "integer",
-        "meta": {
-          "collection": "Match",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "scoreB",
-          "group": null,
-          "hidden": false,
-          "interface": "input",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 6,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "scoreB",
-          "table": "Match",
-          "data_type": "integer",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": 32,
-          "numeric_scale": 0,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "startedAt",
-        "type": "dateTime",
-        "meta": {
-          "collection": "Match",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "startedAt",
-          "group": null,
-          "hidden": false,
-          "interface": "datetime",
-          "note": null,
-          "options": {
-            "includeSeconds": true,
-            "relative": true,
-            "strict": true
-          },
-          "readonly": false,
-          "required": true,
-          "searchable": true,
-          "sort": 7,
-          "special": [
-            "date-created",
-            "date-updated"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "startedAt",
-          "table": "Match",
-          "data_type": "timestamp without time zone",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "finishedAt",
-        "type": "dateTime",
-        "meta": {
-          "collection": "Match",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "finishedAt",
-          "group": null,
-          "hidden": false,
-          "interface": "datetime",
-          "note": null,
-          "options": {
-            "includeSeconds": true,
-            "relative": true,
-            "strict": true
-          },
-          "readonly": false,
-          "required": true,
-          "searchable": true,
-          "sort": 8,
-          "special": [
-            "date-created",
-            "date-updated"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "finishedAt",
-          "table": "Match",
-          "data_type": "timestamp without time zone",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "id",
-        "type": "uuid",
-        "meta": {
-          "collection": "Match_Players",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "id",
-          "group": null,
-          "hidden": true,
-          "interface": "input",
-          "note": null,
-          "options": null,
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 1,
-          "special": [
-            "uuid"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "id",
-          "table": "Match_Players",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": false,
-          "is_unique": true,
-          "is_indexed": false,
-          "is_primary_key": true,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "status",
-        "type": "string",
-        "meta": {
-          "collection": "Match_Players",
-          "conditions": null,
-          "display": "labels",
-          "display_options": {
-            "choices": [
-              {
-                "background": "var(--theme--primary-background)",
-                "color": "var(--theme--primary)",
-                "foreground": "var(--theme--primary)",
-                "text": "$t:published",
-                "value": "published"
-              },
-              {
-                "background": "var(--theme--background-normal)",
-                "color": "var(--theme--foreground)",
-                "foreground": "var(--theme--foreground)",
-                "text": "$t:draft",
-                "value": "draft"
-              },
-              {
-                "background": "var(--theme--warning-background)",
-                "color": "var(--theme--warning)",
-                "foreground": "var(--theme--warning)",
-                "text": "$t:archived",
-                "value": "archived"
-              }
-            ],
-            "showAsDot": true
-          },
-          "field": "status",
-          "group": null,
-          "hidden": true,
-          "interface": "select-dropdown",
-          "note": null,
-          "options": {
-            "choices": [
-              {
-                "color": "var(--theme--primary)",
-                "text": "$t:published",
-                "value": "published"
-              },
-              {
-                "color": "var(--theme--foreground)",
-                "text": "$t:draft",
-                "value": "draft"
-              },
-              {
-                "color": "var(--theme--warning)",
-                "text": "$t:archived",
-                "value": "archived"
-              }
-            ]
-          },
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 2,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "status",
-          "table": "Match_Players",
-          "data_type": "character varying",
-          "default_value": "draft",
-          "max_length": 255,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": false,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "user_created",
-        "type": "uuid",
-        "meta": {
-          "collection": "Match_Players",
-          "conditions": null,
-          "display": "user",
-          "display_options": null,
-          "field": "user_created",
-          "group": null,
-          "hidden": true,
-          "interface": "select-dropdown-m2o",
-          "note": null,
-          "options": {
-            "template": "{{avatar}} {{first_name}} {{last_name}}"
-          },
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 3,
-          "special": [
-            "user-created"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "user_created",
-          "table": "Match_Players",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id"
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "date_created",
-        "type": "timestamp",
-        "meta": {
-          "collection": "Match_Players",
-          "conditions": null,
-          "display": "datetime",
-          "display_options": {
-            "relative": true
-          },
-          "field": "date_created",
-          "group": null,
-          "hidden": true,
-          "interface": "datetime",
-          "note": null,
-          "options": null,
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 4,
-          "special": [
-            "date-created"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "date_created",
-          "table": "Match_Players",
-          "data_type": "timestamp with time zone",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "user_updated",
-        "type": "uuid",
-        "meta": {
-          "collection": "Match_Players",
-          "conditions": null,
-          "display": "user",
-          "display_options": null,
-          "field": "user_updated",
-          "group": null,
-          "hidden": true,
-          "interface": "select-dropdown-m2o",
-          "note": null,
-          "options": {
-            "template": "{{avatar}} {{first_name}} {{last_name}}"
-          },
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 5,
-          "special": [
-            "user-updated"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "user_updated",
-          "table": "Match_Players",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id"
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "date_updated",
-        "type": "timestamp",
-        "meta": {
-          "collection": "Match_Players",
-          "conditions": null,
-          "display": "datetime",
-          "display_options": {
-            "relative": true
-          },
-          "field": "date_updated",
-          "group": null,
-          "hidden": true,
-          "interface": "datetime",
-          "note": null,
-          "options": null,
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 6,
-          "special": [
-            "date-updated"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "date_updated",
-          "table": "Match_Players",
-          "data_type": "timestamp with time zone",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "matchId",
-        "type": "uuid",
-        "meta": {
-          "collection": "Match_Players",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "matchId",
-          "group": null,
-          "hidden": false,
-          "interface": "select-dropdown-m2o",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 7,
-          "special": [
-            "m2o"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "matchId",
-          "table": "Match_Players",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": "Match",
-          "foreign_key_column": "id"
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "team",
-        "type": "string",
-        "meta": {
-          "collection": "Match_Players",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "team",
-          "group": null,
-          "hidden": false,
-          "interface": "select-dropdown",
-          "note": null,
-          "options": {
-            "choices": [
-              {
-                "text": "Team A",
-                "value": "Team A"
-              },
-              {
-                "text": "Team B",
-                "value": "Team B"
-              }
-            ]
-          },
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 9,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "team",
-          "table": "Match_Players",
-          "data_type": "character varying",
-          "default_value": null,
-          "max_length": 255,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "result",
-        "type": "string",
-        "meta": {
-          "collection": "Match_Players",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "result",
-          "group": null,
-          "hidden": false,
-          "interface": "select-dropdown",
-          "note": null,
-          "options": {
-            "choices": [
-              {
-                "text": "Win",
-                "value": "Win"
-              },
-              {
-                "text": "Lose",
-                "value": "Lose"
-              }
-            ]
-          },
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 10,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "result",
-          "table": "Match_Players",
-          "data_type": "character varying",
-          "default_value": null,
-          "max_length": 255,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "isReady",
-        "type": "boolean",
-        "meta": {
-          "collection": "Match_Players",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "isReady",
-          "group": null,
-          "hidden": false,
-          "interface": "boolean",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 11,
-          "special": [
-            "cast-boolean"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "isReady",
-          "table": "Match_Players",
-          "data_type": "boolean",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "playerId",
-        "type": "uuid",
-        "meta": {
-          "collection": "Match_Players",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "playerId",
-          "group": null,
-          "hidden": false,
-          "interface": "select-dropdown-m2o",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 8,
-          "special": [
-            "m2o"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "playerId",
-          "table": "Match_Players",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": "Player",
-          "foreign_key_column": "id"
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "id",
-        "type": "uuid",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "id",
-          "group": null,
-          "hidden": true,
-          "interface": "input",
-          "note": null,
-          "options": null,
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 1,
-          "special": [
-            "uuid"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "id",
-          "table": "Player",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": false,
-          "is_unique": true,
-          "is_indexed": false,
-          "is_primary_key": true,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "status",
-        "type": "string",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": "labels",
-          "display_options": {
-            "choices": [
-              {
-                "background": "var(--theme--primary-background)",
-                "color": "var(--theme--primary)",
-                "foreground": "var(--theme--primary)",
-                "text": "$t:published",
-                "value": "published"
-              },
-              {
-                "background": "var(--theme--background-normal)",
-                "color": "var(--theme--foreground)",
-                "foreground": "var(--theme--foreground)",
-                "text": "$t:draft",
-                "value": "draft"
-              },
-              {
-                "background": "var(--theme--warning-background)",
-                "color": "var(--theme--warning)",
-                "foreground": "var(--theme--warning)",
-                "text": "$t:archived",
-                "value": "archived"
-              }
-            ],
-            "showAsDot": true
-          },
-          "field": "status",
-          "group": null,
-          "hidden": false,
-          "interface": "select-dropdown",
-          "note": null,
-          "options": {
-            "choices": [
-              {
-                "color": "#E35169",
-                "text": "Idle",
-                "value": "Idle"
-              },
-              {
-                "color": "#FFC23B",
-                "text": "Queue",
-                "value": "Queue"
-              },
-              {
-                "color": "#00FF2A",
-                "text": "Playing",
-                "value": "Playing"
-              }
-            ]
-          },
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 2,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "status",
-          "table": "Player",
-          "data_type": "character varying",
-          "default_value": "draft",
-          "max_length": 255,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": false,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "sort",
-        "type": "integer",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "sort",
-          "group": null,
-          "hidden": true,
-          "interface": "input",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 3,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "sort",
-          "table": "Player",
-          "data_type": "integer",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": 32,
-          "numeric_scale": 0,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "user_created",
-        "type": "uuid",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": "user",
-          "display_options": null,
-          "field": "user_created",
-          "group": null,
-          "hidden": true,
-          "interface": "select-dropdown-m2o",
-          "note": null,
-          "options": {
-            "template": "{{avatar}} {{first_name}} {{last_name}}"
-          },
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 4,
-          "special": [
-            "user-created"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "user_created",
-          "table": "Player",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id"
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "date_created",
-        "type": "timestamp",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": "datetime",
-          "display_options": {
-            "relative": true
-          },
-          "field": "date_created",
-          "group": null,
-          "hidden": true,
-          "interface": "datetime",
-          "note": null,
-          "options": null,
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 5,
-          "special": [
-            "date-created"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "date_created",
-          "table": "Player",
-          "data_type": "timestamp with time zone",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "user_updated",
-        "type": "uuid",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": "user",
-          "display_options": null,
-          "field": "user_updated",
-          "group": null,
-          "hidden": true,
-          "interface": "select-dropdown-m2o",
-          "note": null,
-          "options": {
-            "template": "{{avatar}} {{first_name}} {{last_name}}"
-          },
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 6,
-          "special": [
-            "user-updated"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "user_updated",
-          "table": "Player",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id"
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "date_updated",
-        "type": "timestamp",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": "datetime",
-          "display_options": {
-            "relative": true
-          },
-          "field": "date_updated",
-          "group": null,
-          "hidden": true,
-          "interface": "datetime",
-          "note": null,
-          "options": null,
-          "readonly": true,
-          "required": false,
-          "searchable": true,
-          "sort": 7,
-          "special": [
-            "date-updated"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "half"
-        },
-        "schema": {
-          "name": "date_updated",
-          "table": "Player",
-          "data_type": "timestamp with time zone",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "name",
-        "type": "string",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "name",
-          "group": null,
-          "hidden": false,
-          "interface": "input",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": true,
-          "searchable": true,
-          "sort": 8,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "name",
-          "table": "Player",
-          "data_type": "character varying",
-          "default_value": null,
-          "max_length": 255,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "level",
-        "type": "string",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": "labels",
-          "display_options": null,
-          "field": "level",
-          "group": null,
-          "hidden": false,
-          "interface": "select-dropdown",
-          "note": null,
-          "options": {
-            "choices": [
-              {
-                "text": "Beginner",
-                "value": "Beginner"
-              },
-              {
-                "text": "Intermediate",
-                "value": "Intermediate"
-              },
-              {
-                "text": "Expert",
-                "value": "Expert"
-              }
-            ]
-          },
-          "readonly": false,
-          "required": true,
-          "searchable": true,
-          "sort": 9,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "level",
-          "table": "Player",
-          "data_type": "character varying",
-          "default_value": null,
-          "max_length": 255,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "wins",
-        "type": "integer",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "wins",
-          "group": null,
-          "hidden": false,
-          "interface": "input",
-          "note": null,
-          "options": {
-            "min": 0
-          },
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 10,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "wins",
-          "table": "Player",
-          "data_type": "integer",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": 32,
-          "numeric_scale": 0,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "losses",
-        "type": "integer",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "losses",
-          "group": null,
-          "hidden": false,
-          "interface": "input",
-          "note": null,
-          "options": {
-            "min": 0
-          },
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 11,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "losses",
-          "table": "Player",
-          "data_type": "integer",
-          "default_value": 0,
-          "max_length": null,
-          "numeric_precision": 32,
-          "numeric_scale": 0,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "isQueued",
-        "type": "boolean",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "isQueued",
-          "group": null,
-          "hidden": false,
-          "interface": "boolean",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 12,
-          "special": [
-            "cast-boolean"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "isQueued",
-          "table": "Player",
-          "data_type": "boolean",
-          "default_value": false,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "isPlaying",
-        "type": "boolean",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "isPlaying",
-          "group": null,
-          "hidden": false,
-          "interface": "boolean",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 13,
-          "special": [
-            "cast-boolean"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "isPlaying",
-          "table": "Player",
-          "data_type": "boolean",
-          "default_value": true,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "asdad",
-        "type": "dateTime",
-        "meta": {
-          "collection": "Player",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "asdad",
-          "group": null,
-          "hidden": false,
-          "interface": "datetime",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 14,
-          "special": null,
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "asdad",
-          "table": "Player",
-          "data_type": "timestamp without time zone",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": null,
-          "foreign_key_column": null
-        }
-      },
       {
         "collection": "ai_prompts",
         "field": "id",
@@ -3732,6 +1306,140 @@
           "data_type": "json",
           "default_value": null,
           "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "cloudflare",
+        "field": "id",
+        "type": "uuid",
+        "meta": {
+          "collection": "cloudflare",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "id",
+          "group": null,
+          "hidden": true,
+          "interface": "input",
+          "note": null,
+          "options": null,
+          "readonly": true,
+          "required": false,
+          "searchable": true,
+          "sort": 1,
+          "special": [
+            "uuid"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "id",
+          "table": "cloudflare",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": false,
+          "is_unique": true,
+          "is_indexed": false,
+          "is_primary_key": true,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "cloudflare",
+        "field": "turn_token_id",
+        "type": "string",
+        "meta": {
+          "collection": "cloudflare",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "turn_token_id",
+          "group": null,
+          "hidden": false,
+          "interface": "input",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 2,
+          "special": null,
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "turn_token_id",
+          "table": "cloudflare",
+          "data_type": "character varying",
+          "default_value": null,
+          "max_length": 255,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "cloudflare",
+        "field": "turn_api_token",
+        "type": "string",
+        "meta": {
+          "collection": "cloudflare",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "turn_api_token",
+          "group": null,
+          "hidden": false,
+          "interface": "input",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 3,
+          "special": null,
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "turn_api_token",
+          "table": "cloudflare",
+          "data_type": "character varying",
+          "default_value": null,
+          "max_length": 255,
           "numeric_precision": null,
           "numeric_scale": null,
           "is_nullable": true,
@@ -4479,6 +2187,52 @@
           "has_auto_increment": false,
           "foreign_key_table": null,
           "foreign_key_column": null
+        }
+      },
+      {
+        "collection": "club",
+        "field": "logo",
+        "type": "uuid",
+        "meta": {
+          "collection": "club",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "logo",
+          "group": null,
+          "hidden": false,
+          "interface": "file-image",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 17,
+          "special": [
+            "file"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "logo",
+          "table": "club",
+          "data_type": "uuid",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": "directus_files",
+          "foreign_key_column": "id"
         }
       },
       {
@@ -5590,6 +3344,52 @@
           "has_auto_increment": false,
           "foreign_key_table": "club",
           "foreign_key_column": "id"
+        }
+      },
+      {
+        "collection": "completed_match",
+        "field": "meta",
+        "type": "json",
+        "meta": {
+          "collection": "completed_match",
+          "conditions": null,
+          "display": null,
+          "display_options": null,
+          "field": "meta",
+          "group": null,
+          "hidden": false,
+          "interface": "input-code",
+          "note": null,
+          "options": null,
+          "readonly": false,
+          "required": false,
+          "searchable": true,
+          "sort": 19,
+          "special": [
+            "cast-json"
+          ],
+          "translations": null,
+          "validation": null,
+          "validation_message": null,
+          "width": "full"
+        },
+        "schema": {
+          "name": "meta",
+          "table": "completed_match",
+          "data_type": "json",
+          "default_value": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "is_generated": false,
+          "generation_expression": null,
+          "has_auto_increment": false,
+          "foreign_key_table": null,
+          "foreign_key_column": null
         }
       },
       {
@@ -10801,52 +8601,6 @@
         }
       },
       {
-        "collection": "payment",
-        "field": "player",
-        "type": "uuid",
-        "meta": {
-          "collection": "payment",
-          "conditions": null,
-          "display": null,
-          "display_options": null,
-          "field": "player",
-          "group": null,
-          "hidden": false,
-          "interface": "select-dropdown-m2o",
-          "note": null,
-          "options": null,
-          "readonly": false,
-          "required": false,
-          "searchable": true,
-          "sort": 10,
-          "special": [
-            "m2o"
-          ],
-          "translations": null,
-          "validation": null,
-          "validation_message": null,
-          "width": "full"
-        },
-        "schema": {
-          "name": "player",
-          "table": "payment",
-          "data_type": "uuid",
-          "default_value": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null,
-          "is_nullable": true,
-          "is_unique": false,
-          "is_indexed": false,
-          "is_primary_key": false,
-          "is_generated": false,
-          "generation_expression": null,
-          "has_auto_increment": false,
-          "foreign_key_table": "Player",
-          "foreign_key_column": "id"
-        }
-      },
-      {
         "collection": "payment_settings",
         "field": "id",
         "type": "uuid",
@@ -14147,281 +11901,6 @@
     ],
     "relations": [
       {
-        "collection": "Court",
-        "field": "user_updated",
-        "related_collection": "directus_users",
-        "meta": {
-          "junction_field": null,
-          "many_collection": "Court",
-          "many_field": "user_updated",
-          "one_allowed_collections": null,
-          "one_collection": "directus_users",
-          "one_collection_field": null,
-          "one_deselect_action": "nullify",
-          "one_field": null,
-          "sort_field": null
-        },
-        "schema": {
-          "table": "Court",
-          "column": "user_updated",
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id",
-          "constraint_name": "court_user_updated_foreign",
-          "on_update": "NO ACTION",
-          "on_delete": "NO ACTION"
-        }
-      },
-      {
-        "collection": "Court",
-        "field": "user_created",
-        "related_collection": "directus_users",
-        "meta": {
-          "junction_field": null,
-          "many_collection": "Court",
-          "many_field": "user_created",
-          "one_allowed_collections": null,
-          "one_collection": "directus_users",
-          "one_collection_field": null,
-          "one_deselect_action": "nullify",
-          "one_field": null,
-          "sort_field": null
-        },
-        "schema": {
-          "table": "Court",
-          "column": "user_created",
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id",
-          "constraint_name": "court_user_created_foreign",
-          "on_update": "NO ACTION",
-          "on_delete": "NO ACTION"
-        }
-      },
-      {
-        "collection": "Court",
-        "field": "currentMatchId",
-        "related_collection": "Match",
-        "meta": {
-          "junction_field": null,
-          "many_collection": "Court",
-          "many_field": "currentMatchId",
-          "one_allowed_collections": null,
-          "one_collection": "Match",
-          "one_collection_field": null,
-          "one_deselect_action": "nullify",
-          "one_field": null,
-          "sort_field": null
-        },
-        "schema": {
-          "table": "Court",
-          "column": "currentMatchId",
-          "foreign_key_table": "Match",
-          "foreign_key_column": "id",
-          "constraint_name": "court_currentmatchid_foreign",
-          "on_update": "NO ACTION",
-          "on_delete": "SET NULL"
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "user_updated",
-        "related_collection": "directus_users",
-        "meta": {
-          "junction_field": null,
-          "many_collection": "Match",
-          "many_field": "user_updated",
-          "one_allowed_collections": null,
-          "one_collection": "directus_users",
-          "one_collection_field": null,
-          "one_deselect_action": "nullify",
-          "one_field": null,
-          "sort_field": null
-        },
-        "schema": {
-          "table": "Match",
-          "column": "user_updated",
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id",
-          "constraint_name": "match_user_updated_foreign",
-          "on_update": "NO ACTION",
-          "on_delete": "NO ACTION"
-        }
-      },
-      {
-        "collection": "Match",
-        "field": "user_created",
-        "related_collection": "directus_users",
-        "meta": {
-          "junction_field": null,
-          "many_collection": "Match",
-          "many_field": "user_created",
-          "one_allowed_collections": null,
-          "one_collection": "directus_users",
-          "one_collection_field": null,
-          "one_deselect_action": "nullify",
-          "one_field": null,
-          "sort_field": null
-        },
-        "schema": {
-          "table": "Match",
-          "column": "user_created",
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id",
-          "constraint_name": "match_user_created_foreign",
-          "on_update": "NO ACTION",
-          "on_delete": "NO ACTION"
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "user_created",
-        "related_collection": "directus_users",
-        "meta": {
-          "junction_field": null,
-          "many_collection": "Match_Players",
-          "many_field": "user_created",
-          "one_allowed_collections": null,
-          "one_collection": "directus_users",
-          "one_collection_field": null,
-          "one_deselect_action": "nullify",
-          "one_field": null,
-          "sort_field": null
-        },
-        "schema": {
-          "table": "Match_Players",
-          "column": "user_created",
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id",
-          "constraint_name": "match_players_user_created_foreign",
-          "on_update": "NO ACTION",
-          "on_delete": "NO ACTION"
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "user_updated",
-        "related_collection": "directus_users",
-        "meta": {
-          "junction_field": null,
-          "many_collection": "Match_Players",
-          "many_field": "user_updated",
-          "one_allowed_collections": null,
-          "one_collection": "directus_users",
-          "one_collection_field": null,
-          "one_deselect_action": "nullify",
-          "one_field": null,
-          "sort_field": null
-        },
-        "schema": {
-          "table": "Match_Players",
-          "column": "user_updated",
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id",
-          "constraint_name": "match_players_user_updated_foreign",
-          "on_update": "NO ACTION",
-          "on_delete": "NO ACTION"
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "matchId",
-        "related_collection": "Match",
-        "meta": {
-          "junction_field": null,
-          "many_collection": "Match_Players",
-          "many_field": "matchId",
-          "one_allowed_collections": null,
-          "one_collection": "Match",
-          "one_collection_field": null,
-          "one_deselect_action": "nullify",
-          "one_field": null,
-          "sort_field": null
-        },
-        "schema": {
-          "table": "Match_Players",
-          "column": "matchId",
-          "foreign_key_table": "Match",
-          "foreign_key_column": "id",
-          "constraint_name": "match_players_matchid_foreign",
-          "on_update": "NO ACTION",
-          "on_delete": "SET NULL"
-        }
-      },
-      {
-        "collection": "Match_Players",
-        "field": "playerId",
-        "related_collection": "Player",
-        "meta": {
-          "junction_field": null,
-          "many_collection": "Match_Players",
-          "many_field": "playerId",
-          "one_allowed_collections": null,
-          "one_collection": "Player",
-          "one_collection_field": null,
-          "one_deselect_action": "nullify",
-          "one_field": null,
-          "sort_field": null
-        },
-        "schema": {
-          "table": "Match_Players",
-          "column": "playerId",
-          "foreign_key_table": "Player",
-          "foreign_key_column": "id",
-          "constraint_name": "match_players_playerid_foreign",
-          "on_update": "NO ACTION",
-          "on_delete": "SET NULL"
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "user_updated",
-        "related_collection": "directus_users",
-        "meta": {
-          "junction_field": null,
-          "many_collection": "Player",
-          "many_field": "user_updated",
-          "one_allowed_collections": null,
-          "one_collection": "directus_users",
-          "one_collection_field": null,
-          "one_deselect_action": "nullify",
-          "one_field": null,
-          "sort_field": null
-        },
-        "schema": {
-          "table": "Player",
-          "column": "user_updated",
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id",
-          "constraint_name": "player_user_updated_foreign",
-          "on_update": "NO ACTION",
-          "on_delete": "NO ACTION"
-        }
-      },
-      {
-        "collection": "Player",
-        "field": "user_created",
-        "related_collection": "directus_users",
-        "meta": {
-          "junction_field": null,
-          "many_collection": "Player",
-          "many_field": "user_created",
-          "one_allowed_collections": null,
-          "one_collection": "directus_users",
-          "one_collection_field": null,
-          "one_deselect_action": "nullify",
-          "one_field": null,
-          "sort_field": null
-        },
-        "schema": {
-          "table": "Player",
-          "column": "user_created",
-          "foreign_key_table": "directus_users",
-          "foreign_key_column": "id",
-          "constraint_name": "player_user_created_foreign",
-          "on_update": "NO ACTION",
-          "on_delete": "NO ACTION"
-        }
-      },
-      {
         "collection": "ai_prompts",
         "field": "user_created",
         "related_collection": "directus_users",
@@ -14519,6 +11998,31 @@
           "constraint_name": "club_user_updated_foreign",
           "on_update": "NO ACTION",
           "on_delete": "NO ACTION"
+        }
+      },
+      {
+        "collection": "club",
+        "field": "logo",
+        "related_collection": "directus_files",
+        "meta": {
+          "junction_field": null,
+          "many_collection": "club",
+          "many_field": "logo",
+          "one_allowed_collections": null,
+          "one_collection": "directus_files",
+          "one_collection_field": null,
+          "one_deselect_action": "nullify",
+          "one_field": null,
+          "sort_field": null
+        },
+        "schema": {
+          "table": "club",
+          "column": "logo",
+          "foreign_key_table": "directus_files",
+          "foreign_key_column": "id",
+          "constraint_name": "club_logo_foreign",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL"
         }
       },
       {
@@ -15117,31 +12621,6 @@
           "foreign_key_table": "club",
           "foreign_key_column": "id",
           "constraint_name": "payment_club_foreign",
-          "on_update": "NO ACTION",
-          "on_delete": "SET NULL"
-        }
-      },
-      {
-        "collection": "payment",
-        "field": "player",
-        "related_collection": "Player",
-        "meta": {
-          "junction_field": null,
-          "many_collection": "payment",
-          "many_field": "player",
-          "one_allowed_collections": null,
-          "one_collection": "Player",
-          "one_collection_field": null,
-          "one_deselect_action": "nullify",
-          "one_field": null,
-          "sort_field": null
-        },
-        "schema": {
-          "table": "payment",
-          "column": "player",
-          "foreign_key_table": "Player",
-          "foreign_key_column": "id",
-          "constraint_name": "payment_player_foreign",
           "on_update": "NO ACTION",
           "on_delete": "SET NULL"
         }
