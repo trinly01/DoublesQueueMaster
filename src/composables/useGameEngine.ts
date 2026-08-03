@@ -221,6 +221,11 @@ export function useGameEngine() {
   } | null = null;
   let aiDinkRead: boolean | null = null; // null = not evaluated, true/false = committed
 
+  // Guest-side bounce tracking (for reporting double bounces to host)
+  let guestBounceCount = 0;
+  let guestPrevBallY = 999; // track previous ball Y to detect bounce (y crosses below BALL_RADIUS)
+  let guestCurrentSide: 'player' | 'ai' | null = null;
+
   // Precomputed constants for hot loops
   const HALF_COURT_W = COURT_WIDTH / 2;
   const HALF_COURT_L = COURT_LENGTH / 2;
@@ -658,6 +663,19 @@ export function useGameEngine() {
       } else if (data.type === 'fault-ack' && isGuest.value) {
         // Host acknowledged our fault report — stop retrying
         handleFaultAck();
+      } else if (data.type === 'double-bounce' && isHost.value) {
+        // Guest confirmed double bounce on their side — score immediately
+        // if we haven't already scored and no pending collision override
+        if (gameState.value === 'playing' && !pendingBounceFault) {
+          if (ballClippedNet) {
+            const faultBy = lastHitBy;
+            if (faultBy) {
+              scorePoint(faultBy === 'player' ? 'ai' : 'player', 'Net!');
+            }
+          } else {
+            scorePoint('player', 'In!');
+          }
+        }
       }
     });
 
@@ -789,6 +807,10 @@ export function useGameEngine() {
     currentSide = null;
     aiDinkRead = null;
     lastFaultEventSeq = -1;
+    // Reset guest bounce tracking
+    guestBounceCount = 0;
+    guestPrevBallY = 999;
+    guestCurrentSide = null;
     // Clear any pending fault ack on new rally
     if (pendingFaultAck?.timer) clearTimeout(pendingFaultAck.timer);
     pendingFaultAck = null;
@@ -2204,8 +2226,29 @@ export function useGameEngine() {
     prevAiPos.copy(refs.aiPos);
 
     // Use remote input instead of AI logic
-    const dx = THREE.MathUtils.clamp(remoteInput.ax, -1.2, 1.2);
+    let dx = THREE.MathUtils.clamp(remoteInput.ax, -1.2, 1.2);
     const dz = THREE.MathUtils.clamp(remoteInput.az, -1.2, 1.2);
+
+    // Apply same ball magnet as updatePlayer so host's position for guest
+    // matches the guest's local prediction (which includes magnet)
+    const cfg = AI_CONFIGS[difficulty.value];
+    if (
+      cfg.playerMagnet > 0 &&
+      refs.ballVel.z < 0 && // ball incoming toward guest (z<0 side)
+      !servePending.value
+    ) {
+      const timeToGuest = (refs.aiPos.z - refs.ballPos.z) / refs.ballVel.z;
+      if (timeToGuest > 0 && timeToGuest < 2) {
+        const predictedX = refs.ballPos.x + refs.ballVel.x * timeToGuest;
+        const xDiff = predictedX - refs.aiPos.x;
+        dx = THREE.MathUtils.clamp(
+          dx + xDiff * cfg.playerMagnet * 0.5,
+          -1.2,
+          1.2,
+        );
+      }
+    }
+
     const targetVx = dx * PLAYER_MAX_SPEED;
     const targetVz = dz * PLAYER_MAX_SPEED;
     const accelX = dx !== 0 ? PLAYER_ACCEL : PLAYER_FRICTION;
@@ -2261,12 +2304,41 @@ export function useGameEngine() {
   // Uses split-authority pattern — guest owns its own body collision, reports to host.
   // Host processes the collision via tryHit to determine outcome (good return, volley fault, kitchen fault).
   // Body hitbox expanded by 20% to compensate for ball interpolation lag (~150ms).
+  // Also detects double bounces on guest's side and reports to host.
   function checkGuestFaults() {
-    if (pendingFaultAck) return; // already sent a collision report, waiting for ack
     if (servePending.value) return;
     if (gameState.value !== 'playing') return;
 
-    // Ball must be moving toward guest (z < 0)
+    // --- Bounce tracking (guest's side = z < 0) ---
+    const ballY = refs.ballPos.y;
+    // Detect bounce: ball was above BALL_RADIUS and now at/below it
+    if (
+      guestPrevBallY < 999 &&
+      guestPrevBallY > BALL_RADIUS &&
+      ballY <= BALL_RADIUS
+    ) {
+      // Ball bounced — check which side
+      const newSide: 'player' | 'ai' = refs.ballPos.z > 0 ? 'player' : 'ai';
+      if (newSide !== guestCurrentSide) {
+        guestCurrentSide = newSide;
+        guestBounceCount = 1;
+      } else {
+        guestBounceCount++;
+      }
+
+      // Second bounce on guest's side (z < 0) and no collision reported = double bounce
+      if (
+        guestBounceCount >= 2 &&
+        guestCurrentSide === 'ai' &&
+        !pendingFaultAck
+      ) {
+        p2p.broadcastEvent({ type: 'double-bounce' });
+      }
+    }
+    guestPrevBallY = ballY;
+
+    // --- Collision detection (ball moving toward guest) ---
+    if (pendingFaultAck) return; // already sent a collision report, waiting for ack
     if (refs.ballVel.z >= 0) return;
 
     // Guest is on z < 0 side. Check body/paddle collision using same volume as tryHit,
