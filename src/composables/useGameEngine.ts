@@ -24,6 +24,10 @@ const GRAVITY = -9.8;
 const BALL_RADIUS = 0.08;
 const HIT_COOLDOWN = 0.4; // seconds between hits per player
 
+// Jump physics
+const JUMP_VELOCITY = 4.0;
+const JUMP_GRAVITY = -12.0;
+
 // Game
 const WIN_SCORE = 11;
 const POINT_PAUSE = 1.2; // seconds pause after a point
@@ -182,7 +186,12 @@ export function useGameEngine() {
     backward: false,
     axisX: 0, // analog joystick -1..1
     axisZ: 0, // analog joystick -1..1 (negative = forward)
+    jump: false, // jump requested this frame
   });
+
+  // Jump state
+  let playerJumpVel: number = 0;
+  let remoteJumpVel: number = 0;
 
   let lastTime = 0;
   let playerHitCooldown = 0;
@@ -322,7 +331,13 @@ export function useGameEngine() {
 
   // --- PvP state ---
   // Remote input (host receives from guest)
-  const remoteInput = reactive({ ax: 0, az: 0, sv: false, seq: 0 });
+  const remoteInput = reactive({
+    ax: 0,
+    az: 0,
+    sv: false,
+    jump: false,
+    seq: 0,
+  });
   let lastInputSeq = -1;
 
   // Guest-side interpolation state
@@ -519,6 +534,7 @@ export function useGameEngine() {
       lastInputSeq = data.seq;
       remoteInput.ax = data.ax;
       remoteInput.az = data.az;
+      if (data.jk) remoteInput.jump = true;
       // Sync guest name
       if (data.gn) opponentName.value = data.gn;
       if (data.sv && servePending.value && servingTo.value === 'ai') {
@@ -860,6 +876,8 @@ export function useGameEngine() {
     ballClippedNet = false;
     currentSide = null;
     aiDinkRead = null;
+    playerJumpVel = 0;
+    remoteJumpVel = 0;
     lastFaultEventSeq = -1;
     lastBounceFaultSeq = -1;
     // Reset guest bounce tracking
@@ -1187,6 +1205,21 @@ export function useGameEngine() {
     refs.playerPos.x += playerCurrentVel.x * dt;
     refs.playerPos.z += playerCurrentVel.z * dt;
 
+    // Jump physics
+    if (input.jump && refs.playerPos.y <= 0.01) {
+      playerJumpVel = JUMP_VELOCITY;
+    }
+    input.jump = false; // consume jump request
+
+    if (playerJumpVel !== 0 || refs.playerPos.y > 0) {
+      playerJumpVel += JUMP_GRAVITY * dt;
+      refs.playerPos.y += playerJumpVel * dt;
+      if (refs.playerPos.y <= 0) {
+        refs.playerPos.y = 0;
+        playerJumpVel = 0;
+      }
+    }
+
     // Compute velocity (for impact-force physics)
     if (dt > 0) {
       playerVel.subVectors(refs.playerPos, prevPlayerPos).divideScalar(dt);
@@ -1505,7 +1538,7 @@ export function useGameEngine() {
     if (!confirmed) {
       const dx = Math.abs(pos.x - ballPos.x);
       const dz = Math.abs(pos.z - ballPos.z);
-      const dy = ballPos.y;
+      const dy = ballPos.y - pos.y; // relative to player's current height (jump)
 
       // Check if ball is within the player's 3D volume (body + paddle reach)
       if (
@@ -2350,6 +2383,21 @@ export function useGameEngine() {
     refs.aiPos.x += aiCurrentVel.x * dt;
     refs.aiPos.z += aiCurrentVel.z * dt;
 
+    // Jump physics (remote player)
+    if (remoteInput.jump && refs.aiPos.y <= 0.01) {
+      remoteJumpVel = JUMP_VELOCITY;
+    }
+    remoteInput.jump = false; // consume jump request
+
+    if (remoteJumpVel !== 0 || refs.aiPos.y > 0) {
+      remoteJumpVel += JUMP_GRAVITY * dt;
+      refs.aiPos.y += remoteJumpVel * dt;
+      if (refs.aiPos.y <= 0) {
+        refs.aiPos.y = 0;
+        remoteJumpVel = 0;
+      }
+    }
+
     // Clamp to opponent's half — always blocked by net wall
     refs.aiPos.x = THREE.MathUtils.clamp(
       refs.aiPos.x,
@@ -2512,7 +2560,7 @@ export function useGameEngine() {
     const bodyHalfDepth = (0.35 + reach * 0.3) * lagTolerance;
     const dx = Math.abs(refs.playerPos.x - refs.ballPos.x);
     const dz = Math.abs(refs.playerPos.z - refs.ballPos.z);
-    const dy = refs.ballPos.y;
+    const dy = refs.ballPos.y - refs.playerPos.y; // relative to player height (jump)
 
     // Check body volume
     const bodyHit =
@@ -2753,6 +2801,7 @@ export function useGameEngine() {
     // Opponent (host's player): damp toward received position
     refs.aiPos.x = THREE.MathUtils.damp(refs.aiPos.x, s1.pp[0], 10, dt);
     refs.aiPos.z = THREE.MathUtils.damp(refs.aiPos.z, s1.pp[2], 10, dt);
+    refs.aiPos.y = THREE.MathUtils.damp(refs.aiPos.y, s1.pp[1], 10, dt);
 
     // Self (guest): trust local prediction entirely.
     // Only snap to host state on explicit resync event (snapBallNextFrame).
@@ -2842,8 +2891,10 @@ export function useGameEngine() {
     const timeSinceLastSend = (now - inputSendTimer) / 1000;
     const changed =
       Math.abs(ax - lastSentAx) > 0.05 || Math.abs(az - lastSentAz) > 0.05;
+    const jumpRequested = input.jump;
 
-    if (timeSinceLastSend < INPUT_SEND_INTERVAL && !changed) return;
+    if (timeSinceLastSend < INPUT_SEND_INTERVAL && !changed && !jumpRequested)
+      return;
     inputSendTimer = now;
     lastSentAx = ax;
     lastSentAz = az;
@@ -2852,6 +2903,7 @@ export function useGameEngine() {
       ax,
       az,
       sv: false, // serve trigger handled via triggerServe
+      jk: jumpRequested,
       gn: PlayerProfile.state.firstName || '',
     });
   }
@@ -3037,6 +3089,10 @@ export function useGameEngine() {
         if (isGuest.value) input.forward = true;
         else input.backward = true;
         break;
+      case ' ':
+        input.jump = true;
+        if (servePending.value && myServeTurn.value) triggerServe();
+        break;
     }
   }
 
@@ -3070,6 +3126,11 @@ export function useGameEngine() {
   }
 
   // Touch input helpers (called from UI buttons)
+  function triggerJump() {
+    input.jump = true;
+    if (servePending.value && myServeTurn.value) triggerServe();
+  }
+
   function setTouchInput(
     dir: 'left' | 'right' | 'forward' | 'backward',
     active: boolean,
@@ -3144,6 +3205,7 @@ export function useGameEngine() {
     setTouchInput,
     setAxis,
     triggerServe,
+    triggerJump,
     myServeTurn,
     cleanup,
     // PvP

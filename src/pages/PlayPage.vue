@@ -417,6 +417,11 @@
           }"
         />
       </div>
+
+      <!-- Jump button (bottom-right, touch only) -->
+      <button class="jump-btn" @touchstart.prevent="onJumpTouch">
+        <q-icon name="arrow_upward" size="28px" />
+      </button>
     </div>
   </div>
 </template>
@@ -535,6 +540,10 @@ function onJoystickEnd(e: TouchEvent) {
   joystick.knobX = 0;
   joystick.knobY = 0;
   engine.setAxis(0, 0);
+}
+
+function onJumpTouch() {
+  engine.triggerJump();
 }
 
 const difficulties: { label: string; value: Difficulty }[] = [
@@ -1399,6 +1408,29 @@ kbd {
   background: rgba(255, 255, 255, 0.85);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   pointer-events: none;
+}
+
+.jump-btn {
+  position: absolute;
+  right: 20px;
+  bottom: 30px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  backdrop-filter: blur(2px);
+  z-index: 16;
+}
+
+.jump-btn:active {
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(0.92);
 }
 
 .nav-focused {

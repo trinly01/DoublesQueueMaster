@@ -249,7 +249,7 @@ interface CharacterHandle {
 
 interface CharacterUpdate {
   facing: number;
-  pos: { x: number; z: number };
+  pos: { x: number; y: number; z: number };
   moveDir: number;
   moveZ: number;
   swing: number;
@@ -285,7 +285,7 @@ function updateCharacter(
   } = u;
 
   // --- Body position + rotation ---
-  char.groupRef.position.set(pos.x, 0, pos.z);
+  char.groupRef.position.set(pos.x, pos.y, pos.z);
   const baseRot = baseRotOf(f);
   const moveAngle = Math.atan2(f * moveDir, f * moveZ);
   const moveMagBody = Math.sqrt(moveDir * moveDir + moveZ * moveZ);
