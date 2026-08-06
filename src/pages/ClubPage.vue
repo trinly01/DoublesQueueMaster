@@ -5941,7 +5941,7 @@ const matchmakingMode = computed<
   | 'strict_balance'
   | 'fair_balance'
 >({
-  get: () => MatchmakingApp.state.matchmakingMode || 'fair_balance',
+  get: () => MatchmakingApp.state.matchmakingMode || 'strict_balance',
   set: (val) => {
     MatchmakingApp.state.matchmakingMode = val;
     MatchmakingApp.stampSetting('matchmakingMode');
