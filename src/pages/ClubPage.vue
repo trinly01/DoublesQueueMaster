@@ -1355,6 +1355,7 @@ import { useLeaderboard } from '../composables/useLeaderboard';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { usePlayerActions } from '../composables/usePlayerActions';
 import { useDataManagement } from '../composables/useDataManagement';
+import { useManualSelection } from '../composables/useManualSelection';
 import {
   clearSpeechQueue,
   isSpeaking,
@@ -2041,7 +2042,8 @@ const showReplacePlayerDialog = ref(false);
 const playerToReplaceInEdit = ref<Player | null>(null);
 const currentMatchIndex = ref<number>(-1);
 
-// Manual selection states
+// Manual selection states — provided by useManualSelection composable (wired later)
+// These lazy stubs are overwritten after the composable is initialized
 const showManualSelectionDialog = ref(false);
 const manualSelectionStep = ref<1 | 2>(1);
 const selectedPlayers = ref<Player[]>([]);
@@ -2689,296 +2691,28 @@ const autoAdvanceNextMatchForCourt = (courtNumber?: number) => {
 };
 _autoAdvanceNextMatchForCourt = autoAdvanceNextMatchForCourt;
 
-// Manual Selection Functions
-const startManualSelection = () => {
-  selectedPlayers.value = [];
-  manualTeam1.value = [];
-  manualTeam2.value = [];
-  manualSelectionStep.value = 1;
-  showManualSelectionDialog.value = true;
-};
-
-const cancelManualSelection = () => {
-  selectedPlayers.value = [];
-  manualTeam1.value = [];
-  manualTeam2.value = [];
-  manualSelectionStep.value = 1;
-  selectedForSwap.value = null;
-  selectedForSwapTeam.value = null;
-  showManualSelectionDialog.value = false;
-};
-
-const togglePlayerSelection = (player: Player) => {
-  const index = selectedPlayers.value.findIndex(
-    (p) => p.username === player.username,
-  );
-  const maxPlayers = matchType.value === 'singles' ? 2 : 4;
-
-  if (index >= 0) {
-    // Remove player
-    selectedPlayers.value.splice(index, 1);
-  } else {
-    // Add player if less than max selected
-    if (selectedPlayers.value.length < maxPlayers) {
-      selectedPlayers.value.push(player);
-    } else {
-      notify({
-        type: 'warning',
-        message: `You can only select ${maxPlayers} players`,
-      });
-    }
-  }
-};
-
-const isPlayerSelected = (player: Player): boolean => {
-  return selectedPlayers.value.some((p) => p.username === player.username);
-};
-
-const proceedToTeamArrangement = () => {
-  const playerCount = selectedPlayers.value.length;
-
-  if (playerCount < 2) {
-    notify({
-      type: 'warning',
-      message: 'Please select at least 2 players',
-    });
-    return;
-  }
-
-  if (playerCount > 4) {
-    notify({
-      type: 'warning',
-      message: 'Maximum 4 players allowed for tennis matches',
-    });
-    return;
-  }
-
-  // For doubles (4 players), use smart algorithm to create balanced teams
-  if (playerCount === 4) {
-    const balanced = createBalancedMatch([...selectedPlayers.value]);
-    manualTeam1.value = [balanced[0], balanced[1]];
-    manualTeam2.value = [balanced[2], balanced[3]];
-  } else {
-    // For singles or other configurations, clear teams
-    manualTeam1.value = [];
-    manualTeam2.value = [];
-  }
-
-  manualSelectionStep.value = 2;
-};
-
-// const getTeamSkill = (team: Player[]): number => {
-//   return team.reduce((sum, p) => sum + p.level, 0);
-// };
-
-// const getSkillDifference = (): number => {
-//   return Math.abs(getTeamSkill(manualTeam1.value) - getTeamSkill(manualTeam2.value));
-// };
-
-// Old functions - replaced by createManualMatchWithCourt
-/*
-const createManualMatch = () => {
-  if (manualTeam1.value.length !== 2 || manualTeam2.value.length !== 2) {
-    notify({
-      type: 'warning',
-      message: 'Each team must have exactly 2 players',
-    });
-    return;
-  }
-
-  // Check if teams are very unbalanced and show confirmation
-  if (getSkillDifference() >= 3) {
-    $q.dialog({
-      title: 'Unbalanced Teams',
-      message: `These teams are very unbalanced (skill difference: ${getSkillDifference()}). Are you sure you want to create this match?`,
-      cancel: {
-        label: 'Go Back',
-        color: 'grey',
-        flat: true
-      },
-      ok: {
-        label: 'Create Anyway',
-        color: 'accent',
-        icon: 'check'
-      },
-      persistent: true
-    }).onOk(() => {
-      finalizeManualMatch();
-    });
-  } else {
-    finalizeManualMatch();
-  }
-};
-
-const finalizeManualMatch = () => {
-  // Create the match
-  const newMatch: Match = {
-    id: `match-${Date.now()}`,
-    players: [...manualTeam1.value, ...manualTeam2.value],
-    status: 'waiting',
-    order: matches.value.length + 1,
-    createdAt: new Date(),
-    court: undefined
-  };
-  matches.value.push(newMatch);
-
-  // Remove players from queue
-  const matchedPlayerNames = newMatch.players.map(p => p.username);
-  queue.value = queue.value.filter(p => !matchedPlayerNames.includes(p.username));
-
-  // Save data
-
-  // Close dialog and reset
-  showManualSelectionDialog.value = false;
-  selectedPlayers.value = [];
-  manualTeam1.value = [];
-  manualTeam2.value = [];
-  manualSelectionStep.value = 1;
-  selectedForSwap.value = null;
-  selectedForSwapTeam.value = null;
-
-  notify({
-    type: 'positive',
-    message: 'Manual match created successfully!',
-  });
-};
-*/
-
-const createManualMatchWithCourt = () => {
-  let matchPlayers: Player[];
-
-  if (matchType.value === 'doubles') {
-    matchPlayers = [...manualTeam1.value, ...manualTeam2.value];
-  } else {
-    matchPlayers = [...selectedPlayers.value];
-  }
-
-  // Check for duplicate players in the selection
-  const usernames = matchPlayers.map((p) => p.username);
-  const uniqueUsernames = new Set(usernames);
-  if (usernames.length !== uniqueUsernames.size) {
-    notify({
-      type: 'negative',
-      message: 'Cannot create match with duplicate players',
-    });
-    return;
-  }
-
-  // Check if any selected players are already in other matches
-  const playersInMatches = matchPlayers.filter((p) =>
-    MatchmakingApp.state.activeMatches.some(
-      (m) =>
-        !m.deletedAt &&
-        (m.teamA.includes(p.username) || m.teamB.includes(p.username)),
-    ),
-  );
-
-  if (playersInMatches.length > 0) {
-    const names = playersInMatches.map((p) => p.username).join(', ');
-    notify({
-      type: 'negative',
-      message: `Cannot create match: ${names} already in another match`,
-    });
-    return;
-  }
-
-  // Auto-assign a slot
-  const assignedCourt = assignCourt();
-
-  const isCourtEmpty =
-    !!assignedCourt &&
-    !matches.value.some(
-      (m) => m.court === assignedCourt && m.status === 'in-progress',
-    );
-
-  // Map original queue types
-  const originalQueueTypes: Record<string, 'GENERAL' | 'WINNERS' | 'LOSERS'> =
-    {};
-  matchPlayers.forEach((p) => {
-    const queueEntry = MatchmakingApp.state.queues
-      .filter((q) => !q.deletedAt)
-      .find((q) => q.username === p.username);
-    originalQueueTypes[p.username] = queueEntry?.queueType || 'GENERAL';
-  });
-
-  MatchmakingApp.state.activeMatches.push({
-    matchId: `match-${Date.now()}`,
-    queueSource: 'MANUAL',
-    teamA: (matchType.value === 'doubles'
-      ? manualTeam1.value
-      : [selectedPlayers.value[0]]
-    ).map((p) => p.username),
-    teamB: (matchType.value === 'doubles'
-      ? manualTeam2.value
-      : [selectedPlayers.value[1]]
-    ).map((p) => p.username),
-    expectedDifference: 0,
-    ...(isCourtEmpty
-      ? {
-          status: 'in-progress' as const,
-          court: assignedCourt,
-          startedAt: Date.now(),
-        }
-      : { status: 'waiting' as const, court: undefined }),
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    originalQueueTypes,
-    generatedBy: currentAdminName.value,
-    generationType: 'manual' as const,
-  });
-
-  matchPlayers.forEach((p) => MatchmakingApp.removeFromQueue(p.username));
-  MatchmakingApp.persist();
-
-  showManualSelectionDialog.value = false;
-  selectedPlayers.value = [];
-  manualTeam1.value = [];
-  manualTeam2.value = [];
-  manualSelectionStep.value = 1;
-
-  notify({
-    type: 'positive',
-    message: 'Manual match created successfully!',
-  });
-};
-
-/*
-const createSinglesManualMatch = () => {
-  if (selectedPlayers.value.length !== 2) {
-    notify({
-      type: 'warning',
-      message: 'Please select exactly 2 players',
-    });
-    return;
-  }
-
-  // Create the singles match (just 2 players)
-const newMatch: Match = {
-  id: `match-${Date.now()}`,
-  players: [...selectedPlayers.value],
-  status: 'waiting',
-  order: matches.value.length + 1,
-  createdAt: new Date(),
-  court: undefined
-};
-  matches.value.push(newMatch);
-
-  // Remove players from queue
-const matchedPlayerNames = newMatch.players.map(p => p.username);
-  queue.value = queue.value.filter(p => !matchedPlayerNames.includes(p.username));
-
-  // Save data
-
-  // Close dialog and reset
-  showManualSelectionDialog.value = false;
-  selectedPlayers.value = [];
-
-  notify({
-    type: 'positive',
-    message: 'Singles match created successfully!',
-  });
-};
-*/
+// Manual selection composable — extracted start/cancel/toggle/proceed/create functions
+const {
+  startManualSelection,
+  cancelManualSelection,
+  togglePlayerSelection,
+  isPlayerSelected,
+  proceedToTeamArrangement,
+  createManualMatchWithCourt,
+} = useManualSelection({
+  matchType,
+  matches,
+  currentAdminName,
+  createBalancedMatch,
+  assignCourt,
+  showManualSelectionDialog,
+  manualSelectionStep,
+  selectedPlayers,
+  manualTeam1,
+  manualTeam2,
+  selectedForSwap,
+  selectedForSwapTeam,
+});
 
 // Match management functions
 const cancelMatch = (filteredIndex: number) => {
