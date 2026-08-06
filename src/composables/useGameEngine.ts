@@ -3253,7 +3253,11 @@ export function useGameEngine() {
   // Touch input helpers (called from UI buttons)
   function triggerJump() {
     input.jump = true;
-    if (servePending.value && myServeTurn.value) triggerServe();
+    if (servePending.value && myServeTurn.value) {
+      triggerServe();
+    } else {
+      sound.jump();
+    }
   }
 
   function setTouchInput(
