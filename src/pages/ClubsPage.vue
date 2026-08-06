@@ -219,13 +219,9 @@
                 <q-card class="club-card" flat>
                   <q-card-section class="q-pa-md">
                     <div class="row items-center no-wrap">
-                      <q-avatar
-                        v-if="getLogoUrl(club)"
-                        size="48px"
-                        class="q-mr-md"
-                      >
+                      <q-avatar v-if="club.logoUrl" size="48px" class="q-mr-md">
                         <img
-                          :src="getLogoUrl(club)"
+                          :src="club.logoUrl"
                           :alt="club.name || club.clubId"
                         />
                       </q-avatar>
@@ -390,7 +386,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { readItems, createItem, updateItem } from '@likha-erp/likha-sdk';
 import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
@@ -402,6 +398,10 @@ import { useQuasar, LocalStorage } from 'quasar';
 import logoUrl from 'src/assets/queue master logo.png';
 import EmptyState from 'src/components/EmptyState.vue';
 import DialogHeader from 'src/components/DialogHeader.vue';
+import {
+  useRecentClubs,
+  type RecentClub,
+} from 'src/composables/useRecentClubs';
 
 defineOptions({ name: 'ClubsPage' });
 
@@ -422,13 +422,10 @@ const activeTab = ref<'browse' | 'mine'>('mine');
 const searchQuery = ref('');
 const searchResults = ref<Club[]>([]);
 const loading = ref(false);
-const myClubs = ref<Club[]>([]);
-const myClubsLoading = ref(false);
 const dataFetchBar = ref<{ start: () => void; stop: () => void } | null>(null);
-const MY_CLUBS_CACHE_KEY = 'my_clubs_cache';
 const joiningClubId = ref<string | null>(null);
 const leavingClubId = ref<string | null>(null);
-const leaveClubTarget = ref<Club | null>(null);
+const leaveClubTarget = ref<RecentClub | null>(null);
 const showLeaveConfirmDialog = ref(false);
 
 const showCreateClubDialog = ref(false);
@@ -438,8 +435,18 @@ const newReferralCode = ref('');
 const createClubLoading = ref(false);
 
 const currentUserId = PlayerProfile.state.id || '';
+const userIdRef = computed(() => currentUserId);
 
-const getMemberCount = (club: Club) => club.players?.length || 0;
+const {
+  recentClubs: myClubs,
+  loading: myClubsLoading,
+  loadRecentClubs: loadMyClubs,
+} = useRecentClubs(userIdRef, {
+  includePlayers: true,
+  cacheKey: 'my_clubs_cache',
+});
+
+const getMemberCount = (club: Club | RecentClub) => club.players?.length || 0;
 
 const getLogoUrl = (club: Club) => {
   if (!club.logo) return '';
@@ -449,7 +456,7 @@ const getLogoUrl = (club: Club) => {
   return `${LIKHA_URL}/assets/${club.logo}`;
 };
 
-const isMemberOf = (club: Club) => {
+const isMemberOf = (club: Club | RecentClub) => {
   if (!currentUserId) return false;
   return club.players?.some((p) => p.directus_users_id?.id === currentUserId);
 };
@@ -490,79 +497,12 @@ const onSearch = async (val: string | number | null) => {
   }
 };
 
-const loadMyClubs = async () => {
-  if (!currentUserId) return;
-
-  // Load from cache instantly for offline / fast startup
-  const cached = LocalStorage.getItem(MY_CLUBS_CACHE_KEY) as Club[] | null;
-  const hasCache = cached && cached.length > 0;
-  if (hasCache) {
-    myClubs.value = cached;
-  } else {
-    myClubsLoading.value = true;
-  }
+const loadMyClubsWithBar = async () => {
   dataFetchBar.value?.start();
-
-  try {
-    // Single request: fetch completed matches with nested club data, sorted by recency.
-    // Deduplicate by club ID — first occurrence is the most recent match.
-    const matches = await likhaClient.request(
-      readItems('completed_match', {
-        filter: {
-          players: { directus_users_id: { _eq: currentUserId } },
-        },
-        fields: [
-          'completed_at',
-          'club.id',
-          'club.clubId',
-          'club.name',
-          'club.logo',
-          'club.players.id',
-          'club.players.directus_users_id.id',
-        ],
-        sort: ['-completed_at'],
-        limit: 250,
-      }),
-    );
-
-    const matchList = (matches || []) as unknown as {
-      completed_at: string;
-      club: Club;
-    }[];
-
-    const seen = new Set<string>();
-    const sortedClubs: Club[] = [];
-    for (const m of matchList) {
-      const club = m.club;
-      if (club && club.id && !seen.has(club.id)) {
-        seen.add(club.id);
-        sortedClubs.push(club);
-      }
-    }
-
-    // Merge any cached clubs that have no matches (user joined but hasn't played yet)
-    if (hasCache) {
-      for (const c of cached!) {
-        if (!seen.has(c.id)) {
-          sortedClubs.push(c);
-        }
-      }
-    }
-
-    if (sortedClubs.length === 0 && !hasCache) {
-      activeTab.value = 'browse';
-    }
-
-    myClubs.value = sortedClubs;
-    LocalStorage.set(MY_CLUBS_CACHE_KEY, sortedClubs);
-  } catch (err) {
-    console.error('Failed to load my clubs:', err);
-    if (!hasCache) {
-      myClubs.value = [];
-    }
-  } finally {
-    myClubsLoading.value = false;
-    dataFetchBar.value?.stop();
+  await loadMyClubs();
+  dataFetchBar.value?.stop();
+  if (myClubs.value.length === 0) {
+    activeTab.value = 'browse';
   }
 };
 
@@ -599,7 +539,7 @@ const openClub = (clubId: string) => {
   router.push(`/club/${clubId}`);
 };
 
-const confirmLeaveClub = (club: Club) => {
+const confirmLeaveClub = (club: RecentClub) => {
   leaveClubTarget.value = club;
   showLeaveConfirmDialog.value = true;
 };
@@ -678,7 +618,7 @@ const createClub = async () => {
 };
 
 onMounted(() => {
-  loadMyClubs();
+  loadMyClubsWithBar();
 });
 </script>
 
