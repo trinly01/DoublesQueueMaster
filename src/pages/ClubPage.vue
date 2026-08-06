@@ -3201,8 +3201,9 @@ import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
 import { useAuth } from 'src/composables/useAuth';
 import { usePayment } from 'src/composables/usePayment';
+import { useDeviceSettings } from 'src/composables/useDeviceSettings';
 
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar, LocalStorage, copyToClipboard } from 'quasar';
 import logoUrl from 'src/assets/queue master logo.png';
@@ -3484,47 +3485,9 @@ const updateAllBulkLevels = (val: 1 | 2 | 3) => {
   bulkPlayers.value.forEach((p) => (p.level = val));
 };
 
-// Helper: stamp both the global settingsUpdatedAt and a per-field timestamp
-// so mergeAppState can resolve per-field conflicts instead of whole-blob LWW.
-const stampSetting = (field: string) => {
-  const now = Date.now();
-  MatchmakingApp.state.settingsUpdatedAt = now;
-  if (!MatchmakingApp.state.settingsFieldTimestamps) {
-    MatchmakingApp.state.settingsFieldTimestamps = {};
-  }
-  MatchmakingApp.state.settingsFieldTimestamps[field] = now;
-};
-
-// Per-device settings: these are personal preferences (not club-wide) so they
-// are stored in LocalStorage only and never pushed to the cloud.  Each admin
-// device retains its own value regardless of what other devices set.
-type DeviceSettings = {
-  ttsEnabled?: boolean;
-  sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
-  matchesFilterBy?: 'all' | 'in-progress' | 'waiting';
-};
-const DEVICE_SETTINGS_KEY = 'device_settings';
-const loadDeviceSettings = (): DeviceSettings => {
-  const stored = LocalStorage.getItem(
-    DEVICE_SETTINGS_KEY,
-  ) as DeviceSettings | null;
-  if (stored) return stored;
-  // First run: migrate from AppState so existing users keep their preferences
-  const migrated: DeviceSettings = {};
-  if (MatchmakingApp.state.ttsEnabled !== undefined)
-    migrated.ttsEnabled = MatchmakingApp.state.ttsEnabled;
-  if (MatchmakingApp.state.sortBy !== undefined)
-    migrated.sortBy = MatchmakingApp.state.sortBy as DeviceSettings['sortBy'];
-  if (MatchmakingApp.state.matchesFilterBy !== undefined)
-    migrated.matchesFilterBy = MatchmakingApp.state
-      .matchesFilterBy as DeviceSettings['matchesFilterBy'];
-  LocalStorage.set(DEVICE_SETTINGS_KEY, migrated);
-  return migrated;
-};
-const deviceSettings = reactive<DeviceSettings>(loadDeviceSettings());
-const saveDeviceSettings = () => {
-  LocalStorage.set(DEVICE_SETTINGS_KEY, { ...deviceSettings });
-};
+// Per-device settings: personal preferences stored in LocalStorage only (not cloud-synced).
+// Extracted to src/composables/useDeviceSettings.ts for shared access with announcer.ts.
+const { deviceSettings, saveDeviceSettings } = useDeviceSettings();
 
 // Court Management Settings
 const availableCourts = computed<number>({
@@ -3534,7 +3497,7 @@ const availableCourts = computed<number>({
     const oldCap = MatchmakingApp.state.availableCourts ?? 1;
 
     MatchmakingApp.state.availableCourts = newCap;
-    stampSetting('availableCourts');
+    MatchmakingApp.stampSetting('availableCourts');
     MatchmakingApp.persist();
 
     if (newCap < oldCap) {
@@ -3586,7 +3549,7 @@ const autoAdvanceMatches = computed<boolean>({
   get: () => MatchmakingApp.state.autoAdvanceMatches ?? true,
   set: (val) => {
     MatchmakingApp.state.autoAdvanceMatches = val;
-    stampSetting('autoAdvanceMatches');
+    MatchmakingApp.stampSetting('autoAdvanceMatches');
     MatchmakingApp.persist();
   },
 });
@@ -3610,7 +3573,7 @@ const qrContinueScan = computed<boolean>({
   get: () => MatchmakingApp.state.qrContinueScan ?? true,
   set: (val) => {
     MatchmakingApp.state.qrContinueScan = val;
-    stampSetting('qrContinueScan');
+    MatchmakingApp.stampSetting('qrContinueScan');
     MatchmakingApp.persist();
   },
 });
@@ -4219,6 +4182,44 @@ const restoreFromCache = (clubId: string): boolean => {
   return false;
 };
 
+// Copy settings from server state to local state for a specific set of fields.
+// onlyIfUndefined=true: only copy if local value is undefined (admin seed pattern).
+// onlyIfUndefined=false: always copy if server value is defined (non-admin overwrite pattern).
+const SETTINGS_SEED_FIELDS = [
+  'availableCourts',
+  'autoAdvanceMatches',
+  'queueReturnMethod',
+  'autoSortQueue',
+  'queuePriorityMode',
+  'matchmakingMode',
+  'sortBy',
+  'matchType',
+  'matchesFilterBy',
+  'ttsEnabled',
+] as const;
+const SETTINGS_OVERWRITE_FIELDS = [
+  ...SETTINGS_SEED_FIELDS,
+  'qrContinueScan',
+  'scoreType',
+  'teamSize',
+] as const;
+
+const copyServerSettings = (
+  server: AppState,
+  fields: readonly string[],
+  onlyIfUndefined: boolean,
+) => {
+  const local = MatchmakingApp.state as unknown as Record<string, unknown>;
+  const srv = server as unknown as Record<string, unknown>;
+  for (const field of fields) {
+    if (srv[field] !== undefined) {
+      if (!onlyIfUndefined || local[field] === undefined) {
+        local[field] = srv[field];
+      }
+    }
+  }
+};
+
 const loadClubData = async (clubId: string) => {
   if (!clubId || !likhaUrl.value) {
     clubStatus.value = 'published';
@@ -4378,73 +4379,7 @@ const loadClubData = async (clubId: string) => {
         if (serverMatchmaking) {
           if (isAdminFromData) {
             // Admins: only merge settings that are missing locally — never overwrite existing
-            if (
-              MatchmakingApp.state.availableCourts === undefined &&
-              serverMatchmaking.availableCourts !== undefined
-            ) {
-              MatchmakingApp.state.availableCourts =
-                serverMatchmaking.availableCourts;
-            }
-            if (
-              MatchmakingApp.state.autoAdvanceMatches === undefined &&
-              serverMatchmaking.autoAdvanceMatches !== undefined
-            ) {
-              MatchmakingApp.state.autoAdvanceMatches =
-                serverMatchmaking.autoAdvanceMatches;
-            }
-            if (
-              MatchmakingApp.state.queueReturnMethod === undefined &&
-              serverMatchmaking.queueReturnMethod !== undefined
-            ) {
-              MatchmakingApp.state.queueReturnMethod =
-                serverMatchmaking.queueReturnMethod;
-            }
-            if (
-              MatchmakingApp.state.autoSortQueue === undefined &&
-              serverMatchmaking.autoSortQueue !== undefined
-            ) {
-              MatchmakingApp.state.autoSortQueue =
-                serverMatchmaking.autoSortQueue;
-            }
-            if (
-              MatchmakingApp.state.queuePriorityMode === undefined &&
-              serverMatchmaking.queuePriorityMode !== undefined
-            ) {
-              MatchmakingApp.state.queuePriorityMode =
-                serverMatchmaking.queuePriorityMode;
-            }
-            if (
-              MatchmakingApp.state.matchmakingMode === undefined &&
-              serverMatchmaking.matchmakingMode !== undefined
-            ) {
-              MatchmakingApp.state.matchmakingMode =
-                serverMatchmaking.matchmakingMode;
-            }
-            if (
-              MatchmakingApp.state.sortBy === undefined &&
-              serverMatchmaking.sortBy !== undefined
-            ) {
-              MatchmakingApp.state.sortBy = serverMatchmaking.sortBy;
-            }
-            if (
-              MatchmakingApp.state.matchType === undefined &&
-              serverMatchmaking.matchType !== undefined
-            ) {
-              MatchmakingApp.state.matchType = serverMatchmaking.matchType;
-            }
-            if (
-              MatchmakingApp.state.matchesFilterBy === undefined &&
-              serverMatchmaking.matchesFilterBy !== undefined
-            ) {
-              MatchmakingApp.state.matchesFilterBy =
-                serverMatchmaking.matchesFilterBy;
-            }
-            if (
-              MatchmakingApp.state.ttsEnabled === undefined &&
-              serverMatchmaking.ttsEnabled !== undefined
-            ) {
-              MatchmakingApp.state.ttsEnabled = serverMatchmaking.ttsEnabled;
-            }
+            copyServerSettings(serverMatchmaking, SETTINGS_SEED_FIELDS, true);
           }
           // Non-admins: settings are overwritten directly in the non-admin block below
         } else {
@@ -4568,43 +4503,7 @@ const loadClubData = async (clubId: string) => {
               ];
             }
             // Overwrite settings too — non-admins don't have local settings to preserve
-            if (serverMatchmaking.availableCourts !== undefined) {
-              MatchmakingApp.state.availableCourts =
-                serverMatchmaking.availableCourts;
-            }
-            if (serverMatchmaking.autoAdvanceMatches !== undefined) {
-              MatchmakingApp.state.autoAdvanceMatches =
-                serverMatchmaking.autoAdvanceMatches;
-            }
-            if (serverMatchmaking.queueReturnMethod !== undefined) {
-              MatchmakingApp.state.queueReturnMethod =
-                serverMatchmaking.queueReturnMethod;
-            }
-            if (serverMatchmaking.autoSortQueue !== undefined) {
-              MatchmakingApp.state.autoSortQueue =
-                serverMatchmaking.autoSortQueue;
-            }
-            if (serverMatchmaking.queuePriorityMode !== undefined) {
-              MatchmakingApp.state.queuePriorityMode =
-                serverMatchmaking.queuePriorityMode;
-            }
-            if (serverMatchmaking.matchmakingMode !== undefined) {
-              MatchmakingApp.state.matchmakingMode =
-                serverMatchmaking.matchmakingMode;
-            }
-            if (serverMatchmaking.sortBy !== undefined) {
-              MatchmakingApp.state.sortBy = serverMatchmaking.sortBy;
-            }
-            if (serverMatchmaking.matchType !== undefined) {
-              MatchmakingApp.state.matchType = serverMatchmaking.matchType;
-            }
-            if (serverMatchmaking.matchesFilterBy !== undefined) {
-              MatchmakingApp.state.matchesFilterBy =
-                serverMatchmaking.matchesFilterBy;
-            }
-            if (serverMatchmaking.ttsEnabled !== undefined) {
-              MatchmakingApp.state.ttsEnabled = serverMatchmaking.ttsEnabled;
-            }
+            copyServerSettings(serverMatchmaking, SETTINGS_SEED_FIELDS, false);
             // Carry checkpoint timestamps so resets propagate
             MatchmakingApp.state.playersResetAt =
               serverMatchmaking.playersResetAt ?? 0;
@@ -5296,35 +5195,7 @@ const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
       ];
     }
     // Overwrite settings — non-admins don't have local settings to preserve
-    if (serverMatchmaking.availableCourts !== undefined)
-      MatchmakingApp.state.availableCourts = serverMatchmaking.availableCourts;
-    if (serverMatchmaking.autoAdvanceMatches !== undefined)
-      MatchmakingApp.state.autoAdvanceMatches =
-        serverMatchmaking.autoAdvanceMatches;
-    if (serverMatchmaking.queueReturnMethod !== undefined)
-      MatchmakingApp.state.queueReturnMethod =
-        serverMatchmaking.queueReturnMethod;
-    if (serverMatchmaking.autoSortQueue !== undefined)
-      MatchmakingApp.state.autoSortQueue = serverMatchmaking.autoSortQueue;
-    if (serverMatchmaking.queuePriorityMode !== undefined)
-      MatchmakingApp.state.queuePriorityMode =
-        serverMatchmaking.queuePriorityMode;
-    if (serverMatchmaking.matchmakingMode !== undefined)
-      MatchmakingApp.state.matchmakingMode = serverMatchmaking.matchmakingMode;
-    if (serverMatchmaking.sortBy !== undefined)
-      MatchmakingApp.state.sortBy = serverMatchmaking.sortBy;
-    if (serverMatchmaking.matchType !== undefined)
-      MatchmakingApp.state.matchType = serverMatchmaking.matchType;
-    if (serverMatchmaking.matchesFilterBy !== undefined)
-      MatchmakingApp.state.matchesFilterBy = serverMatchmaking.matchesFilterBy;
-    if (serverMatchmaking.ttsEnabled !== undefined)
-      MatchmakingApp.state.ttsEnabled = serverMatchmaking.ttsEnabled;
-    if (serverMatchmaking.qrContinueScan !== undefined)
-      MatchmakingApp.state.qrContinueScan = serverMatchmaking.qrContinueScan;
-    if (serverMatchmaking.scoreType !== undefined)
-      MatchmakingApp.state.scoreType = serverMatchmaking.scoreType;
-    if (serverMatchmaking.teamSize !== undefined)
-      MatchmakingApp.state.teamSize = serverMatchmaking.teamSize;
+    copyServerSettings(serverMatchmaking, SETTINGS_OVERWRITE_FIELDS, false);
     // Carry checkpoint timestamps
     MatchmakingApp.state.playersResetAt = serverMatchmaking.playersResetAt ?? 0;
     MatchmakingApp.state.queuesResetAt = serverMatchmaking.queuesResetAt ?? 0;
@@ -5942,7 +5813,7 @@ const matchType = computed<'singles' | 'doubles'>({
   get: () => MatchmakingApp.state.matchType || 'doubles',
   set: (val) => {
     MatchmakingApp.state.matchType = val;
-    stampSetting('matchType');
+    MatchmakingApp.stampSetting('matchType');
     MatchmakingApp.persist();
   },
 });
@@ -5954,7 +5825,7 @@ const queueReturnMethod = computed<
   get: () => MatchmakingApp.state.queueReturnMethod || 'fairness_first',
   set: (val) => {
     MatchmakingApp.state.queueReturnMethod = val;
-    stampSetting('queueReturnMethod');
+    MatchmakingApp.stampSetting('queueReturnMethod');
     MatchmakingApp.persist();
   },
 });
@@ -5971,7 +5842,7 @@ const autoSortQueue = computed<boolean>({
   get: () => MatchmakingApp.state.autoSortQueue ?? true,
   set: (val) => {
     MatchmakingApp.state.autoSortQueue = val;
-    stampSetting('autoSortQueue');
+    MatchmakingApp.stampSetting('autoSortQueue');
     MatchmakingApp.persist();
   },
 });
@@ -5979,7 +5850,7 @@ const queuePriorityMode = computed<'timestamp' | 'gamesPlayed'>({
   get: () => MatchmakingApp.state.queuePriorityMode || 'gamesPlayed',
   set: (val) => {
     MatchmakingApp.state.queuePriorityMode = val;
-    stampSetting('queuePriorityMode');
+    MatchmakingApp.stampSetting('queuePriorityMode');
     MatchmakingApp.persist();
   },
 });
@@ -6073,7 +5944,7 @@ const matchmakingMode = computed<
   get: () => MatchmakingApp.state.matchmakingMode || 'fair_balance',
   set: (val) => {
     MatchmakingApp.state.matchmakingMode = val;
-    stampSetting('matchmakingMode');
+    MatchmakingApp.stampSetting('matchmakingMode');
     MatchmakingApp.persist();
   },
 });
@@ -6108,7 +5979,7 @@ const scoreType = computed<'RALLY' | 'SIDEOUT'>({
   get: () => MatchmakingApp.state.scoreType || 'SIDEOUT',
   set: (val) => {
     MatchmakingApp.state.scoreType = val;
-    stampSetting('scoreType');
+    MatchmakingApp.stampSetting('scoreType');
     MatchmakingApp.persist();
   },
 });
@@ -6813,7 +6684,7 @@ const currentAdminName = computed(() => {
 
 const generateNewMatches = () => {
   MatchmakingApp.state.teamSize = matchType.value === 'singles' ? 1 : 2;
-  stampSetting('teamSize');
+  MatchmakingApp.stampSetting('teamSize');
   MatchmakingApp.persist();
   MatchmakingApp.draftNextMatches(
     queuePriorityMode.value,
