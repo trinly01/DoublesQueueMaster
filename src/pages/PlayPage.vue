@@ -313,7 +313,7 @@
           @click="engine.resetScore()"
         />
         <q-btn
-          :label="roomCode ? 'Play PvP' : 'Play Again'"
+          :label="roomCode ? 'Rematch' : 'Play Again'"
           color="white"
           text-color="accent"
           unelevated
