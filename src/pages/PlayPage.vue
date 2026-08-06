@@ -434,7 +434,8 @@
         :class="{ 'jump-btn-pressed': jumpPressed }"
         @touchstart.prevent.stop="onJumpTouch"
         @touchmove.prevent.stop
-        @touchend.prevent.stop
+        @touchend.prevent.stop="onJumpRelease"
+        @touchcancel.prevent.stop="onJumpRelease"
       >
         <q-icon name="keyboard_double_arrow_up" size="28px" />
       </button>
@@ -564,9 +565,10 @@ function onJoystickEnd(e: TouchEvent) {
 function onJumpTouch() {
   engine.triggerJump();
   jumpPressed.value = true;
-  setTimeout(() => {
-    jumpPressed.value = false;
-  }, 150);
+}
+
+function onJumpRelease() {
+  jumpPressed.value = false;
 }
 
 const difficulties: { label: string; value: Difficulty }[] = [
