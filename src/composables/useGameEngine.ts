@@ -2289,9 +2289,13 @@ export function useGameEngine() {
     const justPressed = (idx: number) =>
       curButtons[idx] && !prevGamepadButtons[idx];
 
-    // A / X (button 0) → serve
+    // A / X (button 0) → serve or jump
     if (justPressed(0)) {
-      triggerServe();
+      if (servePending.value && myServeTurn.value) {
+        triggerServe();
+      } else {
+        triggerJump();
+      }
     }
     // B / Circle (button 1) → jump
     if (justPressed(1)) {
