@@ -718,34 +718,18 @@ export class LocalMatchmakingSystem {
       };
     }
 
-    // Fallback default settings
-    if (initialState.availableCourts === undefined)
-      initialState.availableCourts = 1;
-    if (initialState.autoAdvanceMatches === undefined)
-      initialState.autoAdvanceMatches = true;
-    if (initialState.queueReturnMethod === undefined)
-      initialState.queueReturnMethod = 'fairness_first';
-    if (initialState.autoSortQueue === undefined)
-      initialState.autoSortQueue = true;
-    if (initialState.queuePriorityMode === undefined)
-      initialState.queuePriorityMode = 'gamesPlayed';
-    if (initialState.matchmakingMode === undefined)
-      initialState.matchmakingMode = 'strict_balance';
-    if (initialState.sortBy === undefined)
-      initialState.sortBy = 'matchesPlayed';
-    if (initialState.matchType === undefined)
-      initialState.matchType = 'doubles';
-    if (initialState.matchesFilterBy === undefined)
-      initialState.matchesFilterBy = 'all';
-    if (initialState.scoreType === undefined)
-      initialState.scoreType = 'SIDEOUT';
-    if (initialState.ttsEnabled === undefined) initialState.ttsEnabled = true;
-    if (initialState.qrContinueScan === undefined)
-      initialState.qrContinueScan = true;
-    if (initialState.completedMatchesResetAt === undefined)
-      initialState.completedMatchesResetAt = 0;
-    if (initialState.lastExportedAt === undefined)
-      initialState.lastExportedAt = 0;
+    // Fallback default settings — driven by CLUB_SETTINGS descriptor.
+    // Excludes teamSize (set by constructor param) and allStarSortDirection
+    // (not previously seeded here; handled by ?? 'desc' fallback in draftNextMatches).
+    const seedFields = (
+      Object.keys(CLUB_SETTINGS) as Array<keyof typeof CLUB_SETTINGS>
+    ).filter((k) => k !== 'teamSize' && k !== 'allStarSortDirection');
+    const seedState = initialState as unknown as Record<string, unknown>;
+    for (const field of seedFields) {
+      if (seedState[field] === undefined) {
+        seedState[field] = CLUB_SETTINGS[field];
+      }
+    }
     if (initialState.playersResetAt === undefined)
       initialState.playersResetAt = 0;
     if (initialState.queuesResetAt === undefined)
@@ -2032,67 +2016,20 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     }
   }
 
-  const mergedState: AppState = {
-    availableCourts: pickSettings(
-      local.availableCourts,
-      server.availableCourts,
-      'availableCourts',
-    ),
-    autoAdvanceMatches: pickSettings(
-      local.autoAdvanceMatches,
-      server.autoAdvanceMatches,
-      'autoAdvanceMatches',
-    ),
-    queueReturnMethod: pickSettings(
-      local.queueReturnMethod,
-      server.queueReturnMethod,
-      'queueReturnMethod',
-    ),
-    autoSortQueue: pickSettings(
-      local.autoSortQueue,
-      server.autoSortQueue,
-      'autoSortQueue',
-    ),
-    queuePriorityMode: pickSettings(
-      local.queuePriorityMode,
-      server.queuePriorityMode,
-      'queuePriorityMode',
-    ),
-    matchmakingMode: pickSettings(
-      local.matchmakingMode,
-      server.matchmakingMode,
-      'matchmakingMode',
-    ),
-    allStarSortDirection: pickSettings(
-      local.allStarSortDirection,
-      server.allStarSortDirection,
-      'allStarSortDirection',
-    ),
-    sortBy: pickSettings(local.sortBy, server.sortBy, 'sortBy'),
-    matchType: pickSettings(local.matchType, server.matchType, 'matchType'),
-    matchesFilterBy: pickSettings(
-      local.matchesFilterBy,
-      server.matchesFilterBy,
-      'matchesFilterBy',
-    ),
-    scoreType: pickSettings(local.scoreType, server.scoreType, 'scoreType'),
-    ttsEnabled: pickSettings(local.ttsEnabled, server.ttsEnabled, 'ttsEnabled'),
-    qrContinueScan: pickSettings(
-      local.qrContinueScan,
-      server.qrContinueScan,
-      'qrContinueScan',
-    ),
-    completedMatchesResetAt: pickSettings(
-      local.completedMatchesResetAt,
-      server.completedMatchesResetAt,
-      'completedMatchesResetAt',
-    ),
-    lastExportedAt: pickSettings(
-      local.lastExportedAt,
-      server.lastExportedAt,
-      'lastExportedAt',
-    ),
-    teamSize: pickSettings(local.teamSize, server.teamSize, 'teamSize'),
+  // Build merged settings via descriptor-driven per-field LWW.
+  const localSettings = local as unknown as Record<string, unknown>;
+  const serverSettings = server as unknown as Record<string, unknown>;
+  const mergedSettings: Record<string, unknown> = {};
+  for (const field of Object.keys(CLUB_SETTINGS)) {
+    mergedSettings[field] = pickSettings(
+      localSettings[field],
+      serverSettings[field],
+      field,
+    );
+  }
+
+  const mergedState = {
+    ...(mergedSettings as Record<string, unknown>),
     settingsFieldTimestamps: mergedFTS,
     players: mergedPlayers,
     queues: filteredQueues,
@@ -2103,7 +2040,7 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     playersResetAt: effectivePlayersResetAt,
     queuesResetAt: effectiveQueuesResetAt,
     matchesResetAt: effectiveMatchesResetAt,
-  };
+  } as AppState;
 
   // Ensure no player ends up in multiple active matches after merge.
   // Losing matches are tombstoned and their players returned to queue.
