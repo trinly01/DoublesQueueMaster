@@ -1431,7 +1431,7 @@ kbd {
 
 .joystick-default {
   left: 56px;
-  bottom: 56px;
+  bottom: 140px;
   right: auto;
   top: auto;
   transform: none;
