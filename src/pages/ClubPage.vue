@@ -3202,7 +3202,7 @@ import { joinClub as joinClubService } from 'src/services/clubMembership';
 import { useAuth } from 'src/composables/useAuth';
 import { usePayment } from 'src/composables/usePayment';
 
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar, LocalStorage, copyToClipboard } from 'quasar';
 import logoUrl from 'src/assets/queue master logo.png';
@@ -3495,6 +3495,37 @@ const stampSetting = (field: string) => {
   MatchmakingApp.state.settingsFieldTimestamps[field] = now;
 };
 
+// Per-device settings: these are personal preferences (not club-wide) so they
+// are stored in LocalStorage only and never pushed to the cloud.  Each admin
+// device retains its own value regardless of what other devices set.
+type DeviceSettings = {
+  ttsEnabled?: boolean;
+  sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
+  matchesFilterBy?: 'all' | 'in-progress' | 'waiting';
+};
+const DEVICE_SETTINGS_KEY = 'device_settings';
+const loadDeviceSettings = (): DeviceSettings => {
+  const stored = LocalStorage.getItem(
+    DEVICE_SETTINGS_KEY,
+  ) as DeviceSettings | null;
+  if (stored) return stored;
+  // First run: migrate from AppState so existing users keep their preferences
+  const migrated: DeviceSettings = {};
+  if (MatchmakingApp.state.ttsEnabled !== undefined)
+    migrated.ttsEnabled = MatchmakingApp.state.ttsEnabled;
+  if (MatchmakingApp.state.sortBy !== undefined)
+    migrated.sortBy = MatchmakingApp.state.sortBy as DeviceSettings['sortBy'];
+  if (MatchmakingApp.state.matchesFilterBy !== undefined)
+    migrated.matchesFilterBy = MatchmakingApp.state
+      .matchesFilterBy as DeviceSettings['matchesFilterBy'];
+  LocalStorage.set(DEVICE_SETTINGS_KEY, migrated);
+  return migrated;
+};
+const deviceSettings = reactive<DeviceSettings>(loadDeviceSettings());
+const saveDeviceSettings = () => {
+  LocalStorage.set(DEVICE_SETTINGS_KEY, { ...deviceSettings });
+};
+
 // Court Management Settings
 const availableCourts = computed<number>({
   get: () => MatchmakingApp.state.availableCourts ?? 1,
@@ -3560,11 +3591,14 @@ const autoAdvanceMatches = computed<boolean>({
   },
 });
 const ttsEnabled = computed<boolean>({
-  get: () => MatchmakingApp.state.ttsEnabled ?? true,
+  get: () => deviceSettings.ttsEnabled ?? true,
   set: (val) => {
+    deviceSettings.ttsEnabled = val;
+    saveDeviceSettings();
+    // Keep MatchmakingApp.state in sync for announcer.ts runtime checks,
+    // but use persistSilently() — no cloud push for per-device settings.
     MatchmakingApp.state.ttsEnabled = val;
-    stampSetting('ttsEnabled');
-    MatchmakingApp.persist();
+    MatchmakingApp.persistSilently();
   },
 });
 watch(ttsEnabled, (newVal, oldVal) => {
@@ -4022,6 +4056,31 @@ const populateEditClubFields = () => {
   editClubId.value = currentClubId.value;
 };
 
+// Fetch fresh club info (name, clubId, logo) directly from server so the
+// Club settings tab never shows stale cached data.  This prevents an admin
+// from accidentally overwriting another admin's concurrent rename.
+const refreshClubInfo = async () => {
+  if (!currentClubUUID.value) return;
+  try {
+    const result = await likhaClient.request(
+      readItems('club', {
+        filter: { id: { _eq: currentClubUUID.value } },
+        fields: ['id', 'name', 'clubId', 'logo'],
+      }),
+    );
+    const club = result?.[0] as
+      | { name?: string; clubId?: string; logo?: string }
+      | undefined;
+    if (club) {
+      clubName.value = club.name || clubName.value;
+      currentClubId.value = club.clubId || currentClubId.value;
+      clubLogo.value = club.logo || clubLogo.value;
+    }
+  } catch (err) {
+    console.warn('Failed to refresh club info:', err);
+  }
+};
+
 const onLogoSelected = async (event: Event) => {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -4469,6 +4528,14 @@ const loadClubData = async (clubId: string) => {
                   serverMatchmaking.queuesResetAt ?? 0;
                 MatchmakingApp.state.matchesResetAt =
                   serverMatchmaking.matchesResetAt ?? 0;
+                // Carry settings timestamps so per-field LWW survives on fresh devices
+                MatchmakingApp.state.settingsUpdatedAt =
+                  serverMatchmaking.settingsUpdatedAt ?? 0;
+                if (serverMatchmaking.settingsFieldTimestamps) {
+                  MatchmakingApp.state.settingsFieldTimestamps = {
+                    ...serverMatchmaking.settingsFieldTimestamps,
+                  };
+                }
               } else {
                 // Existing local state: smart-merge with server
                 const merged = mergeAppState(
@@ -5546,7 +5613,7 @@ const settingsTab = ref<'matchmaking' | 'club' | 'feedback'>('matchmaking');
 
 watch([showSettingsDialog, settingsTab], ([showDialog, tab]) => {
   if (showDialog && tab === 'club') {
-    populateEditClubFields();
+    void refreshClubInfo().then(() => populateEditClubFields());
   }
 });
 
@@ -5834,7 +5901,7 @@ const sortBy = computed<
   'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name'
 >({
   get: () =>
-    (MatchmakingApp.state.sortBy || 'matchesPlayed') as
+    (deviceSettings.sortBy || 'matchesPlayed') as
       | 'matchesPlayed'
       | 'rating'
       | 'winRate'
@@ -5842,9 +5909,11 @@ const sortBy = computed<
       | 'losses'
       | 'name',
   set: (val) => {
+    deviceSettings.sortBy = val;
+    saveDeviceSettings();
+    // Keep MatchmakingApp.state in sync for backward compat, but don't push to cloud.
     MatchmakingApp.state.sortBy = val;
-    stampSetting('sortBy');
-    MatchmakingApp.persist();
+    MatchmakingApp.persistSilently();
   },
 });
 
@@ -5854,15 +5923,17 @@ const searchPlayers = ref<string>('');
 // Matches filter state
 const matchesFilterBy = computed<'all' | 'in-progress' | 'waiting'>({
   get: () => {
-    const raw = MatchmakingApp.state.matchesFilterBy ?? 'all';
+    const raw = deviceSettings.matchesFilterBy ?? 'all';
     // Coerce legacy numeric values to 'all'
     if (typeof raw === 'number') return 'all';
     return raw as 'all' | 'in-progress' | 'waiting';
   },
   set: (val) => {
+    deviceSettings.matchesFilterBy = val;
+    saveDeviceSettings();
+    // Keep MatchmakingApp.state in sync for backward compat, but don't push to cloud.
     MatchmakingApp.state.matchesFilterBy = val;
-    stampSetting('matchesFilterBy');
-    MatchmakingApp.persist();
+    MatchmakingApp.persistSilently();
   },
 });
 
