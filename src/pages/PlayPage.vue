@@ -431,6 +431,7 @@
       <!-- Jump button (separate layer for independent multi-touch) -->
       <button
         class="jump-btn"
+        :class="{ 'jump-btn-pressed': jumpPressed }"
         @touchstart.prevent.stop="onJumpTouch"
         @touchmove.prevent.stop
         @touchend.prevent.stop
@@ -562,6 +563,10 @@ function onJoystickEnd(e: TouchEvent) {
 
 function onJumpTouch() {
   engine.triggerJump();
+  jumpPressed.value = true;
+  setTimeout(() => {
+    jumpPressed.value = false;
+  }, 150);
 }
 
 const difficulties: { label: string; value: Difficulty }[] = [
@@ -578,6 +583,8 @@ const rulesOptions: { label: string; value: Rules }[] = [
 const isTouch =
   typeof window !== 'undefined' &&
   ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+const jumpPressed = ref(false);
 
 const hasGamepad = ref(false);
 
@@ -1456,11 +1463,16 @@ kbd {
   justify-content: center;
   touch-action: none;
   backdrop-filter: blur(2px);
+  transition:
+    transform 0.1s ease,
+    background 0.1s ease,
+    opacity 0.1s ease;
 }
 
-.jump-btn:active {
-  background: rgba(255, 255, 255, 0.4);
-  transform: scale(0.92);
+.jump-btn-pressed {
+  background: rgba(255, 255, 255, 0.5);
+  transform: scale(0.88);
+  opacity: 0.7;
 }
 
 .nav-focused {
