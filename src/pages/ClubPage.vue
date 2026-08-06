@@ -1551,135 +1551,15 @@
       </q-dialog>
 
       <!-- Edit Player Dialog -->
-      <q-dialog v-model="showEditPlayerDialog" :maximized="$q.screen.lt.md">
-        <q-card
-          class="bg-white"
-          style="
-            max-width: 800px;
-            width: 95vw;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-          "
-        >
-          <!-- Header -->
-          <DialogHeader title="Edit Player" icon="edit" />
-
-          <!-- Content -->
-          <q-card-section class="q-pa-md" style="flex: 1; overflow-y: auto">
-            <div class="q-gutter-y-md">
-              <div class="text-subtitle2 q-mb-sm">
-                Editing: <strong>{{ editingPlayer?.username }}</strong>
-                <q-badge
-                  v-if="editingPlayer?.userId"
-                  color="blue-6"
-                  class="q-ml-sm"
-                >
-                  <q-icon name="verified" size="12px" />
-                  <q-tooltip
-                    anchor="top middle"
-                    self="bottom middle"
-                    :offset="[8, 8]"
-                    >Read-only</q-tooltip
-                  >
-                </q-badge>
-              </div>
-
-              <q-input
-                v-model="editPlayerName"
-                label="Player Name"
-                type="text"
-                :readonly="!!editingPlayer?.userId"
-                :hint="
-                  editingPlayer?.userId
-                    ? 'Name managed by linked account'
-                    : undefined
-                "
-                outlined
-                dense
-                :bg-color="editingPlayer?.userId ? 'grey-2' : undefined"
-              >
-                <template v-slot:prepend>
-                  <q-icon name="person" />
-                </template>
-              </q-input>
-
-              <q-select
-                v-model="editPlayerLevel"
-                :options="levelOptions"
-                label="Player Level"
-                :rules="[(val) => val !== null || 'Player level is required']"
-                :readonly="!!editingPlayer?.userId"
-                :hint="
-                  editingPlayer?.userId
-                    ? 'Level managed by linked account'
-                    : undefined
-                "
-                outlined
-                dense
-                emit-value
-                map-options
-                :bg-color="editingPlayer?.userId ? 'grey-2' : undefined"
-              >
-                <template v-slot:prepend>
-                  <q-icon name="star" />
-                </template>
-                <template v-slot:option="scope">
-                  <q-item v-bind="scope.itemProps">
-                    <q-item-section avatar>
-                      <q-icon
-                        :name="getLevelIcon(scope.opt.value)"
-                        :color="getLevelColor(scope.opt.value)"
-                      />
-                    </q-item-section>
-                    <q-item-section>
-                      <q-item-label>{{ scope.opt.label }}</q-item-label>
-                      <q-item-label caption>{{
-                        scope.opt.description
-                      }}</q-item-label>
-                    </q-item-section>
-                  </q-item>
-                </template>
-              </q-select>
-
-              <q-banner
-                v-if="hasNameConflict"
-                class="q-mt-md"
-                color="warning"
-                icon="warning"
-              >
-                <template v-slot:avatar>
-                  <q-icon name="warning" color="warning" />
-                </template>
-                Another player with this name already exists. Please choose a
-                different name.
-              </q-banner>
-            </div>
-          </q-card-section>
-
-          <!-- Footer Actions -->
-          <q-separator />
-          <q-card-actions align="right" class="q-pa-md">
-            <q-btn
-              flat
-              label="Cancel"
-              color="grey"
-              @click="showEditPlayerDialog = false"
-            />
-            <q-btn
-              color="accent"
-              @click="savePlayerEdit"
-              label="Save Changes"
-              icon="save"
-              :disable="
-                !editPlayerName?.trim() ||
-                editPlayerLevel === null ||
-                hasNameConflict
-              "
-            />
-          </q-card-actions>
-        </q-card>
-      </q-dialog>
+      <EditPlayerDialog
+        v-model="showEditPlayerDialog"
+        :editing-player="editingPlayer"
+        v-model:editPlayerName="editPlayerName"
+        v-model:editPlayerLevel="editPlayerLevel"
+        :has-name-conflict="hasNameConflict"
+        :level-options="levelOptions"
+        @save="savePlayerEdit"
+      />
 
       <!-- Match Result Dialog -->
       <MatchResultDialog
@@ -3172,6 +3052,7 @@ import {
 import { type DirectusCompletedMatch } from '../services/playerProfile';
 import MatchCard from '../components/MatchCard.vue';
 import MatchResultDialog from '../components/club/MatchResultDialog.vue';
+import EditPlayerDialog from '../components/club/EditPlayerDialog.vue';
 import {
   resolveAvatarUrl,
   formatDateOnly,
