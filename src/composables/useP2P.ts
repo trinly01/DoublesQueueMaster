@@ -457,7 +457,12 @@ export function useP2P() {
       clearInterval(pingIntervalId);
       pingIntervalId = null;
     }
-    cancelReconnect();
+    // Clear reconnect interval but don't reset reconnectTimer to 0
+    // (startReconnectWindow at the end will set it to the full duration)
+    if (reconnectIntervalId) {
+      clearInterval(reconnectIntervalId);
+      reconnectIntervalId = null;
+    }
     if (room) {
       room.leave();
       room = null;
