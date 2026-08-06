@@ -124,8 +124,13 @@
 
         <div
           v-if="recentClubs.length > 0"
-          class="q-mt-md flex flex-center"
-          style="flex-wrap: wrap; gap: 6px; max-width: 280px; margin: 0 auto"
+          class="flex flex-center"
+          style="
+            flex-wrap: wrap;
+            gap: 6px;
+            max-width: 260px;
+            margin: 12px auto 0;
+          "
         >
           <q-chip
             v-for="club in recentClubs.slice(0, 3)"
@@ -2027,7 +2032,7 @@ const onLogout = () => {
 }
 
 .recent-club-chip {
-  max-width: 130px;
+  max-width: 100px;
   overflow: hidden;
 }
 
