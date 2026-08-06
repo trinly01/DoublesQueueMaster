@@ -991,6 +991,23 @@ export class LocalMatchmakingSystem {
     this.state.scoreType = 'SIDEOUT';
     this.state.ttsEnabled = true;
     this.state.qrContinueScan = true;
+    // Stamp every reset field so per-field LWW treats this as authoritative
+    this.state.settingsFieldTimestamps = {
+      availableCourts: now,
+      autoAdvanceMatches: now,
+      queueReturnMethod: now,
+      autoSortQueue: now,
+      queuePriorityMode: now,
+      matchmakingMode: now,
+      sortBy: now,
+      matchType: now,
+      matchesFilterBy: now,
+      scoreType: now,
+      ttsEnabled: now,
+      qrContinueScan: now,
+      completedMatchesResetAt: now,
+      lastExportedAt: now,
+    };
     this.state.settingsUpdatedAt = now;
     this.state.lastModified = now;
     this.state.clubId = '';
