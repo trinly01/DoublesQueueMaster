@@ -2252,7 +2252,6 @@ export function useGameEngine() {
     if (gamepadIndex === e.gamepad.index) {
       gamepadIndex = null;
       prevGamepadButtons = [];
-      setAxis(0, 0);
     }
   }
 
@@ -2273,7 +2272,6 @@ export function useGameEngine() {
     const gp = pads[gamepadIndex];
     if (!gp) {
       gamepadIndex = null;
-      setAxis(0, 0);
       return;
     }
 
@@ -2325,12 +2323,10 @@ export function useGameEngine() {
       stickActive = true;
     }
 
-    // Set axis from gamepad — reset to zero when nothing is active
-    // so the player stops moving when the controller is released
+    // Set axis from gamepad — only when gamepad is actively providing input.
+    // Don't reset to zero when idle, so touch joystick can coexist with gamepad.
     if (stickActive) {
       setAxis(axisX, axisZ);
-    } else {
-      setAxis(0, 0);
     }
 
     // If first poll (e.g. just entered playing state), sync button state
