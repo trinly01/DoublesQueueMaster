@@ -18,7 +18,10 @@ export interface UseClubDataContext {
   likhaUrl: Ref<string>;
   currentUserId: Ref<string>;
   isOpenPlay: ComputedRef<boolean>;
-  getDataFetchBar: () => { start: () => void; stop: () => void } | undefined;
+  getDataFetchBar: () =>
+    | { start: () => void; stop: () => void }
+    | undefined
+    | null;
   lastSyncedServerTimestamp: Ref<number>;
   saveLastSyncedTimestamp: (clubId: string, ts: number) => void;
 }
