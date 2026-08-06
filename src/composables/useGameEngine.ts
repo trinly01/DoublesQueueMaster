@@ -2243,6 +2243,7 @@ export function useGameEngine() {
   // --- Gamepad support ---
   let gamepadIndex: number | null = null;
   let prevGamepadButtons: boolean[] = [];
+  const gamepadWasActive = false;
 
   function onGamepadConnected(e: GamepadEvent) {
     gamepadIndex = e.gamepad.index;
@@ -2324,9 +2325,14 @@ export function useGameEngine() {
     }
 
     // Set axis from gamepad — only when gamepad is actively providing input.
-    // Don't reset to zero when idle, so touch joystick can coexist with gamepad.
+    // When gamepad goes from active to idle, reset once so player stops moving.
+    // Don't reset every idle frame, so touch joystick can coexist with gamepad.
     if (stickActive) {
       setAxis(axisX, axisZ);
+      gamepadWasActive = true;
+    } else if (gamepadWasActive) {
+      setAxis(0, 0);
+      gamepadWasActive = false;
     }
 
     // If first poll (e.g. just entered playing state), sync button state
