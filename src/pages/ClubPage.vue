@@ -1682,69 +1682,14 @@
       </q-dialog>
 
       <!-- Match Result Dialog -->
-      <q-dialog v-model="showMatchResultDialog" :maximized="$q.screen.lt.md">
-        <q-card
-          class="bg-white"
-          style="
-            max-width: 800px;
-            width: 95vw;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-          "
-        >
-          <!-- Header -->
-          <DialogHeader title="Match Result" icon="emoji_events" />
-
-          <!-- Content -->
-          <q-card-section
-            class="q-pa-md"
-            style="flex: 1; overflow-y: auto"
-            v-if="currentMatch"
-          >
-            <div class="q-gutter-y-md">
-              <div class="text-subtitle1 text-center q-mb-sm">
-                Enter match scores
-              </div>
-
-              <MatchResult
-                v-if="currentMatch"
-                :teamA="currentMatch.teamA"
-                :teamB="currentMatch.teamB"
-                :court="currentMatch.court"
-                :winProbability="currentMatch.winProbability"
-                :status="currentMatch.status"
-                :startedAt="
-                  currentMatch.startedAt
-                    ? currentMatch.startedAt.toISOString()
-                    : undefined
-                "
-                editable
-                v-model:teamAScore="teamAScore"
-                v-model:teamBScore="teamBScore"
-              />
-            </div>
-          </q-card-section>
-
-          <!-- Footer Actions -->
-          <q-separator />
-          <q-card-actions align="right" class="q-pa-md">
-            <q-btn
-              flat
-              label="Cancel"
-              color="grey"
-              @click="showMatchResultDialog = false"
-            />
-            <q-btn
-              color="accent"
-              :disable="!canCompleteMatch"
-              @click="completeMatch"
-              label="Complete Match"
-              icon="check"
-            />
-          </q-card-actions>
-        </q-card>
-      </q-dialog>
+      <MatchResultDialog
+        v-model="showMatchResultDialog"
+        :current-match="currentMatch"
+        v-model:teamAScore="teamAScore"
+        v-model:teamBScore="teamBScore"
+        :can-complete-match="canCompleteMatch"
+        @complete="completeMatch"
+      />
 
       <!-- Settings Dialog -->
       <q-dialog v-model="showSettingsDialog" :maximized="$q.screen.lt.md">
@@ -3226,7 +3171,7 @@ import {
 } from '../services/playerReport';
 import { type DirectusCompletedMatch } from '../services/playerProfile';
 import MatchCard from '../components/MatchCard.vue';
-import MatchResult from '../components/MatchResult.vue';
+import MatchResultDialog from '../components/club/MatchResultDialog.vue';
 import {
   resolveAvatarUrl,
   formatDateOnly,
