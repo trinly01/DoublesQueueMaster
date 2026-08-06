@@ -133,6 +133,30 @@ export interface AppState {
   clubUUID?: string; // Directus club UUID
 }
 
+/**
+ * Single source of truth for cloud-synced setting defaults.
+ * Used by: constructor seeding, resetState(), mergeAppState, and ClubPage copy blocks.
+ * Adding a new setting = add one entry here; all sync sites pick it up automatically.
+ */
+export const CLUB_SETTINGS: Record<string, unknown> = {
+  availableCourts: 1,
+  autoAdvanceMatches: true,
+  queueReturnMethod: 'fairness_first',
+  autoSortQueue: true,
+  queuePriorityMode: 'gamesPlayed',
+  matchmakingMode: 'strict_balance',
+  sortBy: 'matchesPlayed',
+  matchType: 'doubles',
+  allStarSortDirection: 'desc',
+  matchesFilterBy: 'all',
+  scoreType: 'SIDEOUT',
+  ttsEnabled: true,
+  qrContinueScan: true,
+  teamSize: 2,
+  completedMatchesResetAt: 0,
+  lastExportedAt: 0,
+};
+
 const STORAGE_KEY = 'matchmaking_state';
 
 // Standalone helper: enforce one-match-per-player on any AppState.
@@ -739,7 +763,7 @@ export class LocalMatchmakingSystem {
   // --- INTERNAL STORAGE METHODS ---
 
   // Stamp both global settingsUpdatedAt and a per-field timestamp for granular LWW.
-  private stampSetting(field: string) {
+  public stampSetting(field: string) {
     const now = Date.now();
     this.state.settingsUpdatedAt = now;
     if (!this.state.settingsFieldTimestamps) {
@@ -979,35 +1003,29 @@ export class LocalMatchmakingSystem {
     this.state.matchesResetAt = now;
     this.state.completedMatchesResetAt = now;
     this.state.lastExportedAt = 0;
-    this.state.availableCourts = 1;
-    this.state.autoAdvanceMatches = true;
-    this.state.queueReturnMethod = 'fairness_first';
-    this.state.autoSortQueue = true;
-    this.state.queuePriorityMode = 'gamesPlayed';
-    this.state.matchmakingMode = 'strict_balance';
-    this.state.sortBy = 'matchesPlayed';
-    this.state.matchType = 'doubles';
-    this.state.matchesFilterBy = 'all';
-    this.state.scoreType = 'SIDEOUT';
-    this.state.ttsEnabled = true;
-    this.state.qrContinueScan = true;
+    // Reset settings to descriptor defaults (teamSize and allStarSortDirection
+    // are managed by the matchmaking algorithm, not reset here).
+    const resetFields = (
+      Object.keys(CLUB_SETTINGS) as Array<keyof typeof CLUB_SETTINGS>
+    ).filter(
+      (k) =>
+        k !== 'teamSize' &&
+        k !== 'allStarSortDirection' &&
+        k !== 'completedMatchesResetAt' &&
+        k !== 'lastExportedAt',
+    );
+    const state = this.state as unknown as Record<string, unknown>;
+    for (const field of resetFields) {
+      state[field] = CLUB_SETTINGS[field];
+    }
     // Stamp every reset field so per-field LWW treats this as authoritative
-    this.state.settingsFieldTimestamps = {
-      availableCourts: now,
-      autoAdvanceMatches: now,
-      queueReturnMethod: now,
-      autoSortQueue: now,
-      queuePriorityMode: now,
-      matchmakingMode: now,
-      sortBy: now,
-      matchType: now,
-      matchesFilterBy: now,
-      scoreType: now,
-      ttsEnabled: now,
-      qrContinueScan: now,
-      completedMatchesResetAt: now,
-      lastExportedAt: now,
-    };
+    const fts: Record<string, number> = {};
+    for (const field of resetFields) {
+      fts[field] = now;
+    }
+    fts.completedMatchesResetAt = now;
+    fts.lastExportedAt = now;
+    this.state.settingsFieldTimestamps = fts;
     this.state.settingsUpdatedAt = now;
     this.state.lastModified = now;
     this.state.clubId = '';

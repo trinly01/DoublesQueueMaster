@@ -1,15 +1,13 @@
 import { ref } from 'vue';
 import type { ActiveMatch, Player } from './matchmaking';
 import { MatchmakingApp } from './matchmaking';
-import { LocalStorage } from 'quasar';
+import { getDeviceSetting } from 'src/composables/useDeviceSettings';
 
 // Per-device TTS setting: read from LocalStorage (not cloud-synced AppState)
 // so each device controls its own announcer independently.
 const isTtsEnabled = (): boolean => {
-  const device = LocalStorage.getItem('device_settings') as {
-    ttsEnabled?: boolean;
-  } | null;
-  if (device && device.ttsEnabled !== undefined) return device.ttsEnabled;
+  const val = getDeviceSetting('ttsEnabled');
+  if (val !== undefined) return val;
   return MatchmakingApp.state.ttsEnabled ?? true;
 };
 

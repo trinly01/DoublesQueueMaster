@@ -4,6 +4,7 @@ import {
   mergeAppState,
   gcTombstones,
   enforceOneMatchPerCourtOnState,
+  CLUB_SETTINGS,
 } from './matchmaking';
 import type {
   Player,
@@ -2193,5 +2194,42 @@ describe('mergeAppState — pure state enforcement helpers', () => {
       'recentM',
       'liveM',
     ]);
+  });
+});
+
+describe('CLUB_SETTINGS descriptor', () => {
+  it('every key has a non-undefined default', () => {
+    for (const [key, val] of Object.entries(CLUB_SETTINGS)) {
+      expect(val, `CLUB_SETTINGS.${key} must have a default`).toBeDefined();
+    }
+  });
+
+  it('mergeAppState round-trips every CLUB_SETTINGS key', () => {
+    const local = {
+      players: {},
+      queues: [],
+      activeMatches: [],
+      completedMatches: [],
+      ...Object.fromEntries(Object.entries(CLUB_SETTINGS)),
+    } as unknown as AppState;
+    const server = {
+      players: {},
+      queues: [],
+      activeMatches: [],
+      completedMatches: [],
+      ...Object.fromEntries(
+        Object.entries(CLUB_SETTINGS).map(([k, v]) => [
+          k,
+          typeof v === 'boolean' ? !v : v === 'desc' ? 'asc' : `alt_${k}`,
+        ]),
+      ),
+    } as unknown as AppState;
+    const merged = mergeAppState(local, server);
+    for (const key of Object.keys(CLUB_SETTINGS)) {
+      expect(
+        (merged as unknown as Record<string, unknown>)[key],
+        `merged.${key} should be defined`,
+      ).toBeDefined();
+    }
   });
 });
