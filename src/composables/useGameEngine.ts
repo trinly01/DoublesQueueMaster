@@ -2073,8 +2073,9 @@ export function useGameEngine() {
 
     // Ball stopped on same side — same as "In!" (opponent hit it in, this side didn't return)
     // But if ball clipped the net, fault the hitter (lastHitBy) with "Net!"
+    // Only fire after second bounce — after first bounce the receiver may still legally hit it.
     // Skip if a bounce fault is already pending
-    if (!pendingBounceFault) {
+    if (!pendingBounceFault && ballBouncedOnSide && bounceCountThisSide >= 2) {
       const speedSq = refs.ballVel.lengthSq();
       if (speedSq < 0.25 && refs.ballPos.y < 0.15) {
         if (ballClippedNet) {
