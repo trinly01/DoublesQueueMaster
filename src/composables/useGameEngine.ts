@@ -2251,22 +2251,21 @@ export function useGameEngine() {
       }
     }
 
-    // D-pad as fallback (buttons 12-15)
+    // D-pad as fallback (buttons 12-15) — combine for diagonal movement
     if (gp.buttons[12]?.pressed) {
-      axisX = 0;
       axisZ = -1;
       stickActive = true;
-    } else if (gp.buttons[13]?.pressed) {
-      axisX = 0;
+    }
+    if (gp.buttons[13]?.pressed) {
       axisZ = 1;
       stickActive = true;
-    } else if (gp.buttons[14]?.pressed) {
+    }
+    if (gp.buttons[14]?.pressed) {
       axisX = -1;
-      axisZ = 0;
       stickActive = true;
-    } else if (gp.buttons[15]?.pressed) {
+    }
+    if (gp.buttons[15]?.pressed) {
       axisX = 1;
-      axisZ = 0;
       stickActive = true;
     }
 
