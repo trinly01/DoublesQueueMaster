@@ -2243,7 +2243,7 @@ export function useGameEngine() {
   // --- Gamepad support ---
   let gamepadIndex: number | null = null;
   let prevGamepadButtons: boolean[] = [];
-  const gamepadWasActive = false;
+  let gamepadWasActive: boolean = false;
 
   function onGamepadConnected(e: GamepadEvent) {
     gamepadIndex = e.gamepad.index;
