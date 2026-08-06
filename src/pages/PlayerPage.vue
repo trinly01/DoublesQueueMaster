@@ -1891,7 +1891,7 @@ const onLogout = () => {
 <style scoped>
 .player-page {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 .brand-title {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1917,7 +1917,7 @@ const onLogout = () => {
 
 @media (max-width: 768px) {
   .player-card {
-    min-height: 100vh;
+    min-height: 100dvh;
     border-radius: 0;
   }
 }
