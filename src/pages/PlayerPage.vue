@@ -121,6 +121,36 @@
           unelevated
           @click="router.push('/clubs')"
         />
+
+        <div
+          v-if="recentClubs.length > 0"
+          class="q-mt-md flex flex-center"
+          style="flex-wrap: wrap; gap: 8px; max-width: 320px; margin: 0 auto"
+        >
+          <q-chip
+            v-for="club in recentClubs"
+            :key="club.id"
+            clickable
+            dense
+            size="md"
+            class="q-py-xs q-px-sm"
+            @click="router.push(`/club/${club.clubId}`)"
+          >
+            <q-avatar v-if="club.logoUrl" size="24px" class="q-mr-xs">
+              <img :src="club.logoUrl" :alt="club.name" />
+            </q-avatar>
+            <q-avatar
+              v-else
+              size="24px"
+              color="accent"
+              text-color="white"
+              class="q-mr-xs"
+            >
+              <q-icon name="groups" size="16px" />
+            </q-avatar>
+            {{ club.name }}
+          </q-chip>
+        </div>
       </q-card-section>
 
       <div style="flex-grow: 1"></div>
@@ -888,10 +918,11 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar, LocalStorage } from 'quasar';
 import { useNotify } from 'src/composables/useNotify';
-import { likhaClient } from 'src/services/likhaClient';
+import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import PlayerFeedbackButton from 'src/components/PlayerFeedbackButton.vue';
 import {
   readUsers,
+  readItems,
   uploadFiles,
   updateUser,
   updateMe,
@@ -1030,6 +1061,82 @@ const activeTab = ref<'history' | 'matches' | 'partners' | 'rivals' | 'clutch'>(
 const showLeaderboardDialog = ref(false);
 const showQrDialog = ref(false);
 const qrCodeDataUrl = ref('');
+
+type RecentClub = {
+  id: string;
+  clubId: string;
+  name: string;
+  logoUrl: string;
+};
+
+const RECENT_CLUBS_CACHE_KEY = 'recent_clubs_cache';
+const recentClubs = ref<RecentClub[]>([]);
+
+const loadRecentClubs = async () => {
+  if (!currentUserId.value) return;
+
+  const cached = LocalStorage.getItem(RECENT_CLUBS_CACHE_KEY) as
+    | RecentClub[]
+    | null;
+  if (cached && cached.length > 0) {
+    recentClubs.value = cached;
+  }
+
+  try {
+    const matches = await likhaClient.request(
+      readItems('completed_match', {
+        filter: {
+          players: { directus_users_id: { _eq: currentUserId.value } },
+        },
+        fields: [
+          'completed_at',
+          'club.id',
+          'club.clubId',
+          'club.name',
+          'club.logo',
+        ],
+        sort: ['-completed_at'],
+        limit: 250,
+      }),
+    );
+
+    const matchList = (matches || []) as unknown as {
+      completed_at: string;
+      club: { id: string; clubId: string; name?: string; logo?: string };
+    }[];
+
+    const seen = new Set<string>();
+    const sortedClubs: RecentClub[] = [];
+    for (const m of matchList) {
+      const club = m.club;
+      if (club && club.id && !seen.has(club.id)) {
+        seen.add(club.id);
+        let logoUrl = '';
+        if (club.logo) {
+          if (
+            club.logo.startsWith('http://') ||
+            club.logo.startsWith('https://')
+          ) {
+            logoUrl = club.logo;
+          } else {
+            logoUrl = `${LIKHA_URL}/assets/${club.logo}`;
+          }
+        }
+        sortedClubs.push({
+          id: club.id,
+          clubId: club.clubId,
+          name: club.name || club.clubId,
+          logoUrl,
+        });
+      }
+    }
+
+    recentClubs.value = sortedClubs;
+    LocalStorage.set(RECENT_CLUBS_CACHE_KEY, sortedClubs);
+  } catch (err) {
+    console.warn('Failed to load recent clubs:', err);
+  }
+};
 
 const openQrDialog = async () => {
   if (!username.value) return;
@@ -1817,6 +1924,8 @@ onMounted(async () => {
       message: PlayerProfile.error.value,
     });
   }
+
+  loadRecentClubs();
 });
 
 const fetchLeaderboard = async () => {
