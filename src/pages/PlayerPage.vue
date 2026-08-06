@@ -2033,11 +2033,24 @@ const onLogout = () => {
 
 .recent-club-chip {
   max-width: 100px;
-  overflow: hidden;
 }
 
 .recent-club-chip .q-chip__content {
   overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.recent-club-chip .q-avatar {
+  flex-shrink: 0;
+}
+
+.recent-club-chip .ellipsis {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 @media (max-width: 768px) {
