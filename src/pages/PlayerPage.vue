@@ -124,31 +124,32 @@
 
         <div
           v-if="recentClubs.length > 0"
-          class="q-mt-md flex flex-center"
-          style="flex-wrap: wrap; gap: 8px; max-width: 320px; margin: 0 auto"
+          class="q-mt-sm flex flex-center"
+          style="flex-wrap: wrap; gap: 4px; max-width: 280px; margin: 0 auto"
         >
           <q-chip
-            v-for="club in recentClubs"
+            v-for="club in recentClubs.slice(0, 3)"
             :key="club.id"
             clickable
             dense
-            size="md"
-            class="q-py-xs q-px-sm"
+            size="sm"
+            class="q-ma-none"
+            style="max-width: 120px"
             @click="router.push(`/club/${club.clubId}`)"
           >
-            <q-avatar v-if="club.logoUrl" size="24px" class="q-mr-xs">
+            <q-avatar v-if="club.logoUrl" size="20px" class="q-mr-xs">
               <img :src="club.logoUrl" :alt="club.name" />
             </q-avatar>
             <q-avatar
               v-else
-              size="24px"
+              size="20px"
               color="accent"
               text-color="white"
               class="q-mr-xs"
             >
-              <q-icon name="groups" size="16px" />
+              <q-icon name="groups" size="14px" />
             </q-avatar>
-            {{ club.name }}
+            <span class="ellipsis">{{ club.name }}</span>
           </q-chip>
         </div>
       </q-card-section>
@@ -2017,6 +2018,12 @@ const onLogout = () => {
   opacity: 0.6;
   user-select: none;
   pointer-events: none;
+}
+
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {
