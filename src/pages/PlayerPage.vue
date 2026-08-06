@@ -141,7 +141,7 @@
             class="q-ma-none recent-club-chip"
             @click="router.push(`/club/${club.clubId}`)"
           >
-            <q-avatar v-if="club.logoUrl" size="20px" class="q-mr-xs">
+            <q-avatar v-if="club.logoUrl" size="20px" class="q-mr-xs shadow-1">
               <img :src="club.logoUrl" :alt="club.name" />
             </q-avatar>
             <q-avatar
@@ -149,7 +149,7 @@
               size="20px"
               color="accent"
               text-color="white"
-              class="q-mr-xs"
+              class="q-mr-xs shadow-1"
             >
               <q-icon name="groups" size="14px" />
             </q-avatar>
