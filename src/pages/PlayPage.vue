@@ -420,7 +420,7 @@
 
       <!-- Jump button (bottom-right, touch only) -->
       <button class="jump-btn" @touchstart.prevent="onJumpTouch">
-        <q-icon name="arrow_upward" size="28px" />
+        <q-icon name="keyboard_double_arrow_up" size="28px" />
       </button>
     </div>
   </div>
@@ -1412,8 +1412,8 @@ kbd {
 
 .jump-btn {
   position: absolute;
-  right: 20px;
-  bottom: 30px;
+  right: 56px;
+  bottom: 140px;
   width: 56px;
   height: 56px;
   border-radius: 50%;

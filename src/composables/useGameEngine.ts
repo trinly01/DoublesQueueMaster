@@ -2294,6 +2294,10 @@ export function useGameEngine() {
     if (justPressed(0)) {
       triggerServe();
     }
+    // B / Circle (button 1) → jump
+    if (justPressed(1)) {
+      triggerJump();
+    }
     // Start (button 9) → pause/resume
     if (justPressed(9)) {
       if (gameState.value === 'paused') {
