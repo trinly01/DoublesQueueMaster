@@ -52,6 +52,7 @@ export interface InputPayload {
   ax: number; // axisX -1..1
   az: number; // axisZ -1..1
   sv: boolean; // serve trigger
+  jk?: boolean; // jump trigger
   gn?: string; // guest name (sent in every input update)
   seq: number; // input sequence
 }
