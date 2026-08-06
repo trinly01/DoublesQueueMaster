@@ -124,8 +124,8 @@
 
         <div
           v-if="recentClubs.length > 0"
-          class="q-mt-sm flex flex-center"
-          style="flex-wrap: wrap; gap: 4px; max-width: 280px; margin: 0 auto"
+          class="q-mt-md flex flex-center"
+          style="flex-wrap: wrap; gap: 6px; max-width: 280px; margin: 0 auto"
         >
           <q-chip
             v-for="club in recentClubs.slice(0, 3)"
@@ -133,8 +133,7 @@
             clickable
             dense
             size="sm"
-            class="q-ma-none"
-            style="max-width: 120px"
+            class="q-ma-none recent-club-chip"
             @click="router.push(`/club/${club.clubId}`)"
           >
             <q-avatar v-if="club.logoUrl" size="20px" class="q-mr-xs">
@@ -2024,6 +2023,16 @@ const onLogout = () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+}
+
+.recent-club-chip {
+  max-width: 130px;
+  overflow: hidden;
+}
+
+.recent-club-chip .q-chip__content {
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {
