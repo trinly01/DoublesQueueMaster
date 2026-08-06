@@ -1430,10 +1430,11 @@ kbd {
 }
 
 .joystick-default {
-  right: 106px;
-  bottom: 80px;
-  left: auto;
+  left: 56px;
+  bottom: 56px;
+  right: auto;
   top: auto;
+  transform: none;
   opacity: 0.5;
 }
 
