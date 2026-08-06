@@ -2754,22 +2754,7 @@ const clubSettingsSort = ref<
   'nameAsc' | 'nameDesc' | 'ratingDesc' | 'ratingAsc'
 >('nameAsc');
 
-const isCurrentUserAdmin = computed(() => {
-  if (isOpenPlay.value) return true;
-  const isAdmin = clubMembers.value.some(
-    (m) => m.id === currentUserId.value && m.isAdmin,
-  );
-  console.log(
-    'isCurrentUserAdmin:',
-    isAdmin,
-    'currentUserId:',
-    currentUserId.value,
-    'clubMembers:',
-    clubMembers.value,
-  );
-  return isAdmin;
-});
-watch(isCurrentUserAdmin, (val) => setAdminMode(val), { immediate: true });
+// isCurrentUserAdmin is declared after useClubData (needs clubMembers)
 
 // Dynamic max-height for queue list: taller when match-type + buttons are hidden
 const queueMaxHeightDesktop = computed(() =>
@@ -2905,6 +2890,23 @@ const {
 });
 
 getDataFetchBar = () => dataFetchBar.value;
+
+const isCurrentUserAdmin = computed(() => {
+  if (isOpenPlay.value) return true;
+  const isAdmin = clubMembers.value.some(
+    (m) => m.id === currentUserId.value && m.isAdmin,
+  );
+  console.log(
+    'isCurrentUserAdmin:',
+    isAdmin,
+    'currentUserId:',
+    currentUserId.value,
+    'clubMembers:',
+    clubMembers.value,
+  );
+  return isAdmin;
+});
+watch(isCurrentUserAdmin, (val) => setAdminMode(val), { immediate: true });
 
 const isClubSubscriptionExpired = computed(
   () => !isOpenPlay.value && clubStatus.value !== 'published',
