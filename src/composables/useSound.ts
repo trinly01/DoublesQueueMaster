@@ -134,6 +134,11 @@ export function useSound() {
     playTone(100, 0.05, 'triangle', 0.2);
   }
 
+  // Jump — quick upward whoosh
+  function jump() {
+    playTone(200, 0.15, 'sine', 0.2, 500);
+  }
+
   // Win — fanfare + crowd clapping
   function win() {
     playTone(523, 0.12, 'sine', 0.35);
@@ -276,6 +281,7 @@ export function useSound() {
     pointScored,
     fault,
     netHit,
+    jump,
     win,
     lose,
     startMusic,
