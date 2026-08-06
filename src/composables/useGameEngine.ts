@@ -1012,8 +1012,9 @@ export function useGameEngine() {
   // still in the air (hadn't bounced) at collision time.
   function cancelPendingBounceFault(guestBallY: number) {
     if (!pendingBounceFault) return false;
-    // Ball was in the air (above bounce threshold) — collision happened before bounce
-    if (guestBallY > BALL_RADIUS * 2) {
+    // Ball was still above the bounce threshold — collision happened before bounce.
+    // Use BALL_RADIUS (not BALL_RADIUS*2) to match the actual bounce detection threshold.
+    if (guestBallY > BALL_RADIUS) {
       if (pendingBounceFault.timer) clearTimeout(pendingBounceFault.timer);
       pendingBounceFault = null;
       return true;
