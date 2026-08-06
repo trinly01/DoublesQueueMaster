@@ -2959,7 +2959,7 @@ export function useGameEngine() {
   let lastSentAx = 0;
   let lastSentAz = 0;
 
-  function sendInputToHost() {
+  function sendInputToHost(jumpOverride?: boolean) {
     // Combine keyboard booleans and analog axis into a single axis value
     let ax = input.axisX;
     let az = input.axisZ;
@@ -2975,7 +2975,7 @@ export function useGameEngine() {
     const timeSinceLastSend = (now - inputSendTimer) / 1000;
     const changed =
       Math.abs(ax - lastSentAx) > 0.05 || Math.abs(az - lastSentAz) > 0.05;
-    const jumpRequested = input.jump;
+    const jumpRequested = jumpOverride ?? input.jump;
 
     if (timeSinceLastSend < INPUT_SEND_INTERVAL && !changed && !jumpRequested)
       return;
@@ -3012,8 +3012,10 @@ export function useGameEngine() {
           broadcastStateToGuest(dt);
         } else if (isGuest.value) {
           // Guest: predict local player, send input, interpolate ball/state from host
+          // Capture jump before updatePlayer consumes it
+          const jumpThisFrame = input.jump;
           updatePlayer(dt);
-          sendInputToHost();
+          sendInputToHost(jumpThisFrame);
           interpolateGuestState(dt);
           checkGuestFaults();
         }
