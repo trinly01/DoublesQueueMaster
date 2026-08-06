@@ -586,12 +586,7 @@ const isTouch =
   typeof window !== 'undefined' &&
   ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
-const hasKeyboard =
-  typeof window !== 'undefined' &&
-  (navigator.maxTouchPoints === 0 ||
-    window.matchMedia('(pointer: fine)').matches);
-
-const showTouchControls = isTouch && !hasKeyboard;
+const showTouchControls = isTouch;
 
 const jumpPressed = ref(false);
 
