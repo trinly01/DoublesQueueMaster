@@ -193,6 +193,11 @@ export function useGameEngine() {
   let playerJumpVel: number = 0;
   let remoteJumpVel: number = 0;
 
+  // Post-volley momentum state — if a player volleys and momentum carries
+  // them into the kitchen, it's a fault (real pickleball rule 9.B.1)
+  let postVolleyMomentum: { who: 'player' | 'ai'; timer: number } | null = null;
+  const MOMENTUM_DURATION = 0.8; // seconds after volley to check kitchen entry
+
   let lastTime = 0;
   let playerHitCooldown = 0;
   let aiHitCooldown = 0;
@@ -878,6 +883,7 @@ export function useGameEngine() {
     aiDinkRead = null;
     playerJumpVel = 0;
     remoteJumpVel = 0;
+    postVolleyMomentum = null;
     lastFaultEventSeq = -1;
     lastBounceFaultSeq = -1;
     // Reset guest bounce tracking
@@ -1264,6 +1270,23 @@ export function useGameEngine() {
       Math.max(netZ, backZ),
     );
 
+    // Post-volley momentum kitchen fault check
+    if (postVolleyMomentum && postVolleyMomentum.who === 'player') {
+      postVolleyMomentum.timer -= dt;
+      if (postVolleyMomentum.timer <= 0) {
+        postVolleyMomentum = null;
+      } else {
+        const z = refs.playerPos.z;
+        const inKitchen =
+          ps > 0 ? z > 0 && z < KITCHEN_DEPTH : z < 0 && z > -KITCHEN_DEPTH;
+        if (inKitchen) {
+          postVolleyMomentum = null;
+          scorePoint('ai', 'Momentum fault!');
+          return;
+        }
+      }
+    }
+
     // Swing animation decay
     refs.playerSwing = Math.max(0, refs.playerSwing - dt * 3);
 
@@ -1473,6 +1496,21 @@ export function useGameEngine() {
       CLAMP_HALF_W,
     );
     refs.aiPos.z = THREE.MathUtils.clamp(refs.aiPos.z, CLAMP_AI_BACK, -0.3);
+
+    // Post-volley momentum kitchen fault check (AI)
+    if (postVolleyMomentum && postVolleyMomentum.who === 'ai') {
+      postVolleyMomentum.timer -= dt;
+      if (postVolleyMomentum.timer <= 0) {
+        postVolleyMomentum = null;
+      } else {
+        const z = refs.aiPos.z;
+        if (z < 0 && z > -KITCHEN_DEPTH) {
+          postVolleyMomentum = null;
+          scorePoint('player', 'Momentum fault!');
+          return;
+        }
+      }
+    }
 
     // Compute velocity
     if (dt > 0) {
@@ -1689,6 +1727,9 @@ export function useGameEngine() {
       power,
     );
 
+    // Track post-volley momentum for kitchen fault detection
+    const wasVolley = !ballBouncedOnSide;
+
     // Update rally state
     lastHitBy = isPlayer ? 'player' : 'ai';
     rallyHitCount++;
@@ -1697,6 +1738,13 @@ export function useGameEngine() {
     ballClippedNet = false;
     currentSide = isPlayer ? 'ai' : 'player';
     aiDinkRead = null;
+
+    if (wasVolley) {
+      postVolleyMomentum = {
+        who: isPlayer ? 'player' : 'ai',
+        timer: MOMENTUM_DURATION,
+      };
+    }
 
     if (isPlayer) {
       playerHitCooldown = HIT_COOLDOWN;
@@ -2412,6 +2460,21 @@ export function useGameEngine() {
       CLAMP_HALF_W,
     );
     refs.aiPos.z = THREE.MathUtils.clamp(refs.aiPos.z, CLAMP_AI_BACK, -0.3);
+
+    // Post-volley momentum kitchen fault check (AI)
+    if (postVolleyMomentum && postVolleyMomentum.who === 'ai') {
+      postVolleyMomentum.timer -= dt;
+      if (postVolleyMomentum.timer <= 0) {
+        postVolleyMomentum = null;
+      } else {
+        const z = refs.aiPos.z;
+        if (z < 0 && z > -KITCHEN_DEPTH) {
+          postVolleyMomentum = null;
+          scorePoint('player', 'Momentum fault!');
+          return;
+        }
+      }
+    }
 
     // Compute velocity for animation
     if (dt > 0) {
