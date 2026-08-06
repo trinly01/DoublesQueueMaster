@@ -407,6 +407,7 @@
         @touchmove.prevent="onJoystickMove"
         @touchend.prevent="onJoystickEnd"
         @touchcancel.prevent="onJoystickEnd"
+        @mousedown.prevent="onJoystickMouseDown"
       >
         <!-- Default joystick hint (shown when not actively touching) -->
         <div v-if="!joystick.active" class="joystick-base joystick-default">
@@ -436,6 +437,8 @@
         @touchmove.prevent.stop
         @touchend.prevent.stop="onJumpRelease"
         @touchcancel.prevent.stop="onJumpRelease"
+        @mousedown.prevent.stop="onJumpTouch"
+        @mouseup.prevent.stop="onJumpRelease"
       >
         <q-icon name="keyboard_double_arrow_up" size="28px" />
       </button>
@@ -483,6 +486,8 @@ const joystick = reactive<JoystickState>({
   knobY: 0,
   identifier: null,
 });
+
+let mouseJoystickActive = false;
 
 function getTouch(e: TouchEvent, id: number | null): Touch | undefined {
   return Array.from(e.changedTouches).find(
@@ -569,6 +574,43 @@ function onJumpTouch() {
 
 function onJumpRelease() {
   jumpPressed.value = false;
+}
+
+// --- Mouse handlers for joystick (mirrors touch logic) ---
+function onJoystickMouseDown(e: MouseEvent) {
+  if (joystick.active || mouseJoystickActive) return;
+  if (e.clientY < window.innerHeight * 0.3) return;
+
+  mouseJoystickActive = true;
+  joystick.active = true;
+  joystick.identifier = null;
+  joystick.baseX = e.clientX;
+  joystick.baseY = e.clientY;
+  joystick.knobX = 0;
+  joystick.knobY = 0;
+
+  window.addEventListener('mousemove', onMouseJoystickMove);
+  window.addEventListener('mouseup', onMouseJoystickEnd);
+}
+
+function onMouseJoystickMove(e: MouseEvent) {
+  if (!mouseJoystickActive || !joystick.active) return;
+  updateJoystick({
+    clientX: e.clientX,
+    clientY: e.clientY,
+  } as Touch);
+}
+
+function onMouseJoystickEnd() {
+  if (!mouseJoystickActive) return;
+  mouseJoystickActive = false;
+  joystick.active = false;
+  joystick.identifier = null;
+  joystick.knobX = 0;
+  joystick.knobY = 0;
+  engine.setAxis(0, 0);
+  window.removeEventListener('mousemove', onMouseJoystickMove);
+  window.removeEventListener('mouseup', onMouseJoystickEnd);
 }
 
 const difficulties: { label: string; value: Difficulty }[] = [
@@ -1010,6 +1052,8 @@ onUnmounted(() => {
   window.removeEventListener('gamepadconnected', onGamepadConnected);
   window.removeEventListener('gamepaddisconnected', onGamepadDisconnected);
   window.removeEventListener('blur', onWindowBlur);
+  window.removeEventListener('mousemove', onMouseJoystickMove);
+  window.removeEventListener('mouseup', onMouseJoystickEnd);
   if (menuPollInterval) clearInterval(menuPollInterval);
   engine.sound.stopMusic();
   engine.cleanup();
