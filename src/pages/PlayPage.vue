@@ -395,7 +395,7 @@
     <!-- Floating joystick layer (touch only) -->
     <div
       v-if="
-        isTouch &&
+        showTouchControls &&
         (engine.gameState.value === 'playing' ||
           engine.gameState.value === 'point-scored')
       "
@@ -585,6 +585,13 @@ const rulesOptions: { label: string; value: Rules }[] = [
 const isTouch =
   typeof window !== 'undefined' &&
   ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+const hasKeyboard =
+  typeof window !== 'undefined' &&
+  (navigator.maxTouchPoints === 0 ||
+    window.matchMedia('(pointer: fine)').matches);
+
+const showTouchControls = isTouch && !hasKeyboard;
 
 const jumpPressed = ref(false);
 
