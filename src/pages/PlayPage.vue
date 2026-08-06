@@ -399,33 +399,42 @@
         (engine.gameState.value === 'playing' ||
           engine.gameState.value === 'point-scored')
       "
-      class="joystick-layer"
-      @touchstart.prevent="onJoystickStart"
-      @touchmove.prevent="onJoystickMove"
-      @touchend.prevent="onJoystickEnd"
-      @touchcancel.prevent="onJoystickEnd"
+      class="touch-controls"
     >
-      <!-- Default joystick hint (shown when not actively touching) -->
-      <div v-if="!joystick.active" class="joystick-base joystick-default">
-        <div class="joystick-knob" />
-      </div>
-
-      <!-- Active joystick (follows touch position) -->
       <div
-        v-if="joystick.active"
-        class="joystick-base"
-        :style="{ left: `${joystick.baseX}px`, top: `${joystick.baseY}px` }"
+        class="joystick-layer"
+        @touchstart.prevent="onJoystickStart"
+        @touchmove.prevent="onJoystickMove"
+        @touchend.prevent="onJoystickEnd"
+        @touchcancel.prevent="onJoystickEnd"
       >
+        <!-- Default joystick hint (shown when not actively touching) -->
+        <div v-if="!joystick.active" class="joystick-base joystick-default">
+          <div class="joystick-knob" />
+        </div>
+
+        <!-- Active joystick (follows touch position) -->
         <div
-          class="joystick-knob"
-          :style="{
-            transform: `translate(${joystick.knobX}px, ${joystick.knobY}px)`,
-          }"
-        />
+          v-if="joystick.active"
+          class="joystick-base"
+          :style="{ left: `${joystick.baseX}px`, top: `${joystick.baseY}px` }"
+        >
+          <div
+            class="joystick-knob"
+            :style="{
+              transform: `translate(${joystick.knobX}px, ${joystick.knobY}px)`,
+            }"
+          />
+        </div>
       </div>
 
-      <!-- Jump button (bottom-right, touch only) -->
-      <button class="jump-btn" @touchstart.prevent="onJumpTouch">
+      <!-- Jump button (separate layer for independent multi-touch) -->
+      <button
+        class="jump-btn"
+        @touchstart.prevent.stop="onJumpTouch"
+        @touchmove.prevent.stop
+        @touchend.prevent.stop
+      >
         <q-icon name="keyboard_double_arrow_up" size="28px" />
       </button>
     </div>
@@ -480,6 +489,9 @@ function getTouch(e: TouchEvent, id: number | null): Touch | undefined {
 }
 
 function onJoystickStart(e: TouchEvent) {
+  // Already tracking a joystick touch — ignore additional fingers
+  if (joystick.active) return;
+
   // Only accept touches in the lower ~70% of the screen for joystick
   const touch = e.changedTouches[0];
   if (!touch || touch.clientY < window.innerHeight * 0.3) return;
@@ -1383,10 +1395,16 @@ kbd {
   color: white;
 }
 
-.joystick-layer {
+.touch-controls {
   position: absolute;
   inset: 0;
   z-index: 15;
+  touch-action: none;
+}
+
+.joystick-layer {
+  position: absolute;
+  inset: 0;
   touch-action: none;
 }
 
@@ -1438,7 +1456,6 @@ kbd {
   justify-content: center;
   touch-action: none;
   backdrop-filter: blur(2px);
-  z-index: 16;
 }
 
 .jump-btn:active {
