@@ -1353,11 +1353,8 @@ import { buildDuprCsv, downloadDuprCsv } from '../utils/duprExport';
 import { useMatchSettings } from '../composables/useMatchSettings';
 import { useClubMembers } from '../composables/useClubMembers';
 import { useLeaderboard } from '../composables/useLeaderboard';
+import { useAnnouncer } from '../composables/useAnnouncer';
 import {
-  announce,
-  getNextInLine,
-  buildMatchAnnounceText,
-  getPlayerName,
   clearSpeechQueue,
   isSpeaking,
   setAdminMode,
@@ -1369,40 +1366,14 @@ import {
 const $q = useQuasar();
 const { notify } = useNotify();
 
-// Announce match on double-click / double-tap on a match card
-const handleCustomAnnounce = (match: {
+// Lazy stub for handleCustomAnnounce (wired from useAnnouncer composable later)
+let handleCustomAnnounce: (match: {
   id: string;
   teamA: { firstName?: string; username: string }[];
   teamB: { firstName?: string; username: string }[];
   court?: number;
   status?: string;
-}) => {
-  // For waiting matches, only announce the next-in-line
-  if (match.status === 'waiting') {
-    const next = getNextInLine(
-      matches.value,
-      queuePriorityMode.value,
-      MatchmakingApp.state.activeMatches,
-    );
-    if (next) {
-      const na = next.teamA.map((u) =>
-        getPlayerName(MatchmakingApp.state.players, u),
-      );
-      const nb = next.teamB.map((u) =>
-        getPlayerName(MatchmakingApp.state.players, u),
-      );
-      const text = buildMatchAnnounceText(na, nb, true);
-      announce(notify, text, next.matchId);
-    }
-    return;
-  }
-
-  // For in-progress matches, announce the match normally
-  const a = match.teamA.map((p) => p.firstName || p.username);
-  const b = match.teamB.map((p) => p.firstName || p.username);
-  const text = buildMatchAnnounceText(a, b);
-  announce(notify, text, match.id);
-};
+}) => void = () => {};
 
 // Shared auth helpers (logout + 401 handling) from the useAuth composable
 const { handleAuthError } = useAuth();
@@ -2130,84 +2101,12 @@ const reportInitialType = ref<'report' | 'commend'>('commend');
 const editPlayerName = ref<string | null>(null);
 const editPlayerLevel = ref<1 | 2 | 3 | null>(null);
 
-// ── Centralised announcement watcher ─────────────────
-// Uses startedAt timestamps to detect newly-started matches
-// and matchId to detect next-in-line changes.
-const nextInLineMatch = computed(() =>
-  getNextInLine(
-    matches.value,
-    queuePriorityMode.value,
-    MatchmakingApp.state.activeMatches,
-  ),
-);
-
-// Seed with current max startedAt so existing matches aren't re-announced.
-// When no in-progress matches exist, seed with Date.now() so already-started
-// matches from other admins don't get falsely announced on initial load.
-const existingStartedAts = matches.value
-  .filter((m) => m.status === 'in-progress')
-  .map((m) => m.startedAt?.getTime() || 0);
-const lastProcessedStartedAt = ref(
-  existingStartedAts.length > 0 ? Math.max(...existingStartedAts) : Date.now(),
-);
-const prevNextInLineId = ref<string | null>(
-  nextInLineMatch.value?.matchId || null,
-);
-
-watch(
-  () => {
-    const inProgress = matches.value
-      .filter((m) => m.status === 'in-progress')
-      .map((m) => m.id)
-      .sort()
-      .join(',');
-    return `${inProgress}::${nextInLineMatch.value?.matchId || ''}`;
-  },
-  () => {
-    // 1. Announce newly started matches (startedAt is new), sorted by start time
-    const newlyStarted = matches.value
-      .filter(
-        (m) =>
-          m.status === 'in-progress' &&
-          m.startedAt &&
-          m.startedAt.getTime() > lastProcessedStartedAt.value,
-      )
-      .sort(
-        (a, b) => (a.startedAt?.getTime() ?? 0) - (b.startedAt?.getTime() ?? 0),
-      );
-
-    for (const m of newlyStarted) {
-      const a = m.teamA.map((p) => p.firstName || p.username);
-      const b = m.teamB.map((p) => p.firstName || p.username);
-      const text = buildMatchAnnounceText(a, b);
-      for (let i = 0; i < 2; i++) {
-        announce(notify, text, m.id);
-      }
-    }
-
-    if (newlyStarted.length > 0) {
-      lastProcessedStartedAt.value = Math.max(
-        lastProcessedStartedAt.value,
-        ...newlyStarted.map((m) => m.startedAt!.getTime()),
-      );
-    }
-
-    // 2. Then announce next-in-line if it changed
-    const nextId = nextInLineMatch.value?.matchId || null;
-    if (nextId && nextId !== prevNextInLineId.value) {
-      const next = nextInLineMatch.value!;
-      const na = next.teamA.map((u) =>
-        getPlayerName(MatchmakingApp.state.players, u),
-      );
-      const nb = next.teamB.map((u) =>
-        getPlayerName(MatchmakingApp.state.players, u),
-      );
-      const text = buildMatchAnnounceText(na, nb, true);
-      announce(notify, text, next.matchId);
-      prevNextInLineId.value = nextId;
-    }
-  },
-);
+// Announcer composable — extracted match announcement watcher and handleCustomAnnounce
+const { handleCustomAnnounce: _handleCustomAnnounce } = useAnnouncer({
+  matches,
+  queuePriorityMode,
+});
+handleCustomAnnounce = _handleCustomAnnounce;
 
 const currentMatchIndexForActions = ref<number>(-1);
 
