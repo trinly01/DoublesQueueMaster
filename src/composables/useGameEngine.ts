@@ -3215,8 +3215,7 @@ export function useGameEngine() {
         else input.backward = true;
         break;
       case ' ':
-        input.jump = true;
-        if (servePending.value && myServeTurn.value) triggerServe();
+        triggerJump();
         break;
     }
   }
