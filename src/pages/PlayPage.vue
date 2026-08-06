@@ -405,6 +405,12 @@
       @touchend.prevent="onJoystickEnd"
       @touchcancel.prevent="onJoystickEnd"
     >
+      <!-- Default joystick hint (shown when not actively touching) -->
+      <div v-if="!joystick.active" class="joystick-base joystick-default">
+        <div class="joystick-knob" />
+      </div>
+
+      <!-- Active joystick (follows touch position) -->
       <div
         v-if="joystick.active"
         class="joystick-base"
@@ -1394,6 +1400,13 @@ kbd {
   transform: translate(-50%, -50%);
   pointer-events: none;
   backdrop-filter: blur(2px);
+}
+
+.joystick-default {
+  left: 80px;
+  bottom: 80px;
+  top: auto;
+  opacity: 0.5;
 }
 
 .joystick-knob {
