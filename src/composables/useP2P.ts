@@ -561,6 +561,10 @@ export function useP2P() {
         startReconnectWindow();
       }
     };
+
+    // Start reconnect window so if no peer joins within 45s,
+    // connectionState transitions to 'disconnected' for auto-cancel
+    startReconnectWindow();
   }
 
   onUnmounted(leaveRoom);
