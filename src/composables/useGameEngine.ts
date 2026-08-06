@@ -394,6 +394,29 @@ export function useGameEngine() {
 
   let pendingStartTimer: ReturnType<typeof setTimeout> | null = null;
 
+  function rematchPvP() {
+    // If connection is still active, just restart the game
+    if (mode.value === 'pvp' && p2p.connectionState.value === 'connected') {
+      playerScore.value = 0;
+      aiScore.value = 0;
+      winner.value = null;
+      winReason.value = null;
+      lastPointMsg.value = '';
+      lastPointMsgSeq = -1;
+      scoringSide.value = null;
+      gameState.value = 'playing';
+      servingTo.value = 'player';
+      server.value = 'player';
+      resetBall('player');
+      prevGamepadButtons = [];
+      // Notify opponent to restart too
+      p2p.broadcastEvent({ type: 'resume' });
+      return;
+    }
+    // Connection lost — re-establish
+    startPvP();
+  }
+
   function startPvP() {
     mode.value = 'pvp';
     gameState.value = 'connecting';
@@ -641,6 +664,17 @@ export function useGameEngine() {
           gameState.value = pausedFromState;
           // Reset both players to serve positions
           resetBall(servingTo.value);
+          p2p.clearJitterBuffer();
+        } else if (gameState.value === 'game-over') {
+          // Opponent initiated rematch — reset and restart
+          playerScore.value = 0;
+          aiScore.value = 0;
+          winner.value = null;
+          winReason.value = null;
+          lastPointMsg.value = '';
+          lastPointMsgSeq = -1;
+          scoringSide.value = null;
+          gameState.value = 'playing';
           p2p.clearJitterBuffer();
         }
       } else if (data.type === 'game-over' && isGuest.value) {
@@ -3300,6 +3334,7 @@ export function useGameEngine() {
     p2p,
     setRoomId,
     startPvP,
+    rematchPvP,
     cancelPvP,
   };
 }

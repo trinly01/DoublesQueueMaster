@@ -610,7 +610,11 @@ function startPlaying() {
   engine.sound.startMusic();
   if (roomCode.value.trim()) {
     engine.setRoomId(roomCode.value.trim());
-    engine.startPvP();
+    if (engine.gameState.value === 'game-over' && engine.mode.value === 'pvp') {
+      engine.rematchPvP();
+    } else {
+      engine.startPvP();
+    }
   } else {
     engine.startGame();
   }
