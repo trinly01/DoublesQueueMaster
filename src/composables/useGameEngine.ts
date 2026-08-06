@@ -1270,8 +1270,12 @@ export function useGameEngine() {
       Math.max(netZ, backZ),
     );
 
-    // Post-volley momentum kitchen fault check
-    if (postVolleyMomentum && postVolleyMomentum.who === 'player') {
+    // Post-volley momentum kitchen fault check (only when grounded, not airborne)
+    if (
+      postVolleyMomentum &&
+      postVolleyMomentum.who === 'player' &&
+      refs.playerPos.y <= 0
+    ) {
       postVolleyMomentum.timer -= dt;
       if (postVolleyMomentum.timer <= 0) {
         postVolleyMomentum = null;
@@ -1497,8 +1501,12 @@ export function useGameEngine() {
     );
     refs.aiPos.z = THREE.MathUtils.clamp(refs.aiPos.z, CLAMP_AI_BACK, -0.3);
 
-    // Post-volley momentum kitchen fault check (AI)
-    if (postVolleyMomentum && postVolleyMomentum.who === 'ai') {
+    // Post-volley momentum kitchen fault check (AI, only when grounded)
+    if (
+      postVolleyMomentum &&
+      postVolleyMomentum.who === 'ai' &&
+      refs.aiPos.y <= 0
+    ) {
       postVolleyMomentum.timer -= dt;
       if (postVolleyMomentum.timer <= 0) {
         postVolleyMomentum = null;
@@ -2461,8 +2469,12 @@ export function useGameEngine() {
     );
     refs.aiPos.z = THREE.MathUtils.clamp(refs.aiPos.z, CLAMP_AI_BACK, -0.3);
 
-    // Post-volley momentum kitchen fault check (AI)
-    if (postVolleyMomentum && postVolleyMomentum.who === 'ai') {
+    // Post-volley momentum kitchen fault check (remote player, only when grounded)
+    if (
+      postVolleyMomentum &&
+      postVolleyMomentum.who === 'ai' &&
+      refs.aiPos.y <= 0
+    ) {
       postVolleyMomentum.timer -= dt;
       if (postVolleyMomentum.timer <= 0) {
         postVolleyMomentum = null;
