@@ -293,6 +293,9 @@ export function useGameEngine() {
       case 'pointScored':
         sound.pointScored();
         break;
+      case 'jump':
+        sound.jump();
+        break;
     }
   }
   function playGuestSfx(name: string) {
@@ -314,6 +317,9 @@ export function useGameEngine() {
         break;
       case 'pointScored':
         sound.pointScored();
+        break;
+      case 'jump':
+        sound.jump();
         break;
     }
   }
@@ -1253,6 +1259,8 @@ export function useGameEngine() {
     // Jump physics
     if (input.jump && refs.playerPos.y <= 0.01) {
       playerJumpVel = JUMP_VELOCITY;
+      if (isPvP.value && isHost.value) hostPlaySfx('jump');
+      else if (!isPvP.value) sound.jump();
     }
     input.jump = false; // consume jump request
 
@@ -2490,6 +2498,7 @@ export function useGameEngine() {
     // Jump physics (remote player)
     if (remoteInput.jump && refs.aiPos.y <= 0.01) {
       remoteJumpVel = JUMP_VELOCITY;
+      if (isPvP.value) hostPlaySfx('jump');
     }
     remoteInput.jump = false; // consume jump request
 
@@ -3255,7 +3264,10 @@ export function useGameEngine() {
     if (servePending.value && myServeTurn.value) {
       triggerServe();
     } else {
-      sound.jump();
+      // Play locally for immediate feedback in all modes
+      // In PvP host mode, hostPlaySfx in updatePlayer also plays it,
+      // so skip here to avoid double sound
+      if (!isHost.value) sound.jump();
     }
   }
 
