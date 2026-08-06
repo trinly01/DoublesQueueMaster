@@ -450,6 +450,119 @@ export function useP2P() {
     lastEventSeq = -1;
   }
 
+  function rejoinRoom(roomId: string) {
+    // Preserve role so host/guest assignment survives reconnection
+    const savedRole = role.value;
+    if (pingIntervalId) {
+      clearInterval(pingIntervalId);
+      pingIntervalId = null;
+    }
+    cancelReconnect();
+    if (room) {
+      room.leave();
+      room = null;
+    }
+    opponentId.value = null;
+    connectionState.value = 'connecting';
+    opponentPing.value = 0;
+    clearJitterBuffer();
+    stateSeq = 0;
+    inputSeq = 0;
+    eventSeq = 0;
+    lastStateSeq = -1;
+    lastEventSeq = -1;
+
+    const iceServers = [
+      ...(cachedTurnIceServers ?? []),
+      { urls: ['stun:stun.l.google.com:19302'] },
+      { urls: ['stun:global.stun.twilio.com:3478'] },
+    ];
+
+    room = joinRoom(
+      {
+        appId: APP_ID,
+        relayConfig: { redundancy: 3, manualReconnection: false },
+        trickleIce: true,
+        rtcConfig: {
+          iceServers,
+        },
+      },
+      `${APP_ID}-${roomId}`,
+    );
+
+    const stateAction = room.makeAction('state');
+    const inputAction = room.makeAction('input');
+    const eventAction = room.makeAction('events');
+    const pingAction = room.makeAction('ping');
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    stateActionSend = (data: any, target?: string) =>
+      stateAction.send(data, { target: target ?? null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    inputActionSend = (data: any, target?: string) =>
+      inputAction.send(data, { target: target ?? null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    eventActionSend = (data: any, target?: string) =>
+      eventAction.send(data, { target: target ?? null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    pingActionSend = (data: any, target?: string) =>
+      pingAction.send(data, { target: target ?? null });
+
+    stateAction.onMessage = (data) => {
+      if (stateCb) stateCb(data as unknown as StatePayload);
+    };
+
+    inputAction.onMessage = (data) => {
+      if (inputCb) inputCb(data as unknown as InputPayload);
+    };
+
+    eventAction.onMessage = (data) => {
+      if (eventCb) eventCb(data as unknown as EventPayload);
+    };
+
+    pingAction.onMessage = (data, context) => {
+      const payload = data as unknown as PingPayload;
+      if (payload.r) {
+        lastPongReceived = performance.now();
+        opponentPing.value = Math.round(lastPongReceived - payload.t);
+      } else {
+        pingActionSend({ t: payload.t, r: true }, context.peerId);
+      }
+    };
+
+    room.onPeerJoin = (peerId: string) => {
+      opponentId.value = peerId;
+      connectionState.value = 'connected';
+      lastPongReceived = performance.now();
+      cancelReconnect();
+      startKeepalive();
+
+      const myName =
+        (typeof PlayerProfile !== 'undefined' &&
+          PlayerProfile.state.firstName) ||
+        '';
+
+      // Re-send ready event with preserved role so refreshed opponent knows their role
+      if (savedRole === 'host') {
+        role.value = 'host';
+        eventActionSend({ type: 'ready', data: 'guest', name: myName }, peerId);
+      } else if (savedRole === 'guest') {
+        role.value = 'guest';
+        eventActionSend({ type: 'ready', data: 'host', name: myName }, peerId);
+      }
+
+      if (peerJoinCb) peerJoinCb(peerId);
+    };
+
+    room.onPeerLeave = (peerId: string) => {
+      if (peerLeaveCb) peerLeaveCb(peerId);
+      opponentId.value = null;
+      if (connectionState.value === 'connected') {
+        startReconnectWindow();
+      }
+    };
+  }
+
   onUnmounted(leaveRoom);
 
   return {
@@ -459,6 +572,7 @@ export function useP2P() {
     reconnectTimer,
     opponentId,
     joinGameRoom,
+    rejoinRoom,
     leaveRoom,
     broadcastState,
     broadcastInput,
