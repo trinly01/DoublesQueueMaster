@@ -1,6 +1,17 @@
 import { ref } from 'vue';
 import type { ActiveMatch, Player } from './matchmaking';
 import { MatchmakingApp } from './matchmaking';
+import { LocalStorage } from 'quasar';
+
+// Per-device TTS setting: read from LocalStorage (not cloud-synced AppState)
+// so each device controls its own announcer independently.
+const isTtsEnabled = (): boolean => {
+  const device = LocalStorage.getItem('device_settings') as {
+    ttsEnabled?: boolean;
+  } | null;
+  if (device && device.ttsEnabled !== undefined) return device.ttsEnabled;
+  return MatchmakingApp.state.ttsEnabled ?? true;
+};
 
 // ── Admin-only voice flag ──────────────────────────────
 let isAdminMode = false;
@@ -69,7 +80,7 @@ const playNextInQueue = () => {
     isSpeaking.value = false;
     return;
   }
-  if (MatchmakingApp.state.ttsEnabled === false) {
+  if (isTtsEnabled() === false) {
     speechQueue.length = 0;
     isSpeaking.value = false;
     return;
@@ -101,7 +112,7 @@ const playNextInQueue = () => {
 };
 
 export const enqueueSpeak = (text: string) => {
-  if (MatchmakingApp.state.ttsEnabled === false) return;
+  if (isTtsEnabled() === false) return;
   speechQueue.push(text);
   if (!isSpeaking.value) playNextInQueue();
 };
@@ -121,7 +132,7 @@ export const announce = (
   notify({ type: 'info', message: text, timeout: 3000 });
 
   if (!isAdminMode) return;
-  if (MatchmakingApp.state.ttsEnabled === false) return;
+  if (isTtsEnabled() === false) return;
 
   if (!('speechSynthesis' in window)) {
     console.warn('[TTS] speechSynthesis not supported');
