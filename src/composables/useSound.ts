@@ -136,7 +136,7 @@ export function useSound() {
 
   // Jump — quick upward whoosh
   function jump() {
-    playTone(200, 0.15, 'sine', 0.2, 500);
+    playTone(200, 0.15, 'sine', 0.4, 500);
   }
 
   // Win — fanfare + crowd clapping
