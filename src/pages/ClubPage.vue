@@ -3484,6 +3484,17 @@ const updateAllBulkLevels = (val: 1 | 2 | 3) => {
   bulkPlayers.value.forEach((p) => (p.level = val));
 };
 
+// Helper: stamp both the global settingsUpdatedAt and a per-field timestamp
+// so mergeAppState can resolve per-field conflicts instead of whole-blob LWW.
+const stampSetting = (field: string) => {
+  const now = Date.now();
+  MatchmakingApp.state.settingsUpdatedAt = now;
+  if (!MatchmakingApp.state.settingsFieldTimestamps) {
+    MatchmakingApp.state.settingsFieldTimestamps = {};
+  }
+  MatchmakingApp.state.settingsFieldTimestamps[field] = now;
+};
+
 // Court Management Settings
 const availableCourts = computed<number>({
   get: () => MatchmakingApp.state.availableCourts ?? 1,
@@ -3492,7 +3503,7 @@ const availableCourts = computed<number>({
     const oldCap = MatchmakingApp.state.availableCourts ?? 1;
 
     MatchmakingApp.state.availableCourts = newCap;
-    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    stampSetting('availableCourts');
     MatchmakingApp.persist();
 
     if (newCap < oldCap) {
@@ -3544,7 +3555,7 @@ const autoAdvanceMatches = computed<boolean>({
   get: () => MatchmakingApp.state.autoAdvanceMatches ?? true,
   set: (val) => {
     MatchmakingApp.state.autoAdvanceMatches = val;
-    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    stampSetting('autoAdvanceMatches');
     MatchmakingApp.persist();
   },
 });
@@ -3552,7 +3563,7 @@ const ttsEnabled = computed<boolean>({
   get: () => MatchmakingApp.state.ttsEnabled ?? true,
   set: (val) => {
     MatchmakingApp.state.ttsEnabled = val;
-    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    stampSetting('ttsEnabled');
     MatchmakingApp.persist();
   },
 });
@@ -3565,7 +3576,7 @@ const qrContinueScan = computed<boolean>({
   get: () => MatchmakingApp.state.qrContinueScan ?? true,
   set: (val) => {
     MatchmakingApp.state.qrContinueScan = val;
-    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    stampSetting('qrContinueScan');
     MatchmakingApp.persist();
   },
 });
@@ -4587,7 +4598,14 @@ const loadClubData = async (clubId: string) => {
           });
         }
 
-        MatchmakingApp.persist();
+        // Admins: persist() fires onStateChange → debounced cloud sync (push).
+        // Non-admins: persistSilently() saves to LocalStorage without arming a
+        // cloud push — non-admins never write to the server.
+        if (isAdminFromData) {
+          MatchmakingApp.persist();
+        } else {
+          MatchmakingApp.persistSilently();
+        }
 
         // Update our concurrency token to the server's version so subsequent syncs
         // don't falsely conflict with the state we just merged.
@@ -5170,6 +5188,9 @@ const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
     return;
   }
 
+  const isCurrentUserAdminForSync =
+    currentUserId.value && clubAdminIds.value.has(currentUserId.value);
+
   console.log(
     '[applyServer] incoming — queues:',
     serverMatchmaking.queues?.length,
@@ -5179,14 +5200,75 @@ const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
     incomingTs,
     'our last synced:',
     lastSyncedServerTimestamp.value,
+    'isAdmin:',
+    isCurrentUserAdminForSync,
   );
 
-  const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
-  Object.assign(MatchmakingApp.state, merged);
-  // Extra safety: ensure no player appears in multiple matches
-  // and no court has multiple in-progress matches
-  MatchmakingApp.enforceOneMatchPerPlayer();
-  MatchmakingApp.enforceOneMatchPerCourt();
+  if (isCurrentUserAdminForSync) {
+    // Admins: smart-merge so local offline edits are preserved
+    const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
+    Object.assign(MatchmakingApp.state, merged);
+    // Extra safety: ensure no player appears in multiple matches
+    // and no court has multiple in-progress matches
+    MatchmakingApp.enforceOneMatchPerPlayer();
+    MatchmakingApp.enforceOneMatchPerCourt();
+  } else {
+    // Non-admins: server is source of truth — direct overwrite, no merge
+    if (serverMatchmaking.players) {
+      MatchmakingApp.state.players = { ...serverMatchmaking.players };
+    }
+    if (serverMatchmaking.queues) {
+      MatchmakingApp.state.queues = [...serverMatchmaking.queues];
+    }
+    if (serverMatchmaking.activeMatches) {
+      MatchmakingApp.state.activeMatches = [...serverMatchmaking.activeMatches];
+    }
+    if (serverMatchmaking.completedMatches) {
+      MatchmakingApp.state.completedMatches = [
+        ...serverMatchmaking.completedMatches,
+      ];
+    }
+    // Overwrite settings — non-admins don't have local settings to preserve
+    if (serverMatchmaking.availableCourts !== undefined)
+      MatchmakingApp.state.availableCourts = serverMatchmaking.availableCourts;
+    if (serverMatchmaking.autoAdvanceMatches !== undefined)
+      MatchmakingApp.state.autoAdvanceMatches =
+        serverMatchmaking.autoAdvanceMatches;
+    if (serverMatchmaking.queueReturnMethod !== undefined)
+      MatchmakingApp.state.queueReturnMethod =
+        serverMatchmaking.queueReturnMethod;
+    if (serverMatchmaking.autoSortQueue !== undefined)
+      MatchmakingApp.state.autoSortQueue = serverMatchmaking.autoSortQueue;
+    if (serverMatchmaking.queuePriorityMode !== undefined)
+      MatchmakingApp.state.queuePriorityMode =
+        serverMatchmaking.queuePriorityMode;
+    if (serverMatchmaking.matchmakingMode !== undefined)
+      MatchmakingApp.state.matchmakingMode = serverMatchmaking.matchmakingMode;
+    if (serverMatchmaking.sortBy !== undefined)
+      MatchmakingApp.state.sortBy = serverMatchmaking.sortBy;
+    if (serverMatchmaking.matchType !== undefined)
+      MatchmakingApp.state.matchType = serverMatchmaking.matchType;
+    if (serverMatchmaking.matchesFilterBy !== undefined)
+      MatchmakingApp.state.matchesFilterBy = serverMatchmaking.matchesFilterBy;
+    if (serverMatchmaking.ttsEnabled !== undefined)
+      MatchmakingApp.state.ttsEnabled = serverMatchmaking.ttsEnabled;
+    if (serverMatchmaking.qrContinueScan !== undefined)
+      MatchmakingApp.state.qrContinueScan = serverMatchmaking.qrContinueScan;
+    if (serverMatchmaking.scoreType !== undefined)
+      MatchmakingApp.state.scoreType = serverMatchmaking.scoreType;
+    if (serverMatchmaking.teamSize !== undefined)
+      MatchmakingApp.state.teamSize = serverMatchmaking.teamSize;
+    // Carry checkpoint timestamps
+    MatchmakingApp.state.playersResetAt = serverMatchmaking.playersResetAt ?? 0;
+    MatchmakingApp.state.queuesResetAt = serverMatchmaking.queuesResetAt ?? 0;
+    MatchmakingApp.state.matchesResetAt = serverMatchmaking.matchesResetAt ?? 0;
+    if (serverMatchmaking.settingsFieldTimestamps) {
+      MatchmakingApp.state.settingsFieldTimestamps = {
+        ...serverMatchmaking.settingsFieldTimestamps,
+      };
+    }
+  }
+
   MatchmakingApp.persistSilently();
   lastSyncedServerTimestamp.value = incomingTs;
   if (currentClubId.value) {
@@ -5194,7 +5276,7 @@ const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
   }
 
   console.log(
-    '[applyServer] merged — queues:',
+    '[applyServer] applied — queues:',
     MatchmakingApp.state.queues.filter((q) => !q.deletedAt).length,
     'matches:',
     MatchmakingApp.state.activeMatches.filter((m) => !m.deletedAt).length,
@@ -5298,10 +5380,11 @@ const doResumeSync = async () => {
   if (Date.now() - lastResumeSyncAt < 3000) return;
   lastResumeSyncAt = Date.now();
   if (isOnline.value && currentClubId.value) {
-    // Load server state first, then sync. This guarantees we merge the
-    // latest server state before pushing any local changes.
+    // loadClubData reads server state and merges. For admins, persist() arms
+    // the debounced cloud sync (500ms) which handles the push — no need for
+    // a separate performCloudSync() call here (that would do a second read).
+    // Non-admins just get the direct overwrite via persistSilently().
     await loadClubData(currentClubId.value);
-    void performCloudSync();
     void refreshPlayerRatings();
   }
   // Always reconnect realtime when app comes back to foreground.
@@ -5760,7 +5843,7 @@ const sortBy = computed<
       | 'name',
   set: (val) => {
     MatchmakingApp.state.sortBy = val;
-    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    stampSetting('sortBy');
     MatchmakingApp.persist();
   },
 });
@@ -5778,7 +5861,7 @@ const matchesFilterBy = computed<'all' | 'in-progress' | 'waiting'>({
   },
   set: (val) => {
     MatchmakingApp.state.matchesFilterBy = val;
-    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    stampSetting('matchesFilterBy');
     MatchmakingApp.persist();
   },
 });
@@ -5788,7 +5871,7 @@ const matchType = computed<'singles' | 'doubles'>({
   get: () => MatchmakingApp.state.matchType || 'doubles',
   set: (val) => {
     MatchmakingApp.state.matchType = val;
-    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    stampSetting('matchType');
     MatchmakingApp.persist();
   },
 });
@@ -5800,7 +5883,7 @@ const queueReturnMethod = computed<
   get: () => MatchmakingApp.state.queueReturnMethod || 'fairness_first',
   set: (val) => {
     MatchmakingApp.state.queueReturnMethod = val;
-    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    stampSetting('queueReturnMethod');
     MatchmakingApp.persist();
   },
 });
@@ -5817,7 +5900,7 @@ const autoSortQueue = computed<boolean>({
   get: () => MatchmakingApp.state.autoSortQueue ?? true,
   set: (val) => {
     MatchmakingApp.state.autoSortQueue = val;
-    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    stampSetting('autoSortQueue');
     MatchmakingApp.persist();
   },
 });
@@ -5825,7 +5908,7 @@ const queuePriorityMode = computed<'timestamp' | 'gamesPlayed'>({
   get: () => MatchmakingApp.state.queuePriorityMode || 'gamesPlayed',
   set: (val) => {
     MatchmakingApp.state.queuePriorityMode = val;
-    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    stampSetting('queuePriorityMode');
     MatchmakingApp.persist();
   },
 });
@@ -5919,7 +6002,7 @@ const matchmakingMode = computed<
   get: () => MatchmakingApp.state.matchmakingMode || 'fair_balance',
   set: (val) => {
     MatchmakingApp.state.matchmakingMode = val;
-    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    stampSetting('matchmakingMode');
     MatchmakingApp.persist();
   },
 });
@@ -5954,7 +6037,7 @@ const scoreType = computed<'RALLY' | 'SIDEOUT'>({
   get: () => MatchmakingApp.state.scoreType || 'SIDEOUT',
   set: (val) => {
     MatchmakingApp.state.scoreType = val;
-    MatchmakingApp.state.settingsUpdatedAt = Date.now();
+    stampSetting('scoreType');
     MatchmakingApp.persist();
   },
 });
@@ -6659,7 +6742,7 @@ const currentAdminName = computed(() => {
 
 const generateNewMatches = () => {
   MatchmakingApp.state.teamSize = matchType.value === 'singles' ? 1 : 2;
-  MatchmakingApp.state.settingsUpdatedAt = Date.now();
+  stampSetting('teamSize');
   MatchmakingApp.persist();
   MatchmakingApp.draftNextMatches(
     queuePriorityMode.value,

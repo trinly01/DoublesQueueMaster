@@ -124,6 +124,7 @@ export interface AppState {
   completedMatchesResetAt?: number; // Epoch ms — drops completedMatches older than this
   lastExportedAt?: number; // Epoch ms of last export
   settingsUpdatedAt?: number; // Epoch ms of last settings change (for per-field LWW)
+  settingsFieldTimestamps?: Record<string, number>; // Per-field epoch ms for granular LWW
   playersResetAt?: number; // Epoch ms — drops players created before this checkpoint
   queuesResetAt?: number; // Epoch ms — drops queue entries entered before this checkpoint
   matchesResetAt?: number; // Epoch ms — drops matches created before this checkpoint
@@ -736,6 +737,17 @@ export class LocalMatchmakingSystem {
   }
 
   // --- INTERNAL STORAGE METHODS ---
+
+  // Stamp both global settingsUpdatedAt and a per-field timestamp for granular LWW.
+  private stampSetting(field: string) {
+    const now = Date.now();
+    this.state.settingsUpdatedAt = now;
+    if (!this.state.settingsFieldTimestamps) {
+      this.state.settingsFieldTimestamps = {};
+    }
+    this.state.settingsFieldTimestamps[field] = now;
+  }
+
   private saveState() {
     // Ensure no player appears in more than one active match.
     // Losing matches are tombstoned and their players returned to queue.
@@ -989,7 +1001,7 @@ export class LocalMatchmakingSystem {
   // Epoch-based clear for completed matches (multi-admin safe)
   public clearCompletedMatches() {
     this.state.completedMatchesResetAt = Date.now();
-    this.state.settingsUpdatedAt = Date.now();
+    this.stampSetting('completedMatchesResetAt');
     // Locally filter; remote side will also filter on sync
     const resetAt = this.state.completedMatchesResetAt;
     this.state.completedMatches = this.state.completedMatches.filter(
@@ -1000,7 +1012,7 @@ export class LocalMatchmakingSystem {
 
   public markExported() {
     this.state.lastExportedAt = Date.now();
-    this.state.settingsUpdatedAt = Date.now();
+    this.stampSetting('lastExportedAt');
     this.saveState();
   }
 
@@ -1293,7 +1305,7 @@ export class LocalMatchmakingSystem {
     // Alternate All-Star sort direction for next round (desc ↔ asc)
     if (isStrictBalance) {
       this.state.allStarSortDirection = allStarDir === 'desc' ? 'asc' : 'desc';
-      this.state.settingsUpdatedAt = Date.now();
+      this.stampSetting('allStarSortDirection');
     }
 
     this.saveState();
@@ -1961,52 +1973,92 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   // admins. The UI already filters by `!m.deletedAt` when rendering.
   const activeMatchesAfterCleanup = mergedMatches;
 
-  // Per-field LWW for settings: pick each field from whichever side is newer
-  const localIsNewer = localSettingsTime > serverSettingsTime;
-  const pickSettings = <T>(localVal: T, serverVal: T): T =>
-    localIsNewer ? localVal : serverVal;
+  // Per-field LWW for settings: use settingsFieldTimestamps when available,
+  // falling back to the whole-blob settingsUpdatedAt for backward compatibility.
+  const localFTS = local.settingsFieldTimestamps ?? {};
+  const serverFTS = server.settingsFieldTimestamps ?? {};
+  const localIsNewerBlob = localSettingsTime > serverSettingsTime;
+
+  const pickSettings = <T>(localVal: T, serverVal: T, fieldName: string): T => {
+    const localTs = localFTS[fieldName] ?? 0;
+    const serverTs = serverFTS[fieldName] ?? 0;
+    if (localTs > 0 || serverTs > 0) {
+      return localTs >= serverTs ? localVal : serverVal;
+    }
+    // Backward compat: no per-field timestamp, use whole-blob LWW
+    return localIsNewerBlob ? localVal : serverVal;
+  };
+
+  // Merge the settingsFieldTimestamps maps (keep newer timestamp per key)
+  const mergedFTS: Record<string, number> = { ...serverFTS };
+  for (const [key, ts] of Object.entries(localFTS)) {
+    if (ts >= (mergedFTS[key] ?? 0)) {
+      mergedFTS[key] = ts;
+    }
+  }
 
   const mergedState: AppState = {
     availableCourts: pickSettings(
       local.availableCourts,
       server.availableCourts,
+      'availableCourts',
     ),
     autoAdvanceMatches: pickSettings(
       local.autoAdvanceMatches,
       server.autoAdvanceMatches,
+      'autoAdvanceMatches',
     ),
     queueReturnMethod: pickSettings(
       local.queueReturnMethod,
       server.queueReturnMethod,
+      'queueReturnMethod',
     ),
-    autoSortQueue: pickSettings(local.autoSortQueue, server.autoSortQueue),
+    autoSortQueue: pickSettings(
+      local.autoSortQueue,
+      server.autoSortQueue,
+      'autoSortQueue',
+    ),
     queuePriorityMode: pickSettings(
       local.queuePriorityMode,
       server.queuePriorityMode,
+      'queuePriorityMode',
     ),
     matchmakingMode: pickSettings(
       local.matchmakingMode,
       server.matchmakingMode,
+      'matchmakingMode',
     ),
     allStarSortDirection: pickSettings(
       local.allStarSortDirection,
       server.allStarSortDirection,
+      'allStarSortDirection',
     ),
-    sortBy: pickSettings(local.sortBy, server.sortBy),
-    matchType: pickSettings(local.matchType, server.matchType),
+    sortBy: pickSettings(local.sortBy, server.sortBy, 'sortBy'),
+    matchType: pickSettings(local.matchType, server.matchType, 'matchType'),
     matchesFilterBy: pickSettings(
       local.matchesFilterBy,
       server.matchesFilterBy,
+      'matchesFilterBy',
     ),
-    scoreType: pickSettings(local.scoreType, server.scoreType),
-    ttsEnabled: pickSettings(local.ttsEnabled, server.ttsEnabled),
-    qrContinueScan: pickSettings(local.qrContinueScan, server.qrContinueScan),
+    scoreType: pickSettings(local.scoreType, server.scoreType, 'scoreType'),
+    ttsEnabled: pickSettings(local.ttsEnabled, server.ttsEnabled, 'ttsEnabled'),
+    qrContinueScan: pickSettings(
+      local.qrContinueScan,
+      server.qrContinueScan,
+      'qrContinueScan',
+    ),
     completedMatchesResetAt: pickSettings(
       local.completedMatchesResetAt,
       server.completedMatchesResetAt,
+      'completedMatchesResetAt',
     ),
-    lastExportedAt: pickSettings(local.lastExportedAt, server.lastExportedAt),
-    teamSize: pickSettings(local.teamSize, server.teamSize),
+    lastExportedAt: pickSettings(
+      local.lastExportedAt,
+      server.lastExportedAt,
+      'lastExportedAt',
+    ),
+    teamSize: pickSettings(local.teamSize, server.teamSize, 'teamSize'),
+    settingsFieldTimestamps: mergedFTS,
     players: mergedPlayers,
     queues: filteredQueues,
     activeMatches: activeMatchesAfterCleanup,

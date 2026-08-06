@@ -1967,6 +1967,56 @@ describe('mergeAppState — lower-value merge gaps', () => {
     expect(merged.matchmakingMode).toBe('balance_first');
   });
 
+  it('per-field settings LWW: concurrent changes to different settings both survive', () => {
+    // Admin A changes availableCourts at t=2000
+    const a = makeState({
+      settingsUpdatedAt: 2000,
+      settingsFieldTimestamps: { availableCourts: 2000 },
+      availableCourts: 4,
+      autoAdvanceMatches: true, // unchanged from default
+      lastModified: 2000,
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+    });
+    // Admin B changes autoAdvanceMatches at t=3000 (hasn't seen A's change yet)
+    const b = makeState({
+      settingsUpdatedAt: 3000,
+      settingsFieldTimestamps: { autoAdvanceMatches: 3000 },
+      availableCourts: 1, // unchanged from default (stale)
+      autoAdvanceMatches: false,
+      lastModified: 3000,
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+    });
+    const merged = mergeAppState(a, b);
+    // availableCourts: A's timestamp (2000) > B's timestamp (0) → A wins
+    expect(merged.availableCourts).toBe(4);
+    // autoAdvanceMatches: B's timestamp (3000) > A's timestamp (0) → B wins
+    expect(merged.autoAdvanceMatches).toBe(false);
+    // Both per-field timestamps should be merged
+    expect(merged.settingsFieldTimestamps?.availableCourts).toBe(2000);
+    expect(merged.settingsFieldTimestamps?.autoAdvanceMatches).toBe(3000);
+  });
+
+  it('per-field settings LWW: backward compat falls back to whole-blob when no field timestamps', () => {
+    const a = makeState({
+      settingsUpdatedAt: 2000,
+      availableCourts: 4,
+      autoAdvanceMatches: true,
+      lastModified: 2000,
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+    });
+    const b = makeState({
+      settingsUpdatedAt: 3000,
+      availableCourts: 2,
+      autoAdvanceMatches: false,
+      lastModified: 3000,
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+    });
+    const merged = mergeAppState(a, b);
+    // No per-field timestamps → whole-blob LWW: B wins all
+    expect(merged.availableCourts).toBe(2);
+    expect(merged.autoAdvanceMatches).toBe(false);
+  });
+
   it('queue ordering and priority is preserved after merge', () => {
     const a = makeState({
       players: {
