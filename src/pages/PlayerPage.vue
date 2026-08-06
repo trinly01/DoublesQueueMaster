@@ -123,7 +123,7 @@
         />
 
         <div
-          v-if="recentClubs.length > 0"
+          v-if="displayClubs.length > 0"
           class="flex flex-center"
           style="
             flex-wrap: wrap;
@@ -133,7 +133,7 @@
           "
         >
           <q-chip
-            v-for="club in recentClubs.slice(0, 3)"
+            v-for="club in displayClubs.slice(0, 3)"
             :key="club.id"
             clickable
             dense
@@ -1069,6 +1069,8 @@ const qrCodeDataUrl = ref('');
 
 const { recentClubs, loadRecentClubs } = useRecentClubs(currentUserId);
 
+const displayClubs = computed(() => [...recentClubs.value].reverse());
+
 const openQrDialog = async () => {
   if (!username.value) return;
   try {
@@ -1824,6 +1826,9 @@ const editProfile = async () => {
 };
 
 onMounted(async () => {
+  // Load recent clubs from cache instantly (before profile fetch)
+  loadRecentClubs();
+
   // If we have cached profile, show it immediately and fetch in background
   const hasCache = PlayerProfile.hasCachedProfile();
   if (!hasCache) {
@@ -1855,8 +1860,6 @@ onMounted(async () => {
       message: PlayerProfile.error.value,
     });
   }
-
-  loadRecentClubs();
 });
 
 const fetchLeaderboard = async () => {
