@@ -368,7 +368,9 @@ export function useGameEngine() {
   let waitingForReconnectData = false;
   let reconnectGraceTimer = 0;
   let syncScoresRetryTimer = 0;
-  let hasStartedGame = false;
+  let hasStartedGame =
+    typeof window !== 'undefined' &&
+    localStorage.getItem('dqm_started') === '1';
 
   // Clear role indicators for readable conditionals
   const isPvP = computed(() => mode.value === 'pvp');
@@ -911,6 +913,7 @@ export function useGameEngine() {
     hasStartedGame = false;
     gameState.value = 'menu';
     if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
+    if (typeof window !== 'undefined') localStorage.removeItem('dqm_started');
   }
 
   function startGame() {
@@ -924,6 +927,7 @@ export function useGameEngine() {
     gameState.value = 'playing';
     p2p.setInMatch(true);
     hasStartedGame = true;
+    if (typeof window !== 'undefined') localStorage.setItem('dqm_started', '1');
     servingTo.value = 'player';
     server.value = 'player';
     resetBall('player');
@@ -937,6 +941,7 @@ export function useGameEngine() {
       mode.value = 'ai';
       hasStartedGame = false;
       if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
+      if (typeof window !== 'undefined') localStorage.removeItem('dqm_started');
     }
     playerScore.value = 0;
     aiScore.value = 0;
@@ -3365,6 +3370,8 @@ export function useGameEngine() {
         gameState.value = 'game-over';
         p2p.setInMatch(false);
         if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
+        if (typeof window !== 'undefined')
+          localStorage.removeItem('dqm_started');
         if (isHost.value) {
           p2p.broadcastEvent({ type: 'game-over', data: 'forfeit' });
         }
