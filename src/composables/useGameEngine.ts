@@ -368,6 +368,7 @@ export function useGameEngine() {
   let waitingForReconnectData = false;
   let reconnectGraceTimer = 0;
   let syncScoresRetryTimer = 0;
+  let statusRetryTimer = 0;
   let hasStartedGame =
     typeof window !== 'undefined' &&
     localStorage.getItem('dqm_started') === '1';
@@ -459,9 +460,8 @@ export function useGameEngine() {
           }, 1000);
         }
       }
-      // Broadcast our status to peer — both first connection and reconnection.
-      // peerVerified will be false at this point (pong not yet received),
-      // so we send 'connected'. The watch on peerVerified will upgrade to 'synced'.
+      // Status broadcasting is handled by watch(peerVerified) which fires
+      // when pong is received, confirming the data channel works.
     });
 
     p2p.onPeerLeave(() => {
@@ -691,9 +691,8 @@ export function useGameEngine() {
             pendingStartTimer = null;
           }
           // Transition to paused so players can resume manually
+          // Only on reconnection — not first connection
           if (
-            gameState.value === 'connecting' ||
-            gameState.value === 'waiting' ||
             gameState.value === 'reconnecting' ||
             gameState.value === 'playing'
           ) {
@@ -737,15 +736,9 @@ export function useGameEngine() {
         // Peer reports their status: 'connected' or 'synced'
         const status = data.data as string;
         peerStatus.value = status as 'connected' | 'synced';
-        // On reconnection (hasStartedGame), transition to paused when peer reports synced
-        if (
-          hasStartedGame &&
-          status === 'synced' &&
-          (gameState.value === 'reconnecting' ||
-            gameState.value === 'connecting' ||
-            gameState.value === 'waiting' ||
-            gameState.value === 'playing')
-        ) {
+        // Only transition to paused on actual reconnection (gameState === 'reconnecting')
+        // On first connection, gameState is 'connecting'/'waiting'/'playing' — not 'reconnecting'
+        if (status === 'synced' && gameState.value === 'reconnecting') {
           pausedFromState = 'playing';
           pausedFromReconnect.value = true;
           syncScoresRetryTimer = 0;
@@ -894,6 +887,7 @@ export function useGameEngine() {
     p2p.leaveRoom();
     mode.value = 'ai';
     hasStartedGame = false;
+    statusRetryTimer = 0;
     gameState.value = 'menu';
     if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
     if (typeof window !== 'undefined') localStorage.removeItem('dqm_started');
@@ -923,6 +917,7 @@ export function useGameEngine() {
       p2p.leaveRoom();
       mode.value = 'ai';
       hasStartedGame = false;
+      statusRetryTimer = 0;
       if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
       if (typeof window !== 'undefined') localStorage.removeItem('dqm_started');
     }
@@ -946,10 +941,17 @@ export function useGameEngine() {
   // When our data channel is verified (pong received), broadcast status to peer.
   // This is the key handshake: both sides send 'synced' once their data channel works.
   // gameReady becomes true only when BOTH sides have peerVerified AND peerStatus='synced'.
+  // Retry every 1s until gameReady to ensure no missed messages.
   watch(p2p.peerVerified, (verified) => {
     if (verified && isPvP.value) {
       p2p.broadcastEvent({ type: 'status', data: 'synced' });
+      statusRetryTimer = 1.0;
     }
+  });
+
+  // Stop retrying once both sides are synced
+  watch(gameReady, (ready) => {
+    if (ready) statusRetryTimer = 0;
   });
   function pauseGame() {
     // Only allow pause during serve state (ball not yet moving)
@@ -975,6 +977,7 @@ export function useGameEngine() {
       gameState.value = pausedFromState;
       pausedFromReconnect.value = false;
       peerStatus.value = null;
+      statusRetryTimer = 0;
       prevGamepadButtons = [];
       if (isPvP.value) {
         // Both host and guest reset to serve positions
@@ -3227,6 +3230,20 @@ export function useGameEngine() {
     if (lastTime === 0) lastTime = time;
     const dt = Math.min(time - lastTime, 0.05);
     lastTime = time;
+
+    // Retry broadcasting status:synced every 1s until both sides confirm
+    if (
+      isPvP.value &&
+      p2p.peerVerified.value &&
+      !gameReady.value &&
+      statusRetryTimer > 0
+    ) {
+      statusRetryTimer -= dt;
+      if (statusRetryTimer <= 0) {
+        p2p.broadcastEvent({ type: 'status', data: 'synced' });
+        statusRetryTimer = 1.0;
+      }
+    }
 
     if (gameState.value === 'playing') {
       refs.servePending = servePending.value;

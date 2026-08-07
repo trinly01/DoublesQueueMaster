@@ -419,15 +419,13 @@
       </div>
     </div>
 
-    <!-- Syncing overlay (peer detected but not both synced) -->
+    <!-- Syncing overlay (peer detected but not both synced — only during paused/reconnection) -->
     <div
       v-if="
         engine.mode.value === 'pvp' &&
         engine.p2p.opponentId.value &&
         !engine.gameReady.value &&
-        (engine.gameState.value === 'playing' ||
-          engine.gameState.value === 'point-scored' ||
-          engine.gameState.value === 'paused')
+        engine.gameState.value === 'paused'
       "
       class="menu-overlay"
       style="background: rgba(0, 0, 0, 0.5)"
