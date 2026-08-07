@@ -236,6 +236,14 @@ export function useGameEngine() {
   } | null = null;
   let aiDinkRead: boolean | null = null; // null = not evaluated, true/false = committed
 
+  // Guest-side delayed "In" fault: when guest detects 2nd bounce, delay reporting
+  // to allow collision detection to fire first. If guest hits ball during delay,
+  // the "In" fault is cancelled.
+  let pendingGuestInFault: {
+    data: string; // 'in' or 'net'
+    timer: ReturnType<typeof setTimeout>;
+  } | null = null;
+
   // Guest-side bounce tracking (for reporting double bounces to host)
   let guestBounceCount = 0;
   let guestPrevBallY = 999; // track previous ball Y to detect bounce (y crosses below BALL_RADIUS)
@@ -945,6 +953,11 @@ export function useGameEngine() {
     // Clear any pending bounce fault on new rally
     if (pendingBounceFault?.timer) clearTimeout(pendingBounceFault.timer);
     pendingBounceFault = null;
+    // Clear any pending guest "In" fault on new rally
+    if (pendingGuestInFault) {
+      clearTimeout(pendingGuestInFault.timer);
+      pendingGuestInFault = null;
+    }
     servePending.value = true;
     serveTimer = 0; // not used for player serve; AI uses its own timer
 
@@ -2703,12 +2716,27 @@ export function useGameEngine() {
         }
 
         // Second bounce = guest didn't return
-        if (guestRallyHitCount > 1 && guestBounceCount >= 2) {
-          if (guestBallClippedNet) {
-            p2p.broadcastEvent({ type: 'bounce-fault', data: 'net' });
-          } else {
-            p2p.broadcastEvent({ type: 'bounce-fault', data: 'in' });
-          }
+        // Delay reporting to allow collision detection to fire first.
+        // If guest hits the ball during this window, pendingFaultAck will be set
+        // and we cancel the "In" report.
+        if (
+          guestRallyHitCount > 1 &&
+          guestBounceCount >= 2 &&
+          !pendingGuestInFault
+        ) {
+          const faultData = guestBallClippedNet ? 'net' : 'in';
+          pendingGuestInFault = {
+            data: faultData,
+            timer: setTimeout(() => {
+              if (pendingGuestInFault && !pendingFaultAck) {
+                p2p.broadcastEvent({
+                  type: 'bounce-fault',
+                  data: pendingGuestInFault.data,
+                });
+              }
+              pendingGuestInFault = null;
+            }, 150),
+          };
           guestPrevBallY = ballY;
           return;
         }
@@ -2756,6 +2784,11 @@ export function useGameEngine() {
   // ballY proves the ball was in the air (hadn't bounced) at collision time.
   // Retries up to 3 times with 500ms timeout.
   function sendGuestFault(faultType: string) {
+    // Cancel any pending "In" fault — guest hit the ball before 2nd bounce
+    if (pendingGuestInFault) {
+      clearTimeout(pendingGuestInFault.timer);
+      pendingGuestInFault = null;
+    }
     p2p.broadcastEvent({
       type: 'fault',
       data: faultType,
@@ -3346,6 +3379,10 @@ export function useGameEngine() {
     window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('gamepadconnected', onGamepadConnected);
     window.removeEventListener('gamepaddisconnected', onGamepadDisconnected);
+    if (pendingGuestInFault) {
+      clearTimeout(pendingGuestInFault.timer);
+      pendingGuestInFault = null;
+    }
   }
 
   onUnmounted(cleanup);
