@@ -167,19 +167,16 @@
     <div
       v-if="
         engine.gameState.value === 'paused' &&
-        !(engine.pausedFromReconnect.value && !engine.p2p.peerVerified.value)
+        !(
+          engine.pausedFromReconnect.value &&
+          !(engine.p2p.peerVerified.value && engine.peerReconnected.value)
+        )
       "
       class="menu-overlay"
     >
       <div class="menu-card">
         <h1 class="menu-title">
-          {{
-            engine.pausedFromReconnect.value && engine.p2p.peerVerified.value
-              ? 'Reconnected'
-              : engine.pausedFromReconnect.value
-                ? 'Syncing…'
-                : 'Paused'
-          }}
+          {{ engine.pausedFromReconnect.value ? 'Reconnected' : 'Paused' }}
         </h1>
         <q-btn
           label="Main Menu"
@@ -201,7 +198,10 @@
           size="lg"
           class="play-btn"
           :disable="
-            engine.mode.value === 'pvp' && !engine.p2p.peerVerified.value
+            engine.mode.value === 'pvp' &&
+            (!engine.p2p.peerVerified.value ||
+              (engine.pausedFromReconnect.value &&
+                !engine.peerReconnected.value))
           "
           :class="isNavFocused('resume') ? 'nav-focused' : ''"
           @click="engine.resumeGame()"
@@ -427,12 +427,15 @@
       </div>
     </div>
 
-    <!-- Syncing overlay (peer detected but data channel not verified) -->
+    <!-- Syncing overlay (connection not fully established or peer hasn't confirmed) -->
     <div
       v-if="
         engine.mode.value === 'pvp' &&
-        !engine.p2p.peerVerified.value &&
         engine.p2p.opponentId.value &&
+        !(
+          engine.p2p.peerVerified.value &&
+          (!engine.pausedFromReconnect.value || engine.peerReconnected.value)
+        ) &&
         (engine.gameState.value === 'playing' ||
           engine.gameState.value === 'point-scored' ||
           engine.gameState.value === 'paused')
