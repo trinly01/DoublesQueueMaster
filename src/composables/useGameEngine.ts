@@ -458,8 +458,14 @@ export function useGameEngine() {
       }
       // For reconnecting state, the game loop's reconnecting handler
       // will detect p2p.connectionState === 'connected' and handle it.
-      // Send reconnected event so both sides acknowledge the reconnection
-      if (gameState.value === 'reconnecting') {
+      // Send reconnected event so both sides acknowledge the reconnection.
+      // Covers both 'reconnecting' (peer left) and 'connecting'/'waiting'
+      // (host refreshed page, auto-reconnect via startPvP).
+      if (
+        gameState.value === 'reconnecting' ||
+        gameState.value === 'connecting' ||
+        gameState.value === 'waiting'
+      ) {
         p2p.broadcastEvent({ type: 'reconnected' });
       }
     });
@@ -3320,12 +3326,14 @@ export function useGameEngine() {
               type: 'sync-scores',
               data: `${playerScore.value},${aiScore.value},${server.value},${servingTo.value},${servePending.value}`,
             });
+            // Also send reconnected so host gets peerReconfirmed=true
+            p2p.broadcastEvent({ type: 'reconnected' });
             // Set up retry timer to keep sending sync-scores every 1s
             // until host responds with resync+pause events
             syncScoresRetryTimer = 1.0;
           }
         }
-        // Guest keeps retrying sync-scores every 1s after grace period
+        // Guest keeps retrying sync-scores + reconnected every 1s after grace period
         // until host sends resync+pause events (which transition to paused)
         if (isGuest.value && syncScoresRetryTimer > 0) {
           syncScoresRetryTimer -= dt;
@@ -3335,6 +3343,7 @@ export function useGameEngine() {
               type: 'sync-scores',
               data: `${playerScore.value},${aiScore.value},${server.value},${servingTo.value},${servePending.value}`,
             });
+            p2p.broadcastEvent({ type: 'reconnected' });
           }
         }
       } else if (p2p.connectionState.value === 'disconnected') {
