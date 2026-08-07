@@ -412,6 +412,27 @@
       </div>
     </div>
 
+    <!-- Syncing overlay (peer detected but data channel not verified) -->
+    <div
+      v-if="
+        engine.mode.value === 'pvp' &&
+        !engine.p2p.peerVerified.value &&
+        engine.p2p.opponentId.value &&
+        (engine.gameState.value === 'playing' ||
+          engine.gameState.value === 'point-scored')
+      "
+      class="menu-overlay"
+      style="background: rgba(0, 0, 0, 0.5)"
+    >
+      <div class="menu-card">
+        <q-spinner-dots size="48px" color="white" />
+        <h1 class="menu-title" style="font-size: 24px; margin-top: 16px">
+          Syncing…
+        </h1>
+        <p class="menu-subtitle">Establishing connection with opponent</p>
+      </div>
+    </div>
+
     <!-- Floating joystick layer (touch only) -->
     <div
       v-if="
