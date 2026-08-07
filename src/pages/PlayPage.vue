@@ -379,9 +379,13 @@
         >
           Reconnecting…
         </h1>
-        <p class="menu-subtitle">
+        <p
+          class="menu-subtitle"
+          v-if="engine.p2p.connectionState.value === 'reconnecting'"
+        >
           {{ engine.p2p.reconnectTimer.value }}s remaining
         </p>
+        <p class="menu-subtitle" v-else>Syncing…</p>
         <q-btn
           label="Cancel Match"
           color="white"
