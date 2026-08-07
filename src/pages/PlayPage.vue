@@ -163,8 +163,14 @@
       </q-btn>
     </div>
 
-    <!-- Pause overlay -->
-    <div v-if="engine.gameState.value === 'paused'" class="menu-overlay">
+    <!-- Pause overlay (hidden during reconnection sync — syncing overlay shows instead) -->
+    <div
+      v-if="
+        engine.gameState.value === 'paused' &&
+        !(engine.pausedFromReconnect.value && !engine.p2p.peerVerified.value)
+      "
+      class="menu-overlay"
+    >
       <div class="menu-card">
         <h1 class="menu-title">
           {{
@@ -428,7 +434,8 @@
         !engine.p2p.peerVerified.value &&
         engine.p2p.opponentId.value &&
         (engine.gameState.value === 'playing' ||
-          engine.gameState.value === 'point-scored')
+          engine.gameState.value === 'point-scored' ||
+          engine.gameState.value === 'paused')
       "
       class="menu-overlay"
       style="background: rgba(0, 0, 0, 0.5)"
