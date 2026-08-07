@@ -167,7 +167,13 @@
     <div v-if="engine.gameState.value === 'paused'" class="menu-overlay">
       <div class="menu-card">
         <h1 class="menu-title">
-          {{ engine.pausedFromReconnect.value ? 'Reconnected' : 'Paused' }}
+          {{
+            engine.pausedFromReconnect.value && engine.p2p.peerVerified.value
+              ? 'Reconnected'
+              : engine.pausedFromReconnect.value
+                ? 'Syncing…'
+                : 'Paused'
+          }}
         </h1>
         <q-btn
           label="Main Menu"
