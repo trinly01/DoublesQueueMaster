@@ -721,14 +721,14 @@ export function useGameEngine() {
         const overridden = cancelPendingBounceFault(guestBallY);
         if (overridden) {
           // Bounce fault was cancelled — process the collision instead
-          tryHit(refs.aiPos, refs.ballPos, refs.ballVel, false, true);
+          tryHit(refs.aiPos, refs.ballPos, refs.ballVel, false, true, true);
         } else if (
           !pendingBounceFault &&
           gameState.value === 'playing' &&
           !servePending.value
         ) {
           // No pending bounce fault — normal collision processing
-          tryHit(refs.aiPos, refs.ballPos, refs.ballVel, false, true);
+          tryHit(refs.aiPos, refs.ballPos, refs.ballVel, false, true, true);
         }
         // If pendingBounceFault exists and wasn't overridden, the ball had
         // already bounced — the bounce fault takes priority, ignore the collision.
@@ -1006,6 +1006,33 @@ export function useGameEngine() {
         );
       }
       // Clamp to court width
+      targetX = THREE.MathUtils.clamp(
+        targetX,
+        -(COURT_WIDTH / 2 - 0.5),
+        COURT_WIDTH / 2 - 0.5,
+      );
+    } else if (isPvP.value) {
+      // PvP guest serve: use same movement-based aiming as host player
+      const moveX = THREE.MathUtils.clamp(
+        aiCurrentVel.x / PLAYER_MAX_SPEED,
+        -1,
+        1,
+      );
+      targetX = (Math.random() - 0.5) * 0.6 + moveX * 2.5;
+      // Serve magnet: bias toward correct diagonal court
+      const cfg = AI_CONFIGS[difficulty.value];
+      if (cfg.playerMagnet > 0) {
+        const aiScoreVal = aiScore.value;
+        const serveRight = aiScoreVal % 2 === 0;
+        const correctCourtX = serveRight
+          ? -(COURT_WIDTH / 2 - 1)
+          : COURT_WIDTH / 2 - 1;
+        targetX = THREE.MathUtils.lerp(
+          targetX,
+          correctCourtX,
+          cfg.playerMagnet,
+        );
+      }
       targetX = THREE.MathUtils.clamp(
         targetX,
         -(COURT_WIDTH / 2 - 0.5),
@@ -1616,6 +1643,7 @@ export function useGameEngine() {
     ballVel: THREE.Vector3,
     isPlayer: boolean,
     confirmed = false,
+    isRemotePlayer = false,
   ): boolean {
     // 3D body volume collision — player body + head + paddle reach
     // Paddle reach extends based on how far paddle is reaching toward ball
@@ -1687,12 +1715,13 @@ export function useGameEngine() {
     const cfg = AI_CONFIGS[difficulty.value];
     // Error based on accuracy: (1 - accuracy) * max spread
     // Player error is minimal (skill-based), AI error scales with difficulty
-    const errorRange = isPlayer ? 0.4 : (1 - cfg.accuracy) * 1.8;
+    const usePlayerLogic = isPlayer || isRemotePlayer;
+    const errorRange = usePlayerLogic ? 0.4 : (1 - cfg.accuracy) * 1.8;
 
     // Impact-force: based on player movement direction and speed
     // Movement direction influences where the ball goes
     const vel = isPlayer ? playerVel : aiVel;
-    const maxSpeed = isPlayer
+    const maxSpeed = usePlayerLogic
       ? PLAYER_MAX_SPEED
       : AI_CONFIGS[difficulty.value].speed;
 
@@ -1710,27 +1739,34 @@ export function useGameEngine() {
 
     // AI dink chance: sometimes hit short into the kitchen to force player to let it bounce
     let adjustedTargetZ: number;
-    if (!isPlayer) {
-      // Increase dink chance when player is standing still (vulnerable to kitchen dink)
+    if (!usePlayerLogic) {
+      // AI dink: difficulty-based chance, targets player's kitchen (z > 0)
       const playerSpeed = playerVel.length();
       const playerStanding = playerSpeed < 0.5;
       let dinkChance = cfg.dinkChance;
       if (playerStanding) dinkChance += cfg.dinkBonusStanding;
       if (Math.random() < dinkChance) {
-        // Dink into kitchen: ball must bounce inside kitchen (0.3m to 1.8m past net)
         adjustedTargetZ = 0.3 + Math.random() * 1.5;
       } else {
         adjustedTargetZ = KITCHEN_DEPTH + depth;
       }
-    } else {
-      // Player dink: when standing still, shot tends to go short into AI kitchen
+    } else if (isPlayer) {
+      // Host player dink: targets AI kitchen (z < 0)
       const playerSpeed = playerVel.length();
       const isStanding = playerSpeed < 0.5;
       if (isStanding && Math.random() < 0.3) {
-        // Dink into AI kitchen: ball must bounce inside kitchen (0.3m to 1.8m past net)
         adjustedTargetZ = -(0.3 + Math.random() * 1.5);
       } else {
         adjustedTargetZ = -(KITCHEN_DEPTH + depth);
+      }
+    } else {
+      // Remote player (guest) dink: targets host's kitchen (z > 0), same logic as player
+      const hitterSpeed = vel.length();
+      const isStanding = hitterSpeed < 0.5;
+      if (isStanding && Math.random() < 0.3) {
+        adjustedTargetZ = 0.3 + Math.random() * 1.5;
+      } else {
+        adjustedTargetZ = KITCHEN_DEPTH + depth;
       }
     }
 
@@ -1740,7 +1776,7 @@ export function useGameEngine() {
     const moveBias = sideMove * 2.0;
     let targetXAdj: number;
 
-    if (!isPlayer && cfg.targetBias > 0) {
+    if (!usePlayerLogic && cfg.targetBias > 0) {
       // AI: bias toward opposite side of player based on difficulty
       const playerXSide = refs.playerPos.x > 0 ? -1 : 1;
       const targetCenter = playerXSide * cfg.targetBias;
@@ -1763,7 +1799,7 @@ export function useGameEngine() {
     if (isDink) {
       // Dink: chance of low clearance (may hit net = fault)
       // AI net fault scales by difficulty; player fixed at 15%
-      const netFaultChance = isPlayer ? 0.15 : cfg.netFaultChance;
+      const netFaultChance = usePlayerLogic ? 0.15 : cfg.netFaultChance;
       if (Math.random() < netFaultChance) {
         clearMargin = -0.05; // below net height — will clip net
       } else {
