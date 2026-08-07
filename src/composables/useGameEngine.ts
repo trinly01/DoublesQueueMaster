@@ -458,6 +458,10 @@ export function useGameEngine() {
       }
       // For reconnecting state, the game loop's reconnecting handler
       // will detect p2p.connectionState === 'connected' and handle it.
+      // Send reconnected event so both sides acknowledge the reconnection
+      if (gameState.value === 'reconnecting') {
+        p2p.broadcastEvent({ type: 'reconnected' });
+      }
     });
 
     p2p.onPeerLeave(() => {
@@ -697,6 +701,7 @@ export function useGameEngine() {
             pausedFromReconnect.value = true;
             p2p.setInMatch(true);
             gameState.value = 'paused';
+            p2p.broadcastEvent({ type: 'reconnected' });
             p2p.broadcastEvent({ type: 'resync' });
             p2p.broadcastEvent({ type: 'pause' });
             // Always replay from serve after reconnection (let rule)
@@ -725,6 +730,23 @@ export function useGameEngine() {
             syncScoresRetryTimer = 0;
           }
           gameState.value = 'paused';
+        }
+      } else if (data.type === 'reconnected') {
+        // Peer reports they've reconnected — acknowledge on our side too
+        if (
+          gameState.value === 'reconnecting' ||
+          gameState.value === 'connecting' ||
+          gameState.value === 'waiting'
+        ) {
+          pausedFromState = 'playing';
+          pausedFromReconnect.value = true;
+          syncScoresRetryTimer = 0;
+          p2p.setInMatch(true);
+          gameState.value = 'paused';
+        }
+        // Send reconnected back so both sides acknowledge
+        if (!pausedFromReconnect.value) {
+          pausedFromReconnect.value = true;
         }
       } else if (data.type === 'resume') {
         if (gameState.value === 'paused' && p2p.peerVerified.value) {
@@ -3259,10 +3281,11 @@ export function useGameEngine() {
         if (reconnectGraceTimer >= 0.5) {
           waitingForReconnectData = false;
           if (isHost.value) {
-            // Host initiates the pause and signals guest via resync+pause events
+            // Host initiates the pause and signals guest via reconnected+resync+pause events
             pausedFromState = 'playing';
             pausedFromReconnect.value = true;
             gameState.value = 'paused';
+            p2p.broadcastEvent({ type: 'reconnected' });
             p2p.broadcastEvent({ type: 'resync' });
             p2p.broadcastEvent({ type: 'pause' });
             // If in serve state, reset ball to serve position
