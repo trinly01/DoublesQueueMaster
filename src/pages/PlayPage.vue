@@ -381,9 +381,21 @@
         </h1>
         <p
           class="menu-subtitle"
-          v-if="engine.p2p.connectionState.value === 'reconnecting'"
+          v-if="
+            engine.p2p.connectionState.value === 'reconnecting' &&
+            !engine.p2p.peerVerified.value
+          "
         >
           {{ engine.p2p.reconnectTimer.value }}s remaining
+        </p>
+        <p
+          class="menu-subtitle"
+          v-else-if="
+            engine.p2p.connectionState.value === 'reconnecting' &&
+            engine.p2p.peerVerified.value
+          "
+        >
+          Syncing…
         </p>
         <p class="menu-subtitle" v-else>Syncing…</p>
         <q-btn
