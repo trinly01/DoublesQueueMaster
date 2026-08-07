@@ -727,7 +727,7 @@ export function useGameEngine() {
           gameState.value = 'paused';
         }
       } else if (data.type === 'resume') {
-        if (gameState.value === 'paused') {
+        if (gameState.value === 'paused' && p2p.peerVerified.value) {
           gameState.value = pausedFromState;
           // Reset both players to serve positions
           resetBall(servingTo.value);
@@ -872,6 +872,8 @@ export function useGameEngine() {
   }
 
   function startGame() {
+    // Don't start PvP game if peer is not verified — connection not ready
+    if (isPvP.value && !p2p.peerVerified.value) return;
     playerScore.value = 0;
     aiScore.value = 0;
     winner.value = null;
@@ -925,6 +927,8 @@ export function useGameEngine() {
 
   function resumeGame() {
     if (gameState.value === 'paused') {
+      // Don't resume in PvP if peer is not verified — connection not ready
+      if (isPvP.value && !p2p.peerVerified.value) return;
       gameState.value = pausedFromState;
       pausedFromReconnect.value = false;
       prevGamepadButtons = [];

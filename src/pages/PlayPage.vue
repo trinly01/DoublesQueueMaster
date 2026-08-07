@@ -194,6 +194,9 @@
           rounded
           size="lg"
           class="play-btn"
+          :disable="
+            engine.mode.value === 'pvp' && !engine.p2p.peerVerified.value
+          "
           :class="isNavFocused('resume') ? 'nav-focused' : ''"
           @click="engine.resumeGame()"
         />
