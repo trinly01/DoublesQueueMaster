@@ -700,7 +700,8 @@ export function useGameEngine() {
           if (
             gameState.value === 'connecting' ||
             gameState.value === 'waiting' ||
-            gameState.value === 'reconnecting'
+            gameState.value === 'reconnecting' ||
+            gameState.value === 'playing'
           ) {
             // Ensure role is set to host if not already (ready event might be lost)
             if (p2p.role.value === null) p2p.role.value = 'host';
@@ -744,7 +745,8 @@ export function useGameEngine() {
         if (
           gameState.value === 'reconnecting' ||
           gameState.value === 'connecting' ||
-          gameState.value === 'waiting'
+          gameState.value === 'waiting' ||
+          gameState.value === 'playing'
         ) {
           pausedFromState = 'playing';
           pausedFromReconnect.value = true;
