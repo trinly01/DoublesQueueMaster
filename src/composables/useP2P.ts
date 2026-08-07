@@ -189,13 +189,21 @@ export function useP2P() {
   const jitterBuffer: StatePayload[] = [];
   const JITTER_BUFFER_SIZE = 3;
 
-  function joinGameRoom(roomId: string) {
+  async function joinGameRoom(roomId: string) {
     if (room) leaveRoom();
 
     currentRoomId = roomId;
     connectionState.value = 'connecting';
-    role.value = null;
+    const savedRole =
+      typeof window !== 'undefined' ? localStorage.getItem('dqm_role') : null;
+    role.value = savedRole as 'host' | 'guest' | null;
     opponentId.value = null;
+
+    // Ensure TURN credentials are available before connecting
+    if (!cachedTurnIceServers || Date.now() >= cachedTurnExpiresAt) {
+      console.log('[TURN] joinGameRoom: awaiting TURN credentials...');
+      await fetchCloudflareTurnServers();
+    }
 
     const iceServers = [
       ...(cachedTurnIceServers ?? []),
@@ -249,6 +257,19 @@ export function useP2P() {
 
     eventAction.onMessage = (data) => {
       if (eventCb) eventCb(data as unknown as EventPayload);
+      // Receiving any event proves the data channel works — same as pong
+      if (!peerVerified.value) {
+        console.log(
+          '[SYNC] eventAction: setting peerVerified=true, connState:',
+          connectionState.value,
+        );
+        peerVerified.value = true;
+        if (connectionState.value === 'reconnecting') {
+          connectionState.value = 'connected';
+          cancelReconnect();
+          startKeepalive(PING_INTERVAL);
+        }
+      }
     };
 
     pingAction.onMessage = (data, context) => {
@@ -276,9 +297,10 @@ export function useP2P() {
       opponentId.value = peerId;
       lastPongReceived = performance.now();
 
-      // If reconnecting, don't immediately set 'connected' — wait for pong
-      // to verify the data channel is actually working
-      if (connectionState.value === 'reconnecting') {
+      // If reconnecting or in an active match, don't immediately set 'connected'
+      // — wait for pong/event to verify the data channel is actually working
+      if (connectionState.value === 'reconnecting' || inMatch) {
+        connectionState.value = 'reconnecting';
         peerVerified.value = false;
         // Send ping immediately to probe the data channel
         pingActionSend({ t: performance.now(), r: false }, peerId);
@@ -309,6 +331,8 @@ export function useP2P() {
         // This is immune to ICE timing — no race condition with the 2s waiting timeout
         if (selfId <= peerId) {
           role.value = 'host';
+          if (typeof window !== 'undefined')
+            localStorage.setItem('dqm_role', 'host');
           eventActionSend(
             { type: 'ready', data: 'guest', name: myName },
             peerId,
@@ -319,6 +343,8 @@ export function useP2P() {
           setTimeout(() => {
             if (role.value === null && opponentId.value) {
               role.value = 'host';
+              if (typeof window !== 'undefined')
+                localStorage.setItem('dqm_role', 'host');
               eventActionSend(
                 { type: 'ready', data: 'guest', name: myName },
                 opponentId.value,
@@ -332,6 +358,14 @@ export function useP2P() {
     };
 
     room.onPeerLeave = (peerId: string) => {
+      if (peerId !== opponentId.value) return;
+      if (peerVerified.value) return;
+      console.log(
+        '[SYNC] onPeerLeave: inMatch:',
+        inMatch,
+        'connState:',
+        connectionState.value,
+      );
       if (peerLeaveCb) peerLeaveCb(peerId);
       opponentId.value = null;
       peerVerified.value = false;
@@ -497,6 +531,7 @@ export function useP2P() {
     }
     opponentId.value = null;
     role.value = null;
+    if (typeof window !== 'undefined') localStorage.removeItem('dqm_role');
     connectionState.value = 'idle';
     opponentPing.value = 0;
     peerVerified.value = false;
@@ -508,7 +543,7 @@ export function useP2P() {
     lastEventSeq = -1;
   }
 
-  function rejoinRoom(roomId: string) {
+  async function rejoinRoom(roomId: string) {
     // Preserve role so host/guest assignment survives reconnection
     const savedRole = role.value;
     currentRoomId = roomId;
@@ -539,6 +574,12 @@ export function useP2P() {
     eventSeq = 0;
     lastStateSeq = -1;
     lastEventSeq = -1;
+
+    // Ensure TURN credentials are available before connecting
+    if (!cachedTurnIceServers || Date.now() >= cachedTurnExpiresAt) {
+      console.log('[TURN] rejoinRoom: awaiting TURN credentials...');
+      await fetchCloudflareTurnServers();
+    }
 
     const iceServers = [
       ...(cachedTurnIceServers ?? []),
@@ -586,6 +627,19 @@ export function useP2P() {
 
     eventAction.onMessage = (data) => {
       if (eventCb) eventCb(data as unknown as EventPayload);
+      // Receiving any event proves the data channel works — same as pong
+      if (!peerVerified.value) {
+        console.log(
+          '[SYNC] eventAction: setting peerVerified=true, connState:',
+          connectionState.value,
+        );
+        peerVerified.value = true;
+        if (connectionState.value === 'reconnecting') {
+          connectionState.value = 'connected';
+          cancelReconnect();
+          startKeepalive(PING_INTERVAL);
+        }
+      }
     };
 
     pingAction.onMessage = (data, context) => {
@@ -613,9 +667,10 @@ export function useP2P() {
       opponentId.value = peerId;
       lastPongReceived = performance.now();
 
-      // If reconnecting, don't immediately set 'connected' — wait for pong
-      // to verify the data channel is actually working
-      if (connectionState.value === 'reconnecting') {
+      // If reconnecting or in an active match, don't immediately set 'connected'
+      // — wait for pong/event to verify the data channel is actually working
+      if (connectionState.value === 'reconnecting' || inMatch) {
+        connectionState.value = 'reconnecting';
         peerVerified.value = false;
         // Send ping immediately to probe the data channel
         pingActionSend({ t: performance.now(), r: false }, peerId);
@@ -637,9 +692,13 @@ export function useP2P() {
       // Re-send ready event with preserved role so refreshed opponent knows their role
       if (savedRole === 'host') {
         role.value = 'host';
+        if (typeof window !== 'undefined')
+          localStorage.setItem('dqm_role', 'host');
         eventActionSend({ type: 'ready', data: 'guest', name: myName }, peerId);
       } else if (savedRole === 'guest') {
         role.value = 'guest';
+        if (typeof window !== 'undefined')
+          localStorage.setItem('dqm_role', 'guest');
         eventActionSend({ type: 'ready', data: 'host', name: myName }, peerId);
       }
 
@@ -647,6 +706,14 @@ export function useP2P() {
     };
 
     room.onPeerLeave = (peerId: string) => {
+      if (peerId !== opponentId.value) return;
+      if (peerVerified.value) return;
+      console.log(
+        '[SYNC] onPeerLeave (rejoin): inMatch:',
+        inMatch,
+        'connState:',
+        connectionState.value,
+      );
       if (peerLeaveCb) peerLeaveCb(peerId);
       opponentId.value = null;
       peerVerified.value = false;
@@ -669,6 +736,10 @@ export function useP2P() {
 
   function setInMatch(value: boolean) {
     inMatch = value;
+  }
+
+  function isInMatch() {
+    return inMatch;
   }
 
   return {
@@ -695,5 +766,6 @@ export function useP2P() {
     clearJitterBuffer,
     cancelReconnect,
     setInMatch,
+    isInMatch,
   };
 }
