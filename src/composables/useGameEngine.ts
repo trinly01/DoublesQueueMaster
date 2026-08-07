@@ -872,8 +872,6 @@ export function useGameEngine() {
   }
 
   function startGame() {
-    // Don't start PvP game if peer is not verified — connection not ready
-    if (isPvP.value && !p2p.peerVerified.value) return;
     playerScore.value = 0;
     aiScore.value = 0;
     winner.value = null;
