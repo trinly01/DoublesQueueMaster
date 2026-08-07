@@ -369,9 +369,6 @@ export function useGameEngine() {
   let reconnectGraceTimer = 0;
   let syncScoresRetryTimer = 0;
   let statusRetryTimer = 0;
-  let hasStartedGame =
-    typeof window !== 'undefined' &&
-    localStorage.getItem('dqm_started') === '1';
 
   // Clear role indicators for readable conditionals
   const isPvP = computed(() => mode.value === 'pvp');
@@ -452,8 +449,9 @@ export function useGameEngine() {
           pendingStartTimer = setTimeout(() => {
             pendingStartTimer = null;
             if (
-              gameState.value === 'waiting' ||
-              gameState.value === 'connecting'
+              (gameState.value === 'waiting' ||
+                gameState.value === 'connecting') &&
+              gameReady.value
             ) {
               startGame();
             }
@@ -465,6 +463,10 @@ export function useGameEngine() {
     });
 
     p2p.onPeerLeave(() => {
+      console.log(
+        '[SYNC] onPeerLeave in useGameEngine: setting peerStatus=null, gameState:',
+        gameState.value,
+      );
       peerStatus.value = null;
       if (
         gameState.value === 'playing' ||
@@ -540,6 +542,7 @@ export function useGameEngine() {
           data.gs === 'playing'
         ) {
           gameState.value = 'playing';
+          p2p.setInMatch(true);
           // Snap to host's position for guest (host's aiPos = guest's playerPos)
           refs.playerPos.set(data.ap[0], 0, data.ap[2]);
         } else if (
@@ -550,6 +553,7 @@ export function useGameEngine() {
           pausedFromReconnect.value = true;
           syncScoresRetryTimer = 0;
           gameState.value = 'paused';
+          p2p.setInMatch(true);
         } else if (
           gameState.value === 'playing' &&
           data.gs === 'point-scored'
@@ -629,6 +633,8 @@ export function useGameEngine() {
           // Guest tells us we're the host (reconnection after host refresh)
           if (p2p.role.value !== 'host') {
             p2p.role.value = 'host';
+            if (typeof window !== 'undefined')
+              localStorage.setItem('dqm_role', 'host');
             // Send ready back so guest confirms role
             const myName =
               (typeof PlayerProfile !== 'undefined' &&
@@ -645,8 +651,9 @@ export function useGameEngine() {
             pendingStartTimer = setTimeout(() => {
               pendingStartTimer = null;
               if (
-                gameState.value === 'waiting' ||
-                gameState.value === 'connecting'
+                (gameState.value === 'waiting' ||
+                  gameState.value === 'connecting') &&
+                gameReady.value
               ) {
                 startGame();
               }
@@ -659,6 +666,8 @@ export function useGameEngine() {
           // our correct host role
           if (p2p.role.value !== 'host' && p2p.role.value !== 'guest') {
             p2p.role.value = 'guest';
+            if (typeof window !== 'undefined')
+              localStorage.setItem('dqm_role', 'guest');
             // Flip player to opposite side of court
             refs.playerPos.set(0, 0, -(COURT_LENGTH / 2 - 1));
           }
@@ -668,6 +677,12 @@ export function useGameEngine() {
         snapBallNextFrame = true;
         pausedFromReconnect.value = true;
       } else if (data.type === 'sync-scores') {
+        console.log(
+          '[SYNC] received sync-scores, gameState:',
+          gameState.value,
+          'role:',
+          p2p.role.value,
+        );
         // Guest sends scores after host refresh reconnection
         // Receiving this means we are the host — fix role if deterministic
         // assignment wrongly set us as guest
@@ -691,10 +706,14 @@ export function useGameEngine() {
             pendingStartTimer = null;
           }
           // Transition to paused so players can resume manually
-          // Only on reconnection — not first connection
+          // sync-scores is only sent during reconnection (never first connection),
+          // so 'connecting'/'waiting' here means host refreshed mid-game.
           if (
+            gameState.value === 'connecting' ||
+            gameState.value === 'waiting' ||
             gameState.value === 'reconnecting' ||
-            gameState.value === 'playing'
+            gameState.value === 'playing' ||
+            gameState.value === 'paused'
           ) {
             // Ensure role is set to host if not already (ready event might be lost)
             if (p2p.role.value === null) p2p.role.value = 'host';
@@ -702,6 +721,7 @@ export function useGameEngine() {
             pausedFromReconnect.value = true;
             p2p.setInMatch(true);
             gameState.value = 'paused';
+            peerStatus.value = 'synced';
             p2p.broadcastEvent({ type: 'status', data: 'synced' });
             p2p.broadcastEvent({ type: 'resync' });
             p2p.broadcastEvent({ type: 'pause' });
@@ -728,22 +748,34 @@ export function useGameEngine() {
             gameState.value === 'waiting'
           ) {
             pausedFromReconnect.value = true;
+            peerStatus.value = 'synced';
+            p2p.setInMatch(true);
+            console.log(
+              '[SYNC] pause handler: set peerStatus=synced, peerVerified:',
+              p2p.peerVerified.value,
+            );
             syncScoresRetryTimer = 0;
           }
           gameState.value = 'paused';
         }
       } else if (data.type === 'status') {
-        // Peer reports their status: 'connected' or 'synced'
         const status = data.data as string;
+        const wasSynced = peerStatus.value === 'synced';
+        console.log(
+          '[SYNC] received status:',
+          status,
+          'wasSynced:',
+          wasSynced,
+          'peerVerified:',
+          p2p.peerVerified.value,
+          'role:',
+          p2p.role.value,
+        );
         peerStatus.value = status as 'connected' | 'synced';
-        // Only transition to paused on actual reconnection (gameState === 'reconnecting')
-        // On first connection, gameState is 'connecting'/'waiting'/'playing' — not 'reconnecting'
-        if (status === 'synced' && gameState.value === 'reconnecting') {
-          pausedFromState = 'playing';
-          pausedFromReconnect.value = true;
-          syncScoresRetryTimer = 0;
-          p2p.setInMatch(true);
-          gameState.value = 'paused';
+        // Echo back on first receive so peer knows we got it (self-healing handshake)
+        if (status === 'synced' && !wasSynced && isPvP.value) {
+          console.log('[SYNC] echoing status:synced back');
+          p2p.broadcastEvent({ type: 'status', data: 'synced' });
         }
       } else if (data.type === 'resume') {
         if (gameState.value === 'paused' && gameReady.value) {
@@ -886,11 +918,9 @@ export function useGameEngine() {
     p2p.setInMatch(false);
     p2p.leaveRoom();
     mode.value = 'ai';
-    hasStartedGame = false;
     statusRetryTimer = 0;
     gameState.value = 'menu';
     if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
-    if (typeof window !== 'undefined') localStorage.removeItem('dqm_started');
   }
 
   function startGame() {
@@ -903,8 +933,6 @@ export function useGameEngine() {
     scoringSide.value = null;
     gameState.value = 'playing';
     p2p.setInMatch(true);
-    hasStartedGame = true;
-    if (typeof window !== 'undefined') localStorage.setItem('dqm_started', '1');
     servingTo.value = 'player';
     server.value = 'player';
     resetBall('player');
@@ -916,10 +944,8 @@ export function useGameEngine() {
       p2p.setInMatch(false);
       p2p.leaveRoom();
       mode.value = 'ai';
-      hasStartedGame = false;
       statusRetryTimer = 0;
       if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
-      if (typeof window !== 'undefined') localStorage.removeItem('dqm_started');
     }
     playerScore.value = 0;
     aiScore.value = 0;
@@ -938,20 +964,61 @@ export function useGameEngine() {
     () => p2p.peerVerified.value && peerStatus.value === 'synced',
   );
 
+  // DEBUG: log gameReady changes
+  watch(gameReady, (ready) => {
+    console.log(
+      '[SYNC] gameReady changed:',
+      ready,
+      'peerVerified:',
+      p2p.peerVerified.value,
+      'peerStatus:',
+      peerStatus.value,
+      'role:',
+      p2p.role.value,
+      'gameState:',
+      gameState.value,
+    );
+  });
+
   // When our data channel is verified (pong received), broadcast status to peer.
   // This is the key handshake: both sides send 'synced' once their data channel works.
   // gameReady becomes true only when BOTH sides have peerVerified AND peerStatus='synced'.
   // Retry every 1s until gameReady to ensure no missed messages.
   watch(p2p.peerVerified, (verified) => {
     if (verified && isPvP.value) {
+      console.log(
+        '[SYNC] peerVerified watch: sending status:synced, role:',
+        p2p.role.value,
+      );
       p2p.broadcastEvent({ type: 'status', data: 'synced' });
       statusRetryTimer = 1.0;
     }
   });
 
-  // Stop retrying once both sides are synced
+  // Stop retrying once both sides are synced, and start game on first connection
   watch(gameReady, (ready) => {
-    if (ready) statusRetryTimer = 0;
+    if (ready) {
+      statusRetryTimer = 0;
+      // First connection: host starts game once handshake completes
+      // Skip if in an active match (reconnection) — sync-scores/pause handles that
+      if (
+        isHost.value &&
+        (gameState.value === 'connecting' || gameState.value === 'waiting') &&
+        !p2p.isInMatch()
+      ) {
+        if (pendingStartTimer) clearTimeout(pendingStartTimer);
+        pendingStartTimer = setTimeout(() => {
+          pendingStartTimer = null;
+          if (
+            (gameState.value === 'connecting' ||
+              gameState.value === 'waiting') &&
+            gameReady.value
+          ) {
+            startGame();
+          }
+        }, 500);
+      }
+    }
   });
   function pauseGame() {
     // Only allow pause during serve state (ball not yet moving)
@@ -976,7 +1043,6 @@ export function useGameEngine() {
       if (isPvP.value && !gameReady.value) return;
       gameState.value = pausedFromState;
       pausedFromReconnect.value = false;
-      peerStatus.value = null;
       statusRetryTimer = 0;
       prevGamepadButtons = [];
       if (isPvP.value) {
@@ -3292,6 +3358,18 @@ export function useGameEngine() {
         broadcastStateToGuest(dt);
       }
     } else if (gameState.value === 'reconnecting') {
+      console.log(
+        '[SYNC] gameLoop reconnecting: connState:',
+        p2p.connectionState.value,
+        'isHost:',
+        isHost.value,
+        'isGuest:',
+        isGuest.value,
+        'graceTimer:',
+        reconnectGraceTimer,
+        'waitingForData:',
+        waitingForReconnectData,
+      );
       // Check if opponent reconnected
       if (p2p.connectionState.value === 'connected') {
         // Give action streams a moment to initialize, then resume
@@ -3322,10 +3400,12 @@ export function useGameEngine() {
         if (reconnectGraceTimer >= 0.5) {
           waitingForReconnectData = false;
           if (isHost.value) {
+            console.log('[SYNC] gameLoop: host sending pause+status+resync');
             // Host initiates the pause and signals guest via status+resync+pause events
             pausedFromState = 'playing';
             pausedFromReconnect.value = true;
             gameState.value = 'paused';
+            peerStatus.value = 'synced';
             p2p.broadcastEvent({ type: 'status', data: 'synced' });
             p2p.broadcastEvent({ type: 'resync' });
             p2p.broadcastEvent({ type: 'pause' });
@@ -3345,6 +3425,7 @@ export function useGameEngine() {
           // showing "Reconnected" prematurely when the host hasn't actually
           // restored the game state yet (e.g. stale Nostr presence).
           if (isGuest.value) {
+            console.log('[SYNC] gameLoop: guest sending sync-scores+status');
             // Re-send scores now that event streams are ready
             p2p.broadcastEvent({
               type: 'sync-scores',
@@ -3377,8 +3458,6 @@ export function useGameEngine() {
         gameState.value = 'game-over';
         p2p.setInMatch(false);
         if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
-        if (typeof window !== 'undefined')
-          localStorage.removeItem('dqm_started');
         if (isHost.value) {
           p2p.broadcastEvent({ type: 'game-over', data: 'forfeit' });
         }
@@ -3554,6 +3633,8 @@ export function useGameEngine() {
       roomId.value
     ) {
       startPvP();
+      // Override 'connecting' set by startPvP — this is a reconnection
+      gameState.value = 'reconnecting';
       return true;
     }
     return false;
