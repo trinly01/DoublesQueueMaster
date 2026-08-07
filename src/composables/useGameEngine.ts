@@ -1,4 +1,4 @@
-import { ref, reactive, computed, onUnmounted } from 'vue';
+import { ref, reactive, computed, watch, onUnmounted } from 'vue';
 import * as THREE from 'three';
 import { useSound } from 'src/composables/useSound';
 import {
@@ -459,22 +459,13 @@ export function useGameEngine() {
           }, 1000);
         }
       }
-      // For reconnecting state, the game loop's reconnecting handler
-      // will detect p2p.connectionState === 'connected' and handle it.
-      // Send reconnected event only on actual reconnection (not first connection).
-      // hasStartedGame distinguishes: first connection (false) vs host refresh (true).
-      if (
-        hasStartedGame &&
-        (gameState.value === 'reconnecting' ||
-          gameState.value === 'connecting' ||
-          gameState.value === 'waiting')
-      ) {
-        p2p.broadcastEvent({ type: 'reconnected' });
-      }
+      // Broadcast our status to peer — both first connection and reconnection.
+      // peerVerified will be false at this point (pong not yet received),
+      // so we send 'connected'. The watch on peerVerified will upgrade to 'synced'.
     });
 
     p2p.onPeerLeave(() => {
-      peerReconnected.value = false;
+      peerStatus.value = null;
       if (
         gameState.value === 'playing' ||
         gameState.value === 'point-scored' ||
@@ -712,7 +703,7 @@ export function useGameEngine() {
             pausedFromReconnect.value = true;
             p2p.setInMatch(true);
             gameState.value = 'paused';
-            p2p.broadcastEvent({ type: 'reconnected' });
+            p2p.broadcastEvent({ type: 'status', data: 'synced' });
             p2p.broadcastEvent({ type: 'resync' });
             p2p.broadcastEvent({ type: 'pause' });
             // Always replay from serve after reconnection (let rule)
@@ -742,13 +733,14 @@ export function useGameEngine() {
           }
           gameState.value = 'paused';
         }
-      } else if (data.type === 'reconnected') {
-        // Peer reports they've reconnected — mark it
-        peerReconnected.value = true;
-        // Only transition to paused if this is an actual reconnection
-        // (not first connection). On first connection, hasStartedGame is false.
+      } else if (data.type === 'status') {
+        // Peer reports their status: 'connected' or 'synced'
+        const status = data.data as string;
+        peerStatus.value = status as 'connected' | 'synced';
+        // On reconnection (hasStartedGame), transition to paused when peer reports synced
         if (
           hasStartedGame &&
+          status === 'synced' &&
           (gameState.value === 'reconnecting' ||
             gameState.value === 'connecting' ||
             gameState.value === 'waiting' ||
@@ -760,17 +752,8 @@ export function useGameEngine() {
           p2p.setInMatch(true);
           gameState.value = 'paused';
         }
-        // Send reconnected back so both sides acknowledge each other
-        // (only meaningful during reconnection)
-        if (hasStartedGame) {
-          if (!pausedFromReconnect.value) {
-            pausedFromReconnect.value = true;
-          }
-          // Broadcast reconnected back so opponent's peerReconnected also becomes true
-          p2p.broadcastEvent({ type: 'reconnected' });
-        }
       } else if (data.type === 'resume') {
-        if (gameState.value === 'paused' && p2p.peerVerified.value) {
+        if (gameState.value === 'paused' && gameReady.value) {
           gameState.value = pausedFromState;
           // Reset both players to serve positions
           resetBall(servingTo.value);
@@ -955,7 +938,19 @@ export function useGameEngine() {
 
   let pausedFromState: GameState = 'playing';
   const pausedFromReconnect = ref(false);
-  const peerReconnected = ref(false);
+  const peerStatus = ref<'connected' | 'synced' | null>(null);
+  const gameReady = computed(
+    () => p2p.peerVerified.value && peerStatus.value === 'synced',
+  );
+
+  // When our data channel is verified (pong received), broadcast status to peer.
+  // This is the key handshake: both sides send 'synced' once their data channel works.
+  // gameReady becomes true only when BOTH sides have peerVerified AND peerStatus='synced'.
+  watch(p2p.peerVerified, (verified) => {
+    if (verified && isPvP.value) {
+      p2p.broadcastEvent({ type: 'status', data: 'synced' });
+    }
+  });
   function pauseGame() {
     // Only allow pause during serve state (ball not yet moving)
     // Pausing mid-rally is not allowed — prevents unfair position freezes
@@ -975,16 +970,11 @@ export function useGameEngine() {
 
   function resumeGame() {
     if (gameState.value === 'paused') {
-      // Don't resume in PvP if peer is not verified or hasn't confirmed reconnection
-      if (
-        isPvP.value &&
-        (!p2p.peerVerified.value ||
-          (pausedFromReconnect.value && !peerReconnected.value))
-      )
-        return;
+      // Don't resume in PvP if game is not ready (peer not verified or not synced)
+      if (isPvP.value && !gameReady.value) return;
       gameState.value = pausedFromState;
       pausedFromReconnect.value = false;
-      peerReconnected.value = false;
+      peerStatus.value = null;
       prevGamepadButtons = [];
       if (isPvP.value) {
         // Both host and guest reset to serve positions
@@ -3315,11 +3305,11 @@ export function useGameEngine() {
         if (reconnectGraceTimer >= 0.5) {
           waitingForReconnectData = false;
           if (isHost.value) {
-            // Host initiates the pause and signals guest via reconnected+resync+pause events
+            // Host initiates the pause and signals guest via status+resync+pause events
             pausedFromState = 'playing';
             pausedFromReconnect.value = true;
             gameState.value = 'paused';
-            p2p.broadcastEvent({ type: 'reconnected' });
+            p2p.broadcastEvent({ type: 'status', data: 'synced' });
             p2p.broadcastEvent({ type: 'resync' });
             p2p.broadcastEvent({ type: 'pause' });
             // If in serve state, reset ball to serve position
@@ -3343,8 +3333,8 @@ export function useGameEngine() {
               type: 'sync-scores',
               data: `${playerScore.value},${aiScore.value},${server.value},${servingTo.value},${servePending.value}`,
             });
-            // Also send reconnected so host gets peerReconfirmed=true
-            p2p.broadcastEvent({ type: 'reconnected' });
+            // Also send status:synced so host knows guest is ready
+            p2p.broadcastEvent({ type: 'status', data: 'synced' });
             // Set up retry timer to keep sending sync-scores every 1s
             // until host responds with resync+pause events
             syncScoresRetryTimer = 1.0;
@@ -3360,7 +3350,7 @@ export function useGameEngine() {
               type: 'sync-scores',
               data: `${playerScore.value},${aiScore.value},${server.value},${servingTo.value},${servePending.value}`,
             });
-            p2p.broadcastEvent({ type: 'reconnected' });
+            p2p.broadcastEvent({ type: 'status', data: 'synced' });
           }
         }
       } else if (p2p.connectionState.value === 'disconnected') {
@@ -3576,7 +3566,8 @@ export function useGameEngine() {
     pauseGame,
     resumeGame,
     pausedFromReconnect,
-    peerReconnected,
+    peerStatus,
+    gameReady,
     startLoop,
     stopLoop,
     step,

@@ -68,7 +68,7 @@ export interface EventPayload {
     | 'resync'
     | 'snap'
     | 'sync-scores'
-    | 'reconnected'
+    | 'status'
     | 'fault'
     | 'fault-ack'
     | 'bounce-fault'
