@@ -1695,8 +1695,14 @@ export function useGameEngine() {
     if (!isPlayer && aiHitCooldown > 0) return false;
 
     // Direction check: only hit if ball is moving toward the hitter
-    if (isPlayer && ballVel.z < 0) return false;
-    if (!isPlayer && ballVel.z > 0) return false;
+    // Skip for confirmed hits (guest collision reports) — the guest already
+    // confirmed the collision locally, and the ball direction on the host's
+    // simulation may differ due to network lag (ball may have bounced and
+    // reversed direction by the time the report arrives).
+    if (!confirmed) {
+      if (isPlayer && ballVel.z < 0) return false;
+      if (!isPlayer && ballVel.z > 0) return false;
+    }
 
     // Receiver can't volley the serve — must let it bounce first
     if (rallyHitCount === 1 && !ballBouncedOnSide) {
