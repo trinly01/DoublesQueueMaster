@@ -485,18 +485,22 @@ export function useP2P() {
       clearInterval(pingIntervalId);
       pingIntervalId = null;
     }
-    // Clear reconnect interval but don't reset reconnectTimer to 0
-    // (startReconnectWindow at the end will set it to the full duration)
-    if (reconnectIntervalId) {
-      clearInterval(reconnectIntervalId);
-      reconnectIntervalId = null;
+    // When called from startReconnectWindow, preserve the retry interval
+    // and connectionState so the retry loop and 45s timer keep running
+    if (!skipStartReconnect) {
+      if (reconnectIntervalId) {
+        clearInterval(reconnectIntervalId);
+        reconnectIntervalId = null;
+      }
     }
     if (room) {
       room.leave();
       room = null;
     }
     opponentId.value = null;
-    connectionState.value = 'connecting';
+    if (!skipStartReconnect) {
+      connectionState.value = 'connecting';
+    }
     opponentPing.value = 0;
     clearJitterBuffer();
     stateSeq = 0;
