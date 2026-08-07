@@ -658,6 +658,8 @@ export function useGameEngine() {
             gameState.value === 'reconnecting'
           ) {
             pausedFromState = 'playing';
+            pausedFromReconnect.value = true;
+            p2p.setInMatch(true);
             gameState.value = 'paused';
             p2p.broadcastEvent({ type: 'resync' });
             p2p.broadcastEvent({ type: 'pause' });
@@ -676,6 +678,9 @@ export function useGameEngine() {
           gameState.value === 'menu'
         ) {
           pausedFromState = 'playing';
+          if (gameState.value === 'reconnecting') {
+            pausedFromReconnect.value = true;
+          }
           gameState.value = 'paused';
         }
       } else if (data.type === 'resume') {
@@ -3208,11 +3213,11 @@ export function useGameEngine() {
         reconnectGraceTimer += dt;
         if (reconnectGraceTimer >= 0.5) {
           waitingForReconnectData = false;
-          // Pause so players can resume manually
-          pausedFromState = 'playing';
-          pausedFromReconnect.value = true;
-          gameState.value = 'paused';
           if (isHost.value) {
+            // Host initiates the pause and signals guest via resync+pause events
+            pausedFromState = 'playing';
+            pausedFromReconnect.value = true;
+            gameState.value = 'paused';
             p2p.broadcastEvent({ type: 'resync' });
             p2p.broadcastEvent({ type: 'pause' });
             // If in serve state, reset ball to serve position
@@ -3224,13 +3229,18 @@ export function useGameEngine() {
               servePending.value = true;
               resetBall(servingTo.value);
             }
-          } else {
+          }
+          // Guest does NOT transition to paused here — it waits for the
+          // host's resync+pause events, which set pausedFromReconnect=true
+          // and gameState='paused' via the event handler. This prevents
+          // showing "Reconnected" prematurely when the host hasn't actually
+          // restored the game state yet (e.g. stale Nostr presence).
+          if (isGuest.value) {
             // Re-send scores now that event streams are ready
             p2p.broadcastEvent({
               type: 'sync-scores',
               data: `${playerScore.value},${aiScore.value},${server.value},${servingTo.value},${servePending.value}`,
             });
-            // No ball snap needed — host replays from serve after reconnection
           }
         }
       } else if (p2p.connectionState.value === 'disconnected') {
