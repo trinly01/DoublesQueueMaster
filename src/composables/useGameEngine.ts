@@ -746,10 +746,12 @@ export function useGameEngine() {
           p2p.setInMatch(true);
           gameState.value = 'paused';
         }
-        // Send reconnected back so both sides acknowledge
+        // Send reconnected back so both sides acknowledge each other
         if (!pausedFromReconnect.value) {
           pausedFromReconnect.value = true;
         }
+        // Broadcast reconnected back so opponent's peerReconnected also becomes true
+        p2p.broadcastEvent({ type: 'reconnected' });
       } else if (data.type === 'resume') {
         if (gameState.value === 'paused' && p2p.peerVerified.value) {
           gameState.value = pausedFromState;
