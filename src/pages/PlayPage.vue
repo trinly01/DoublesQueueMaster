@@ -37,11 +37,13 @@
         ></span>
       </div>
       <span
-        v-if="engine.mode.value === 'pvp' && engine.p2p.opponentPing.value > 0"
-        class="ping-display"
-        :class="pingClass"
-        >{{ engine.p2p.opponentPing.value }}ms</span
+        v-if="engine.mode.value === 'pvp'"
+        class="peer-status"
+        :class="peerStatusClass"
       >
+        <span class="peer-status-dot"></span>
+        <span class="peer-status-text">{{ peerStatusText }}</span>
+      </span>
     </div>
 
     <!-- Point toast -->
@@ -744,11 +746,42 @@ const gameOverSubtitle = computed(() => {
   return `${myScore.value} - ${oppScore.value}`;
 });
 
-const pingClass = computed(() => {
-  const ping = engine.p2p.opponentPing.value;
-  if (ping < 50) return 'ping-good';
-  if (ping < 100) return 'ping-ok';
-  return 'ping-bad';
+const peerStatusText = computed(() => {
+  if (engine.mode.value !== 'pvp') return '';
+  const cs = engine.p2p.connectionState.value;
+  if (cs === 'disconnected') return 'Disconnected';
+  if (cs === 'idle' || cs === 'connecting' || cs === 'waiting')
+    return 'Waiting…';
+  if (cs === 'reconnecting') {
+    return engine.p2p.peerVerified.value ? 'Syncing…' : 'Reconnecting…';
+  }
+  if (cs === 'connected') {
+    const ping = engine.p2p.opponentPing.value;
+    if (engine.p2p.peerVerified.value && ping > 0) return `${ping}ms`;
+    return 'Syncing…';
+  }
+  return '';
+});
+
+const peerStatusClass = computed(() => {
+  if (engine.mode.value !== 'pvp') return '';
+  const cs = engine.p2p.connectionState.value;
+  if (cs === 'disconnected') return 'peer-disconnected';
+  if (cs === 'idle' || cs === 'connecting' || cs === 'waiting')
+    return 'peer-waiting';
+  if (cs === 'reconnecting') {
+    return engine.p2p.peerVerified.value ? 'peer-syncing' : 'peer-reconnecting';
+  }
+  if (cs === 'connected') {
+    if (engine.p2p.peerVerified.value && engine.p2p.opponentPing.value > 0) {
+      const ping = engine.p2p.opponentPing.value;
+      if (ping < 50) return 'peer-good';
+      if (ping < 100) return 'peer-ok';
+      return 'peer-bad';
+    }
+    return 'peer-syncing';
+  }
+  return '';
 });
 
 // --- Menu navigation (keyboard + gamepad) ---
@@ -1604,7 +1637,10 @@ kbd {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.4);
 }
 
-.ping-display {
+.peer-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   font-weight: 700;
   padding: 2px 8px;
@@ -1612,19 +1648,82 @@ kbd {
   background: rgba(0, 0, 0, 0.3);
 }
 
-.ping-good {
+.peer-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.peer-good {
   color: #4ade80;
   background: rgba(74, 222, 128, 0.15);
 }
+.peer-good .peer-status-dot {
+  background: #4ade80;
+  box-shadow: 0 0 4px #4ade80;
+}
 
-.ping-ok {
+.peer-ok {
   color: #fbbf24;
   background: rgba(251, 191, 36, 0.15);
 }
+.peer-ok .peer-status-dot {
+  background: #fbbf24;
+  box-shadow: 0 0 4px #fbbf24;
+}
 
-.ping-bad {
+.peer-bad {
   color: #f87171;
   background: rgba(248, 113, 113, 0.15);
+}
+.peer-bad .peer-status-dot {
+  background: #f87171;
+  box-shadow: 0 0 4px #f87171;
+}
+
+.peer-syncing {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+}
+.peer-syncing .peer-status-dot {
+  background: #fbbf24;
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+.peer-reconnecting {
+  color: #fb923c;
+  background: rgba(251, 146, 60, 0.15);
+}
+.peer-reconnecting .peer-status-dot {
+  background: #fb923c;
+  animation: pulse-dot 0.8s ease-in-out infinite;
+}
+
+.peer-waiting {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.15);
+}
+.peer-waiting .peer-status-dot {
+  background: #94a3b8;
+}
+
+.peer-disconnected {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.15);
+}
+.peer-disconnected .peer-status-dot {
+  background: #f87171;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 </style>
 

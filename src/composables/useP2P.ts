@@ -408,13 +408,13 @@ export function useP2P() {
   }
 
   function broadcastState(state: Omit<StatePayload, 'seq'>) {
-    if (!opponentId.value || connectionState.value !== 'connected') return;
+    if (!opponentId.value) return;
     const payload: StatePayload = { ...state, seq: stateSeq++ };
     stateActionSend(payload, opponentId.value);
   }
 
   function broadcastInput(inputData: Omit<InputPayload, 'seq'>) {
-    if (!opponentId.value || connectionState.value !== 'connected') return;
+    if (!opponentId.value) return;
     const payload: InputPayload = { ...inputData, seq: inputSeq++ };
     inputActionSend(payload, opponentId.value);
   }
