@@ -368,6 +368,7 @@ export function useGameEngine() {
   let waitingForReconnectData = false;
   let reconnectGraceTimer = 0;
   let syncScoresRetryTimer = 0;
+  let hasStartedGame = false;
 
   // Clear role indicators for readable conditionals
   const isPvP = computed(() => mode.value === 'pvp');
@@ -458,13 +459,13 @@ export function useGameEngine() {
       }
       // For reconnecting state, the game loop's reconnecting handler
       // will detect p2p.connectionState === 'connected' and handle it.
-      // Send reconnected event so both sides acknowledge the reconnection.
-      // Covers both 'reconnecting' (peer left) and 'connecting'/'waiting'
-      // (host refreshed page, auto-reconnect via startPvP).
+      // Send reconnected event only on actual reconnection (not first connection).
+      // hasStartedGame distinguishes: first connection (false) vs host refresh (true).
       if (
-        gameState.value === 'reconnecting' ||
-        gameState.value === 'connecting' ||
-        gameState.value === 'waiting'
+        hasStartedGame &&
+        (gameState.value === 'reconnecting' ||
+          gameState.value === 'connecting' ||
+          gameState.value === 'waiting')
       ) {
         p2p.broadcastEvent({ type: 'reconnected' });
       }
@@ -742,11 +743,14 @@ export function useGameEngine() {
       } else if (data.type === 'reconnected') {
         // Peer reports they've reconnected — mark it
         peerReconnected.value = true;
+        // Only transition to paused if this is an actual reconnection
+        // (not first connection). On first connection, hasStartedGame is false.
         if (
-          gameState.value === 'reconnecting' ||
-          gameState.value === 'connecting' ||
-          gameState.value === 'waiting' ||
-          gameState.value === 'playing'
+          hasStartedGame &&
+          (gameState.value === 'reconnecting' ||
+            gameState.value === 'connecting' ||
+            gameState.value === 'waiting' ||
+            gameState.value === 'playing')
         ) {
           pausedFromState = 'playing';
           pausedFromReconnect.value = true;
@@ -755,11 +759,14 @@ export function useGameEngine() {
           gameState.value = 'paused';
         }
         // Send reconnected back so both sides acknowledge each other
-        if (!pausedFromReconnect.value) {
-          pausedFromReconnect.value = true;
+        // (only meaningful during reconnection)
+        if (hasStartedGame) {
+          if (!pausedFromReconnect.value) {
+            pausedFromReconnect.value = true;
+          }
+          // Broadcast reconnected back so opponent's peerReconnected also becomes true
+          p2p.broadcastEvent({ type: 'reconnected' });
         }
-        // Broadcast reconnected back so opponent's peerReconnected also becomes true
-        p2p.broadcastEvent({ type: 'reconnected' });
       } else if (data.type === 'resume') {
         if (gameState.value === 'paused' && p2p.peerVerified.value) {
           gameState.value = pausedFromState;
@@ -901,6 +908,7 @@ export function useGameEngine() {
     p2p.setInMatch(false);
     p2p.leaveRoom();
     mode.value = 'ai';
+    hasStartedGame = false;
     gameState.value = 'menu';
     if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
   }
@@ -915,6 +923,7 @@ export function useGameEngine() {
     scoringSide.value = null;
     gameState.value = 'playing';
     p2p.setInMatch(true);
+    hasStartedGame = true;
     servingTo.value = 'player';
     server.value = 'player';
     resetBall('player');
@@ -926,6 +935,7 @@ export function useGameEngine() {
       p2p.setInMatch(false);
       p2p.leaveRoom();
       mode.value = 'ai';
+      hasStartedGame = false;
       if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
     }
     playerScore.value = 0;
