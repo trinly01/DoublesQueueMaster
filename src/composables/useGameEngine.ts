@@ -3357,6 +3357,10 @@ export function useGameEngine() {
       if (isPvP.value && isHost.value) {
         broadcastStateToGuest(dt);
       }
+    } else if (gameState.value === 'game-over') {
+      if (isPvP.value && isHost.value) {
+        broadcastStateToGuest(dt);
+      }
     } else if (gameState.value === 'reconnecting') {
       console.log(
         '[SYNC] gameLoop reconnecting: connState:',
