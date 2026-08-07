@@ -550,8 +550,12 @@ export function useGameEngine() {
         } else if (
           data.gs === 'paused' &&
           gameState.value !== 'paused' &&
-          !isPvP.value
+          (!isPvP.value || gameState.value === 'reconnecting')
         ) {
+          if (isPvP.value && gameState.value === 'reconnecting') {
+            pausedFromReconnect.value = true;
+            syncScoresRetryTimer = 0;
+          }
           gameState.value = 'paused';
         } else if (data.gs === 'game-over' && gameState.value !== 'game-over') {
           gameState.value = 'game-over';
