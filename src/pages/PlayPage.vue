@@ -1034,6 +1034,8 @@ onMounted(() => {
   window.addEventListener('gamepaddisconnected', onGamepadDisconnected);
   window.addEventListener('blur', onWindowBlur);
   updateGamepadStatus();
+  // Auto-rejoin PvP room if page was refreshed during a match
+  engine.autoReconnectPvP();
   engine.startLoop();
   // Poll gamepad menu navigation at 10fps (early-returns during active gameplay)
   menuPollInterval = setInterval(() => {

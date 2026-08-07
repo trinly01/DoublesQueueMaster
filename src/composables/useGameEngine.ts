@@ -434,6 +434,7 @@ export function useGameEngine() {
   function startPvP() {
     mode.value = 'pvp';
     gameState.value = 'connecting';
+    if (typeof window !== 'undefined') localStorage.setItem('dqm_mode', 'pvp');
     p2p.joinGameRoom(roomId.value);
 
     // Set up callbacks
@@ -817,6 +818,7 @@ export function useGameEngine() {
     p2p.leaveRoom();
     mode.value = 'ai';
     gameState.value = 'menu';
+    if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
   }
 
   function startGame() {
@@ -838,6 +840,7 @@ export function useGameEngine() {
     if (mode.value === 'pvp') {
       p2p.leaveRoom();
       mode.value = 'ai';
+      if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
     }
     playerScore.value = 0;
     aiScore.value = 0;
@@ -3227,6 +3230,7 @@ export function useGameEngine() {
         winReason.value = 'forfeit';
         winner.value = isHost.value ? 'player' : 'ai';
         gameState.value = 'game-over';
+        if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
         if (isHost.value) {
           p2p.broadcastEvent({ type: 'game-over', data: 'forfeit' });
         }
@@ -3395,6 +3399,18 @@ export function useGameEngine() {
 
   onUnmounted(cleanup);
 
+  function autoReconnectPvP() {
+    if (
+      typeof window !== 'undefined' &&
+      localStorage.getItem('dqm_mode') === 'pvp' &&
+      roomId.value
+    ) {
+      startPvP();
+      return true;
+    }
+    return false;
+  }
+
   return {
     gameState,
     difficulty,
@@ -3437,5 +3453,6 @@ export function useGameEngine() {
     startPvP,
     rematchPvP,
     cancelPvP,
+    autoReconnectPvP,
   };
 }
