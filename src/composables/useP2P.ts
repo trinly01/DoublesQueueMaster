@@ -347,23 +347,23 @@ export function useP2P() {
 
     if (reconnectIntervalId) clearInterval(reconnectIntervalId);
 
-    // Immediately rejoin room for fresh Nostr subscription
-    if (currentRoomId) {
-      skipStartReconnect = true;
-      lastRejoinTime = performance.now();
-      rejoinRoom(currentRoomId);
-    }
+    // Don't immediately rejoin — stay in the room and wait for opponent to rejoin.
+    // Only retry rejoin after 10s if no peer appears (handles WiFi drop where
+    // our own Nostr subscription might be stale, but gives refreshed opponents
+    // time to reconnect without both sides churning).
+    lastRejoinTime = performance.now();
 
     reconnectIntervalId = setInterval(() => {
       const elapsed = performance.now() - reconnectStartedAt;
       const remaining = Math.max(0, RECONNECT_WINDOW - elapsed);
       reconnectTimer.value = Math.ceil(remaining / 1000);
 
-      // Retry rejoin every 5s if still reconnecting
+      // Retry rejoin every 5s after the initial 10s grace period
       if (
         remaining > 0 &&
         connectionState.value === 'reconnecting' &&
-        currentRoomId
+        currentRoomId &&
+        elapsed >= 10000
       ) {
         const sinceLastRejoin = performance.now() - lastRejoinTime;
         if (sinceLastRejoin >= 5000) {

@@ -530,10 +530,21 @@ export function useGameEngine() {
         data.gs === 'paused' ||
         data.gs === 'game-over'
       ) {
-        if (gameState.value === 'connecting' || gameState.value === 'waiting') {
+        if (
+          (gameState.value === 'connecting' || gameState.value === 'waiting') &&
+          data.gs === 'playing'
+        ) {
           gameState.value = 'playing';
           // Snap to host's position for guest (host's aiPos = guest's playerPos)
           refs.playerPos.set(data.ap[0], 0, data.ap[2]);
+        } else if (
+          (gameState.value === 'connecting' || gameState.value === 'waiting') &&
+          data.gs === 'paused'
+        ) {
+          // Host is paused (reconnection) — transition to paused, not playing
+          pausedFromReconnect.value = true;
+          syncScoresRetryTimer = 0;
+          gameState.value = 'paused';
         } else if (
           gameState.value === 'playing' &&
           data.gs === 'point-scored'
@@ -638,7 +649,10 @@ export function useGameEngine() {
           }
         } else if (data.data === 'guest') {
           // Host tells us we're the guest
-          if (p2p.role.value !== 'guest') {
+          // Only accept if we're not already the host — the guest might send
+          // a wrong 'ready' from deterministic assignment, don't let it override
+          // our correct host role
+          if (p2p.role.value !== 'host' && p2p.role.value !== 'guest') {
             p2p.role.value = 'guest';
             // Flip player to opposite side of court
             refs.playerPos.set(0, 0, -(COURT_LENGTH / 2 - 1));
@@ -700,7 +714,13 @@ export function useGameEngine() {
           gameState.value === 'menu'
         ) {
           pausedFromState = 'playing';
-          if (gameState.value === 'reconnecting') {
+          // Host only sends pause during reconnection or manual pause.
+          // If we're in connecting/waiting, it must be a reconnection pause.
+          if (
+            gameState.value === 'reconnecting' ||
+            gameState.value === 'connecting' ||
+            gameState.value === 'waiting'
+          ) {
             pausedFromReconnect.value = true;
             syncScoresRetryTimer = 0;
           }
