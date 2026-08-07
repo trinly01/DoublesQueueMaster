@@ -632,6 +632,7 @@ export function useGameEngine() {
       } else if (data.type === 'resync' && isGuest.value) {
         p2p.clearJitterBuffer();
         snapBallNextFrame = true;
+        pausedFromReconnect.value = true;
       } else if (data.type === 'sync-scores' && isHost.value) {
         // Guest sends scores after host refresh reconnection
         if (typeof data.data === 'string') {
@@ -856,6 +857,7 @@ export function useGameEngine() {
   }
 
   let pausedFromState: GameState = 'playing';
+  const pausedFromReconnect = ref(false);
   function pauseGame() {
     // Only allow pause during serve state (ball not yet moving)
     // Pausing mid-rally is not allowed — prevents unfair position freezes
@@ -864,6 +866,7 @@ export function useGameEngine() {
       servePending.value
     ) {
       pausedFromState = gameState.value;
+      pausedFromReconnect.value = false;
       gameState.value = 'paused';
       prevGamepadButtons = [];
       if (isPvP.value) {
@@ -875,6 +878,7 @@ export function useGameEngine() {
   function resumeGame() {
     if (gameState.value === 'paused') {
       gameState.value = pausedFromState;
+      pausedFromReconnect.value = false;
       prevGamepadButtons = [];
       if (isPvP.value) {
         // Both host and guest reset to serve positions
@@ -3206,6 +3210,7 @@ export function useGameEngine() {
           waitingForReconnectData = false;
           // Pause so players can resume manually
           pausedFromState = 'playing';
+          pausedFromReconnect.value = true;
           gameState.value = 'paused';
           if (isHost.value) {
             p2p.broadcastEvent({ type: 'resync' });
@@ -3438,6 +3443,7 @@ export function useGameEngine() {
     resetScore,
     pauseGame,
     resumeGame,
+    pausedFromReconnect,
     startLoop,
     stopLoop,
     step,
