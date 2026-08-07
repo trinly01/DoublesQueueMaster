@@ -163,14 +163,11 @@
       </q-btn>
     </div>
 
-    <!-- Pause overlay (hidden during reconnection sync — syncing overlay shows instead) -->
+    <!-- Pause overlay (hidden during PvP sync — syncing overlay shows instead) -->
     <div
       v-if="
         engine.gameState.value === 'paused' &&
-        !(
-          engine.pausedFromReconnect.value &&
-          !(engine.p2p.peerVerified.value && engine.peerReconnected.value)
-        )
+        (engine.mode.value !== 'pvp' || engine.gameReady.value)
       "
       class="menu-overlay"
     >
@@ -197,12 +194,7 @@
           rounded
           size="lg"
           class="play-btn"
-          :disable="
-            engine.mode.value === 'pvp' &&
-            (!engine.p2p.peerVerified.value ||
-              (engine.pausedFromReconnect.value &&
-                !engine.peerReconnected.value))
-          "
+          :disable="engine.mode.value === 'pvp' && !engine.gameReady.value"
           :class="isNavFocused('resume') ? 'nav-focused' : ''"
           @click="engine.resumeGame()"
         />
@@ -427,15 +419,12 @@
       </div>
     </div>
 
-    <!-- Syncing overlay (connection not fully established or peer hasn't confirmed) -->
+    <!-- Syncing overlay (peer detected but not both synced) -->
     <div
       v-if="
         engine.mode.value === 'pvp' &&
         engine.p2p.opponentId.value &&
-        !(
-          engine.p2p.peerVerified.value &&
-          (!engine.pausedFromReconnect.value || engine.peerReconnected.value)
-        ) &&
+        !engine.gameReady.value &&
         (engine.gameState.value === 'playing' ||
           engine.gameState.value === 'point-scored' ||
           engine.gameState.value === 'paused')
@@ -788,40 +777,33 @@ const gameOverSubtitle = computed(() => {
 
 const peerStatusText = computed(() => {
   if (engine.mode.value !== 'pvp') return '';
+  if (engine.gameReady.value) {
+    const ping = engine.p2p.opponentPing.value;
+    return ping > 0 ? `${ping}ms` : 'Ready';
+  }
   const cs = engine.p2p.connectionState.value;
   if (cs === 'disconnected') return 'Disconnected';
-  if (cs === 'idle' || cs === 'connecting' || cs === 'waiting')
-    return 'Waiting…';
-  if (cs === 'reconnecting') {
-    return engine.p2p.peerVerified.value ? 'Syncing…' : 'Reconnecting…';
-  }
-  if (cs === 'connected') {
-    const ping = engine.p2p.opponentPing.value;
-    if (engine.p2p.peerVerified.value && ping > 0) return `${ping}ms`;
-    return 'Syncing…';
-  }
-  return '';
+  if (cs === 'reconnecting') return 'Reconnecting…';
+  if (engine.p2p.opponentId.value) return 'Syncing…';
+  return 'Waiting…';
 });
 
 const peerStatusClass = computed(() => {
   if (engine.mode.value !== 'pvp') return '';
-  const cs = engine.p2p.connectionState.value;
-  if (cs === 'disconnected') return 'peer-disconnected';
-  if (cs === 'idle' || cs === 'connecting' || cs === 'waiting')
-    return 'peer-waiting';
-  if (cs === 'reconnecting') {
-    return engine.p2p.peerVerified.value ? 'peer-syncing' : 'peer-reconnecting';
-  }
-  if (cs === 'connected') {
-    if (engine.p2p.peerVerified.value && engine.p2p.opponentPing.value > 0) {
-      const ping = engine.p2p.opponentPing.value;
+  if (engine.gameReady.value) {
+    const ping = engine.p2p.opponentPing.value;
+    if (ping > 0) {
       if (ping < 50) return 'peer-good';
       if (ping < 100) return 'peer-ok';
       return 'peer-bad';
     }
-    return 'peer-syncing';
+    return 'peer-good';
   }
-  return '';
+  const cs = engine.p2p.connectionState.value;
+  if (cs === 'disconnected') return 'peer-disconnected';
+  if (cs === 'reconnecting') return 'peer-reconnecting';
+  if (engine.p2p.opponentId.value) return 'peer-syncing';
+  return 'peer-waiting';
 });
 
 // --- Menu navigation (keyboard + gamepad) ---
