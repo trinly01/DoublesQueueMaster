@@ -465,6 +465,7 @@ export function useGameEngine() {
     });
 
     p2p.onPeerLeave(() => {
+      peerReconnected.value = false;
       if (
         gameState.value === 'playing' ||
         gameState.value === 'point-scored' ||
@@ -732,7 +733,8 @@ export function useGameEngine() {
           gameState.value = 'paused';
         }
       } else if (data.type === 'reconnected') {
-        // Peer reports they've reconnected — acknowledge on our side too
+        // Peer reports they've reconnected — mark it
+        peerReconnected.value = true;
         if (
           gameState.value === 'reconnecting' ||
           gameState.value === 'connecting' ||
@@ -928,6 +930,7 @@ export function useGameEngine() {
 
   let pausedFromState: GameState = 'playing';
   const pausedFromReconnect = ref(false);
+  const peerReconnected = ref(false);
   function pauseGame() {
     // Only allow pause during serve state (ball not yet moving)
     // Pausing mid-rally is not allowed — prevents unfair position freezes
@@ -947,10 +950,16 @@ export function useGameEngine() {
 
   function resumeGame() {
     if (gameState.value === 'paused') {
-      // Don't resume in PvP if peer is not verified — connection not ready
-      if (isPvP.value && !p2p.peerVerified.value) return;
+      // Don't resume in PvP if peer is not verified or hasn't confirmed reconnection
+      if (
+        isPvP.value &&
+        (!p2p.peerVerified.value ||
+          (pausedFromReconnect.value && !peerReconnected.value))
+      )
+        return;
       gameState.value = pausedFromState;
       pausedFromReconnect.value = false;
+      peerReconnected.value = false;
       prevGamepadButtons = [];
       if (isPvP.value) {
         // Both host and guest reset to serve positions
@@ -3537,6 +3546,7 @@ export function useGameEngine() {
     pauseGame,
     resumeGame,
     pausedFromReconnect,
+    peerReconnected,
     startLoop,
     stopLoop,
     step,
