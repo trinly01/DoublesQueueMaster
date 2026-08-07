@@ -367,6 +367,7 @@ export function useGameEngine() {
   // Reconnect handshake: wait for fresh data before resuming
   let waitingForReconnectData = false;
   let reconnectGraceTimer = 0;
+  let syncScoresRetryTimer = 0;
 
   // Clear role indicators for readable conditionals
   const isPvP = computed(() => mode.value === 'pvp');
@@ -633,9 +634,10 @@ export function useGameEngine() {
         p2p.clearJitterBuffer();
         snapBallNextFrame = true;
         pausedFromReconnect.value = true;
-      } else if (data.type === 'sync-scores' && isHost.value) {
+      } else if (data.type === 'sync-scores') {
         // Guest sends scores after host refresh reconnection
-        if (typeof data.data === 'string') {
+        // Process even if role isn't set yet (ready event might not have arrived)
+        if (typeof data.data === 'string' && p2p.role.value !== 'guest') {
           const parts = data.data.split(',');
           playerScore.value = parseInt(parts[0]) || 0;
           aiScore.value = parseInt(parts[1]) || 0;
@@ -657,6 +659,8 @@ export function useGameEngine() {
             gameState.value === 'waiting' ||
             gameState.value === 'reconnecting'
           ) {
+            // Ensure role is set to host if not already (ready event might be lost)
+            if (p2p.role.value === null) p2p.role.value = 'host';
             pausedFromState = 'playing';
             pausedFromReconnect.value = true;
             p2p.setInMatch(true);
@@ -680,6 +684,7 @@ export function useGameEngine() {
           pausedFromState = 'playing';
           if (gameState.value === 'reconnecting') {
             pausedFromReconnect.value = true;
+            syncScoresRetryTimer = 0;
           }
           gameState.value = 'paused';
         }
@@ -3237,6 +3242,21 @@ export function useGameEngine() {
           // restored the game state yet (e.g. stale Nostr presence).
           if (isGuest.value) {
             // Re-send scores now that event streams are ready
+            p2p.broadcastEvent({
+              type: 'sync-scores',
+              data: `${playerScore.value},${aiScore.value},${server.value},${servingTo.value},${servePending.value}`,
+            });
+            // Set up retry timer to keep sending sync-scores every 1s
+            // until host responds with resync+pause events
+            syncScoresRetryTimer = 1.0;
+          }
+        }
+        // Guest keeps retrying sync-scores every 1s after grace period
+        // until host sends resync+pause events (which transition to paused)
+        if (isGuest.value && syncScoresRetryTimer > 0) {
+          syncScoresRetryTimer -= dt;
+          if (syncScoresRetryTimer <= 0) {
+            syncScoresRetryTimer = 1.0;
             p2p.broadcastEvent({
               type: 'sync-scores',
               data: `${playerScore.value},${aiScore.value},${server.value},${servingTo.value},${servePending.value}`,
