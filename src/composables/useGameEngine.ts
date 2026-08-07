@@ -466,9 +466,7 @@ export function useGameEngine() {
       ) {
         gameState.value = 'reconnecting';
         waitingForReconnectData = false;
-        // Rejoin room with preserved role to get fresh Nostr subscription
-        // so we can detect the opponent rejoining after a page refresh
-        p2p.rejoinRoom(roomId.value);
+        // rejoinRoom is now handled by startReconnectWindow in useP2P
       }
     });
 

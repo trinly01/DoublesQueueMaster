@@ -173,6 +173,9 @@ export function useP2P() {
   let pingIntervalId: ReturnType<typeof setInterval> | null = null;
   let reconnectIntervalId: ReturnType<typeof setInterval> | null = null;
   let reconnectStartedAt = 0;
+  let currentRoomId: string | null = null;
+  let skipStartReconnect = false;
+  let lastRejoinTime = 0;
   let inputSeq = 0;
   let stateSeq = 0;
   let eventSeq = 0;
@@ -186,6 +189,7 @@ export function useP2P() {
   function joinGameRoom(roomId: string) {
     if (room) leaveRoom();
 
+    currentRoomId = roomId;
     connectionState.value = 'connecting';
     role.value = null;
     opponentId.value = null;
@@ -339,10 +343,32 @@ export function useP2P() {
     reconnectTimer.value = RECONNECT_WINDOW / 1000;
 
     if (reconnectIntervalId) clearInterval(reconnectIntervalId);
+
+    // Immediately rejoin room for fresh Nostr subscription
+    if (currentRoomId) {
+      skipStartReconnect = true;
+      lastRejoinTime = performance.now();
+      rejoinRoom(currentRoomId);
+    }
+
     reconnectIntervalId = setInterval(() => {
       const elapsed = performance.now() - reconnectStartedAt;
       const remaining = Math.max(0, RECONNECT_WINDOW - elapsed);
       reconnectTimer.value = Math.ceil(remaining / 1000);
+
+      // Retry rejoin every 5s if still reconnecting
+      if (
+        remaining > 0 &&
+        connectionState.value === 'reconnecting' &&
+        currentRoomId
+      ) {
+        const sinceLastRejoin = performance.now() - lastRejoinTime;
+        if (sinceLastRejoin >= 5000) {
+          lastRejoinTime = performance.now();
+          skipStartReconnect = true;
+          rejoinRoom(currentRoomId);
+        }
+      }
 
       if (remaining <= 0) {
         clearInterval(reconnectIntervalId!);
@@ -434,6 +460,7 @@ export function useP2P() {
       pingIntervalId = null;
     }
     cancelReconnect();
+    currentRoomId = null;
     if (room) {
       room.leave();
       room = null;
@@ -453,6 +480,7 @@ export function useP2P() {
   function rejoinRoom(roomId: string) {
     // Preserve role so host/guest assignment survives reconnection
     const savedRole = role.value;
+    currentRoomId = roomId;
     if (pingIntervalId) {
       clearInterval(pingIntervalId);
       pingIntervalId = null;
@@ -569,7 +597,12 @@ export function useP2P() {
 
     // Start reconnect window so if no peer joins within 45s,
     // connectionState transitions to 'disconnected' for auto-cancel
-    startReconnectWindow();
+    // Skip if called from startReconnectWindow to avoid infinite recursion
+    if (skipStartReconnect) {
+      skipStartReconnect = false;
+    } else {
+      startReconnectWindow();
+    }
   }
 
   onUnmounted(leaveRoom);
