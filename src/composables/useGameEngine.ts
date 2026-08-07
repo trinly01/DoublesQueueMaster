@@ -599,12 +599,23 @@ export function useGameEngine() {
     });
 
     p2p.onEventReceived((data: EventPayload) => {
-      if (data.type === 'ready' && p2p.role.value === null) {
+      if (data.type === 'ready') {
         // Sync opponent name from ready event
         if (data.name) opponentName.value = data.name;
+        // The reconnecting peer's role assignment is authoritative —
+        // it was preserved from the original game. Override deterministic
+        // assignment if it conflicts.
         if (data.data === 'host') {
           // Guest tells us we're the host (reconnection after host refresh)
-          p2p.role.value = 'host';
+          if (p2p.role.value !== 'host') {
+            p2p.role.value = 'host';
+            // Send ready back so guest confirms role
+            const myName =
+              (typeof PlayerProfile !== 'undefined' &&
+                PlayerProfile.state.firstName) ||
+              '';
+            p2p.broadcastEvent({ type: 'ready', data: 'guest', name: myName });
+          }
           // onPeerJoin already fired but isHost was false — start delayed game start now
           if (
             (gameState.value === 'connecting' ||
@@ -621,23 +632,26 @@ export function useGameEngine() {
               }
             }, 1000);
           }
-        } else {
-          // Host told us we're the guest
-          p2p.role.value = 'guest';
-          // Flip player to opposite side of court
-          refs.playerPos.set(0, 0, -(COURT_LENGTH / 2 - 1));
+        } else if (data.data === 'guest') {
+          // Host tells us we're the guest
+          if (p2p.role.value !== 'guest') {
+            p2p.role.value = 'guest';
+            // Flip player to opposite side of court
+            refs.playerPos.set(0, 0, -(COURT_LENGTH / 2 - 1));
+          }
         }
-      } else if (data.type === 'ready' && data.name) {
-        // Already have a role — just sync the name (reconnect scenario)
-        opponentName.value = data.name;
       } else if (data.type === 'resync' && isGuest.value) {
         p2p.clearJitterBuffer();
         snapBallNextFrame = true;
         pausedFromReconnect.value = true;
       } else if (data.type === 'sync-scores') {
         // Guest sends scores after host refresh reconnection
-        // Process even if role isn't set yet (ready event might not have arrived)
-        if (typeof data.data === 'string' && p2p.role.value !== 'guest') {
+        // Receiving this means we are the host — fix role if deterministic
+        // assignment wrongly set us as guest
+        if (p2p.role.value === 'guest') {
+          p2p.role.value = 'host';
+        }
+        if (typeof data.data === 'string') {
           const parts = data.data.split(',');
           playerScore.value = parseInt(parts[0]) || 0;
           aiScore.value = parseInt(parts[1]) || 0;
