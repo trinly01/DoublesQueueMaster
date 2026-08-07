@@ -148,6 +148,7 @@ export function useP2P() {
   const reconnectTimer = ref(0);
   const opponentId = ref<string | null>(null);
   let inMatch = false;
+  const peerVerified = ref(false);
 
   let room: Room | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -254,6 +255,17 @@ export function useP2P() {
       if (payload.r) {
         lastPongReceived = performance.now();
         opponentPing.value = Math.round(lastPongReceived - payload.t);
+        // Mark peer as verified — we received a pong, so data channel works
+        if (!peerVerified.value) {
+          peerVerified.value = true;
+          // If we were reconnecting, now we're truly connected
+          if (connectionState.value === 'reconnecting') {
+            connectionState.value = 'connected';
+            cancelReconnect();
+            // Switch to normal ping interval now that we're verified
+            startKeepalive(PING_INTERVAL);
+          }
+        }
       } else {
         pingActionSend({ t: payload.t, r: true }, context.peerId);
       }
@@ -261,10 +273,23 @@ export function useP2P() {
 
     room.onPeerJoin = (peerId: string) => {
       opponentId.value = peerId;
-      connectionState.value = 'connected';
       lastPongReceived = performance.now();
-      cancelReconnect();
-      startKeepalive();
+
+      // If reconnecting, don't immediately set 'connected' — wait for pong
+      // to verify the data channel is actually working
+      if (connectionState.value === 'reconnecting') {
+        peerVerified.value = false;
+        // Send ping immediately to probe the data channel
+        pingActionSend({ t: performance.now(), r: false }, peerId);
+        // Use 1s ping interval during reconnection for faster verification
+        startKeepalive(1000);
+      } else {
+        // Initial connection — set connected immediately (pong will verify)
+        connectionState.value = 'connected';
+        peerVerified.value = false;
+        cancelReconnect();
+        startKeepalive();
+      }
 
       // Send our name to the peer via ready event
       const myName =
@@ -308,6 +333,7 @@ export function useP2P() {
     room.onPeerLeave = (peerId: string) => {
       if (peerLeaveCb) peerLeaveCb(peerId);
       opponentId.value = null;
+      peerVerified.value = false;
       // Only reconnect if in an active match — if just waiting/connecting,
       // stay in the room and let the opponent rejoin
       if (connectionState.value === 'connected' && inMatch) {
@@ -324,7 +350,7 @@ export function useP2P() {
     }, 2000);
   }
 
-  function startKeepalive() {
+  function startKeepalive(interval: number = PING_INTERVAL) {
     if (pingIntervalId) clearInterval(pingIntervalId);
     lastPongReceived = performance.now();
 
@@ -337,7 +363,7 @@ export function useP2P() {
           startReconnectWindow();
         }
       }
-    }, PING_INTERVAL);
+    }, interval);
   }
 
   function startReconnectWindow() {
@@ -472,6 +498,7 @@ export function useP2P() {
     role.value = null;
     connectionState.value = 'idle';
     opponentPing.value = 0;
+    peerVerified.value = false;
     clearJitterBuffer();
     stateSeq = 0;
     inputSeq = 0;
@@ -565,6 +592,17 @@ export function useP2P() {
       if (payload.r) {
         lastPongReceived = performance.now();
         opponentPing.value = Math.round(lastPongReceived - payload.t);
+        // Mark peer as verified — we received a pong, so data channel works
+        if (!peerVerified.value) {
+          peerVerified.value = true;
+          // If we were reconnecting, now we're truly connected
+          if (connectionState.value === 'reconnecting') {
+            connectionState.value = 'connected';
+            cancelReconnect();
+            // Switch to normal ping interval now that we're verified
+            startKeepalive(PING_INTERVAL);
+          }
+        }
       } else {
         pingActionSend({ t: payload.t, r: true }, context.peerId);
       }
@@ -572,10 +610,23 @@ export function useP2P() {
 
     room.onPeerJoin = (peerId: string) => {
       opponentId.value = peerId;
-      connectionState.value = 'connected';
       lastPongReceived = performance.now();
-      cancelReconnect();
-      startKeepalive();
+
+      // If reconnecting, don't immediately set 'connected' — wait for pong
+      // to verify the data channel is actually working
+      if (connectionState.value === 'reconnecting') {
+        peerVerified.value = false;
+        // Send ping immediately to probe the data channel
+        pingActionSend({ t: performance.now(), r: false }, peerId);
+        // Use 1s ping interval during reconnection for faster verification
+        startKeepalive(1000);
+      } else {
+        // Initial connection — set connected immediately (pong will verify)
+        connectionState.value = 'connected';
+        peerVerified.value = false;
+        cancelReconnect();
+        startKeepalive();
+      }
 
       const myName =
         (typeof PlayerProfile !== 'undefined' &&
@@ -597,6 +648,7 @@ export function useP2P() {
     room.onPeerLeave = (peerId: string) => {
       if (peerLeaveCb) peerLeaveCb(peerId);
       opponentId.value = null;
+      peerVerified.value = false;
       if (connectionState.value === 'connected' && inMatch) {
         startReconnectWindow();
       }
@@ -624,6 +676,7 @@ export function useP2P() {
     opponentPing,
     reconnectTimer,
     opponentId,
+    peerVerified,
     joinGameRoom,
     rejoinRoom,
     leaveRoom,
