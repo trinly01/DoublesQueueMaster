@@ -815,6 +815,7 @@ export function useGameEngine() {
   }
 
   function cancelPvP() {
+    p2p.setInMatch(false);
     p2p.leaveRoom();
     mode.value = 'ai';
     gameState.value = 'menu';
@@ -830,6 +831,7 @@ export function useGameEngine() {
     lastPointMsgSeq = -1;
     scoringSide.value = null;
     gameState.value = 'playing';
+    p2p.setInMatch(true);
     servingTo.value = 'player';
     server.value = 'player';
     resetBall('player');
@@ -838,6 +840,7 @@ export function useGameEngine() {
 
   function resetScore() {
     if (mode.value === 'pvp') {
+      p2p.setInMatch(false);
       p2p.leaveRoom();
       mode.value = 'ai';
       if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
@@ -3230,6 +3233,7 @@ export function useGameEngine() {
         winReason.value = 'forfeit';
         winner.value = isHost.value ? 'player' : 'ai';
         gameState.value = 'game-over';
+        p2p.setInMatch(false);
         if (typeof window !== 'undefined') localStorage.removeItem('dqm_mode');
         if (isHost.value) {
           p2p.broadcastEvent({ type: 'game-over', data: 'forfeit' });

@@ -147,6 +147,7 @@ export function useP2P() {
   const opponentPing = ref(0);
   const reconnectTimer = ref(0);
   const opponentId = ref<string | null>(null);
+  let inMatch = false;
 
   let room: Room | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -307,7 +308,9 @@ export function useP2P() {
     room.onPeerLeave = (peerId: string) => {
       if (peerLeaveCb) peerLeaveCb(peerId);
       opponentId.value = null;
-      if (connectionState.value === 'connected') {
+      // Only reconnect if in an active match — if just waiting/connecting,
+      // stay in the room and let the opponent rejoin
+      if (connectionState.value === 'connected' && inMatch) {
         startReconnectWindow();
       }
     };
@@ -594,7 +597,7 @@ export function useP2P() {
     room.onPeerLeave = (peerId: string) => {
       if (peerLeaveCb) peerLeaveCb(peerId);
       opponentId.value = null;
-      if (connectionState.value === 'connected') {
+      if (connectionState.value === 'connected' && inMatch) {
         startReconnectWindow();
       }
     };
@@ -610,6 +613,10 @@ export function useP2P() {
   }
 
   onUnmounted(leaveRoom);
+
+  function setInMatch(value: boolean) {
+    inMatch = value;
+  }
 
   return {
     connectionState,
@@ -633,5 +640,6 @@ export function useP2P() {
     getJitterBuffer,
     clearJitterBuffer,
     cancelReconnect,
+    setInMatch,
   };
 }
