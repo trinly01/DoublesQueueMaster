@@ -2725,6 +2725,7 @@ export function useGameEngine() {
           !pendingGuestInFault
         ) {
           const faultData = guestBallClippedNet ? 'net' : 'in';
+          const delay = Math.max((p2p.opponentPing.value || 100) * 2, 150);
           pendingGuestInFault = {
             data: faultData,
             timer: setTimeout(() => {
@@ -2735,7 +2736,7 @@ export function useGameEngine() {
                 });
               }
               pendingGuestInFault = null;
-            }, 150),
+            }, delay),
           };
           guestPrevBallY = ballY;
           return;
@@ -2746,7 +2747,10 @@ export function useGameEngine() {
 
     // --- Collision detection (ball moving toward guest) ---
     if (pendingFaultAck) return; // already sent a collision report, waiting for ack
-    if (refs.ballVel.z >= 0) return;
+    // Skip direction guard when pendingGuestInFault is active — the ball may
+    // appear to be moving away (z >= 0) due to stale interpolated state after
+    // a bounce, but the guest may still be in position to have hit it.
+    if (refs.ballVel.z >= 0 && !pendingGuestInFault) return;
 
     // Guest is on z < 0 side. Check body/paddle collision using same volume as tryHit,
     // expanded by 20% to account for interpolation lag.
