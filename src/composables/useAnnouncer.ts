@@ -55,6 +55,7 @@ export function useAnnouncer(context: UseAnnouncerContext) {
   const prevNextInLineId = ref<string | null>(
     nextInLineMatch.value?.matchId || null,
   );
+  let pendingNextInLineTimeout: ReturnType<typeof setTimeout> | null = null;
 
   watch(
     () => {
@@ -95,7 +96,8 @@ export function useAnnouncer(context: UseAnnouncerContext) {
         );
       }
 
-      // 2. Then announce next-in-line if it changed
+      // 2. Then announce next-in-line if it changed (delayed so it doesn't
+      //    evict newly-started toasts on mobile and matches TTS sequencing)
       const nextId = nextInLineMatch.value?.matchId || null;
       if (nextId && nextId !== prevNextInLineId.value) {
         const next = nextInLineMatch.value!;
@@ -106,8 +108,13 @@ export function useAnnouncer(context: UseAnnouncerContext) {
           getPlayerName(MatchmakingApp.state.players, u),
         );
         const text = buildMatchAnnounceText(na, nb, true);
-        announce(notify, text, next.matchId);
-        prevNextInLineId.value = nextId;
+        const delay = newlyStarted.length > 0 ? 500 : 0;
+        if (pendingNextInLineTimeout) clearTimeout(pendingNextInLineTimeout);
+        pendingNextInLineTimeout = setTimeout(() => {
+          announce(notify, text, next.matchId);
+          prevNextInLineId.value = nextId;
+          pendingNextInLineTimeout = null;
+        }, delay);
       }
     },
   );
