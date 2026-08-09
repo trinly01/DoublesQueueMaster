@@ -15,6 +15,7 @@
     "build:aab": "cd android-twa && node build-bubblewrap.cjs"
   },
   "dependencies": {
+    "@kingdanx/edge-tts-browser": "^1.0.0",
     "@likha-erp/likha-sdk": "^1.0.7",
     "@quasar/extras": "^1.16.4",
     "@tresjs/core": "^5.8.3",
