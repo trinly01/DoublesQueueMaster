@@ -37,22 +37,6 @@ export default route(function (/* { store, ssrContext } */) {
   Router.beforeEach((to, from, next) => {
     const hasSession = LocalStorage.has('dink-auth');
 
-    // Check 4-hour idle timeout
-    const lastActivity = LocalStorage.getItem('session_last_activity') as
-      | number
-      | null;
-    const sessionExpired =
-      hasSession &&
-      lastActivity &&
-      Date.now() - lastActivity > 4 * 60 * 60 * 1000;
-
-    if (sessionExpired) {
-      LocalStorage.remove('dink-auth');
-      LocalStorage.remove('session_last_activity');
-      next({ path: '/login', query: { redirect: to.fullPath } });
-      return;
-    }
-
     if (to.matched.some((record) => record.meta.requiresAuth)) {
       if (!hasSession) {
         next({ path: '/login', query: { redirect: to.fullPath } });
