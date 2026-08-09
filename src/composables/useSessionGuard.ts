@@ -149,6 +149,7 @@ export function useSessionGuard() {
     visibilityHandler = () => {
       if (document.hidden) {
         wasHidden = true;
+        likhaClient.stopRefreshing();
       } else if (wasHidden) {
         // Page went from hidden to visible (screen unlock, tab switch back)
         void refreshOnWake(router);
