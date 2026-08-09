@@ -1098,13 +1098,43 @@ function onWindowBlur() {
   }
 }
 
+// --- Wake Lock (prevent screen auto-lock during gameplay) ---
+let wakeLock: WakeLockSentinel | null = null;
+
+async function acquireWakeLock() {
+  if (typeof navigator === 'undefined' || !('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => {
+      wakeLock = null;
+    });
+  } catch {
+    // ignore — screen lock will still work, just less convenient
+  }
+}
+
+async function releaseWakeLock() {
+  if (wakeLock) {
+    await wakeLock.release();
+    wakeLock = null;
+  }
+}
+
+async function onVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    await acquireWakeLock();
+  }
+}
+
 onMounted(() => {
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', engine.onKeyUp);
   window.addEventListener('gamepadconnected', onGamepadConnected);
   window.addEventListener('gamepaddisconnected', onGamepadDisconnected);
   window.addEventListener('blur', onWindowBlur);
+  document.addEventListener('visibilitychange', onVisibilityChange);
   updateGamepadStatus();
+  acquireWakeLock();
   // Auto-rejoin PvP room if page was refreshed during a match
   engine.autoReconnectPvP();
   engine.startLoop();
@@ -1125,9 +1155,11 @@ onUnmounted(() => {
   window.removeEventListener('gamepadconnected', onGamepadConnected);
   window.removeEventListener('gamepaddisconnected', onGamepadDisconnected);
   window.removeEventListener('blur', onWindowBlur);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
   window.removeEventListener('mousemove', onMouseJoystickMove);
   window.removeEventListener('mouseup', onMouseJoystickEnd);
   if (menuPollInterval) clearInterval(menuPollInterval);
+  releaseWakeLock();
   engine.sound.stopMusic();
   engine.cleanup();
 });
