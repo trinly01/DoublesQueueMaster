@@ -8,4 +8,9 @@ export const TTS_CONFIG = {
     pitch: 1.0,
     volume: 1,
   },
+  circuitBreaker: {
+    failureThreshold: 2, // trips to OPEN after 2 consecutive failures
+    cooldownMs: 10000, // try HALF_OPEN after 10s
+  },
+  wakeLock: true,
 } as const;

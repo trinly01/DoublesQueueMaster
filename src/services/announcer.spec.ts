@@ -14,9 +14,11 @@ vi.mock('src/composables/useDeviceSettings', () => ({
 // Mock edgeTts — disabled by default so existing tests exercise the speechSynthesis fallback
 const mockIsEdgeTtsAvailable = vi.fn(() => false);
 const mockEdgeTtsSpeak = vi.fn();
+const mockResetEdgeTtsInstance = vi.fn();
 vi.mock('./edgeTts', () => ({
   isEdgeTtsAvailable: () => mockIsEdgeTtsAvailable(),
   edgeTtsSpeak: (...args: unknown[]) => mockEdgeTtsSpeak(...args),
+  resetEdgeTtsInstance: () => mockResetEdgeTtsInstance(),
 }));
 
 // Mock quasar (needed by MatchmakingApp)
@@ -79,9 +81,11 @@ import {
   getAnnouncements,
   setAdminMode,
   isSpeaking,
+  onVisibilityChange,
   _testGetSpeechQueue,
   _testGetPendingVoiceTexts,
   _testResetQueues,
+  _testGetCircuitState,
 } from './announcer';
 import { MatchmakingApp } from './matchmaking';
 
@@ -94,6 +98,7 @@ beforeEach(() => {
   // Edge TTS disabled by default — existing tests exercise speechSynthesis fallback
   mockIsEdgeTtsAvailable.mockReturnValue(false);
   mockEdgeTtsSpeak.mockReset();
+  mockResetEdgeTtsInstance.mockReset();
 
   setAdminMode(true);
   MatchmakingApp.state.ttsEnabled = true;
@@ -473,6 +478,276 @@ describe('playNextInQueue — Edge TTS path', () => {
     // cleanup should NOT have been called by onended (only by clearSpeechQueue path)
     // and isSpeaking should remain false
     expect(isSpeaking.value).toBe(false);
+
+    vi.useRealTimers();
+  });
+});
+
+describe('Circuit Breaker — Edge TTS failover', () => {
+  it('stays CLOSED when Edge TTS succeeds', async () => {
+    vi.useFakeTimers();
+    mockGetVoices.mockReturnValue([
+      { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice,
+    ]);
+    mockIsEdgeTtsAvailable.mockReturnValue(true);
+    mockEdgeTtsSpeak.mockResolvedValue({
+      audio: {
+        onended: null,
+        onerror: null,
+        play: vi.fn().mockResolvedValue(undefined),
+        pause: vi.fn(),
+      },
+      cleanup: vi.fn(),
+    });
+
+    const notify = vi.fn();
+    announce(notify, 'Circuit closed test', 'm1');
+
+    await vi.waitFor(() => {
+      expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(1);
+    });
+
+    expect(_testGetCircuitState()).toBe('closed');
+    expect(mockSpeak).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it('trips to OPEN after 2 consecutive failures', async () => {
+    vi.useFakeTimers();
+    mockGetVoices.mockReturnValue([
+      { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice,
+    ]);
+    mockIsEdgeTtsAvailable.mockReturnValue(true);
+    mockEdgeTtsSpeak.mockRejectedValue(new Error('WebSocket dead'));
+
+    const notify = vi.fn();
+    announce(notify, 'First failure', 'm1');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mockSpeak).toHaveBeenCalledTimes(1));
+
+    // First failure — circuit should still be closed (threshold=2)
+    expect(_testGetCircuitState()).toBe('closed');
+
+    // Wait for speechSynthesis to finish so queue advances
+    const utterance = mockSpeak.mock.calls[0][0] as {
+      onend: (() => void) | null;
+    };
+    if (utterance.onend) utterance.onend();
+
+    announce(notify, 'Second failure', 'm2');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(mockSpeak).toHaveBeenCalledTimes(2));
+
+    // Second failure — circuit should now be OPEN
+    expect(_testGetCircuitState()).toBe('open');
+
+    vi.useRealTimers();
+  });
+
+  it('OPEN state skips Edge TTS, goes straight to speechSynthesis', async () => {
+    vi.useFakeTimers();
+    mockGetVoices.mockReturnValue([
+      { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice,
+    ]);
+    mockIsEdgeTtsAvailable.mockReturnValue(true);
+    mockEdgeTtsSpeak.mockRejectedValue(new Error('WebSocket dead'));
+
+    const notify = vi.fn();
+    // Trip the circuit with 2 failures
+    announce(notify, 'Fail 1', 'm1');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mockSpeak).toHaveBeenCalledTimes(1));
+    const u1 = mockSpeak.mock.calls[0][0] as { onend: (() => void) | null };
+    if (u1.onend) u1.onend();
+
+    announce(notify, 'Fail 2', 'm2');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(mockSpeak).toHaveBeenCalledTimes(2));
+    expect(_testGetCircuitState()).toBe('open');
+
+    const u2 = mockSpeak.mock.calls[1][0] as { onend: (() => void) | null };
+    if (u2.onend) u2.onend();
+
+    // Third announcement — should NOT call edgeTtsSpeak (circuit OPEN)
+    const edgeTtsCallCount = mockEdgeTtsSpeak.mock.calls.length;
+    announce(notify, 'Skip Edge TTS', 'm3');
+    await vi.waitFor(() => expect(mockSpeak).toHaveBeenCalledTimes(3));
+
+    expect(mockEdgeTtsSpeak.mock.calls.length).toBe(edgeTtsCallCount);
+    expect(_testGetCircuitState()).toBe('open');
+
+    vi.useRealTimers();
+  });
+
+  it('HALF_OPEN: after cooldown, tries Edge TTS once → success → CLOSED', async () => {
+    vi.useFakeTimers();
+    mockGetVoices.mockReturnValue([
+      { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice,
+    ]);
+    mockIsEdgeTtsAvailable.mockReturnValue(true);
+    mockEdgeTtsSpeak.mockRejectedValue(new Error('WebSocket dead'));
+
+    const notify = vi.fn();
+    // Trip the circuit
+    announce(notify, 'Fail 1', 'm1');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mockSpeak).toHaveBeenCalledTimes(1));
+    const u1 = mockSpeak.mock.calls[0][0] as { onend: (() => void) | null };
+    if (u1.onend) u1.onend();
+
+    announce(notify, 'Fail 2', 'm2');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(mockSpeak).toHaveBeenCalledTimes(2));
+    expect(_testGetCircuitState()).toBe('open');
+
+    const u2 = mockSpeak.mock.calls[1][0] as { onend: (() => void) | null };
+    if (u2.onend) u2.onend();
+
+    // Advance past cooldown (10s)
+    vi.advanceTimersByTime(11000);
+
+    // Next announcement should try Edge TTS (HALF_OPEN trial)
+    mockEdgeTtsSpeak.mockResolvedValue({
+      audio: {
+        onended: null,
+        onerror: null,
+        play: vi.fn().mockResolvedValue(undefined),
+        pause: vi.fn(),
+      },
+      cleanup: vi.fn(),
+    });
+
+    announce(notify, 'Recovery test', 'm3');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(3));
+
+    // Trial succeeded → back to CLOSED
+    expect(_testGetCircuitState()).toBe('closed');
+
+    vi.useRealTimers();
+  });
+
+  it('HALF_OPEN: after cooldown, tries Edge TTS once → fail → back to OPEN', async () => {
+    vi.useFakeTimers();
+    mockGetVoices.mockReturnValue([
+      { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice,
+    ]);
+    mockIsEdgeTtsAvailable.mockReturnValue(true);
+    mockEdgeTtsSpeak.mockRejectedValue(new Error('Still down'));
+
+    const notify = vi.fn();
+    // Trip the circuit
+    announce(notify, 'Fail 1', 'm1');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mockSpeak).toHaveBeenCalledTimes(1));
+    const u1 = mockSpeak.mock.calls[0][0] as { onend: (() => void) | null };
+    if (u1.onend) u1.onend();
+
+    announce(notify, 'Fail 2', 'm2');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(mockSpeak).toHaveBeenCalledTimes(2));
+    expect(_testGetCircuitState()).toBe('open');
+
+    const u2 = mockSpeak.mock.calls[1][0] as { onend: (() => void) | null };
+    if (u2.onend) u2.onend();
+
+    // Advance past cooldown
+    vi.advanceTimersByTime(11000);
+
+    // Next announcement should try Edge TTS (HALF_OPEN trial) — still failing
+    announce(notify, 'Still down test', 'm3');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(mockSpeak).toHaveBeenCalledTimes(3));
+
+    // Trial failed → back to OPEN
+    expect(_testGetCircuitState()).toBe('open');
+
+    vi.useRealTimers();
+  });
+
+  it('visibilitychange resets circuit to HALF_OPEN for immediate retry', async () => {
+    vi.useFakeTimers();
+    mockGetVoices.mockReturnValue([
+      { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice,
+    ]);
+    mockIsEdgeTtsAvailable.mockReturnValue(true);
+    mockEdgeTtsSpeak.mockRejectedValue(new Error('WebSocket dead'));
+
+    const notify = vi.fn();
+    // Trip the circuit
+    announce(notify, 'Fail 1', 'm1');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mockSpeak).toHaveBeenCalledTimes(1));
+    const u1 = mockSpeak.mock.calls[0][0] as { onend: (() => void) | null };
+    if (u1.onend) u1.onend();
+
+    announce(notify, 'Fail 2', 'm2');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(mockSpeak).toHaveBeenCalledTimes(2));
+    expect(_testGetCircuitState()).toBe('open');
+
+    const u2 = mockSpeak.mock.calls[1][0] as { onend: (() => void) | null };
+    if (u2.onend) u2.onend();
+
+    // Simulate screen wake
+    await onVisibilityChange();
+
+    // Circuit should be HALF_OPEN now (bypasses cooldown)
+    expect(_testGetCircuitState()).toBe('half_open');
+    expect(mockResetEdgeTtsInstance).toHaveBeenCalled();
+
+    // Next announcement should try Edge TTS immediately (no cooldown wait)
+    mockEdgeTtsSpeak.mockResolvedValue({
+      audio: {
+        onended: null,
+        onerror: null,
+        play: vi.fn().mockResolvedValue(undefined),
+        pause: vi.fn(),
+      },
+      cleanup: vi.fn(),
+    });
+
+    announce(notify, 'After wake test', 'm3');
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(3));
+    expect(_testGetCircuitState()).toBe('closed');
+
+    vi.useRealTimers();
+  });
+
+  it('visibilitychange force-advances stalled audio queue', async () => {
+    vi.useFakeTimers();
+    mockGetVoices.mockReturnValue([
+      { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice,
+    ]);
+    mockIsEdgeTtsAvailable.mockReturnValue(true);
+
+    const fakeAudio = {
+      onended: null as (() => void) | null,
+      onerror: null as (() => void) | null,
+      play: vi.fn().mockResolvedValue(undefined),
+      pause: vi.fn(),
+      paused: true, // simulate paused by screen lock
+    };
+    mockEdgeTtsSpeak.mockResolvedValue({
+      audio: fakeAudio,
+      cleanup: vi.fn(),
+    });
+
+    const notify = vi.fn();
+    // Enqueue two items
+    announce(notify, 'First item', 'm1');
+    announce(notify, 'Second item', 'm2');
+
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(1));
+    expect(isSpeaking.value).toBe(true);
+
+    // Simulate screen wake — stalled audio should be force-advanced
+    await onVisibilityChange();
+
+    // Should have tried to play next item
+    await vi.waitFor(() => expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(2), {
+      timeout: 3000,
+    });
 
     vi.useRealTimers();
   });

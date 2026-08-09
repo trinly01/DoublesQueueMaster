@@ -2,7 +2,11 @@ import { ref } from 'vue';
 import type { ActiveMatch, Player } from './matchmaking';
 import { MatchmakingApp } from './matchmaking';
 import { getDeviceSetting } from 'src/composables/useDeviceSettings';
-import { isEdgeTtsAvailable, edgeTtsSpeak } from './edgeTts';
+import {
+  isEdgeTtsAvailable,
+  edgeTtsSpeak,
+  resetEdgeTtsInstance,
+} from './edgeTts';
 import { TTS_CONFIG } from './ttsConfig';
 
 // Per-device TTS setting: read from LocalStorage (not cloud-synced AppState)
@@ -60,6 +64,71 @@ let speakGeneration = 0;
 let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
 let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 let currentAudioElement: HTMLAudioElement | null = null;
+
+// ── Circuit Breaker (industry-standard primary/secondary failover) ──
+// CLOSED: try Edge TTS for every announcement
+// OPEN: skip Edge TTS, go straight to speechSynthesis (no wasted time)
+// HALF_OPEN: trial call to check if Edge TTS recovered
+type CircuitState = 'closed' | 'open' | 'half_open';
+let circuitState: CircuitState = 'closed';
+let consecutiveFailures = 0;
+let lastFailureTime = 0;
+
+const canTryEdgeTts = (): boolean => {
+  switch (circuitState) {
+    case 'closed':
+      return true;
+    case 'open':
+      if (
+        Date.now() - lastFailureTime >=
+        TTS_CONFIG.circuitBreaker.cooldownMs
+      ) {
+        circuitState = 'half_open';
+        return true;
+      }
+      return false;
+    case 'half_open':
+      return true;
+  }
+};
+
+const recordEdgeTtsSuccess = () => {
+  circuitState = 'closed';
+  consecutiveFailures = 0;
+};
+
+const recordEdgeTtsFailure = () => {
+  consecutiveFailures++;
+  lastFailureTime = Date.now();
+  if (consecutiveFailures >= TTS_CONFIG.circuitBreaker.failureThreshold) {
+    circuitState = 'open';
+  } else if (circuitState === 'half_open') {
+    circuitState = 'open';
+  }
+};
+
+// ── Wake Lock (prevent mobile screen lock from killing WebSocket) ──
+let wakeLock: WakeLockSentinel | null = null;
+
+const acquireWakeLock = async () => {
+  if (!TTS_CONFIG.wakeLock) return;
+  if (typeof navigator === 'undefined' || !('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => {
+      wakeLock = null;
+    });
+  } catch {
+    // ignore — wake lock not critical, circuit breaker handles fallback
+  }
+};
+
+const releaseWakeLock = async () => {
+  if (wakeLock) {
+    await wakeLock.release();
+    wakeLock = null;
+  }
+};
 
 const stopTimers = () => {
   if (keepAliveTimer) {
@@ -155,25 +224,30 @@ const playNextInQueue = async () => {
 
   if (speechQueue.length === 0) {
     isSpeaking.value = false;
+    releaseWakeLock();
     return;
   }
   if (isTtsEnabled() === false) {
     speechQueue.length = 0;
     isSpeaking.value = false;
+    releaseWakeLock();
     return;
   }
   isSpeaking.value = true;
+  acquireWakeLock();
   const currentGen = speakGeneration;
   const text = speechQueue.shift()!;
 
   // Try Edge TTS first (Filipina voice — en-PH-RosaNeural)
-  if (isEdgeTtsAvailable()) {
+  // Circuit breaker: skip if OPEN, trial if HALF_OPEN, normal if CLOSED
+  if (isEdgeTtsAvailable() && canTryEdgeTts()) {
     try {
       const { audio, cleanup } = await edgeTtsSpeak(text);
       if (currentGen !== speakGeneration) {
         cleanup();
         return; // cancelled while fetching
       }
+      recordEdgeTtsSuccess();
       currentAudioElement = audio;
 
       audio.onended = () => {
@@ -191,10 +265,12 @@ const playNextInQueue = async () => {
       };
       return; // Edge TTS playing, done
     } catch (e) {
-      console.warn(
-        '[TTS] Edge TTS failed, falling back to speechSynthesis:',
-        e,
-      );
+      recordEdgeTtsFailure();
+      if (circuitState === 'open') {
+        console.warn('[TTS] Edge TTS circuit OPEN, using speechSynthesis');
+      } else {
+        console.warn('[TTS] Edge TTS failed, using speechSynthesis:', e);
+      }
       currentAudioElement = null;
     }
   }
@@ -220,6 +296,7 @@ export const clearSpeechQueue = () => {
   pendingVoiceTexts.length = 0;
   isSpeaking.value = false;
   window.speechSynthesis.cancel();
+  releaseWakeLock();
 };
 
 // Test-only exports (not used in production code)
@@ -236,7 +313,33 @@ export const _testResetQueues = () => {
   speechQueue.length = 0;
   pendingVoiceTexts.length = 0;
   voicesReadyHandlerSetUp = false;
+  circuitState = 'closed';
+  consecutiveFailures = 0;
+  lastFailureTime = 0;
 };
+
+export const _testGetCircuitState = (): CircuitState => circuitState;
+
+// ── Visibilitychange recovery ──────────────────────────
+// When screen wakes: reset Edge TTS instance (fresh WebSocket),
+// force circuit breaker to HALF_OPEN (immediate retry),
+// re-acquire wake lock, and advance stalled queue.
+export const onVisibilityChange = async () => {
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible')
+    return;
+  if (isSpeaking.value) acquireWakeLock();
+  resetEdgeTtsInstance();
+  circuitState = 'half_open';
+  lastFailureTime = 0; // bypass cooldown
+  if (currentAudioElement?.paused) {
+    currentAudioElement = null;
+    playNextInQueue();
+  }
+};
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', onVisibilityChange);
+}
 
 // ── Pending voice-loading queue ─────────────────────────
 // When speechSynthesis voices aren't loaded yet, texts are buffered here.

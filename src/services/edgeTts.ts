@@ -13,6 +13,10 @@ export const isEdgeTtsAvailable = (): boolean => {
   return typeof navigator !== 'undefined' && navigator.onLine;
 };
 
+export const resetEdgeTtsInstance = () => {
+  ttsInstance = null;
+};
+
 export const edgeTtsSpeak = async (
   text: string,
 ): Promise<{
