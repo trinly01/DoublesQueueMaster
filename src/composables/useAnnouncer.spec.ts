@@ -184,4 +184,145 @@ describe('useAnnouncer — watcher', () => {
     // Should not announce since startedAt is before the seed time
     expect(announce).not.toHaveBeenCalled();
   });
+
+  it('delays next-in-line announcement by 500ms when newly started matches exist', async () => {
+    vi.useFakeTimers();
+
+    // Start with no next-in-line so prevNextInLineId initializes to null
+    (getNextInLine as ReturnType<typeof vi.fn>).mockReturnValue(null);
+
+    const { context, matches } = makeContext();
+    useAnnouncer(context);
+
+    // Now set up next-in-line match so it differs from initial null
+    (getNextInLine as ReturnType<typeof vi.fn>).mockReturnValue({
+      matchId: 'next1',
+      teamA: ['carol'],
+      teamB: ['dave'],
+    });
+
+    const startTime = Date.now() + 1;
+    matches.value = [
+      {
+        id: 'm1',
+        status: 'in-progress',
+        startedAt: { getTime: () => startTime },
+        createdAt: new Date(),
+        teamA: [{ firstName: 'Alice', username: 'alice' }],
+        teamB: [{ firstName: 'Bob', username: 'bob' }],
+      },
+    ];
+
+    await nextTick();
+    // Advance past the watcher's microtask
+    vi.advanceTimersByTime(50);
+
+    // Newly started should have been announced immediately
+    const announceCallsAfterStart = (announce as ReturnType<typeof vi.fn>).mock
+      .calls.length;
+    expect(announceCallsAfterStart).toBeGreaterThan(0);
+
+    // Only newly-started calls so far (2x repeat)
+    expect(announceCallsAfterStart).toBe(2);
+
+    // Advance past the 500ms delay
+    vi.advanceTimersByTime(500);
+
+    // Now next-in-line should have been announced (total 3 calls: 2x newly + 1x next)
+    expect((announce as ReturnType<typeof vi.fn>).mock.calls.length).toBe(3);
+
+    vi.useRealTimers();
+  });
+
+  it('does not delay next-in-line when no newly started matches', async () => {
+    vi.useFakeTimers();
+
+    // Set up next-in-line match that differs from initial
+    (getNextInLine as ReturnType<typeof vi.fn>).mockReturnValue({
+      matchId: 'next2',
+      teamA: ['carol'],
+      teamB: ['dave'],
+    });
+
+    const { context, matches } = makeContext();
+    // Seed with an existing in-progress match (so it's not "newly started")
+    const existingTime = Date.now() - 5000;
+    matches.value = [
+      {
+        id: 'm1',
+        status: 'in-progress',
+        startedAt: { getTime: () => existingTime },
+        createdAt: new Date(),
+        teamA: [{ firstName: 'Alice', username: 'alice' }],
+        teamB: [{ firstName: 'Bob', username: 'bob' }],
+      },
+    ];
+
+    useAnnouncer(context);
+
+    // Trigger a change so the watcher fires (add a waiting match)
+    (getNextInLine as ReturnType<typeof vi.fn>).mockReturnValue({
+      matchId: 'next3',
+      teamA: ['eve'],
+      teamB: ['frank'],
+    });
+    matches.value = [
+      {
+        id: 'm1',
+        status: 'in-progress',
+        startedAt: { getTime: () => existingTime },
+        createdAt: new Date(),
+        teamA: [{ firstName: 'Alice', username: 'alice' }],
+        teamB: [{ firstName: 'Bob', username: 'bob' }],
+      },
+      {
+        id: 'next3',
+        status: 'waiting',
+        createdAt: new Date(),
+        teamA: [{ firstName: 'Eve', username: 'eve' }],
+        teamB: [{ firstName: 'Frank', username: 'frank' }],
+      },
+    ];
+
+    await nextTick();
+    vi.advanceTimersByTime(50);
+
+    // Next-in-line should be announced immediately (0ms delay, no newly started)
+    // The announce call for next-in-line should already have happened
+    const calls = (announce as ReturnType<typeof vi.fn>).mock.calls;
+    // At least one call should have happened (the next-in-line)
+    expect(calls.length).toBeGreaterThanOrEqual(1);
+
+    vi.useRealTimers();
+  });
+
+  it('does not announce next-in-line when getNextInLine returns null', async () => {
+    vi.useFakeTimers();
+
+    (getNextInLine as ReturnType<typeof vi.fn>).mockReturnValue(null);
+
+    const { context, matches } = makeContext();
+    useAnnouncer(context);
+
+    const startTime = Date.now() + 1;
+    matches.value = [
+      {
+        id: 'm1',
+        status: 'in-progress',
+        startedAt: { getTime: () => startTime },
+        createdAt: new Date(),
+        teamA: [{ firstName: 'Alice', username: 'alice' }],
+        teamB: [{ firstName: 'Bob', username: 'bob' }],
+      },
+    ];
+
+    await nextTick();
+    vi.advanceTimersByTime(50);
+    vi.advanceTimersByTime(500);
+
+    // Only the 2x newly-started calls, no next-in-line
+    expect((announce as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2);
+
+    vi.useRealTimers();
+  });
 });
