@@ -16,10 +16,12 @@ export function useRecentClubs(
   options?: {
     includePlayers?: boolean;
     cacheKey?: string;
+    membershipOnly?: boolean;
   },
 ) {
   const includePlayers = options?.includePlayers ?? false;
   const cacheKey = options?.cacheKey ?? 'recent_clubs_cache';
+  const membershipOnly = options?.membershipOnly ?? false;
 
   const recentClubs = ref<RecentClub[]>([]);
   const loading = ref(false);
@@ -93,17 +95,66 @@ export function useRecentClubs(
         }
       }
 
-      // Merge cached clubs that have no matches (user joined but hasn't played yet)
-      if (hasCache && includePlayers) {
-        for (const c of cached!) {
-          if (!seen.has(c.id)) {
-            sortedClubs.push(c);
+      if (membershipOnly) {
+        // Query actual club membership to filter out left clubs
+        const memberClubs = await likhaClient.request(
+          readItems('club', {
+            filter: {
+              players: { directus_users_id: { _eq: currentUserId.value } },
+            },
+            fields: [
+              'id',
+              'clubId',
+              'name',
+              'logo',
+              'players.id',
+              'players.directus_users_id.id',
+            ],
+          }),
+        );
+
+        const memberMap = new Map<string, RecentClub>();
+        for (const c of (memberClubs || []) as unknown as {
+          id: string;
+          clubId: string;
+          name?: string;
+          logo?: string;
+          players?: Array<{ id?: string; directus_users_id?: { id: string } }>;
+        }[]) {
+          memberMap.set(c.id, {
+            id: c.id,
+            clubId: c.clubId,
+            name: c.name || c.clubId,
+            logoUrl: resolveLogoUrl(c.logo),
+            players: c.players,
+          });
+        }
+
+        // Keep only clubs the user is still a member of (sorted by recent match)
+        const filtered = sortedClubs.filter((c) => memberMap.has(c.id));
+
+        // Append member clubs with no matches (joined but never played)
+        for (const [id, c] of memberMap) {
+          if (!seen.has(id)) {
+            filtered.push(c);
           }
         }
-      }
 
-      recentClubs.value = sortedClubs;
-      LocalStorage.set(cacheKey, sortedClubs);
+        recentClubs.value = filtered;
+        LocalStorage.set(cacheKey, filtered);
+      } else {
+        // Merge cached clubs that have no matches (user joined but hasn't played yet)
+        if (hasCache && includePlayers) {
+          for (const c of cached!) {
+            if (!seen.has(c.id)) {
+              sortedClubs.push(c);
+            }
+          }
+        }
+
+        recentClubs.value = sortedClubs;
+        LocalStorage.set(cacheKey, sortedClubs);
+      }
     } catch (err) {
       console.warn('Failed to load recent clubs:', err);
       if (!hasCache) {

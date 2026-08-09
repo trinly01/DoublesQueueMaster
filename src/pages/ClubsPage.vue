@@ -444,6 +444,7 @@ const {
 } = useRecentClubs(userIdRef, {
   includePlayers: true,
   cacheKey: 'my_clubs_cache',
+  membershipOnly: true,
 });
 
 const getMemberCount = (club: Club | RecentClub) => club.players?.length || 0;
@@ -562,6 +563,7 @@ const handleLeaveClub = async () => {
       }),
     );
     myClubs.value = myClubs.value.filter((c) => c.id !== club.id);
+    LocalStorage.set('my_clubs_cache', myClubs.value);
     showLeaveConfirmDialog.value = false;
     leaveClubTarget.value = null;
     notify({
