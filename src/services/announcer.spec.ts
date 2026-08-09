@@ -11,6 +11,14 @@ vi.mock('src/composables/useDeviceSettings', () => ({
   getDeviceSetting: vi.fn(() => undefined),
 }));
 
+// Mock edgeTts — disabled by default so existing tests exercise the speechSynthesis fallback
+const mockIsEdgeTtsAvailable = vi.fn(() => false);
+const mockEdgeTtsSpeak = vi.fn();
+vi.mock('./edgeTts', () => ({
+  isEdgeTtsAvailable: () => mockIsEdgeTtsAvailable(),
+  edgeTtsSpeak: (...args: unknown[]) => mockEdgeTtsSpeak(...args),
+}));
+
 // Mock quasar (needed by MatchmakingApp)
 vi.mock('quasar', () => ({
   LocalStorage: {
@@ -82,6 +90,10 @@ beforeEach(() => {
   clearAnnouncements();
   _testResetQueues();
   isSpeaking.value = false;
+
+  // Edge TTS disabled by default — existing tests exercise speechSynthesis fallback
+  mockIsEdgeTtsAvailable.mockReturnValue(false);
+  mockEdgeTtsSpeak.mockReset();
 
   setAdminMode(true);
   MatchmakingApp.state.ttsEnabled = true;
@@ -287,6 +299,179 @@ describe('playNextInQueue — Chrome onend bug workarounds', () => {
 
     // pause/resume should not have been called after onend cleared timers
     // (speaking is false, so even if interval fired, it would early-return)
+    expect(isSpeaking.value).toBe(false);
+
+    vi.useRealTimers();
+  });
+});
+
+describe('playNextInQueue — Edge TTS path', () => {
+  it('uses Edge TTS when available and advances queue on audio onended', async () => {
+    vi.useFakeTimers();
+    mockGetVoices.mockReturnValue([
+      { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice,
+    ]);
+    mockIsEdgeTtsAvailable.mockReturnValue(true);
+
+    // Mock edgeTtsSpeak to return a fake audio element
+    const fakeAudio = {
+      onended: null as (() => void) | null,
+      onerror: null as (() => void) | null,
+      play: vi.fn().mockResolvedValue(undefined),
+      pause: vi.fn(),
+    };
+    const fakeCleanup = vi.fn();
+    mockEdgeTtsSpeak.mockResolvedValue({
+      audio: fakeAudio,
+      cleanup: fakeCleanup,
+    });
+
+    const notify = vi.fn();
+    announce(notify, 'Edge TTS test', 'm1');
+
+    // Wait for async playNextInQueue to resolve
+    await vi.waitFor(() => {
+      expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(1);
+    });
+
+    // Should NOT have used speechSynthesis
+    expect(mockSpeak).not.toHaveBeenCalled();
+    expect(isSpeaking.value).toBe(true);
+
+    // Simulate audio ending
+    if (fakeAudio.onended) fakeAudio.onended();
+
+    expect(fakeCleanup).toHaveBeenCalled();
+
+    // onended schedules playNextInQueue via setTimeout — advance past delay
+    // (default delay for non-matching text is 400ms)
+    vi.advanceTimersByTime(500);
+    expect(isSpeaking.value).toBe(false);
+
+    vi.useRealTimers();
+  });
+
+  it('falls back to speechSynthesis when Edge TTS throws error', async () => {
+    vi.useFakeTimers();
+    mockGetVoices.mockReturnValue([
+      { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice,
+    ]);
+    mockIsEdgeTtsAvailable.mockReturnValue(true);
+    mockEdgeTtsSpeak.mockRejectedValue(new Error('Network error'));
+
+    const notify = vi.fn();
+    announce(notify, 'Fallback test', 'm1');
+
+    // Wait for edgeTtsSpeak to be called and fail
+    await vi.waitFor(() => {
+      expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(1);
+    });
+
+    // Should fall back to speechSynthesis
+    await vi.waitFor(() => {
+      expect(mockSpeak).toHaveBeenCalledTimes(1);
+    });
+    expect((mockSpeak.mock.calls[0][0] as { text: string }).text).toBe(
+      'Fallback test',
+    );
+
+    vi.useRealTimers();
+  });
+
+  it('falls back to speechSynthesis when isEdgeTtsAvailable returns false', () => {
+    vi.useFakeTimers();
+    mockGetVoices.mockReturnValue([
+      { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice,
+    ]);
+    mockIsEdgeTtsAvailable.mockReturnValue(false);
+
+    const notify = vi.fn();
+    announce(notify, 'Offline fallback test', 'm1');
+
+    expect(mockEdgeTtsSpeak).not.toHaveBeenCalled();
+    expect(mockSpeak).toHaveBeenCalledTimes(1);
+    expect((mockSpeak.mock.calls[0][0] as { text: string }).text).toBe(
+      'Offline fallback test',
+    );
+
+    vi.useRealTimers();
+  });
+
+  it('clearSpeechQueue stops current audio element', async () => {
+    vi.useFakeTimers();
+    mockGetVoices.mockReturnValue([
+      { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice,
+    ]);
+    mockIsEdgeTtsAvailable.mockReturnValue(true);
+
+    const fakeAudio = {
+      onended: null as (() => void) | null,
+      onerror: null as (() => void) | null,
+      play: vi.fn().mockResolvedValue(undefined),
+      pause: vi.fn(),
+    };
+    const fakeCleanup = vi.fn();
+    mockEdgeTtsSpeak.mockResolvedValue({
+      audio: fakeAudio,
+      cleanup: fakeCleanup,
+    });
+
+    const notify = vi.fn();
+    announce(notify, 'Audio stop test', 'm1');
+
+    await vi.waitFor(() => {
+      expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(1);
+    });
+
+    expect(isSpeaking.value).toBe(true);
+
+    // Cancel while audio is playing
+    clearSpeechQueue();
+
+    expect(fakeAudio.pause).toHaveBeenCalled();
+    expect(isSpeaking.value).toBe(false);
+
+    // Fire stale onended — should be ignored
+    if (fakeAudio.onended) fakeAudio.onended();
+    expect(isSpeaking.value).toBe(false);
+
+    vi.useRealTimers();
+  });
+
+  it('ignores stale audio onended after generation increment', async () => {
+    vi.useFakeTimers();
+    mockGetVoices.mockReturnValue([
+      { name: 'Test Voice', lang: 'en-US' } as SpeechSynthesisVoice,
+    ]);
+    mockIsEdgeTtsAvailable.mockReturnValue(true);
+
+    const fakeAudio = {
+      onended: null as (() => void) | null,
+      onerror: null as (() => void) | null,
+      play: vi.fn().mockResolvedValue(undefined),
+      pause: vi.fn(),
+    };
+    const fakeCleanup = vi.fn();
+    mockEdgeTtsSpeak.mockResolvedValue({
+      audio: fakeAudio,
+      cleanup: fakeCleanup,
+    });
+
+    const notify = vi.fn();
+    announce(notify, 'Stale callback test', 'm1');
+
+    await vi.waitFor(() => {
+      expect(mockEdgeTtsSpeak).toHaveBeenCalledTimes(1);
+    });
+
+    // Cancel (increments generation)
+    clearSpeechQueue();
+
+    // Fire stale onended
+    if (fakeAudio.onended) fakeAudio.onended();
+
+    // cleanup should NOT have been called by onended (only by clearSpeechQueue path)
+    // and isSpeaking should remain false
     expect(isSpeaking.value).toBe(false);
 
     vi.useRealTimers();

@@ -2,6 +2,8 @@ import { ref } from 'vue';
 import type { ActiveMatch, Player } from './matchmaking';
 import { MatchmakingApp } from './matchmaking';
 import { getDeviceSetting } from 'src/composables/useDeviceSettings';
+import { isEdgeTtsAvailable, edgeTtsSpeak } from './edgeTts';
+import { TTS_CONFIG } from './ttsConfig';
 
 // Per-device TTS setting: read from LocalStorage (not cloud-synced AppState)
 // so each device controls its own announcer independently.
@@ -57,6 +59,7 @@ export const isSpeaking = ref(false);
 let speakGeneration = 0;
 let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
 let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+let currentAudioElement: HTMLAudioElement | null = null;
 
 const stopTimers = () => {
   if (keepAliveTimer) {
@@ -68,6 +71,13 @@ const stopTimers = () => {
     fallbackTimer = null;
   }
 };
+
+const getPostSpeechDelay = (text: string): number =>
+  text.includes('dinking only')
+    ? 1200
+    : text.includes('Please prepare')
+      ? 2000
+      : 400;
 
 const pickFemaleVoice = (): SpeechSynthesisVoice | null => {
   const voices = window.speechSynthesis.getVoices();
@@ -95,25 +105,11 @@ const pickFemaleVoice = (): SpeechSynthesisVoice | null => {
   return voices.find((v) => v.lang.toLowerCase().startsWith('en')) || null;
 };
 
-const playNextInQueue = () => {
-  stopTimers();
-
-  if (speechQueue.length === 0) {
-    isSpeaking.value = false;
-    return;
-  }
-  if (isTtsEnabled() === false) {
-    speechQueue.length = 0;
-    isSpeaking.value = false;
-    return;
-  }
-  isSpeaking.value = true;
-  const currentGen = speakGeneration;
-  const text = speechQueue.shift()!;
+const speechSynthesisSpeak = (text: string, currentGen: number) => {
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 0.75;
-  utterance.pitch = 1.0;
-  utterance.volume = 1;
+  utterance.rate = TTS_CONFIG.speechSynthesis.rate;
+  utterance.pitch = TTS_CONFIG.speechSynthesis.pitch;
+  utterance.volume = TTS_CONFIG.speechSynthesis.volume;
 
   const voice = pickFemaleVoice();
   if (voice) utterance.voice = voice;
@@ -125,11 +121,7 @@ const playNextInQueue = () => {
   utterance.onend = () => {
     if (currentGen !== speakGeneration) return; // stale callback after cancel
     stopTimers();
-    const delay = text.includes('dinking only')
-      ? 1200
-      : text.includes('Please prepare')
-        ? 2000
-        : 400;
+    const delay = getPostSpeechDelay(text);
     setTimeout(playNextInQueue, delay);
   };
   utterance.onerror = (e) => {
@@ -158,6 +150,59 @@ const playNextInQueue = () => {
   window.speechSynthesis.speak(utterance);
 };
 
+const playNextInQueue = async () => {
+  stopTimers();
+
+  if (speechQueue.length === 0) {
+    isSpeaking.value = false;
+    return;
+  }
+  if (isTtsEnabled() === false) {
+    speechQueue.length = 0;
+    isSpeaking.value = false;
+    return;
+  }
+  isSpeaking.value = true;
+  const currentGen = speakGeneration;
+  const text = speechQueue.shift()!;
+
+  // Try Edge TTS first (Filipina voice — en-PH-RosaNeural)
+  if (isEdgeTtsAvailable()) {
+    try {
+      const { audio, cleanup } = await edgeTtsSpeak(text);
+      if (currentGen !== speakGeneration) {
+        cleanup();
+        return; // cancelled while fetching
+      }
+      currentAudioElement = audio;
+
+      audio.onended = () => {
+        if (currentGen !== speakGeneration) return;
+        cleanup();
+        currentAudioElement = null;
+        const delay = getPostSpeechDelay(text);
+        setTimeout(playNextInQueue, delay);
+      };
+      audio.onerror = () => {
+        if (currentGen !== speakGeneration) return;
+        cleanup();
+        currentAudioElement = null;
+        speechSynthesisSpeak(text, currentGen);
+      };
+      return; // Edge TTS playing, done
+    } catch (e) {
+      console.warn(
+        '[TTS] Edge TTS failed, falling back to speechSynthesis:',
+        e,
+      );
+      currentAudioElement = null;
+    }
+  }
+
+  // Fallback: speechSynthesis (existing code with Chrome bug workarounds)
+  speechSynthesisSpeak(text, currentGen);
+};
+
 export const enqueueSpeak = (text: string) => {
   if (isTtsEnabled() === false) return;
   speechQueue.push(text);
@@ -167,6 +212,10 @@ export const enqueueSpeak = (text: string) => {
 export const clearSpeechQueue = () => {
   speakGeneration++;
   stopTimers();
+  if (currentAudioElement) {
+    currentAudioElement.pause();
+    currentAudioElement = null;
+  }
   speechQueue.length = 0;
   pendingVoiceTexts.length = 0;
   isSpeaking.value = false;
@@ -180,6 +229,10 @@ export const _testGetPendingVoiceTexts = (): readonly string[] =>
 export const _testResetQueues = () => {
   speakGeneration++;
   stopTimers();
+  if (currentAudioElement) {
+    currentAudioElement.pause();
+    currentAudioElement = null;
+  }
   speechQueue.length = 0;
   pendingVoiceTexts.length = 0;
   voicesReadyHandlerSetUp = false;
