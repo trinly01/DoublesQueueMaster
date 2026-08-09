@@ -35,8 +35,11 @@ const pushAnnouncement = (text: string, matchId?: string) => {
   if (matchId) {
     const existingIndex = announcements.findIndex((a) => a.matchId === matchId);
     if (existingIndex !== -1) {
-      announcements[existingIndex] = { text, timestamp: Date.now(), matchId };
-      return;
+      const existing = announcements[existingIndex];
+      if (Date.now() - existing.timestamp > 5000) {
+        announcements[existingIndex] = { text, timestamp: Date.now(), matchId };
+        return;
+      }
     }
   }
   announcements.unshift({ text, timestamp: Date.now(), matchId });
@@ -46,6 +49,25 @@ const pushAnnouncement = (text: string, matchId?: string) => {
 // ── TTS Queue ──────────────────────────────────────────
 const speechQueue: string[] = [];
 export const isSpeaking = ref(false);
+
+// Chrome onend bug workarounds (chromium/issues/509488):
+// 1. Generation counter — ignore stale onend callbacks after cancel
+// 2. Keep-alive timer — pause/resume every 10s to prevent engine stall
+// 3. Fallback timeout — force-advance queue if onend never fires
+let speakGeneration = 0;
+let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+const stopTimers = () => {
+  if (keepAliveTimer) {
+    clearInterval(keepAliveTimer);
+    keepAliveTimer = null;
+  }
+  if (fallbackTimer) {
+    clearTimeout(fallbackTimer);
+    fallbackTimer = null;
+  }
+};
 
 const pickFemaleVoice = (): SpeechSynthesisVoice | null => {
   const voices = window.speechSynthesis.getVoices();
@@ -74,6 +96,8 @@ const pickFemaleVoice = (): SpeechSynthesisVoice | null => {
 };
 
 const playNextInQueue = () => {
+  stopTimers();
+
   if (speechQueue.length === 0) {
     isSpeaking.value = false;
     return;
@@ -84,6 +108,7 @@ const playNextInQueue = () => {
     return;
   }
   isSpeaking.value = true;
+  const currentGen = speakGeneration;
   const text = speechQueue.shift()!;
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = 0.75;
@@ -93,7 +118,13 @@ const playNextInQueue = () => {
   const voice = pickFemaleVoice();
   if (voice) utterance.voice = voice;
 
+  // GC prevention — #1 workaround for Chrome onend bug (chromium/issues/509488)
+  // Keeping a reference prevents V8 from collecting the utterance before onend fires.
+  console.log(utterance);
+
   utterance.onend = () => {
+    if (currentGen !== speakGeneration) return; // stale callback after cancel
+    stopTimers();
     const delay = text.includes('dinking only')
       ? 1200
       : text.includes('Please prepare')
@@ -102,9 +133,27 @@ const playNextInQueue = () => {
     setTimeout(playNextInQueue, delay);
   };
   utterance.onerror = (e) => {
+    if (currentGen !== speakGeneration) return;
     console.error('[TTS] error:', e.error);
+    stopTimers();
     playNextInQueue();
   };
+
+  // Chrome keep-alive: pause/resume every 10s to prevent onend stall
+  keepAliveTimer = setInterval(() => {
+    if (!window.speechSynthesis.speaking) return;
+    window.speechSynthesis.pause();
+    window.speechSynthesis.resume();
+  }, 10000);
+
+  // Fallback: if onend never fires, force-advance after estimated duration
+  const estimatedMs = Math.max(text.length * 100, 3000) + 5000;
+  fallbackTimer = setTimeout(() => {
+    if (currentGen !== speakGeneration) return;
+    console.warn('[TTS] onend timeout, force-advancing queue');
+    stopTimers();
+    playNextInQueue();
+  }, estimatedMs);
 
   window.speechSynthesis.speak(utterance);
 };
@@ -116,8 +165,45 @@ export const enqueueSpeak = (text: string) => {
 };
 
 export const clearSpeechQueue = () => {
+  speakGeneration++;
+  stopTimers();
   speechQueue.length = 0;
+  pendingVoiceTexts.length = 0;
+  isSpeaking.value = false;
   window.speechSynthesis.cancel();
+};
+
+// Test-only exports (not used in production code)
+export const _testGetSpeechQueue = (): readonly string[] => speechQueue;
+export const _testGetPendingVoiceTexts = (): readonly string[] =>
+  pendingVoiceTexts;
+export const _testResetQueues = () => {
+  speakGeneration++;
+  stopTimers();
+  speechQueue.length = 0;
+  pendingVoiceTexts.length = 0;
+  voicesReadyHandlerSetUp = false;
+};
+
+// ── Pending voice-loading queue ─────────────────────────
+// When speechSynthesis voices aren't loaded yet, texts are buffered here.
+// Both onvoiceschanged and the setTimeout fallback call flushPendingVoiceTexts,
+// so whichever fires first drains the queue — no duplicates, order preserved.
+const pendingVoiceTexts: string[] = [];
+let voicesReadyHandlerSetUp = false;
+
+const flushPendingVoiceTexts = () => {
+  while (pendingVoiceTexts.length > 0) {
+    enqueueSpeak(pendingVoiceTexts.shift()!);
+  }
+};
+
+const ensureVoicesReadyHandler = () => {
+  if (voicesReadyHandlerSetUp) return;
+  voicesReadyHandlerSetUp = true;
+  window.speechSynthesis.onvoiceschanged = () => {
+    flushPendingVoiceTexts();
+  };
 };
 
 // ── Announce (visual + TTS) ─────────────────────────────
@@ -141,12 +227,10 @@ export const announce = (
   if (voices.length > 0) {
     enqueueSpeak(text);
   } else {
-    window.speechSynthesis.onvoiceschanged = () => {
-      enqueueSpeak(text);
-      window.speechSynthesis.onvoiceschanged = null;
-    };
+    pendingVoiceTexts.push(text);
+    ensureVoicesReadyHandler();
     setTimeout(() => {
-      enqueueSpeak(text);
+      flushPendingVoiceTexts();
     }, 250);
   }
 };
