@@ -260,6 +260,55 @@
     "accountability": "all"
   },
   {
+    "id": "4132096c-69c5-4513-9aae-25079ecaee40",
+    "name": "club creation email notif",
+    "icon": "bolt",
+    "color": null,
+    "description": null,
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "club"
+      ]
+    },
+    "operation": "3b4850e9-00fa-4818-a913-bd1a6158a002",
+    "operations": [
+      {
+        "id": "3b4850e9-00fa-4818-a913-bd1a6158a002",
+        "name": "Send Email",
+        "key": "mail_25jbh",
+        "type": "mail",
+        "position_x": 28,
+        "position_y": 1,
+        "options": {
+          "type": "markdown",
+          "to": [
+            "trinmar.boado@gmail.com"
+          ],
+          "subject": "DinkMatch New CLUB",
+          "cc": [
+            "trinmar.boado@gmail.com"
+          ],
+          "bcc": [
+            "trinmar.boado@gmail.com"
+          ],
+          "replyTo": [
+            "trinmar.boado@gmail.com"
+          ],
+          "body": "{{$trigger.payload}}"
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "8d01e431-d0b9-468e-b0bd-15faa5db1e80",
     "name": "update player rating",
     "icon": "bolt",
@@ -388,7 +437,9 @@
     "color": null,
     "description": null,
     "trigger": "webhook",
-    "options": {},
+    "options": {
+      "method": "POST"
+    },
     "operation": "7334ebde-6afc-4f34-a6f4-9bb9b8a9d2f9",
     "operations": [
       {
@@ -633,16 +684,44 @@
         "reject": null
       },
       {
+        "id": "c186f10d-0777-46b3-af6c-7c6e6c78c399",
+        "name": "Run Script",
+        "key": "exec_6xnj9",
+        "type": "exec",
+        "position_x": 10,
+        "position_y": 21,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const match = data.$trigger.payload || data.$trigger;\n \n  // Skip rating updates for Casual (fair_balance) and Social (variety_first) modes\n  const mode = match.meta?.matchmakingMode;\n  if (mode === 'fair_balance' || mode === 'variety_first') {\n    throw new Error(`Rating update skipped: matchmaking mode \"${mode}\" is non-competitive`);\n  }\n    \n  return true\n}"
+        },
+        "resolve": "c40f0ec8-9b6f-4d74-a043-e41475c9dec9",
+        "reject": "d9eb06ae-3516-4940-9984-06d32c766bb9"
+      },
+      {
         "id": "c40f0ec8-9b6f-4d74-a043-e41475c9dec9",
         "name": "trigger update rating",
         "key": "trigger_update_rating",
         "type": "trigger",
-        "position_x": 58,
-        "position_y": 1,
+        "position_x": 32,
+        "position_y": 21,
         "options": {
           "iterationMode": "parallel",
           "flow": "8d01e431-d0b9-468e-b0bd-15faa5db1e80",
           "payload": "{{ script_transform_match.newPlayersRatings }}"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "d9eb06ae-3516-4940-9984-06d32c766bb9",
+        "name": "Throw Error",
+        "key": "throw_error_dsqre",
+        "type": "throw-error",
+        "position_x": 28,
+        "position_y": 37,
+        "options": {
+          "code": "INVALID_PAYLOAD",
+          "status": "422",
+          "message": "Rating update skipped: \"{{mode}}\" is a non-competitive matchmaking mode"
         },
         "resolve": null,
         "reject": null
@@ -660,7 +739,7 @@
           "collection": "completed_match",
           "payload": "{{ script_transform_match.completedMatch }}"
         },
-        "resolve": "c40f0ec8-9b6f-4d74-a043-e41475c9dec9",
+        "resolve": "c186f10d-0777-46b3-af6c-7c6e6c78c399",
         "reject": null
       }
     ],
