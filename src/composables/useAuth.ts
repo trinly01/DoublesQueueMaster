@@ -35,8 +35,9 @@ export function useAuth() {
     }
   };
 
-  // Inspect an error: if it's a 401, attempt a token refresh first.
-  // Only if refresh also fails do we perform a full logout.
+  // Inspect an error: if it's a 401, the session is truly invalid.
+  // The 401 interceptor in likhaClient.ts already attempted a refresh and failed,
+  // so the refresh token is expired — no need to try again here.
   // Callers should `if (await handleAuthError(err, router)) return;`.
   const handleAuthError = async (
     err: unknown,
@@ -45,22 +46,11 @@ export function useAuth() {
     const error = err as { response?: { status?: number } };
     if (error?.response?.status !== 401) return false;
 
-    // Attempt a manual refresh before giving up.
-    // This catches the case where autoRefresh's timer didn't fire in time
-    // (e.g., phone was idle, JS throttled) but the refresh token is still valid.
-    try {
-      await likhaClient.refresh();
-      // Refresh succeeded — the caller should retry their request.
-      // Return false so the caller knows it wasn't a fatal auth error.
-      // Note: the original request already failed, but subsequent requests will work.
-      return false;
-    } catch {
-      // Refresh also failed — session is truly invalid. Logout.
-      await logout(router, {
-        message: 'Session expired. Please log in again.',
-      });
-      return true;
-    }
+    // Refresh token is expired — session is truly invalid. Logout.
+    await logout(router, {
+      message: 'Session expired. Please log in again.',
+    });
+    return true;
   };
 
   return { logout, handleAuthError, clearLocalSession };

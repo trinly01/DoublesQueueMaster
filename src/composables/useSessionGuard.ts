@@ -1,36 +1,12 @@
 import { LocalStorage } from 'quasar';
-import type { Router } from 'vue-router';
 import { likhaClient } from 'src/services/likhaClient';
-import { PlayerProfile } from 'src/services/playerProfile';
-import { useNotify } from 'src/composables/useNotify';
 
 const SESSION_KEY = 'dink-auth';
 
 let visibilityHandler: (() => void) | null = null;
 let pageShowHandler: (() => void) | null = null;
 
-const clearLocalSession = () => {
-  LocalStorage.remove(SESSION_KEY);
-  LocalStorage.remove('likha-data');
-  LocalStorage.remove('current_user_id');
-  PlayerProfile.clearProfile();
-};
-
 export function useSessionGuard() {
-  const { notify } = useNotify();
-
-  const forceLogout = async (router: Router, reason: string) => {
-    try {
-      await likhaClient.logout();
-    } catch {
-      // ignore
-    }
-    clearLocalSession();
-    stopSessionGuard();
-    notify({ color: 'info', message: reason });
-    void router.push('/login');
-  };
-
   // Proactively refresh the token when the phone wakes up or tab regains focus.
   // Only refresh if the session might be stale (page was hidden).
   // If refresh fails, DON'T force logout — let the SDK's 401 handler deal with it
@@ -103,5 +79,5 @@ export function useSessionGuard() {
     }
   };
 
-  return { startSessionGuard, stopSessionGuard, forceLogout };
+  return { startSessionGuard, stopSessionGuard };
 }
