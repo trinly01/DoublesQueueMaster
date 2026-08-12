@@ -1827,6 +1827,7 @@ const editProfile = async () => {
 
 onMounted(async () => {
   // Load recent clubs from cache instantly (before profile fetch)
+  const hadUserId = !!currentUserId.value;
   loadRecentClubs();
 
   // If we have cached profile, show it immediately and fetch in background
@@ -1847,6 +1848,11 @@ onMounted(async () => {
     console.warn('Profile fetch failed:', err);
   } finally {
     if (hasCache) dataFetchBar.value?.stop();
+  }
+
+  // Re-load recent clubs if the first call was a no-op (id was empty)
+  if (!hadUserId && currentUserId.value) {
+    loadRecentClubs();
   }
 
   if (!fetched && !PlayerProfile.hasCachedProfile()) {

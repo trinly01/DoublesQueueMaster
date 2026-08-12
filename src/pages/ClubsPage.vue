@@ -434,8 +434,8 @@ const newClubName = ref('');
 const newReferralCode = ref('');
 const createClubLoading = ref(false);
 
-const currentUserId = PlayerProfile.state.id || '';
-const userIdRef = computed(() => currentUserId);
+const currentUserId = computed(() => PlayerProfile.state.id);
+const userIdRef = currentUserId;
 
 const {
   recentClubs: myClubs,
@@ -458,8 +458,10 @@ const getLogoUrl = (club: Club) => {
 };
 
 const isMemberOf = (club: Club | RecentClub) => {
-  if (!currentUserId) return false;
-  return club.players?.some((p) => p.directus_users_id?.id === currentUserId);
+  if (!currentUserId.value) return false;
+  return club.players?.some(
+    (p) => p.directus_users_id?.id === currentUserId.value,
+  );
 };
 
 const onSearch = async (val: string | number | null) => {
@@ -508,10 +510,10 @@ const loadMyClubsWithBar = async () => {
 };
 
 const handleJoinClub = async (club: Club) => {
-  if (!currentUserId) return;
+  if (!currentUserId.value) return;
   joiningClubId.value = club.clubId;
   try {
-    const result = await joinClub(club.clubId, currentUserId);
+    const result = await joinClub(club.clubId, currentUserId.value);
     if (result.success) {
       if (!result.alreadyMember) {
         notify({
@@ -547,11 +549,11 @@ const confirmLeaveClub = (club: RecentClub) => {
 
 const handleLeaveClub = async () => {
   const club = leaveClubTarget.value;
-  if (!club || !currentUserId) return;
+  if (!club || !currentUserId.value) return;
   leavingClubId.value = club.id;
   try {
     const playerEntry = club.players?.find(
-      (p) => p.directus_users_id?.id === currentUserId,
+      (p) => p.directus_users_id?.id === currentUserId.value,
     );
     if (!playerEntry?.id) {
       notify({ color: 'negative', message: 'Could not find your membership' });
@@ -582,15 +584,19 @@ const handleLeaveClub = async () => {
 };
 
 const createClub = async () => {
-  if (!newClubId.value.trim() || !newClubName.value.trim() || !currentUserId)
+  if (
+    !newClubId.value.trim() ||
+    !newClubName.value.trim() ||
+    !currentUserId.value
+  )
     return;
   createClubLoading.value = true;
   try {
     const payload: Record<string, unknown> = {
       clubId: newClubId.value.trim(),
       name: newClubName.value.trim(),
-      admins: { create: [{ directus_users_id: currentUserId }] },
-      players: { create: [{ directus_users_id: currentUserId }] },
+      admins: { create: [{ directus_users_id: currentUserId.value }] },
+      players: { create: [{ directus_users_id: currentUserId.value }] },
     };
     const referral = newReferralCode.value.replace(/\s/g, '');
     if (referral) payload.referral_code = referral;
@@ -619,7 +625,10 @@ const createClub = async () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
+  if (!currentUserId.value) {
+    await PlayerProfile.fetchProfile().catch(() => {});
+  }
   loadMyClubsWithBar();
 });
 </script>
