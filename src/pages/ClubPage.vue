@@ -394,7 +394,7 @@
                         <q-item-section>
                           <q-item-label>Top Rated First</q-item-label>
                           <q-item-label caption
-                            >Strongest players draft first</q-item-label
+                            >Higher-rated players draft first</q-item-label
                           >
                         </q-item-section>
                       </q-item>
@@ -409,7 +409,7 @@
                         <q-item-section>
                           <q-item-label>Bottom Rated First</q-item-label>
                           <q-item-label caption
-                            >Weakest players draft first</q-item-label
+                            >Lower-rated players draft first</q-item-label
                           >
                         </q-item-section>
                       </q-item>
@@ -818,7 +818,7 @@
                         <q-item-section>
                           <q-item-label>Top Rated First</q-item-label>
                           <q-item-label caption
-                            >Strongest players draft first</q-item-label
+                            >Higher-rated players draft first</q-item-label
                           >
                         </q-item-section>
                       </q-item>
@@ -833,7 +833,7 @@
                         <q-item-section>
                           <q-item-label>Bottom Rated First</q-item-label>
                           <q-item-label caption
-                            >Weakest players draft first</q-item-label
+                            >Lower-rated players draft first</q-item-label
                           >
                         </q-item-section>
                       </q-item>
