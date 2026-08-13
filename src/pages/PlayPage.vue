@@ -503,8 +503,10 @@ import {
   type Rules,
 } from 'src/composables/useGameEngine';
 import { PlayerProfile } from 'src/services/playerProfile';
+import { useWakeLock } from 'src/composables/useWakeLock';
 
 const engine = useGameEngine();
+useWakeLock();
 const router = useRouter();
 const goBack = () => {
   if (window.history.length > 1) {
