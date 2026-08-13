@@ -436,7 +436,26 @@ export const RatingEngine = {
     losers: Player[],
     scoreW: number,
     scoreL: number,
+    applyRatingChange: boolean = true,
   ) => {
+    if (!applyRatingChange) {
+      const updatedWinners = winners.map((player) => ({
+        ...player,
+        matchesPlayed: player.matchesPlayed + 1,
+        wins: (player.wins || 0) + 1,
+        statsUpdatedAt: Date.now(),
+        updatedAt: Date.now(),
+      }));
+      const updatedLosers = losers.map((player) => ({
+        ...player,
+        matchesPlayed: player.matchesPlayed + 1,
+        losses: (player.losses || 0) + 1,
+        statsUpdatedAt: Date.now(),
+        updatedAt: Date.now(),
+      }));
+      return { updatedWinners, updatedLosers };
+    }
+
     // Team strengths via arithmetic mean for the rating-update expectation.
     // (Harmonic mean is kept only for matchmaking balance, not rating changes.)
     const ratingW = computeArithmeticMean(winners);
@@ -719,11 +738,10 @@ export class LocalMatchmakingSystem {
     }
 
     // Fallback default settings — driven by CLUB_SETTINGS descriptor.
-    // Excludes teamSize (set by constructor param) and allStarSortDirection
-    // (not previously seeded here; handled by ?? 'desc' fallback in draftNextMatches).
+    // Excludes teamSize (set by constructor param).
     const seedFields = (
       Object.keys(CLUB_SETTINGS) as Array<keyof typeof CLUB_SETTINGS>
-    ).filter((k) => k !== 'teamSize' && k !== 'allStarSortDirection');
+    ).filter((k) => k !== 'teamSize');
     const seedState = initialState as unknown as Record<string, unknown>;
     for (const field of seedFields) {
       if (seedState[field] === undefined) {
@@ -987,14 +1005,12 @@ export class LocalMatchmakingSystem {
     this.state.matchesResetAt = now;
     this.state.completedMatchesResetAt = now;
     this.state.lastExportedAt = 0;
-    // Reset settings to descriptor defaults (teamSize and allStarSortDirection
-    // are managed by the matchmaking algorithm, not reset here).
+    // Reset settings to descriptor defaults (teamSize is set by constructor).
     const resetFields = (
       Object.keys(CLUB_SETTINGS) as Array<keyof typeof CLUB_SETTINGS>
     ).filter(
       (k) =>
         k !== 'teamSize' &&
-        k !== 'allStarSortDirection' &&
         k !== 'completedMatchesResetAt' &&
         k !== 'lastExportedAt',
     );
@@ -1321,12 +1337,6 @@ export class LocalMatchmakingSystem {
       });
     }
 
-    // Alternate All-Star sort direction for next round (desc ↔ asc)
-    if (isStrictBalance) {
-      this.state.allStarSortDirection = allStarDir === 'desc' ? 'asc' : 'desc';
-      this.stampSetting('allStarSortDirection');
-    }
-
     this.saveState();
   }
 
@@ -1384,12 +1394,17 @@ export class LocalMatchmakingSystem {
     updateHistory(teamA, teamB);
     updateHistory(teamB, teamA);
 
-    // Apply Math
+    // Apply rating changes only for competitive modes
+    const isNonCompetitive =
+      match.matchmakingMode === 'fair_balance' ||
+      match.matchmakingMode === 'variety_first';
+
     const { updatedWinners, updatedLosers } = RatingEngine.calculateShift(
       winners,
       losers,
       scoreW,
       scoreL,
+      !isNonCompetitive,
     );
 
     // Save new ratings to dictionary

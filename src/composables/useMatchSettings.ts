@@ -157,6 +157,15 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
     },
   });
 
+  const allStarSortDirection = computed<'desc' | 'asc'>({
+    get: () => MatchmakingApp.state.allStarSortDirection ?? 'desc',
+    set: (val) => {
+      MatchmakingApp.state.allStarSortDirection = val;
+      MatchmakingApp.stampSetting('allStarSortDirection');
+      MatchmakingApp.persist();
+    },
+  });
+
   watch(isClubSubscriptionExpired, (expired) => {
     if (
       expired &&
@@ -335,6 +344,7 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
     queueReturnMethod,
     queuePriorityMode,
     matchmakingMode,
+    allStarSortDirection,
     autoSortQueue,
     scoreType,
     sortBy,

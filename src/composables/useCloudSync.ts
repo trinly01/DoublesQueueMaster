@@ -504,6 +504,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
     'matchmakingMode',
     'sortBy',
     'matchType',
+    'allStarSortDirection',
     'matchesFilterBy',
     'ttsEnabled',
   ] as const;
