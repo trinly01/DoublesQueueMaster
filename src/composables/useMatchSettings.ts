@@ -305,33 +305,32 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
     {
       label: 'Casual',
       value: 'fair_balance',
-      description:
-        'Drafts the next in line, then builds the most balanced teams by skill rating',
+      description: 'Fair teams from the queue. Ratings stay unchanged.',
     },
     {
       label: 'Social',
       value: 'variety_first',
       description:
-        'Drafts the next in line, then prioritizes new partners and opponents each round',
+        'Fresh partners and opponents each round. Ratings stay unchanged.',
     },
     {
       label: 'Standard',
       value: 'balanced_variety',
       description:
-        'Drafts the next in line, then balances fair teams with fresh matchups equally',
+        'Balanced teams with varied matchups. Ratings reflect results after each game.',
     },
     {
       label: 'Competitive',
       value: 'balance_first',
       description:
-        'Drafts the next in line, then builds the closest games while avoiding repeat matchups',
+        'Closest matched games from the queue. Ratings reflect results after each game.',
       disable: isClubSubscriptionExpired.value,
     },
     {
-      label: 'All-Star',
+      label: 'Pro Pick',
       value: 'strict_balance',
       description:
-        'Skips the queue. Alternates each round between drafting the top-rated and bottom-rated players for a showcase game',
+        'Picks from the whole pool for ranked games. Ratings reflect results after each game.',
       disable: isClubSubscriptionExpired.value,
     },
   ]);

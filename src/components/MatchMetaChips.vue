@@ -76,7 +76,7 @@ const modeLabel = (mode: string): string => {
     variety_first: 'Social',
     balance_first: 'Competitive',
     balanced_variety: 'Standard',
-    strict_balance: 'All-Star',
+    strict_balance: 'Pro Pick',
   };
   return labels[mode] || mode;
 };

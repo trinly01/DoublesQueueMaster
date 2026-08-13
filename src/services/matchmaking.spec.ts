@@ -282,7 +282,7 @@ describe('RatingEngine.calculateShift', () => {
   });
 });
 
-describe('All-Star sort direction persistence', () => {
+describe('Pro Pick sort direction persistence', () => {
   it('allStarSortDirection does not auto-flip after draftNextMatches', () => {
     const sys = new LocalMatchmakingSystem(2);
     sys.state.matchmakingMode = 'strict_balance';

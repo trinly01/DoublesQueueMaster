@@ -346,7 +346,7 @@ describe('useMatchSettings — matchmakingModeOptions', () => {
     ]);
   });
 
-  it('disables Competitive and All-Star when subscription expired', () => {
+  it('disables Competitive and Pro Pick when subscription expired', () => {
     const { context } = makeContext({
       isClubSubscriptionExpired: computed(() => true),
     });

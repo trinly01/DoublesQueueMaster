@@ -53,8 +53,8 @@ const modes = [
   },
   {
     icon: 'emoji_events',
-    label: 'All-Star',
-    desc: 'The showcase. Skips the queue and alternates between top-rated and bottom-rated players each round.',
+    label: 'Pro Pick',
+    desc: 'Picks from the whole pool. Drafts top or bottom-rated players first for competitive games.',
   },
 ];
 </script>
