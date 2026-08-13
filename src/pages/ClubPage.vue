@@ -346,57 +346,132 @@
                 </q-select>
               </div>
               <div v-if="isCurrentUserAdmin" class="row q-gutter-sm">
-                <q-btn
-                  class="col"
-                  color="accent"
-                  @click="generateNewMatches"
-                  size="md"
-                  icon="auto_awesome"
-                  :disable="!canGenerateMatches()"
-                  stack
-                  no-caps
-                >
-                  <span class="gt-xs">Auto</span>
-                  <span class="lt-sm">Auto</span>
-                  <q-tooltip
-                    anchor="top middle"
-                    self="bottom middle"
-                    :offset="[8, 8]"
-                    v-if="!canGenerateMatches()"
+                <!-- Left: dropdown (All-Star) or Auto (other modes) -->
+                <div class="col" style="min-width: 0">
+                  <q-btn-dropdown
+                    v-if="matchmakingMode === 'strict_balance'"
+                    class="allstar-draft-dropdown full-width"
+                    color="accent"
+                    size="md"
+                    split
+                    stack
+                    :icon="
+                      allStarSortDirection === 'desc'
+                        ? 'trending_up'
+                        : 'trending_down'
+                    "
+                    :label="
+                      allStarSortDirection === 'desc'
+                        ? 'Top First'
+                        : 'Bottom First'
+                    "
+                    :disable="!canGenerateMatches()"
+                    :disable-main="!canGenerateMatches()"
+                    no-caps
+                    @click="generateNewMatches"
                   >
-                    {{
-                      matchType === 'singles'
-                        ? 'Need at least 2 players'
-                        : 'Need at least 4 players'
-                    }}
-                  </q-tooltip>
-                </q-btn>
-                <q-btn
-                  class="col"
-                  color="accent"
-                  @click="startManualSelection"
-                  size="md"
-                  icon="touch_app"
-                  :disable="queue.length < (matchType === 'singles' ? 2 : 4)"
-                  outline
-                  stack
-                  no-caps
-                >
-                  <span class="gt-xs">Manual</span>
-                  <span class="lt-sm">Manual</span>
-                  <q-tooltip
-                    anchor="top middle"
-                    self="bottom middle"
-                    :offset="[8, 8]"
-                    v-if="queue.length < (matchType === 'singles' ? 2 : 4)"
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
+                      v-if="!canGenerateMatches()"
+                    >
+                      {{
+                        matchType === 'singles'
+                          ? 'Need at least 2 players'
+                          : 'Need at least 4 players'
+                      }}
+                    </q-tooltip>
+                    <q-list>
+                      <q-item
+                        clickable
+                        v-close-popup
+                        @click="allStarSortDirection = 'desc'"
+                      >
+                        <q-item-section avatar>
+                          <q-icon name="trending_up" />
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label>Top Rated First</q-item-label>
+                          <q-item-label caption
+                            >Strongest players draft first</q-item-label
+                          >
+                        </q-item-section>
+                      </q-item>
+                      <q-item
+                        clickable
+                        v-close-popup
+                        @click="allStarSortDirection = 'asc'"
+                      >
+                        <q-item-section avatar>
+                          <q-icon name="trending_down" />
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label>Bottom Rated First</q-item-label>
+                          <q-item-label caption
+                            >Weakest players draft first</q-item-label
+                          >
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-btn-dropdown>
+                  <!-- Other modes: plain Auto button -->
+                  <q-btn
+                    v-else
+                    class="full-width"
+                    color="accent"
+                    @click="generateNewMatches"
+                    size="md"
+                    icon="auto_awesome"
+                    :disable="!canGenerateMatches()"
+                    stack
+                    no-caps
                   >
-                    {{
-                      matchType === 'singles'
-                        ? 'Need 2+ players'
-                        : 'Need 4+ players'
-                    }}
-                  </q-tooltip>
-                </q-btn>
+                    <span class="gt-xs">Auto</span>
+                    <span class="lt-sm">Auto</span>
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
+                      v-if="!canGenerateMatches()"
+                    >
+                      {{
+                        matchType === 'singles'
+                          ? 'Need at least 2 players'
+                          : 'Need at least 4 players'
+                      }}
+                    </q-tooltip>
+                  </q-btn>
+                </div>
+                <!-- Right: Manual -->
+                <div class="col" style="min-width: 0">
+                  <q-btn
+                    class="full-width"
+                    color="accent"
+                    @click="startManualSelection"
+                    size="md"
+                    icon="touch_app"
+                    :disable="queue.length < (matchType === 'singles' ? 2 : 4)"
+                    outline
+                    stack
+                    no-caps
+                  >
+                    <span class="gt-xs">Manual</span>
+                    <span class="lt-sm">Manual</span>
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
+                      v-if="queue.length < (matchType === 'singles' ? 2 : 4)"
+                    >
+                      {{
+                        matchType === 'singles'
+                          ? 'Need 2+ players'
+                          : 'Need 4+ players'
+                      }}
+                    </q-tooltip>
+                  </q-btn>
+                </div>
               </div>
               <PayBanner
                 v-if="isClubSubscriptionExpired"
@@ -695,57 +770,132 @@
                 </q-select>
               </div>
               <div v-if="isCurrentUserAdmin" class="row q-gutter-sm">
-                <q-btn
-                  class="col"
-                  color="accent"
-                  @click="generateNewMatches"
-                  size="md"
-                  icon="auto_awesome"
-                  :disable="!canGenerateMatches()"
-                  stack
-                  no-caps
-                >
-                  <span class="gt-xs">Auto</span>
-                  <span class="lt-sm">Auto</span>
-                  <q-tooltip
-                    anchor="top middle"
-                    self="bottom middle"
-                    :offset="[8, 8]"
-                    v-if="!canGenerateMatches()"
+                <!-- Left: dropdown (All-Star) or Auto (other modes) -->
+                <div class="col" style="min-width: 0">
+                  <q-btn-dropdown
+                    v-if="matchmakingMode === 'strict_balance'"
+                    class="allstar-draft-dropdown full-width"
+                    color="accent"
+                    size="md"
+                    split
+                    stack
+                    :icon="
+                      allStarSortDirection === 'desc'
+                        ? 'trending_up'
+                        : 'trending_down'
+                    "
+                    :label="
+                      allStarSortDirection === 'desc'
+                        ? 'Top First'
+                        : 'Bottom First'
+                    "
+                    :disable="!canGenerateMatches()"
+                    :disable-main="!canGenerateMatches()"
+                    no-caps
+                    @click="generateNewMatches"
                   >
-                    {{
-                      matchType === 'singles'
-                        ? 'Need at least 2 players'
-                        : 'Need at least 4 players'
-                    }}
-                  </q-tooltip>
-                </q-btn>
-                <q-btn
-                  class="col"
-                  color="accent"
-                  @click="startManualSelection"
-                  size="md"
-                  icon="touch_app"
-                  :disable="queue.length < (matchType === 'singles' ? 2 : 4)"
-                  outline
-                  stack
-                  no-caps
-                >
-                  <span class="gt-xs">Manual</span>
-                  <span class="lt-sm">Manual</span>
-                  <q-tooltip
-                    anchor="top middle"
-                    self="bottom middle"
-                    :offset="[8, 8]"
-                    v-if="queue.length < (matchType === 'singles' ? 2 : 4)"
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
+                      v-if="!canGenerateMatches()"
+                    >
+                      {{
+                        matchType === 'singles'
+                          ? 'Need at least 2 players'
+                          : 'Need at least 4 players'
+                      }}
+                    </q-tooltip>
+                    <q-list>
+                      <q-item
+                        clickable
+                        v-close-popup
+                        @click="allStarSortDirection = 'desc'"
+                      >
+                        <q-item-section avatar>
+                          <q-icon name="trending_up" />
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label>Top Rated First</q-item-label>
+                          <q-item-label caption
+                            >Strongest players draft first</q-item-label
+                          >
+                        </q-item-section>
+                      </q-item>
+                      <q-item
+                        clickable
+                        v-close-popup
+                        @click="allStarSortDirection = 'asc'"
+                      >
+                        <q-item-section avatar>
+                          <q-icon name="trending_down" />
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label>Bottom Rated First</q-item-label>
+                          <q-item-label caption
+                            >Weakest players draft first</q-item-label
+                          >
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-btn-dropdown>
+                  <!-- Other modes: plain Auto button -->
+                  <q-btn
+                    v-else
+                    class="full-width"
+                    color="accent"
+                    @click="generateNewMatches"
+                    size="md"
+                    icon="auto_awesome"
+                    :disable="!canGenerateMatches()"
+                    stack
+                    no-caps
                   >
-                    {{
-                      matchType === 'singles'
-                        ? 'Need 2+ players'
-                        : 'Need 4+ players'
-                    }}
-                  </q-tooltip>
-                </q-btn>
+                    <span class="gt-xs">Auto</span>
+                    <span class="lt-sm">Auto</span>
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
+                      v-if="!canGenerateMatches()"
+                    >
+                      {{
+                        matchType === 'singles'
+                          ? 'Need at least 2 players'
+                          : 'Need at least 4 players'
+                      }}
+                    </q-tooltip>
+                  </q-btn>
+                </div>
+                <!-- Right: Manual -->
+                <div class="col" style="min-width: 0">
+                  <q-btn
+                    class="full-width"
+                    color="accent"
+                    @click="startManualSelection"
+                    size="md"
+                    icon="touch_app"
+                    :disable="queue.length < (matchType === 'singles' ? 2 : 4)"
+                    outline
+                    stack
+                    no-caps
+                  >
+                    <span class="gt-xs">Manual</span>
+                    <span class="lt-sm">Manual</span>
+                    <q-tooltip
+                      anchor="top middle"
+                      self="bottom middle"
+                      :offset="[8, 8]"
+                      v-if="queue.length < (matchType === 'singles' ? 2 : 4)"
+                    >
+                      {{
+                        matchType === 'singles'
+                          ? 'Need 2+ players'
+                          : 'Need 4+ players'
+                      }}
+                    </q-tooltip>
+                  </q-btn>
+                </div>
               </div>
               <PayBanner
                 v-if="isClubSubscriptionExpired"
@@ -1000,6 +1150,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar, LocalStorage, copyToClipboard } from 'quasar';
 import { useNotify } from 'src/composables/useNotify';
+import { useWakeLock } from 'src/composables/useWakeLock';
 import PlayerList from '../components/PlayerList.vue';
 import PlayerReportDialog from '../components/PlayerReportDialog.vue';
 import PayBanner from '../components/PayBanner.vue';
@@ -1039,6 +1190,7 @@ import {
 
 // Quasar instance for notifications
 const $q = useQuasar();
+useWakeLock();
 const { notify } = useNotify();
 
 // Lazy stub for handleCustomAnnounce (wired from useAnnouncer composable later)
@@ -1204,6 +1356,7 @@ const {
   queueReturnMethod,
   queuePriorityMode,
   matchmakingMode,
+  allStarSortDirection,
   autoSortQueue,
   scoreType,
   sortBy,
@@ -2245,6 +2398,13 @@ const savePlayerEdit = () => {
 </script>
 
 <style lang="scss">
+.allstar-draft-dropdown {
+  display: flex;
+  .q-btn-dropdown--current {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
 @media (max-width: 599px) {
   .club-sort-col {
     margin-top: 8px;
