@@ -5,6 +5,7 @@ import {
   gcTombstones,
   enforceOneMatchPerCourtOnState,
   CLUB_SETTINGS,
+  LocalMatchmakingSystem,
 } from './matchmaking';
 import type {
   Player,
@@ -218,6 +219,115 @@ describe('RatingEngine.calculateShift', () => {
     // Anti-carry: the gap penalty keeps the difference reasonable. With the
     // old pure underdog model the weak partner would have taken most of the pool.
     expect(weakGain - strongGain).toBeLessThan(15);
+  });
+
+  it('applyRatingChange=false: rating frozen, matchesPlayed/wins/losses still increment', () => {
+    const w = [
+      makePlayer(1500, { matchesPlayed: 5, wins: 3 }),
+      makePlayer(1600, { matchesPlayed: 5, wins: 3 }),
+    ];
+    const l = [
+      makePlayer(1400, { matchesPlayed: 5, losses: 2 }),
+      makePlayer(1450, { matchesPlayed: 5, losses: 2 }),
+    ];
+    const r = RatingEngine.calculateShift(w, l, 11, 9, false);
+
+    // Ratings unchanged
+    expect(r.updatedWinners[0].rating).toBe(1500);
+    expect(r.updatedWinners[1].rating).toBe(1600);
+    expect(r.updatedLosers[0].rating).toBe(1400);
+    expect(r.updatedLosers[1].rating).toBe(1450);
+
+    // No ratingUpdatedAt set
+    expect(r.updatedWinners[0].ratingUpdatedAt).toBeUndefined();
+    expect(r.updatedLosers[0].ratingUpdatedAt).toBeUndefined();
+
+    // matchesPlayed incremented
+    expect(r.updatedWinners[0].matchesPlayed).toBe(6);
+    expect(r.updatedWinners[1].matchesPlayed).toBe(6);
+    expect(r.updatedLosers[0].matchesPlayed).toBe(6);
+    expect(r.updatedLosers[1].matchesPlayed).toBe(6);
+
+    // wins/losses incremented
+    expect(r.updatedWinners[0].wins).toBe(4);
+    expect(r.updatedWinners[1].wins).toBe(4);
+    expect(r.updatedLosers[0].losses).toBe(3);
+    expect(r.updatedLosers[1].losses).toBe(3);
+
+    // statsUpdatedAt and updatedAt set
+    expect(r.updatedWinners[0].statsUpdatedAt).toBeGreaterThan(0);
+    expect(r.updatedWinners[0].updatedAt).toBeGreaterThan(0);
+    expect(r.updatedLosers[0].statsUpdatedAt).toBeGreaterThan(0);
+    expect(r.updatedLosers[0].updatedAt).toBeGreaterThan(0);
+  });
+
+  it('applyRatingChange=true (default): rating changes as before — regression check', () => {
+    const w = [makePlayer(1500), makePlayer(1500)];
+    const l = [makePlayer(1500), makePlayer(1500)];
+    const rDefault = RatingEngine.calculateShift(w, l, 11, 10);
+    const rExplicit = RatingEngine.calculateShift(w, l, 11, 10, true);
+
+    // Both should produce identical rating changes
+    expect(rDefault.updatedWinners[0].rating).toBe(
+      rExplicit.updatedWinners[0].rating,
+    );
+    expect(rDefault.updatedLosers[0].rating).toBe(
+      rExplicit.updatedLosers[0].rating,
+    );
+    // Ratings actually changed
+    expect(rDefault.updatedWinners[0].rating).toBeGreaterThan(1500);
+    expect(rDefault.updatedLosers[0].rating).toBeLessThan(1500);
+    // ratingUpdatedAt set
+    expect(rDefault.updatedWinners[0].ratingUpdatedAt).toBeGreaterThan(0);
+  });
+});
+
+describe('All-Star sort direction persistence', () => {
+  it('allStarSortDirection does not auto-flip after draftNextMatches', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.matchmakingMode = 'strict_balance';
+    sys.state.allStarSortDirection = 'desc';
+
+    // Add 4 players to queue
+    for (let i = 1; i <= 4; i++) {
+      sys.state.players[`p${i}`] = makePlayer(1400 + i * 50, {
+        username: `p${i}`,
+        matchesPlayed: 0,
+      });
+      sys.state.queues.push({
+        username: `p${i}`,
+        queueType: 'GENERAL',
+        enteredAt: 1000 + i,
+        createdAt: 1000,
+        updatedAt: 1000,
+        queuedAt: 1000,
+      });
+    }
+
+    // Draft
+    sys.draftNextMatches('gamesPlayed', 'test');
+    // Direction should NOT have flipped — stays 'desc'
+    expect(sys.state.allStarSortDirection).toBe('desc');
+
+    // Clear matches and draft again
+    sys.state.activeMatches = [];
+    for (let i = 1; i <= 4; i++) {
+      sys.state.queues.push({
+        username: `p${i}`,
+        queueType: 'GENERAL',
+        enteredAt: 2000 + i,
+        createdAt: 2000,
+        updatedAt: 2000,
+        queuedAt: 2000,
+      });
+    }
+    sys.draftNextMatches('gamesPlayed', 'test');
+    // Still 'desc' — no auto-flip
+    expect(sys.state.allStarSortDirection).toBe('desc');
+
+    // Manual change via setter
+    sys.state.allStarSortDirection = 'asc';
+    expect(sys.state.allStarSortDirection).toBe('asc');
   });
 });
 
