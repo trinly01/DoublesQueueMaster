@@ -31,7 +31,7 @@
           vibes.
         </p>
         <p class="modes-link">
-          From Social to All-Star — choose the mode that fits your session.
+          From Social to Pro Pick — choose the mode that fits your session.
         </p>
       </div>
     </div>

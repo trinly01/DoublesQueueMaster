@@ -346,7 +346,7 @@
                 </q-select>
               </div>
               <div v-if="isCurrentUserAdmin" class="row q-gutter-sm">
-                <!-- Left: dropdown (All-Star) or Auto (other modes) -->
+                <!-- Left: dropdown (Pro Pick) or Auto (other modes) -->
                 <div class="col" style="min-width: 0">
                   <q-btn-dropdown
                     v-if="matchmakingMode === 'strict_balance'"
@@ -476,7 +476,7 @@
               <PayBanner
                 v-if="isClubSubscriptionExpired"
                 class="q-mt-sm"
-                message="Competitive & All-Star are Pro features."
+                message="Competitive & Pro Pick are Pro features."
                 :loading="paymentLoading"
                 @pay="callPayment({ clubId: currentClubId })"
               />
@@ -770,7 +770,7 @@
                 </q-select>
               </div>
               <div v-if="isCurrentUserAdmin" class="row q-gutter-sm">
-                <!-- Left: dropdown (All-Star) or Auto (other modes) -->
+                <!-- Left: dropdown (Pro Pick) or Auto (other modes) -->
                 <div class="col" style="min-width: 0">
                   <q-btn-dropdown
                     v-if="matchmakingMode === 'strict_balance'"
@@ -900,7 +900,7 @@
               <PayBanner
                 v-if="isClubSubscriptionExpired"
                 class="q-mt-sm"
-                message="Competitive & All-Star are Pro features."
+                message="Competitive & Pro Pick are Pro features."
                 :loading="paymentLoading"
                 @pay="callPayment({ clubId: currentClubId })"
               />

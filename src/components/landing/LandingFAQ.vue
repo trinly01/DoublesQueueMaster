@@ -43,7 +43,7 @@ const faqs = [
   {
     question: 'How does auto-matchmaking work?',
     answer:
-      'The club admin picks a matchmaking style. All-Star (default) alternates each round between drafting the highest-rated and lowest-rated players for a showcase game. Casual always picks the most even teams. Competitive and Standard try to keep games close while also mixing up partners and opponents so you do not play the same people every time. Social focuses on new matchups. You can also switch to Manual Match and hand-pick teams.',
+      'The club admin picks a matchmaking style. Pro Pick (default) picks from the whole pool, drafting the highest-rated or lowest-rated players first. Casual always picks the most even teams. Competitive and Standard try to keep games close while also mixing up partners and opponents so you do not play the same people every time. Social focuses on new matchups. You can also switch to Manual Match and hand-pick teams.',
   },
   {
     question:

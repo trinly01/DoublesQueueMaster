@@ -116,7 +116,7 @@ export interface AppState {
     | 'fair_balance';
   sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
   matchType?: 'singles' | 'doubles';
-  allStarSortDirection?: 'desc' | 'asc'; // Alternates each All-Star draft round
+  allStarSortDirection?: 'desc' | 'asc'; // Pro Pick draft direction
   matchesFilterBy?: 'all' | 'in-progress' | 'waiting';
   scoreType?: 'RALLY' | 'SIDEOUT'; // For DUPR CSV export
   ttsEnabled?: boolean; // Text-to-speech announcements

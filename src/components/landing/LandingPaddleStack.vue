@@ -473,10 +473,10 @@ const modeDefs = [
       'Drafts the next in line, then builds the closest games while avoiding repeat matchups',
   },
   {
-    label: 'All-Star',
+    label: 'Pro Pick',
     value: 'strict_balance' as const,
     description:
-      'Skips the queue. Alternates top-rated and bottom-rated players for a showcase game',
+      'Picks from the whole pool. Drafts top or bottom-rated players first',
   },
 ];
 
@@ -576,7 +576,7 @@ let lastMatchResults: {
   scoreW: number;
   scoreL: number;
 }[] = [];
-// All-Star sort direction alternates each round (like real app)
+// Pro Pick sort direction alternates each round (like real app)
 let allStarSortDirection: 'desc' | 'asc' = 'desc';
 // Alternator flag: when WINNERS and LOSERS brackets are tied on priority,
 // alternate which bracket gets drafted first to prevent losers from being stuck
@@ -837,7 +837,7 @@ function commitRoundToQueue() {
     }
   }
 
-  // Alternate All-Star sort direction for next round (like real app)
+  // Alternate Pro Pick sort direction for next round (like real app)
   const mode = currentModeDef.value.value;
   if (mode === 'strict_balance') {
     allStarSortDirection = allStarSortDirection === 'desc' ? 'asc' : 'desc';
