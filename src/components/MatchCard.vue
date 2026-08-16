@@ -255,7 +255,7 @@ interface Match {
   order: number;
   createdAt: Date;
   startedAt?: Date;
-  completedAt?: Date;
+  completedAt?: Date | string;
   queueSource?: string;
   expectedDifference?: number;
   winProbability?: number;
