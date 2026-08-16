@@ -558,6 +558,27 @@
                         >Edited</q-tooltip
                       >
                     </q-chip>
+                    <q-chip
+                      v-if="
+                        (adminMatchStats[
+                          member.firstName || member.username || ''
+                        ]?.scored ?? 0) > 0
+                      "
+                      :label="
+                        adminMatchStats[
+                          member.firstName || member.username || ''
+                        ].scored
+                      "
+                      color="green-2"
+                      text-color="green-9"
+                      size="xs"
+                      dense
+                      icon="check_circle"
+                    >
+                      <q-tooltip anchor="top middle" self="bottom middle"
+                        >Scored</q-tooltip
+                      >
+                    </q-chip>
                   </div>
                 </q-item-section>
                 <q-item-section side>
@@ -854,7 +875,13 @@ defineProps<{
   }>;
   adminMatchStats: Record<
     string,
-    { total: number; auto: number; manual: number; edited: number }
+    {
+      total: number;
+      auto: number;
+      manual: number;
+      edited: number;
+      scored: number;
+    }
   >;
   clubFeedbackLoading: boolean;
   clubFeedback: ClubFeedbackEntry[];

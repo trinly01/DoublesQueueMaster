@@ -257,6 +257,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { QInput } from 'quasar';
+import type { MatchMeta } from '../types/matchMeta';
+import type { TeamPlayer } from '../types/player';
 import {
   getRatingColor,
   getMatchStatusColor,
@@ -264,15 +266,6 @@ import {
   formatDate,
 } from '../utils/playerHelpers';
 import MatchMetaChips from './MatchMetaChips.vue';
-
-interface TeamPlayer {
-  username: string;
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-  level?: number;
-  rating?: number;
-}
 
 const props = withDefaults(
   defineProps<{
@@ -288,12 +281,7 @@ const props = withDefaults(
     completedAt?: string;
     blurExceptUsername?: string;
     blurDate?: boolean;
-    meta?: {
-      generatedBy?: string;
-      matchmakingMode?: string;
-      generationType?: 'auto' | 'manual';
-      isEdited?: boolean;
-    };
+    meta?: MatchMeta;
   }>(),
   {
     editable: false,

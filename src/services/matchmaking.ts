@@ -1,5 +1,6 @@
 import { reactive } from 'vue';
 import { LocalStorage } from 'quasar';
+import type { MatchMeta } from '../types/matchMeta';
 
 /**
  * ==========================================
@@ -58,7 +59,10 @@ export interface ActiveMatch {
   originalQueueTypes?: Record<string, 'GENERAL' | 'WINNERS' | 'LOSERS'>;
   oldestQueueEntryAt?: number; // Earliest queue enteredAt among all players (for FIFO priority)
   minGamesPlayed?: number; // Minimum matchesPlayed among all players (for fairness priority)
-  generatedBy?: string; // Username of the admin who generated or last edited this match
+  generatedBy?: string; // Username of the admin who generated this match
+  editedBy?: string; // Username of the admin who last edited this match
+  scoredBy?: string; // Username of the admin who scored this match
+  cancelledBy?: string; // Username of the admin who cancelled this match
   matchmakingMode?: string; // Matchmaking mode used at generation time
   generationType?: 'auto' | 'manual'; // Whether match was auto-drafted or manually created
   isEdited?: boolean; // True if match was edited after initial creation
@@ -87,12 +91,7 @@ export interface CompletedMatch {
   completedAt: number; // Epoch ms
   updatedAt: number; // Epoch ms (LWW)
   club: string; // Directus club UUID
-  meta?: {
-    generatedBy?: string;
-    matchmakingMode?: string;
-    generationType?: 'auto' | 'manual';
-    isEdited?: boolean;
-  };
+  meta?: MatchMeta;
 }
 
 export interface AppState {
@@ -117,7 +116,13 @@ export interface AppState {
   sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
   matchType?: 'singles' | 'doubles';
   allStarSortDirection?: 'desc' | 'asc'; // Pro Pick draft direction
-  matchesFilterBy?: 'all' | 'in-progress' | 'waiting';
+  matchesFilterBy?:
+    | 'all'
+    | 'in-progress'
+    | 'waiting'
+    | 'cancelled'
+    | 'completed'
+    | 'edited';
   scoreType?: 'RALLY' | 'SIDEOUT'; // For DUPR CSV export
   ttsEnabled?: boolean; // Text-to-speech announcements
   qrContinueScan?: boolean; // Continue QR scanning after each successful add
@@ -1346,6 +1351,7 @@ export class LocalMatchmakingSystem {
     teamAScore: number,
     teamBScore: number,
     returnMethod: string = 'end_of_queue',
+    scoredBy?: string,
   ): CompletedMatch | undefined {
     const matchIndex = this.state.activeMatches.findIndex(
       (m) => !m.deletedAt && m.matchId === matchId,
@@ -1450,6 +1456,8 @@ export class LocalMatchmakingSystem {
       club: this.state.clubUUID || '',
       meta: {
         generatedBy: match.generatedBy,
+        editedBy: match.editedBy,
+        scoredBy: scoredBy,
         matchmakingMode: match.matchmakingMode,
         generationType: match.generationType,
         isEdited: match.isEdited,

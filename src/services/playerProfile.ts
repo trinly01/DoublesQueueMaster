@@ -2,6 +2,7 @@ import { reactive } from 'vue';
 import { LocalStorage } from 'quasar';
 import { likhaClient } from 'src/services/likhaClient';
 import { readMe, readItems } from '@likha-erp/likha-sdk';
+import type { MatchMeta } from '../types/matchMeta';
 export interface RatingEvent {
   day: string;
   wins: number;
@@ -40,12 +41,7 @@ export interface DirectusCompletedMatch {
   completed_at: string;
   started_at?: string;
   club: string;
-  meta?: {
-    generatedBy?: string;
-    matchmakingMode?: string;
-    generationType?: 'auto' | 'manual';
-    isEdited?: boolean;
-  };
+  meta?: MatchMeta;
   players?: {
     id: number;
     directus_users_id?: {
