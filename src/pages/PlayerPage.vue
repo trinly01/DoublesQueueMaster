@@ -41,7 +41,7 @@
 
         <div
           class="column items-center"
-          style="width: 180px; gap: 8px; margin: 0 auto"
+          style="width: 240px; gap: 8px; margin: 0 auto"
         >
           <q-btn
             v-if="PlayerProfile.state.duprId"
@@ -61,7 +61,6 @@
             no-caps
             rounded
             text-color="grey-7"
-            icon="qr_code"
             :label="`@${username}`"
             dense
             flat
@@ -70,37 +69,25 @@
           />
 
           <q-btn
-            color="accent"
-            icon="emoji_events"
-            label="Leaderboard"
-            size="sm"
-            dense
-            rounded
-            class="full-width"
-            style="border-radius: 12px"
-            @click="showLeaderboardDialog = true"
-          />
-
-          <q-btn
-            color="primary"
+            color="amber-7"
+            text-color="black"
             icon="sports_esports"
             label="Play 3D Game"
             size="sm"
             dense
             rounded
-            class="full-width"
+            class="full-width play-game-btn"
             style="border-radius: 12px"
             @click="router.push('/play')"
           />
 
           <div
-            class="rating-badge cursor-pointer"
+            class="rating-badge"
             :style="{
               background: getRatingGradient(ratingColor),
               width: '100%',
               display: 'flex',
             }"
-            @click="showHistoryDialog = true"
           >
             <div class="column items-center">
               <span class="text-h4 text-weight-bold text-white">{{
@@ -109,18 +96,60 @@
               <span class="text-caption text-white">{{ ratingCategory }}</span>
             </div>
           </div>
+
+          <div class="row" style="width: 240px; gap: 8px">
+            <q-btn
+              flat
+              color="accent"
+              icon="emoji_events"
+              label="Leaderboard"
+              size="sm"
+              dense
+              rounded
+              no-caps
+              align="center"
+              style="flex: 1; border-radius: 12px"
+              @click="showLeaderboardDialog = true"
+            />
+            <q-btn
+              flat
+              color="primary"
+              icon="analytics"
+              label="Player Stats"
+              size="sm"
+              dense
+              rounded
+              no-caps
+              align="center"
+              style="flex: 1; border-radius: 12px"
+              @click="showHistoryDialog = true"
+            />
+          </div>
         </div>
       </q-card-section>
 
       <q-card-section class="q-px-lg q-mt-sm text-center">
-        <q-btn
-          label="Browse Clubs"
-          icon="groups"
-          color="accent"
-          rounded
-          unelevated
-          @click="router.push('/clubs')"
-        />
+        <div class="row items-center justify-center q-gutter-sm">
+          <q-btn
+            label="Browse Clubs"
+            icon="groups"
+            color="accent"
+            rounded
+            unelevated
+            @click="router.push('/clubs')"
+          />
+          <q-btn
+            round
+            outline
+            color="accent"
+            icon="qr_code"
+            @click="openQrDialog"
+          >
+            <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+              >My QR Code</q-tooltip
+            >
+          </q-btn>
+        </div>
 
         <div
           v-if="displayClubs.length > 0"
@@ -1069,6 +1098,16 @@ const qrCodeDataUrl = ref('');
 
 const { recentClubs, loadRecentClubs } = useRecentClubs(currentUserId);
 
+// Load recent clubs the moment currentUserId becomes available,
+// instead of waiting for the full profile fetch to complete.
+watch(
+  currentUserId,
+  (id) => {
+    if (id) loadRecentClubs();
+  },
+  { immediate: true },
+);
+
 const displayClubs = computed(() => [...recentClubs.value].reverse());
 
 const openQrDialog = async () => {
@@ -1826,10 +1865,6 @@ const editProfile = async () => {
 };
 
 onMounted(async () => {
-  // Load recent clubs from cache instantly (before profile fetch)
-  const hadUserId = !!currentUserId.value;
-  loadRecentClubs();
-
   // If we have cached profile, show it immediately and fetch in background
   const hasCache = PlayerProfile.hasCachedProfile();
   if (!hasCache) {
@@ -1848,11 +1883,6 @@ onMounted(async () => {
     console.warn('Profile fetch failed:', err);
   } finally {
     if (hasCache) dataFetchBar.value?.stop();
-  }
-
-  // Re-load recent clubs if the first call was a no-op (id was empty)
-  if (!hadUserId && currentUserId.value) {
-    loadRecentClubs();
   }
 
   if (!fetched && !PlayerProfile.hasCachedProfile()) {
@@ -2004,15 +2034,7 @@ const onLogout = () => {
   padding: 8px 16px;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
   min-width: 180px;
-}
-
-.rating-badge:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .dupr-badge {
@@ -2079,6 +2101,32 @@ const onLogout = () => {
 
   .player-card > .q-card-actions {
     margin-top: 24px !important;
+  }
+}
+
+.play-game-btn :deep(.q-icon) {
+  animation: icon-bounce 1.5s ease-in-out infinite;
+}
+
+@keyframes icon-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-3px);
+  }
+  50% {
+    transform: translateY(0);
+  }
+  70% {
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play-game-btn :deep(.q-icon) {
+    animation: none;
   }
 }
 </style>

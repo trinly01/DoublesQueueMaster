@@ -35,13 +35,17 @@ export function useRecentClubs(
   };
 
   const loadRecentClubs = async () => {
-    if (!currentUserId.value) return;
-
+    // Show cached clubs instantly, even before user ID is available
     const cached = LocalStorage.getItem(cacheKey) as RecentClub[] | null;
     const hasCache = cached && cached.length > 0;
     if (hasCache) {
       recentClubs.value = cached;
-    } else {
+    }
+
+    // Skip server fetch if we don't have a user ID yet
+    if (!currentUserId.value) return;
+
+    if (!hasCache) {
       loading.value = true;
     }
 
