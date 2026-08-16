@@ -368,7 +368,13 @@ export function useClubData(context: UseClubDataContext) {
                 | 'losses'
                 | 'name';
               matchType: 'singles' | 'doubles';
-              matchesFilterBy: 'all' | 'in-progress' | 'waiting';
+              matchesFilterBy:
+                | 'all'
+                | 'in-progress'
+                | 'waiting'
+                | 'cancelled'
+                | 'completed'
+                | 'edited';
             };
           };
           players?: Array<{
