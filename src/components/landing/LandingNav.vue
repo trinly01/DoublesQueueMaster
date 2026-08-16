@@ -14,6 +14,7 @@
           color="white"
           label="Play 3D Game"
           icon="sports_esports"
+          class="play-game-btn"
           @click="goPlay"
         />
         <q-btn
@@ -80,5 +81,31 @@ $brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 .nav-brand {
   font-size: 1.15rem;
   letter-spacing: 0.5px;
+}
+
+.play-game-btn :deep(.q-icon) {
+  animation: icon-bounce 1.5s ease-in-out infinite;
+}
+
+@keyframes icon-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-3px);
+  }
+  50% {
+    transform: translateY(0);
+  }
+  70% {
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play-game-btn :deep(.q-icon) {
+    animation: none;
+  }
 }
 </style>
