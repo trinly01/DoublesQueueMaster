@@ -1361,6 +1361,9 @@ const matches = computed(() => {
         matchmakingMode: m.matchmakingMode,
         generationType: m.generationType,
         isEdited: m.isEdited,
+        teamAScore: undefined as number | undefined,
+        teamBScore: undefined as number | undefined,
+        completedAt: undefined as string | undefined,
       };
     });
 });
