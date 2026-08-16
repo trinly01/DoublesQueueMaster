@@ -402,13 +402,16 @@ describe('useMatchSettings — static option arrays', () => {
     expect(sortOptions).toHaveLength(6);
   });
 
-  it('matchesFilterOptions has all, in-progress, waiting', () => {
+  it('matchesFilterOptions has all, in-progress, waiting, cancelled, completed, edited', () => {
     const { context } = makeContext();
     const { matchesFilterOptions } = useMatchSettings(context);
     expect(matchesFilterOptions.map((o) => o.value)).toEqual([
       'all',
       'in-progress',
       'waiting',
+      'cancelled',
+      'completed',
+      'edited',
     ]);
   });
 

@@ -531,18 +531,46 @@
             <q-card-section class="q-pa-none">
               <div class="card-content">
                 <q-list separator v-if="filteredMatches.length > 0">
-                  <MatchCard
-                    v-for="(match, index) in filteredMatches"
-                    :key="match.id"
-                    :match="match"
-                    :can-start="hasAvailableSlot"
-                    :show-actions="isCurrentUserAdmin"
-                    @completeMatch="openMatchResultDialog(index)"
-                    @editMatch="editMatch(index)"
-                    @startMatch="startMatch(index)"
-                    @cancelMatch="cancelMatch(index)"
-                    @custom-announce="handleCustomAnnounce"
-                  />
+                  <template v-if="matchesFilterBy === 'completed'">
+                    <q-item
+                      v-for="match in filteredMatches"
+                      :key="match.id"
+                      class="q-px-sm bg-green-1"
+                    >
+                      <q-item-section>
+                        <MatchResult
+                          :teamA="match.teamA"
+                          :teamB="match.teamB"
+                          :teamAScore="match.teamAScore"
+                          :teamBScore="match.teamBScore"
+                          :completedAt="match.completedAt"
+                          :meta="{
+                            generatedBy: match.generatedBy,
+                            editedBy: match.editedBy,
+                            scoredBy: match.scoredBy,
+                            cancelledBy: match.cancelledBy,
+                            matchmakingMode: match.matchmakingMode,
+                            generationType: match.generationType,
+                            isEdited: match.isEdited,
+                          }"
+                        />
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                  <template v-else>
+                    <MatchCard
+                      v-for="(match, index) in filteredMatches"
+                      :key="match.id"
+                      :match="match"
+                      :can-start="hasAvailableSlot"
+                      :show-actions="isCurrentUserAdmin"
+                      @completeMatch="openMatchResultDialog(index)"
+                      @editMatch="editMatch(index)"
+                      @startMatch="startMatch(index)"
+                      @cancelMatch="cancelMatch(index)"
+                      @custom-announce="handleCustomAnnounce"
+                    />
+                  </template>
                 </q-list>
                 <EmptyState
                   v-else
@@ -948,18 +976,46 @@
                   </q-select>
                 </div>
                 <q-list separator v-if="filteredMatches.length > 0">
-                  <MatchCard
-                    v-for="(match, index) in filteredMatches"
-                    :key="match.id"
-                    :match="match"
-                    :can-start="hasAvailableSlot"
-                    :show-actions="isCurrentUserAdmin"
-                    @completeMatch="openMatchResultDialog(index)"
-                    @editMatch="editMatch(index)"
-                    @startMatch="startMatch(index)"
-                    @cancelMatch="cancelMatch(index)"
-                    @custom-announce="handleCustomAnnounce"
-                  />
+                  <template v-if="matchesFilterBy === 'completed'">
+                    <q-item
+                      v-for="match in filteredMatches"
+                      :key="match.id"
+                      class="q-px-sm bg-green-1"
+                    >
+                      <q-item-section>
+                        <MatchResult
+                          :teamA="match.teamA"
+                          :teamB="match.teamB"
+                          :teamAScore="match.teamAScore"
+                          :teamBScore="match.teamBScore"
+                          :completedAt="match.completedAt"
+                          :meta="{
+                            generatedBy: match.generatedBy,
+                            editedBy: match.editedBy,
+                            scoredBy: match.scoredBy,
+                            cancelledBy: match.cancelledBy,
+                            matchmakingMode: match.matchmakingMode,
+                            generationType: match.generationType,
+                            isEdited: match.isEdited,
+                          }"
+                        />
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                  <template v-else>
+                    <MatchCard
+                      v-for="(match, index) in filteredMatches"
+                      :key="match.id"
+                      :match="match"
+                      :can-start="hasAvailableSlot"
+                      :show-actions="isCurrentUserAdmin"
+                      @completeMatch="openMatchResultDialog(index)"
+                      @editMatch="editMatch(index)"
+                      @startMatch="startMatch(index)"
+                      @cancelMatch="cancelMatch(index)"
+                      @custom-announce="handleCustomAnnounce"
+                    />
+                  </template>
                 </q-list>
                 <EmptyState
                   v-else
@@ -1160,6 +1216,7 @@ import {
   type ClubFeedbackEntry,
 } from '../services/playerReport';
 import MatchCard from '../components/MatchCard.vue';
+import MatchResult from '../components/MatchResult.vue';
 import MatchResultDialog from '../components/club/MatchResultDialog.vue';
 import EditPlayerDialog from '../components/club/EditPlayerDialog.vue';
 import ReplacePlayerDialog from '../components/club/ReplacePlayerDialog.vue';
@@ -1298,6 +1355,9 @@ const matches = computed(() => {
         startedAt: m.startedAt ? new Date(m.startedAt) : undefined,
         queueSource: m.queueSource,
         generatedBy: m.generatedBy,
+        editedBy: m.editedBy,
+        scoredBy: m.scoredBy,
+        cancelledBy: m.cancelledBy,
         matchmakingMode: m.matchmakingMode,
         generationType: m.generationType,
         isEdited: m.isEdited,
@@ -1315,7 +1375,13 @@ const duprExportableMatches = computed(() => {
 const _adminMatchStats = ref<
   Record<
     string,
-    { total: number; auto: number; manual: number; edited: number }
+    {
+      total: number;
+      auto: number;
+      manual: number;
+      edited: number;
+      scored: number;
+    }
   >
 >({});
 const adminMatchStats = computed(() => _adminMatchStats.value);
@@ -2040,16 +2106,115 @@ const hasAvailableSlot = computed(() => {
   return inProgress < cap;
 });
 
-const filteredMatches = computed(() => {
-  let filtered =
-    matchesFilterBy.value === 'all'
-      ? matches.value
-      : matches.value.filter((match) => match.status === matchesFilterBy.value);
+const cancelledMatches = computed(() => {
+  return MatchmakingApp.state.activeMatches
+    .filter((m) => m.deletedAt)
+    .map((m, index) => {
+      const teamA = m.teamA.map((u) => ({
+        ...MatchmakingApp.state.players[u],
+        username: u,
+      }));
+      const teamB = m.teamB.map((u) => ({
+        ...MatchmakingApp.state.players[u],
+        username: u,
+      }));
+      const stats = computeWinProbability(teamA, teamB);
+      return {
+        id: m.matchId,
+        teamA,
+        teamB,
+        players: [...teamA, ...teamB],
+        expectedDifference: stats.expectedDifference,
+        winProbability: stats.teamA,
+        status: 'cancelled' as const,
+        court: m.court,
+        order: index + 1,
+        createdAt: new Date(m.createdAt || Date.now()),
+        startedAt: m.startedAt ? new Date(m.startedAt) : undefined,
+        queueSource: m.queueSource,
+        generatedBy: m.generatedBy,
+        editedBy: m.editedBy,
+        scoredBy: m.scoredBy,
+        cancelledBy: m.cancelledBy,
+        matchmakingMode: m.matchmakingMode,
+        generationType: m.generationType,
+        isEdited: m.isEdited,
+      };
+    });
+});
 
-  // Sort by status: in-progress first, then waiting, then by queue priority
+const completedMatchViewModels = computed(() => {
+  return MatchmakingApp.state.completedMatches.map((m, index) => {
+    const teamA = m.teamA.map((p) => ({
+      ...p,
+      username: p.username,
+    }));
+    const teamB = m.teamB.map((p) => ({
+      ...p,
+      username: p.username,
+    }));
+    return {
+      id: m.matchId,
+      teamA,
+      teamB,
+      players: [...teamA, ...teamB],
+      expectedDifference: 0,
+      winProbability: 0,
+      status: 'completed' as const,
+      teamAScore: m.teamAScore,
+      teamBScore: m.teamBScore,
+      completedAt: new Date(m.completedAt).toISOString(),
+      court: undefined,
+      order: index + 1,
+      createdAt: new Date(m.completedAt || Date.now()),
+      startedAt: m.startedAt ? new Date(m.startedAt) : undefined,
+      queueSource: undefined,
+      generatedBy: m.meta?.generatedBy,
+      editedBy: m.meta?.editedBy,
+      scoredBy: m.meta?.scoredBy,
+      cancelledBy: undefined,
+      matchmakingMode: m.meta?.matchmakingMode,
+      generationType: m.meta?.generationType,
+      isEdited: m.meta?.isEdited,
+    };
+  });
+});
+
+const filteredMatches = computed(() => {
+  let filtered: typeof matches.value;
+
+  if (matchesFilterBy.value === 'cancelled') {
+    filtered = cancelledMatches.value as unknown as typeof matches.value;
+  } else if (matchesFilterBy.value === 'completed') {
+    filtered =
+      completedMatchViewModels.value as unknown as typeof matches.value;
+  } else if (matchesFilterBy.value === 'edited') {
+    const editedActive = matches.value.filter((m) => m.isEdited);
+    const editedCompleted = completedMatchViewModels.value.filter(
+      (m) => m.isEdited,
+    );
+    filtered = [
+      ...editedActive,
+      ...editedCompleted,
+    ] as unknown as typeof matches.value;
+  } else if (matchesFilterBy.value === 'all') {
+    filtered = matches.value;
+  } else {
+    filtered = matches.value.filter(
+      (match) => match.status === matchesFilterBy.value,
+    );
+  }
+
+  // Sort by status: in-progress first, then waiting, then cancelled, then completed
   filtered = [...filtered].sort((a, b) => {
-    const statusOrder = { 'in-progress': 0, waiting: 1, completed: 2 };
-    const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+    const statusOrder: Record<string, number> = {
+      'in-progress': 0,
+      waiting: 1,
+      cancelled: 2,
+      completed: 3,
+    };
+    const statusDiff =
+      (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
     if (statusDiff !== 0) return statusDiff;
 
     // Within same status, use queue priority order (matches the queue setting)
@@ -2062,12 +2227,14 @@ const filteredMatches = computed(() => {
       if (aGames !== bGames) return aGames - bGames;
     }
     // First in Line (default): match with oldest queue entry comes first
+    // Cancelled: latest first (newest on top)
     const aTime =
       (a as unknown as { oldestQueueEntryAt?: number }).oldestQueueEntryAt ??
       a.createdAt.getTime();
     const bTime =
       (b as unknown as { oldestQueueEntryAt?: number }).oldestQueueEntryAt ??
       b.createdAt.getTime();
+    if ((a.status as string) === 'cancelled') return bTime - aTime;
     return aTime - bTime;
   });
 

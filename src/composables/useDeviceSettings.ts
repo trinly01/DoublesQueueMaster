@@ -8,7 +8,13 @@ import { MatchmakingApp } from 'src/services/matchmaking';
 export type DeviceSettings = {
   ttsEnabled?: boolean;
   sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
-  matchesFilterBy?: 'all' | 'in-progress' | 'waiting';
+  matchesFilterBy?:
+    | 'all'
+    | 'in-progress'
+    | 'waiting'
+    | 'cancelled'
+    | 'completed'
+    | 'edited';
 };
 
 const DEVICE_SETTINGS_KEY = 'device_settings';

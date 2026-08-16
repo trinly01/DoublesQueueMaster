@@ -214,12 +214,20 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
     },
   });
 
-  const matchesFilterBy = computed<'all' | 'in-progress' | 'waiting'>({
+  const matchesFilterBy = computed<
+    'all' | 'in-progress' | 'waiting' | 'cancelled' | 'completed' | 'edited'
+  >({
     get: () => {
       const raw = deviceSettings.matchesFilterBy ?? 'all';
       // Coerce legacy numeric values to 'all'
       if (typeof raw === 'number') return 'all';
-      return raw as 'all' | 'in-progress' | 'waiting';
+      return raw as
+        | 'all'
+        | 'in-progress'
+        | 'waiting'
+        | 'cancelled'
+        | 'completed'
+        | 'edited';
     },
     set: (val) => {
       deviceSettings.matchesFilterBy = val;
@@ -268,6 +276,9 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
     { label: 'All', value: 'all' },
     { label: 'In Progress', value: 'in-progress' },
     { label: 'Waiting', value: 'waiting' },
+    { label: 'Cancelled', value: 'cancelled' },
+    { label: 'Completed', value: 'completed' },
+    { label: 'Edited', value: 'edited' },
   ];
 
   const queueReturnOptions = [
