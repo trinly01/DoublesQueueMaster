@@ -45,6 +45,18 @@ const _client = createLikha(LIKHA_URL)
     }),
   );
 
+// Override refresh to use the correct mode based on how the user logged in.
+// Password login (JSON mode) stores refresh_token in LocalStorage.
+// Google SSO (cookie mode) does NOT — the refresh token is only in an
+// httpOnly cookie. If we use JSON mode for SSO users, it sends null → 400.
+const _originalRefresh = _client.refresh.bind(_client);
+_client.refresh = (async (options?: Record<string, unknown>) => {
+  const authData = storage.get();
+  const hasRefreshToken = !!authData?.refresh_token;
+  const mode = hasRefreshToken ? 'json' : 'cookie';
+  return _originalRefresh({ mode, ...options });
+}) as typeof _client.refresh;
+
 // Global 401 interceptor: if a request fails with 401, refresh the token
 // and retry once. This handles the race condition where the access token
 // expired (e.g., phone screen was locked) but the refresh token is still
