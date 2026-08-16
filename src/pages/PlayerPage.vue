@@ -70,7 +70,7 @@
 
           <q-btn
             color="amber-7"
-            text-color="black"
+            text-color="purple-9"
             icon="sports_esports"
             label="Play 3D Game"
             size="sm"
