@@ -1,7 +1,10 @@
 <template>
   <q-item
     class="match-item"
-    :class="{ 'bg-yellow-1': match.status === 'in-progress' }"
+    :class="{
+      'bg-yellow-1': match.status === 'in-progress',
+      'bg-red-1': match.status === 'cancelled',
+    }"
     @click="handleClick"
     clickable
   >
@@ -137,6 +140,9 @@
       <MatchMetaChips
         :meta="{
           generatedBy: match.generatedBy,
+          editedBy: match.editedBy,
+          scoredBy: match.scoredBy,
+          cancelledBy: match.cancelledBy,
           matchmakingMode: match.matchmakingMode,
           generationType: match.generationType,
           isEdited: match.isEdited,
@@ -234,30 +240,17 @@
 <script setup lang="ts">
 import { inject, ref, onUnmounted, watch } from 'vue';
 import { getRatingColor, getMatchStatusLabel } from '../utils/playerHelpers';
+import type { Player } from '../services/matchmaking';
 import MatchMetaChips from './MatchMetaChips.vue';
 
 const isReadOnlyMode = inject('isReadOnlyMode', false);
-
-// Player interface (matches matchmaking.ts Player)
-interface Player {
-  username: string;
-  name?: string;
-  firstName?: string;
-  level: 1 | 2 | 3;
-  rating: number;
-  matchesPlayed: number;
-  wins: number;
-  losses: number;
-  priority?: string;
-  userId?: string;
-}
 
 interface Match {
   id: string;
   teamA: Player[];
   teamB: Player[];
   players?: Player[];
-  status: 'waiting' | 'in-progress' | 'completed';
+  status: 'waiting' | 'in-progress' | 'completed' | 'cancelled';
   court?: number;
   order: number;
   createdAt: Date;
@@ -267,6 +260,9 @@ interface Match {
   expectedDifference?: number;
   winProbability?: number;
   generatedBy?: string;
+  editedBy?: string;
+  scoredBy?: string;
+  cancelledBy?: string;
   matchmakingMode?: string;
   generationType?: 'auto' | 'manual';
   isEdited?: boolean;

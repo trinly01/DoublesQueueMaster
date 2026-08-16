@@ -25,9 +25,15 @@ export interface MatchViewModel {
   startedAt?: Date;
   queueSource?: string;
   generatedBy?: string;
+  editedBy?: string;
+  scoredBy?: string;
+  cancelledBy?: string;
   matchmakingMode?: string;
   generationType?: string;
   isEdited?: boolean;
+  teamAScore?: number;
+  teamBScore?: number;
+  completedAt?: string;
 }
 
 export interface UseMatchActionsContext {
@@ -398,6 +404,7 @@ export function useMatchActions(context: UseMatchActionsContext) {
       scoreA,
       scoreB,
       queueReturnMethod.value,
+      currentAdminName.value,
     );
 
     if (freedCourt && autoAdvanceMatches.value) {
@@ -513,6 +520,7 @@ export function useMatchActions(context: UseMatchActionsContext) {
 
         // Tombstone match instead of removing (for cross-admin sync)
         actualMatch.deletedAt = Date.now();
+        actualMatch.cancelledBy = currentAdminName.value;
         actualMatch.updatedAt = Date.now();
 
         // Auto-advance next match for this specific court
@@ -733,7 +741,7 @@ export function useMatchActions(context: UseMatchActionsContext) {
     actualMatch.teamA = newTeamA;
     actualMatch.teamB = newTeamB;
     actualMatch.updatedAt = Date.now();
-    actualMatch.generatedBy = currentAdminName.value;
+    actualMatch.editedBy = currentAdminName.value;
     actualMatch.isEdited = true;
 
     // Save data (direct state mutation requires explicit persist)

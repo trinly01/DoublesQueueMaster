@@ -73,21 +73,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useQuasar } from 'quasar';
+import type { TeamPlayer } from '../../types/player';
 import DialogHeader from '../DialogHeader.vue';
 import MatchResult from '../MatchResult.vue';
 
 defineOptions({ name: 'MatchResultDialog' });
 
 const $q = useQuasar();
-
-interface TeamPlayer {
-  username: string;
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-  level?: number;
-  rating?: number;
-}
 
 const props = defineProps<{
   modelValue: boolean;

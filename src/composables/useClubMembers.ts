@@ -95,7 +95,13 @@ export function useClubMembers(context: UseClubMembersContext) {
   const adminMatchStats = computed(() => {
     const stats: Record<
       string,
-      { total: number; auto: number; manual: number; edited: number }
+      {
+        total: number;
+        auto: number;
+        manual: number;
+        edited: number;
+        scored: number;
+      }
     > = {};
     const completed = MatchmakingApp.state.completedMatches;
     console.log('[adminMatchStats] completedMatches count:', completed.length);
@@ -104,11 +110,33 @@ export function useClubMembers(context: UseClubMembersContext) {
       const admin = m.meta?.generatedBy;
       if (!admin) continue;
       if (!stats[admin])
-        stats[admin] = { total: 0, auto: 0, manual: 0, edited: 0 };
+        stats[admin] = { total: 0, auto: 0, manual: 0, edited: 0, scored: 0 };
       stats[admin].total++;
-      if (m.meta?.isEdited) stats[admin].edited++;
-      else if (m.meta?.generationType === 'auto') stats[admin].auto++;
+      if (m.meta?.isEdited) {
+        const editor = m.meta?.editedBy || admin;
+        if (!stats[editor])
+          stats[editor] = {
+            total: 0,
+            auto: 0,
+            manual: 0,
+            edited: 0,
+            scored: 0,
+          };
+        stats[editor].edited++;
+      } else if (m.meta?.generationType === 'auto') stats[admin].auto++;
       else if (m.meta?.generationType === 'manual') stats[admin].manual++;
+      if (m.meta?.scoredBy) {
+        const scorer = m.meta.scoredBy;
+        if (!stats[scorer])
+          stats[scorer] = {
+            total: 0,
+            auto: 0,
+            manual: 0,
+            edited: 0,
+            scored: 0,
+          };
+        stats[scorer].scored++;
+      }
     }
     console.log('[adminMatchStats] result:', JSON.stringify(stats));
     console.log(

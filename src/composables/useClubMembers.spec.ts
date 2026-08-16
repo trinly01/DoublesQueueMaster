@@ -177,15 +177,29 @@ describe('useClubMembers — adminMatchStats', () => {
     MatchmakingApp.state.completedMatches = [
       {
         matchId: 'm1',
-        meta: { generatedBy: 'Alice', generationType: 'auto' },
+        meta: {
+          generatedBy: 'Alice',
+          generationType: 'auto',
+          scoredBy: 'Alice',
+        },
       } as never,
       {
         matchId: 'm2',
-        meta: { generatedBy: 'Alice', generationType: 'manual' },
+        meta: {
+          generatedBy: 'Alice',
+          generationType: 'manual',
+          scoredBy: 'Bob',
+        },
       } as never,
       {
         matchId: 'm3',
-        meta: { generatedBy: 'Bob', generationType: 'auto', isEdited: true },
+        meta: {
+          generatedBy: 'Bob',
+          generationType: 'auto',
+          isEdited: true,
+          editedBy: 'Alice',
+          scoredBy: 'Bob',
+        },
       } as never,
     ];
     const { context } = makeContext();
@@ -194,13 +208,15 @@ describe('useClubMembers — adminMatchStats', () => {
       total: 2,
       auto: 1,
       manual: 1,
-      edited: 0,
+      edited: 1,
+      scored: 1,
     });
     expect(adminMatchStats.value['Bob']).toEqual({
       total: 1,
       auto: 0,
       manual: 0,
-      edited: 1,
+      edited: 0,
+      scored: 2,
     });
   });
 

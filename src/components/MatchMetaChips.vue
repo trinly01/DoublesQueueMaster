@@ -53,18 +53,47 @@
       dense
       icon="person"
     >
+      <q-tooltip>Created by</q-tooltip>
       {{ meta.generatedBy }}
+    </q-chip>
+    <q-chip
+      v-if="meta.editedBy"
+      color="amber-3"
+      text-color="amber-10"
+      size="xs"
+      dense
+      icon="edit_note"
+    >
+      <q-tooltip>Edited by</q-tooltip>
+      {{ meta.editedBy }}
+    </q-chip>
+    <q-chip
+      v-if="meta.scoredBy"
+      color="green-2"
+      text-color="green-9"
+      size="xs"
+      dense
+      icon="check_circle"
+    >
+      <q-tooltip>Scored by</q-tooltip>
+      {{ meta.scoredBy }}
+    </q-chip>
+    <q-chip
+      v-if="meta.cancelledBy"
+      color="red-2"
+      text-color="negative"
+      size="xs"
+      dense
+      icon="cancel"
+    >
+      <q-tooltip>Cancelled by</q-tooltip>
+      {{ meta.cancelledBy }}
     </q-chip>
   </div>
 </template>
 
 <script setup lang="ts">
-interface MatchMeta {
-  generatedBy?: string;
-  matchmakingMode?: string;
-  generationType?: 'auto' | 'manual';
-  isEdited?: boolean;
-}
+import type { MatchMeta } from '../types/matchMeta';
 
 defineProps<{
   meta?: MatchMeta;
