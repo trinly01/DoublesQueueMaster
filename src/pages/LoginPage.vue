@@ -159,6 +159,28 @@
             </q-btn>
           </div>
 
+          <!-- In-app browser warning banner (iOS WKWebView) -->
+          <q-banner
+            v-if="isIOSWebview"
+            class="bg-orange-1 text-orange-9 rounded-borders q-mt-md"
+            dense
+          >
+            <template v-slot:avatar>
+              <q-icon name="open_in_browser" color="orange" />
+            </template>
+            Google login may not work in this in-app browser.
+            <template v-slot:action>
+              <q-btn
+                flat
+                dense
+                no-caps
+                color="orange-9"
+                label="Open in Browser"
+                @click="openInExternalBrowser"
+              />
+            </template>
+          </q-banner>
+
           <div class="text-center q-mt-md">
             <span class="text-grey-7">Don't have an account? </span>
             <router-link
@@ -215,12 +237,18 @@ const isIOSWebview = (() => {
   const isStandalonePWA =
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as unknown as Record<string, unknown>).standalone === true;
+  const forced =
+    new URLSearchParams(window.location.search).get('webview') === '1' ||
+    new URLSearchParams(window.location.hash.split('?')[1] ?? '').get(
+      'webview',
+    ) === '1';
   return (
-    isIOS &&
-    !/Safari/i.test(ua) &&
-    !/CriOS/i.test(ua) &&
-    !/FxiOS/i.test(ua) &&
-    !isStandalonePWA
+    forced ||
+    (isIOS &&
+      !/Safari/i.test(ua) &&
+      !/CriOS/i.test(ua) &&
+      !/FxiOS/i.test(ua) &&
+      !isStandalonePWA)
   );
 })();
 
@@ -388,6 +416,10 @@ const onSubmit = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const openInExternalBrowser = () => {
+  window.open(window.location.href, '_blank');
 };
 
 const onGoogleLogin = () => {
