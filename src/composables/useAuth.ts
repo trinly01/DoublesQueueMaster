@@ -15,6 +15,7 @@ export function useAuth() {
     LocalStorage.remove('dink-auth');
     LocalStorage.remove('likha-data');
     LocalStorage.remove('current_user_id');
+    LocalStorage.remove('recent_clubs_cache');
     PlayerProfile.clearProfile();
   };
 
