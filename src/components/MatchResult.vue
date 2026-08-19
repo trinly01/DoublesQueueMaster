@@ -111,14 +111,6 @@
             >{{ court }}</q-avatar
           >
         </q-chip>
-        <span
-          v-if="winProbability !== undefined"
-          class="text-caption text-grey-6"
-        >
-          {{ (winProbability * 100).toFixed(0) }}%
-          <q-icon name="sports_tennis" color="grey-6" size="sm" />
-          {{ ((1 - winProbability) * 100).toFixed(0) }}%
-        </span>
         <q-chip
           v-if="status"
           :color="getMatchStatusColor(status)"
@@ -128,28 +120,59 @@
         >
           {{ getMatchStatusLabel(status) }}
         </q-chip>
-        <!-- Read-only: scores flanking VS -->
+        <!-- Read-only: scores + probability in aligned grid -->
         <div
           v-if="
             !editable && teamAScore !== undefined && teamBScore !== undefined
           "
-          class="row items-center justify-center q-gutter-x-sm q-mt-xs"
+          class="q-mt-xs"
+          style="
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 0 1.5rem;
+            line-height: 1;
+            margin-bottom: 0;
+          "
         >
-          <span class="text-h5 text-weight-bold">{{ teamAScore }}</span>
-          <span class="text-subtitle2 text-weight-bold text-grey-8">VS</span>
-          <span class="text-h5 text-weight-bold">{{ teamBScore }}</span>
+          <div class="text-center" style="line-height: 1">
+            <div class="text-h5 text-weight-bold" style="line-height: 1">
+              {{ teamAScore }}
+            </div>
+            <div
+              v-if="winProbability !== undefined"
+              class="text-caption text-grey-6"
+              style="line-height: 1; margin-top: 0"
+            >
+              {{ (winProbability * 100).toFixed(0) }}%
+            </div>
+          </div>
+          <div class="text-center">
+            <span class="text-subtitle2 text-weight-bold text-grey-8">VS</span>
+          </div>
+          <div class="text-center" style="line-height: 1">
+            <div class="text-h5 text-weight-bold" style="line-height: 1">
+              {{ teamBScore }}
+            </div>
+            <div
+              v-if="winProbability !== undefined"
+              class="text-caption text-grey-6"
+              style="line-height: 1; margin-top: 0"
+            >
+              {{ ((1 - winProbability) * 100).toFixed(0) }}%
+            </div>
+          </div>
         </div>
         <div v-else class="text-subtitle2 text-weight-bold text-grey-8">VS</div>
         <div
           v-if="completedAt"
           :class="[
-            'text-caption text-grey-6 q-mt-xs',
+            'text-caption text-grey-6 text-center q-mt-xs',
             blurDate ? 'stats-blur' : '',
           ]"
         >
           {{ formatDate(completedAt) }}
         </div>
-        <div v-if="startedAt && completedAt" class="q-mt-xs">
+        <div v-if="startedAt && completedAt" class="text-center q-mt-xs">
           <q-badge
             rounded
             color="amber-6"
@@ -347,7 +370,7 @@ const formatDuration = (startIso: string, endIso: string): string => {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 0;
     line-height: 1;
 
     .q-chip {

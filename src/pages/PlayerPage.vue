@@ -372,6 +372,7 @@
                     :teamB="match.team_b"
                     :teamAScore="match.team_a_score"
                     :teamBScore="match.team_b_score"
+                    :winProbability="getMatchWinProbability(match)"
                     :completedAt="match.completed_at"
                     :startedAt="match.started_at"
                     :meta="match.meta"
@@ -615,6 +616,7 @@
                       :teamB="g.match.team_b"
                       :teamAScore="g.match.team_a_score"
                       :teamBScore="g.match.team_b_score"
+                      :winProbability="getMatchWinProbability(g.match)"
                       :completedAt="g.match.completed_at"
                       :startedAt="g.match.started_at"
                       :blurDate="isPaymentExpired"
@@ -965,6 +967,8 @@ import {
   RatingEvent,
   type DirectusCompletedMatch,
 } from 'src/services/playerProfile';
+import { computeWinProbability } from 'src/services/matchmaking';
+import type { Player } from 'src/services/matchmaking';
 import { useAuth } from 'src/composables/useAuth';
 import { usePayment } from 'src/composables/usePayment';
 import MatchResult from 'src/components/MatchResult.vue';
@@ -1273,6 +1277,17 @@ const getMatchRowClass = (match: DirectusCompletedMatch): string => {
     return match.team_b_score >= match.team_a_score ? 'bg-green-1' : 'bg-red-1';
   }
   return '';
+};
+
+const getMatchWinProbability = (
+  match: DirectusCompletedMatch,
+): number | undefined => {
+  if (!match.team_a?.length || !match.team_b?.length) return undefined;
+  const stats = computeWinProbability(
+    match.team_a as unknown as Player[],
+    match.team_b as unknown as Player[],
+  );
+  return stats.teamA;
 };
 
 const matchChartData = computed(() => {

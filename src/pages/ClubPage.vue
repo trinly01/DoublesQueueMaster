@@ -543,6 +543,8 @@
                           :teamB="match.teamB"
                           :teamAScore="match.teamAScore"
                           :teamBScore="match.teamBScore"
+                          :winProbability="match.winProbability"
+                          :startedAt="match.startedAt?.toString()"
                           :completedAt="match.completedAt"
                           :meta="{
                             generatedBy: match.generatedBy,
@@ -991,6 +993,8 @@
                           :teamB="match.teamB"
                           :teamAScore="match.teamAScore"
                           :teamBScore="match.teamBScore"
+                          :winProbability="match.winProbability"
+                          :startedAt="match.startedAt?.toString()"
                           :completedAt="match.completedAt"
                           :meta="{
                             generatedBy: match.generatedBy,
@@ -2168,13 +2172,17 @@ const completedMatchViewModels = computed(() => {
       ...p,
       username: p.username,
     }));
+    const stats = computeWinProbability(
+      teamA as unknown as Player[],
+      teamB as unknown as Player[],
+    );
     return {
       id: m.matchId,
       teamA,
       teamB,
       players: [...teamA, ...teamB],
-      expectedDifference: 0,
-      winProbability: 0,
+      expectedDifference: stats.expectedDifference,
+      winProbability: stats.teamA,
       status: 'completed' as const,
       teamAScore: m.teamAScore,
       teamBScore: m.teamBScore,
@@ -2182,7 +2190,7 @@ const completedMatchViewModels = computed(() => {
       court: undefined,
       order: index + 1,
       createdAt: new Date(m.completedAt || Date.now()),
-      startedAt: m.startedAt ? new Date(m.startedAt) : undefined,
+      startedAt: m.startedAt ? new Date(m.startedAt).toISOString() : undefined,
       queueSource: undefined,
       generatedBy: m.meta?.generatedBy,
       editedBy: m.meta?.editedBy,
