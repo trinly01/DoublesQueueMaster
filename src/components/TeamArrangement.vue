@@ -1,263 +1,189 @@
 <template>
   <div class="team-arrangement">
-    <!-- Balance Indicator -->
-    <div class="balance-indicator q-mb-lg">
-      <div class="row items-center justify-between">
-        <div class="text-subtitle1">Team Balance</div>
-        <div class="row items-center q-gutter-sm">
-          <q-chip
-            :color="getBalanceColor()"
-            text-color="white"
-            :icon="getBalanceIcon()"
-            size="md"
+    <!-- Compact balance + actions bar -->
+    <div class="row items-center justify-between q-mb-md">
+      <div class="row items-center q-gutter-xs">
+        <q-chip
+          :color="getBalanceColor()"
+          text-color="white"
+          :icon="getBalanceIcon()"
+          size="sm"
+          dense
+        >
+          {{ getBalanceText() }}
+        </q-chip>
+        <q-icon v-if="!isBalanced()" name="warning" color="orange" size="xs" />
+      </div>
+      <div class="row items-center q-gutter-xs">
+        <q-btn
+          color="accent"
+          label="Balance"
+          icon="balance"
+          @click="balanceTeams"
+          outline
+          dense
+          size="sm"
+        />
+        <q-btn
+          color="accent"
+          label="Shuffle"
+          icon="shuffle"
+          @click="shuffleTeams"
+          outline
+          dense
+          size="sm"
+        />
+      </div>
+    </div>
+
+    <!-- Compact teams layout: Team A | center | Team B -->
+    <div class="row items-start no-wrap teams-row">
+      <!-- Team 1 -->
+      <div class="col text-center team-col">
+        <div class="team-header bg-blue-6 text-white">
+          <div class="header-left">
+            <q-chip
+              :label="getTeamSkill(team1)"
+              color="white"
+              text-color="blue-6"
+              size="xs"
+              dense
+              class="header-chip"
+            />
+            <span class="header-pct"> {{ getWinProbability().teamA }}% </span>
+          </div>
+          <div class="header-right">
+            <span class="header-stat"> H:{{ getHarmonicMean(team1) }} </span>
+            <span class="header-stat"> A:{{ getArithmeticMean(team1) }} </span>
+          </div>
+          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">
+            Rating: 60% Harmonic + 40% Arithmetic · Win: Win Probability · H:
+            Harmonic Mean (weakest player weighs more) · A: Arithmetic Mean
+            (simple average)
+          </q-tooltip>
+        </div>
+        <div
+          v-for="player in team1"
+          :key="player.username"
+          class="team-player swappable-player"
+          :class="{
+            'selected-for-swap': selectedForSwap?.username === player.username,
+            'can-swap-with':
+              selectedForSwap &&
+              selectedForSwapTeam !== 'team1' &&
+              selectedForSwap.username !== player.username,
+            'disabled-teammate':
+              selectedForSwap &&
+              selectedForSwapTeam === 'team1' &&
+              selectedForSwap.username !== player.username,
+          }"
+          @click="
+            selectedForSwap &&
+            selectedForSwapTeam === 'team1' &&
+            selectedForSwap.username !== player.username
+              ? null
+              : selectPlayerForSwap(player, 'team1')
+          "
+        >
+          <span
+            class="text-weight-medium player-name text-blue-6"
+            :class="{
+              'text-green': selectedForSwap?.username === player.username,
+            }"
           >
-            {{ getBalanceText() }}
-          </q-chip>
-          <q-icon v-if="!isBalanced()" name="warning" color="orange" size="sm">
-            <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-              >Unbalanced</q-tooltip
-            >
-          </q-icon>
+            {{ player.firstName || player.username }}
+          </span>
+          <q-chip
+            :label="player.rating || 1450"
+            :color="getRatingColor(player.rating || 1450)"
+            text-color="white"
+            size="xs"
+            dense
+          />
+        </div>
+        <div v-if="team1.length === 0" class="text-grey-5 text-caption q-pa-sm">
+          Empty
         </div>
       </div>
-      <!-- <div class="text-caption text-grey-7 q-mt-xs">
-        Team 1: {{ getTeamSkill(team1) }} vs Team 2: {{ getTeamSkill(team2) }}
-      </div> -->
-    </div>
 
-    <!-- Team Arrangement Actions -->
-    <div class="row q-mb-lg q-gutter-sm">
-      <q-btn
-        color="accent"
-        label="Balance Teams"
-        icon="balance"
-        @click="balanceTeams"
-        outline
-      />
-      <q-btn
-        color="accent"
-        label="Shuffle"
-        icon="shuffle"
-        @click="shuffleTeams"
-        outline
-      />
-    </div>
-
-    <!-- Teams Display -->
-    <div class="row q-col-gutter-lg">
-      <!-- Team 1 -->
-      <div class="col-12 col-md-6">
-        <q-card flat bordered>
-          <q-card-section class="bg-blue-6 text-white">
-            <div class="text-h6">
-              Team 1
-              <q-chip
-                :label="`Rating: ${getTeamSkill(team1)}`"
-                color="white"
-                text-color="blue-6"
-                size="sm"
-                class="q-ml-sm"
-              />
-              <q-chip
-                :label="`Win: ${getWinProbability().teamA}%`"
-                color="white"
-                text-color="blue-6"
-                size="sm"
-                class="q-ml-sm"
-              />
-            </div>
-            <div class="text-caption q-mt-xs" style="opacity: 0.85">
-              H: {{ getHarmonicMean(team1) }} | A:
-              {{ getArithmeticMean(team1) }}
-            </div>
-          </q-card-section>
-          <q-card-section class="team-drop-area">
-            <div class="text-caption text-grey-6 q-mb-sm text-center">
-              <q-icon name="touch_app" size="xs" /> Click to select, click
-              another to swap
-            </div>
-            <q-list v-if="team1.length > 0">
-              <q-item
-                v-for="(player, index) in team1"
-                :key="player.username"
-                clickable
-                class="team-player-item swappable-player"
-                :class="{
-                  'selected-for-swap':
-                    selectedForSwap?.username === player.username,
-                  'can-swap-with':
-                    selectedForSwap &&
-                    selectedForSwap.username !== player.username,
-                }"
-                @click="selectPlayerForSwap(player, 'team1')"
-              >
-                <q-item-section avatar>
-                  <q-avatar
-                    :color="getLevelColor(player.level)"
-                    text-color="white"
-                    :class="{
-                      'swap-pulse':
-                        selectedForSwap?.username === player.username,
-                    }"
-                  >
-                    {{ index + 1 }}
-                    <q-tooltip
-                      anchor="top middle"
-                      self="bottom middle"
-                      :offset="[8, 8]"
-                      >{{ player.firstName || player.username }} - Rating
-                      {{ player.rating || 1450 }} - Position
-                      {{ index + 1 }}</q-tooltip
-                    >
-                  </q-avatar>
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label class="text-weight-medium">
-                    {{ player.firstName || player.username }}
-                    <q-icon
-                      v-if="selectedForSwap?.username === player.username"
-                      name="check_circle"
-                      color="green"
-                      size="sm"
-                      class="q-ml-xs swap-icon-pulse"
-                    />
-                  </q-item-label>
-                  <q-item-label
-                    caption
-                    class="text-grey-6"
-                    style="font-size: 10px"
-                    v-if="player.username && player.firstName"
-                  >
-                    @{{ player.username }}
-                  </q-item-label>
-                  <q-chip
-                    :label="player.rating || 1450"
-                    :color="getRatingColor(player.rating || 1450)"
-                    text-color="white"
-                    size="xs"
-                    dense
-                    style="width: fit-content"
-                  />
-                </q-item-section>
-                <q-item-section side>
-                  <q-icon name="swap_horiz" color="grey-5" size="sm" />
-                </q-item-section>
-              </q-item>
-            </q-list>
-            <div v-else class="text-center text-grey-6 q-pa-md empty-team-drop">
-              <q-icon name="group_add" size="lg" color="grey-4" />
-              <p class="q-mt-sm">Click to assign</p>
-            </div>
-          </q-card-section>
-        </q-card>
+      <!-- Center: VS icon -->
+      <div class="col-auto q-mx-sm center-group">
+        <q-icon name="sports_tennis" color="grey-6" size="sm" />
       </div>
 
       <!-- Team 2 -->
-      <div class="col-12 col-md-6">
-        <q-card flat bordered>
-          <q-card-section class="bg-orange-6 text-white">
-            <div class="text-h6">
-              Team 2
-              <q-chip
-                :label="`Rating: ${getTeamSkill(team2)}`"
-                color="white"
-                text-color="orange-6"
-                size="sm"
-                class="q-ml-sm"
-              />
-              <q-chip
-                :label="`Win: ${getWinProbability().teamB}%`"
-                color="white"
-                text-color="orange-6"
-                size="sm"
-                class="q-ml-sm"
-              />
-            </div>
-            <div class="text-caption q-mt-xs" style="opacity: 0.85">
-              H: {{ getHarmonicMean(team2) }} | A:
-              {{ getArithmeticMean(team2) }}
-            </div>
-          </q-card-section>
-          <q-card-section class="team-drop-area">
-            <div class="text-caption text-grey-6 q-mb-sm text-center">
-              <q-icon name="touch_app" size="xs" /> Click to select, click
-              another to swap
-            </div>
-            <q-list v-if="team2.length > 0">
-              <q-item
-                v-for="(player, index) in team2"
-                :key="player.username"
-                clickable
-                class="team-player-item swappable-player"
-                :class="{
-                  'selected-for-swap':
-                    selectedForSwap?.username === player.username,
-                  'can-swap-with':
-                    selectedForSwap &&
-                    selectedForSwap.username !== player.username,
-                }"
-                @click="selectPlayerForSwap(player, 'team2')"
-              >
-                <q-item-section avatar>
-                  <q-avatar
-                    :color="getLevelColor(player.level)"
-                    text-color="white"
-                    :class="{
-                      'swap-pulse':
-                        selectedForSwap?.username === player.username,
-                    }"
-                  >
-                    {{ index + 1 }}
-                    <q-tooltip
-                      anchor="top middle"
-                      self="bottom middle"
-                      :offset="[8, 8]"
-                      >{{ player.firstName || player.username }} - Rating
-                      {{ player.rating || 1450 }} - Position
-                      {{ index + 1 }}</q-tooltip
-                    >
-                  </q-avatar>
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label class="text-weight-medium">
-                    {{ player.firstName || player.username }}
-                    <q-icon
-                      v-if="selectedForSwap?.username === player.username"
-                      name="check_circle"
-                      color="green"
-                      size="sm"
-                      class="q-ml-xs swap-icon-pulse"
-                    />
-                  </q-item-label>
-                  <q-item-label
-                    caption
-                    class="text-grey-6"
-                    style="font-size: 10px"
-                    v-if="player.username && player.firstName"
-                  >
-                    @{{ player.username }}
-                  </q-item-label>
-                  <q-chip
-                    :label="player.rating || 1450"
-                    :color="getRatingColor(player.rating || 1450)"
-                    text-color="white"
-                    size="xs"
-                    dense
-                    style="width: fit-content"
-                  />
-                </q-item-section>
-                <q-item-section side>
-                  <q-icon name="swap_horiz" color="grey-5" size="sm" />
-                </q-item-section>
-              </q-item>
-            </q-list>
-            <div v-else class="text-center text-grey-6 q-pa-md empty-team-drop">
-              <q-icon name="group_add" size="lg" color="grey-4" />
-              <p class="q-mt-sm">Click to assign</p>
-            </div>
-          </q-card-section>
-        </q-card>
+      <div class="col text-center team-col">
+        <div class="team-header bg-orange-6 text-white">
+          <div class="header-left">
+            <q-chip
+              :label="getTeamSkill(team2)"
+              color="white"
+              text-color="orange-6"
+              size="xs"
+              dense
+              class="header-chip"
+            />
+            <span class="header-pct"> {{ getWinProbability().teamB }}% </span>
+          </div>
+          <div class="header-right">
+            <span class="header-stat"> H:{{ getHarmonicMean(team2) }} </span>
+            <span class="header-stat"> A:{{ getArithmeticMean(team2) }} </span>
+          </div>
+          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">
+            Rating: 60% Harmonic + 40% Arithmetic · Win: Win Probability · H:
+            Harmonic Mean (weakest player weighs more) · A: Arithmetic Mean
+            (simple average)
+          </q-tooltip>
+        </div>
+        <div
+          v-for="player in team2"
+          :key="player.username"
+          class="team-player swappable-player"
+          :class="{
+            'selected-for-swap': selectedForSwap?.username === player.username,
+            'can-swap-with':
+              selectedForSwap &&
+              selectedForSwapTeam !== 'team2' &&
+              selectedForSwap.username !== player.username,
+            'disabled-teammate':
+              selectedForSwap &&
+              selectedForSwapTeam === 'team2' &&
+              selectedForSwap.username !== player.username,
+          }"
+          @click="
+            selectedForSwap &&
+            selectedForSwapTeam === 'team2' &&
+            selectedForSwap.username !== player.username
+              ? null
+              : selectPlayerForSwap(player, 'team2')
+          "
+        >
+          <span
+            class="text-weight-medium player-name text-orange-6"
+            :class="{
+              'text-green': selectedForSwap?.username === player.username,
+            }"
+          >
+            {{ player.firstName || player.username }}
+          </span>
+          <q-chip
+            :label="player.rating || 1450"
+            :color="getRatingColor(player.rating || 1450)"
+            text-color="white"
+            size="xs"
+            dense
+          />
+        </div>
+        <div v-if="team2.length === 0" class="text-grey-5 text-caption q-pa-sm">
+          Empty
+        </div>
       </div>
+    </div>
+
+    <!-- Swap hint -->
+    <div class="text-center text-caption text-grey-6 q-mt-sm">
+      <q-icon name="touch_app" size="xs" /> Click a player, then click another
+      to swap
     </div>
   </div>
 </template>
@@ -347,19 +273,6 @@ const getBalanceText = (): string => {
   return 'Very Unbalanced';
 };
 
-const getLevelColor = (level: 1 | 2 | 3): string => {
-  switch (level) {
-    case 1:
-      return 'green-6';
-    case 2:
-      return 'orange-7';
-    case 3:
-      return 'red-8';
-    default:
-      return 'grey-5';
-  }
-};
-
 // Methods
 const balanceTeams = () => {
   const allPlayers = [...props.team1, ...props.team2];
@@ -396,37 +309,25 @@ const selectPlayerForSwap = (player: Player, team: 'team1' | 'team2') => {
     return;
   }
 
-  // If clicking another player, swap them
+  // If clicking another player, swap them in-place (preserve index)
   const team1Array = [...props.team1];
   const team2Array = [...props.team2];
 
-  // Remove both players from their current teams
-  const newTeam1 = team1Array.filter(
-    (p) =>
-      p.username !== selectedForSwap.value!.username &&
-      p.username !== player.username,
+  const fromTeam =
+    selectedForSwapTeam.value === 'team1' ? team1Array : team2Array;
+  const toTeam = team === 'team1' ? team1Array : team2Array;
+
+  const fromIndex = fromTeam.findIndex(
+    (p) => p.username === selectedForSwap.value!.username,
   );
-  const newTeam2 = team2Array.filter(
-    (p) =>
-      p.username !== selectedForSwap.value!.username &&
-      p.username !== player.username,
-  );
+  const toIndex = toTeam.findIndex((p) => p.username === player.username);
 
-  // Add them to their new teams
-  if (selectedForSwapTeam.value === 'team1') {
-    newTeam2.push(selectedForSwap.value);
-  } else {
-    newTeam1.push(selectedForSwap.value);
-  }
+  // Swap the players at their original indices
+  fromTeam[fromIndex] = player;
+  toTeam[toIndex] = selectedForSwap.value;
 
-  if (team === 'team1') {
-    newTeam2.push(player);
-  } else {
-    newTeam1.push(player);
-  }
-
-  emit('update:team1', newTeam1);
-  emit('update:team2', newTeam2);
+  emit('update:team1', team1Array);
+  emit('update:team2', team2Array);
 
   // Reset selection
   selectedForSwap.value = null;
@@ -435,104 +336,125 @@ const selectPlayerForSwap = (player: Player, team: 'team1' | 'team2') => {
 </script>
 
 <style lang="scss" scoped>
-.balance-indicator {
-  background: #f5f5f5;
-  padding: 1rem;
-  border-radius: 8px;
-  border: 2px solid #e0e0e0;
+.teams-row {
+  min-height: 120px;
 }
 
-.team-player-item {
-  transition: background-color 0.2s ease;
-
-  &:hover {
-    background-color: rgba(0, 0, 0, 0.02);
-  }
+.team-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
-.team-drop-area {
-  min-height: 200px;
-  position: relative;
+.team-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-radius: 6px;
+  width: 100%;
 }
 
-.empty-team-drop {
-  opacity: 0.6;
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
 }
 
-// Swappable player styles
-.swappable-player {
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.header-chip {
+  margin: 0 !important;
+}
+
+.header-pct {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  line-height: 1.1;
+}
+
+.header-stat {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  line-height: 1.1;
+}
+
+.team-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   user-select: none;
-  position: relative;
   touch-action: manipulation;
+  width: 100%;
 
   &:active {
     background-color: rgba(0, 0, 0, 0.08);
   }
 
   &.selected-for-swap {
-    background: linear-gradient(90deg, rgba(33, 186, 69, 0.2), transparent);
-    border-left: 4px solid #21ba45;
-    box-shadow: 0 4px 12px rgba(33, 186, 69, 0.3);
-    animation: pulse-green 1.5s ease-in-out infinite;
+    background: rgba(33, 186, 69, 0.15);
+    border: 2px solid #21ba45;
+    box-shadow: 0 2px 8px rgba(33, 186, 69, 0.3);
+  }
+
+  &.can-swap-with {
+    border: 2px dashed #21ba45;
+    background-color: rgba(33, 186, 69, 0.05);
   }
 
   &.can-swap-with:hover {
-    background-color: rgba(33, 186, 69, 0.1);
+    background-color: rgba(33, 186, 69, 0.12);
     border: 2px dashed #21ba45;
-    transform: translateX(4px);
   }
 
-  &:hover:not(.selected-for-swap) {
+  &.disabled-teammate {
+    opacity: 0.4;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  &:hover:not(.selected-for-swap):not(.disabled-teammate) {
     background-color: rgba(0, 0, 0, 0.04);
-    transform: translateX(4px);
   }
 }
 
-// Animations
-@keyframes pulse-green {
-  0%,
-  100% {
-    box-shadow: 0 4px 12px rgba(33, 186, 69, 0.3);
-    border-left-width: 4px;
-  }
-
-  50% {
-    box-shadow: 0 6px 20px rgba(33, 186, 69, 0.6);
-    border-left-width: 6px;
-  }
+.player-name {
+  font-size: 0.8rem;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.swap-icon-pulse {
-  animation: icon-bounce 0.8s ease-in-out infinite;
+.center-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 8px;
 }
 
-@keyframes icon-bounce {
-  0%,
-  100% {
-    transform: scale(1);
+// Mobile adjustments
+@media (max-width: 768px) {
+  .player-name {
+    font-size: 0.75rem;
+    max-width: 70px;
   }
 
-  50% {
-    transform: scale(1.2);
-  }
-}
-
-.swap-pulse {
-  animation: avatar-pulse 1s ease-in-out infinite;
-}
-
-@keyframes avatar-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
-  }
-
-  50% {
-    transform: scale(1.1);
-    box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+  .center-group {
+    padding-top: 20px;
   }
 }
 </style>
