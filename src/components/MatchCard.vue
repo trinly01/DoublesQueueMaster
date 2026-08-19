@@ -190,7 +190,7 @@
         <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
           >Options</q-tooltip
         >
-        <q-menu>
+        <q-menu auto-close>
           <q-list style="min-width: 150px">
             <q-item
               v-if="match.status === 'in-progress'"
