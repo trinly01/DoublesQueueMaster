@@ -146,6 +146,9 @@
           matchmakingMode: match.matchmakingMode,
           generationType: match.generationType,
           isEdited: match.isEdited,
+          originalMatchup: match.originalMatchup,
+          originalTeamA: match.originalTeamA,
+          originalTeamB: match.originalTeamB,
         }"
       />
       <!-- <div
@@ -266,6 +269,9 @@ interface Match {
   matchmakingMode?: string;
   generationType?: 'auto' | 'manual';
   isEdited?: boolean;
+  originalMatchup?: string;
+  originalTeamA?: string;
+  originalTeamB?: string;
 }
 
 interface Props {
