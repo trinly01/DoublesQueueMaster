@@ -1406,6 +1406,106 @@ describe('mergeAppState — reset / checkpoint consistency', () => {
     expect(merged.completedMatches.length).toBe(1);
     expect(merged.completedMatches[0]?.matchId).toBe('new');
   });
+
+  it('per-field LWW for completedMatchesResetAt wins over whole-blob settingsUpdatedAt', () => {
+    // Side A: newer unrelated settings change (higher settingsUpdatedAt) but
+    // an OLD completedMatchesResetAt (never reset). Has per-field stamp for
+    // ttsEnabled but NOT for completedMatchesResetAt.
+    const a = makeState({
+      completedMatchesResetAt: 0,
+      completedMatches: [
+        makeCompletedMatch('m1', { completedAt: 5000, updatedAt: 5000 }),
+      ],
+      settingsUpdatedAt: 6000,
+      settingsFieldTimestamps: { ttsEnabled: 6000 },
+      lastModified: 6000,
+    });
+    // Side B: older settings blob but reset completed matches at t=3000 with
+    // a per-field stamp for completedMatchesResetAt.
+    const b = makeState({
+      completedMatchesResetAt: 3000,
+      completedMatches: [
+        makeCompletedMatch('m1', { completedAt: 5000, updatedAt: 5000 }),
+        makeCompletedMatch('old', { completedAt: 1000, updatedAt: 1000 }),
+      ],
+      settingsUpdatedAt: 3000,
+      settingsFieldTimestamps: { completedMatchesResetAt: 3000 },
+      lastModified: 3000,
+    });
+    // Per-field LWW: B's completedMatchesResetAt=3000 should win.
+    // The match completed at 5000 survives; the one at 1000 is dropped.
+    const merged = mergeAppState(a, b);
+    expect(merged.completedMatches.length).toBe(1);
+    expect(merged.completedMatches[0]?.matchId).toBe('m1');
+    expect(merged.completedMatchesResetAt).toBe(3000);
+  });
+
+  it('future-dated completedMatchesResetAt is ignored (clock skew guard)', () => {
+    const realNow = Date.now();
+    // Side A has matches completed "now" (relative to test time).
+    const a = makeState({
+      players: {
+        alice: makePlayer(1500, { username: 'alice', createdAt: 1000 }),
+      },
+      completedMatches: [
+        makeCompletedMatch('recent', {
+          completedAt: realNow - 100,
+          updatedAt: realNow - 100,
+        }),
+      ],
+      lastModified: realNow - 50,
+    });
+    // Side B: a reset done with a fast clock — resetAt is 1 hour in the future.
+    // Must have players/queues so it doesn't trigger the hard-reset early return.
+    const futureTime = realNow + 60 * 60 * 1000;
+    const b = makeState({
+      players: {
+        alice: makePlayer(1500, { username: 'alice', createdAt: 1000 }),
+      },
+      completedMatchesResetAt: futureTime,
+      completedMatches: [],
+      settingsUpdatedAt: futureTime,
+      settingsFieldTimestamps: { completedMatchesResetAt: futureTime },
+      lastModified: futureTime,
+    });
+    const merged = mergeAppState(a, b);
+    // The match completed at realNow-100 should survive because the future
+    // resetAt is ignored (treated as 0).
+    expect(merged.completedMatches.length).toBe(1);
+    expect(merged.completedMatches[0]?.matchId).toBe('recent');
+  });
+
+  it('per-field LWW for completedMatchesResetAt is symmetric', () => {
+    const realNow = Date.now();
+    const a = makeState({
+      completedMatchesResetAt: 0,
+      completedMatches: [
+        makeCompletedMatch('m1', {
+          completedAt: realNow - 100,
+          updatedAt: realNow - 100,
+        }),
+      ],
+      settingsUpdatedAt: 6000,
+      settingsFieldTimestamps: { ttsEnabled: 6000 },
+      lastModified: 6000,
+    });
+    const b = makeState({
+      completedMatchesResetAt: 3000,
+      completedMatches: [
+        makeCompletedMatch('m1', {
+          completedAt: realNow - 100,
+          updatedAt: realNow - 100,
+        }),
+      ],
+      settingsUpdatedAt: 3000,
+      settingsFieldTimestamps: { completedMatchesResetAt: 3000 },
+      lastModified: 3000,
+    });
+    const ab = mergeAppState(a, b);
+    const ba = mergeAppState(b, a);
+    expect(ab.completedMatches.length).toBe(ba.completedMatches.length);
+    expect(ab.completedMatchesResetAt).toBe(ba.completedMatchesResetAt);
+  });
 });
 
 describe('mergeAppState — convergence & multi-admin healing', () => {
