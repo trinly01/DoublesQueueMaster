@@ -2251,6 +2251,15 @@ const filteredMatches = computed(() => {
       (b as unknown as { oldestQueueEntryAt?: number }).oldestQueueEntryAt ??
       b.createdAt.getTime();
     if ((a.status as string) === 'cancelled') return bTime - aTime;
+    if ((a.status as string) === 'completed') return bTime - aTime;
+    if (matchesFilterBy.value === 'edited') return bTime - aTime;
+    if ((a.status as string) === 'in-progress') {
+      const aStarted =
+        (a as unknown as { startedAt?: Date }).startedAt?.getTime() ?? aTime;
+      const bStarted =
+        (b as unknown as { startedAt?: Date }).startedAt?.getTime() ?? bTime;
+      return aStarted - bStarted;
+    }
     return aTime - bTime;
   });
 
