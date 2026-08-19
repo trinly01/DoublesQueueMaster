@@ -355,6 +355,7 @@
                     size="md"
                     split
                     stack
+                    content-class="no-scrollbar"
                     :icon="
                       allStarSortDirection === 'desc'
                         ? 'trending_up'
@@ -388,9 +389,6 @@
                         v-close-popup
                         @click="allStarSortDirection = 'desc'"
                       >
-                        <q-item-section avatar>
-                          <q-icon name="trending_up" />
-                        </q-item-section>
                         <q-item-section>
                           <q-item-label>Top Rated First</q-item-label>
                           <q-item-label caption
@@ -403,9 +401,6 @@
                         v-close-popup
                         @click="allStarSortDirection = 'asc'"
                       >
-                        <q-item-section avatar>
-                          <q-icon name="trending_down" />
-                        </q-item-section>
                         <q-item-section>
                           <q-item-label>Bottom Rated First</q-item-label>
                           <q-item-label caption
@@ -812,6 +807,7 @@
                     size="md"
                     split
                     stack
+                    content-class="no-scrollbar"
                     :icon="
                       allStarSortDirection === 'desc'
                         ? 'trending_up'
@@ -845,9 +841,6 @@
                         v-close-popup
                         @click="allStarSortDirection = 'desc'"
                       >
-                        <q-item-section avatar>
-                          <q-icon name="trending_up" />
-                        </q-item-section>
                         <q-item-section>
                           <q-item-label>Top Rated First</q-item-label>
                           <q-item-label caption
@@ -860,9 +853,6 @@
                         v-close-popup
                         @click="allStarSortDirection = 'asc'"
                       >
-                        <q-item-section avatar>
-                          <q-icon name="trending_down" />
-                        </q-item-section>
                         <q-item-section>
                           <q-item-label>Bottom Rated First</q-item-label>
                           <q-item-label caption
@@ -2591,6 +2581,10 @@ const savePlayerEdit = () => {
 </script>
 
 <style lang="scss">
+.no-scrollbar {
+  overflow: visible !important;
+  max-height: none !important;
+}
 .allstar-draft-dropdown {
   display: flex;
   .q-btn-dropdown--current {
