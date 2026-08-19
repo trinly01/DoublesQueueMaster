@@ -12,6 +12,18 @@
       icon="edit"
     >
       Edited
+      <q-tooltip
+        v-if="meta.originalMatchup"
+        anchor="top middle"
+        self="bottom middle"
+        :offset="[0, 8]"
+      >
+        <div class="text-center">
+          <div>{{ meta.originalTeamA }}</div>
+          <div>VS</div>
+          <div>{{ meta.originalTeamB }}</div>
+        </div>
+      </q-tooltip>
     </q-chip>
     <q-chip
       v-else-if="meta.generationType === 'auto'"
@@ -53,7 +65,9 @@
       dense
       icon="person"
     >
-      <q-tooltip>Created by</q-tooltip>
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+        >Created by</q-tooltip
+      >
       {{ meta.generatedBy }}
     </q-chip>
     <q-chip
@@ -64,7 +78,9 @@
       dense
       icon="edit_note"
     >
-      <q-tooltip>Edited by</q-tooltip>
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+        >Edited by</q-tooltip
+      >
       {{ meta.editedBy }}
     </q-chip>
     <q-chip
@@ -75,7 +91,9 @@
       dense
       icon="check_circle"
     >
-      <q-tooltip>Scored by</q-tooltip>
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+        >Scored by</q-tooltip
+      >
       {{ meta.scoredBy }}
     </q-chip>
     <q-chip
@@ -86,7 +104,9 @@
       dense
       icon="cancel"
     >
-      <q-tooltip>Cancelled by</q-tooltip>
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+        >Cancelled by</q-tooltip
+      >
       {{ meta.cancelledBy }}
     </q-chip>
   </div>
