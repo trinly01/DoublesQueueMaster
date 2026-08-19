@@ -748,16 +748,25 @@ export function useMatchActions(context: UseMatchActionsContext) {
     const originalTeamB = originalTeamBNames.join(' & ');
     const originalMatchup = `${originalTeamA} -VS- ${originalTeamB}`;
 
+    // Check if the new teams are actually different from the original
+    const teamsChanged =
+      JSON.stringify([...actualMatch.teamA].sort()) !==
+        JSON.stringify([...newTeamA].sort()) ||
+      JSON.stringify([...actualMatch.teamB].sort()) !==
+        JSON.stringify([...newTeamB].sort());
+
     // Update the match teams in MatchmakingApp state
     actualMatch.teamA = newTeamA;
     actualMatch.teamB = newTeamB;
     actualMatch.updatedAt = Date.now();
-    actualMatch.editedBy = currentAdminName.value;
-    actualMatch.isEdited = true;
-    if (!actualMatch.originalMatchup) {
-      actualMatch.originalMatchup = originalMatchup;
-      actualMatch.originalTeamA = originalTeamA;
-      actualMatch.originalTeamB = originalTeamB;
+    if (teamsChanged) {
+      actualMatch.editedBy = currentAdminName.value;
+      actualMatch.isEdited = true;
+      if (!actualMatch.originalMatchup) {
+        actualMatch.originalMatchup = originalMatchup;
+        actualMatch.originalTeamA = originalTeamA;
+        actualMatch.originalTeamB = originalTeamB;
+      }
     }
 
     // Save data (direct state mutation requires explicit persist)
