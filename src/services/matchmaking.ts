@@ -1047,9 +1047,21 @@ export class LocalMatchmakingSystem {
     this.stampSetting('completedMatchesResetAt');
     // Locally filter; remote side will also filter on sync
     const resetAt = this.state.completedMatchesResetAt;
+    const before = this.state.completedMatches.length;
     this.state.completedMatches = this.state.completedMatches.filter(
       (m) => m.completedAt > resetAt,
     );
+    const dropped = before - this.state.completedMatches.length;
+    if (dropped > 0) {
+      console.warn(
+        '[clearCompletedMatches] dropped',
+        dropped,
+        'completed matches, resetAt:',
+        resetAt,
+        'remaining:',
+        this.state.completedMatches.length,
+      );
+    }
     this.saveState();
   }
 
@@ -1994,16 +2006,71 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     }
   });
 
-  // Determine winning settings side for completedMatchesResetAt / lastExportedAt
-  const settingsSource =
-    localSettingsTime > serverSettingsTime ? local : server;
-  const winningResetAt = settingsSource.completedMatchesResetAt ?? 0;
+  // Determine winning completedMatchesResetAt using per-field LWW (consistent
+  // with pickSettings below) so an unrelated newer settings blob can't impose
+  // a stale reset epoch. Falls back to whole-blob LWW when no per-field stamps.
+  const localResetTs =
+    (local.settingsFieldTimestamps ?? {})['completedMatchesResetAt'] ?? 0;
+  const serverResetTs =
+    (server.settingsFieldTimestamps ?? {})['completedMatchesResetAt'] ?? 0;
+  let winningResetAt: number;
+  if (localResetTs > 0 || serverResetTs > 0) {
+    winningResetAt =
+      localResetTs >= serverResetTs
+        ? (local.completedMatchesResetAt ?? 0)
+        : (server.completedMatchesResetAt ?? 0);
+  } else {
+    const settingsSource =
+      localSettingsTime > serverSettingsTime ? local : server;
+    winningResetAt = settingsSource.completedMatchesResetAt ?? 0;
+  }
 
+  // Guard against future-dated resets (from clock skew on another admin's
+  // device): a reset epoch in the future is clearly invalid and would silently
+  // drop all completed matches. Ignore it entirely rather than dropping data
+  // based on a clock bug.
+  const nowMs = Date.now();
+  if (winningResetAt > nowMs) {
+    console.warn(
+      '[mergeAppState] ignoring future-dated completedMatchesResetAt:',
+      winningResetAt,
+      '> now:',
+      nowMs,
+    );
+    winningResetAt = 0;
+  }
+
+  let droppedCount = 0;
+  let droppedMinCompletedAt = Infinity;
+  let droppedMaxCompletedAt = 0;
   allCompleted.forEach(({ match }) => {
     if (match.completedAt > winningResetAt) {
       mergedCompletedMatches.push(match);
+    } else {
+      droppedCount++;
+      droppedMinCompletedAt = Math.min(
+        droppedMinCompletedAt,
+        match.completedAt,
+      );
+      droppedMaxCompletedAt = Math.max(
+        droppedMaxCompletedAt,
+        match.completedAt,
+      );
     }
   });
+  if (droppedCount > 0) {
+    console.warn(
+      '[mergeAppState] dropped',
+      droppedCount,
+      'completed matches due to resetAt:',
+      winningResetAt,
+      '(completedAt range:',
+      droppedMinCompletedAt,
+      '-',
+      droppedMaxCompletedAt,
+      ')',
+    );
+  }
 
   // If a match exists in completedMatches, it must not remain active
   // (in-progress or waiting). Tombstone stale active copies so the merge
