@@ -748,24 +748,82 @@ export function useMatchActions(context: UseMatchActionsContext) {
     const originalTeamB = originalTeamBNames.join(' & ');
     const originalMatchup = `${originalTeamA} -VS- ${originalTeamB}`;
 
-    // Check if the new teams are actually different from the original
-    const teamsChanged =
-      JSON.stringify([...actualMatch.teamA].sort()) !==
-        JSON.stringify([...newTeamA].sort()) ||
-      JSON.stringify([...actualMatch.teamB].sort()) !==
-        JSON.stringify([...newTeamB].sort());
+    // Check if the new teams are actually different from the original.
+    // Swapping sides (teamA ↔ teamB) is the same matchup, not an edit.
+    const sortedA = JSON.stringify([...actualMatch.teamA].sort());
+    const sortedB = JSON.stringify([...actualMatch.teamB].sort());
+    const newSortedA = JSON.stringify([...newTeamA].sort());
+    const newSortedB = JSON.stringify([...newTeamB].sort());
+    const sameOrder = sortedA === newSortedA && sortedB === newSortedB;
+    const swappedOrder = sortedA === newSortedB && sortedB === newSortedA;
+    const teamsChanged = !sameOrder && !swappedOrder;
 
     // Update the match teams in MatchmakingApp state
     actualMatch.teamA = newTeamA;
     actualMatch.teamB = newTeamB;
     actualMatch.updatedAt = Date.now();
-    if (teamsChanged) {
-      actualMatch.editedBy = currentAdminName.value;
-      actualMatch.isEdited = true;
-      if (!actualMatch.originalMatchup) {
-        actualMatch.originalMatchup = originalMatchup;
-        actualMatch.originalTeamA = originalTeamA;
-        actualMatch.originalTeamB = originalTeamB;
+
+    // Normalize matchup by sorting names within each team so order doesn't matter.
+    const normalizeMatchup = (teamAUns: string[], teamBUns: string[]) => {
+      const a = teamAUns.map(resolveName).sort().join(' & ');
+      const b = teamBUns.map(resolveName).sort().join(' & ');
+      return `${a} -VS- ${b}`;
+    };
+
+    if (!teamsChanged) {
+      // Teams are the same (or just swapped sides). If previously edited,
+      // check if this matches the original and clear edit history.
+      if (actualMatch.isEdited && actualMatch.originalMatchup) {
+        const origNormalized = normalizeMatchup(
+          actualMatch.originalTeamA?.split(' & ') || [],
+          actualMatch.originalTeamB?.split(' & ') || [],
+        );
+        const newNormalized = normalizeMatchup(newTeamA, newTeamB);
+        const newSwappedNormalized = normalizeMatchup(newTeamB, newTeamA);
+
+        if (
+          origNormalized === newNormalized ||
+          origNormalized === newSwappedNormalized
+        ) {
+          actualMatch.isEdited = false;
+          actualMatch.editedBy = undefined;
+          actualMatch.originalMatchup = undefined;
+          actualMatch.originalTeamA = undefined;
+          actualMatch.originalTeamB = undefined;
+        }
+      }
+    } else {
+      // Teams actually changed.
+      if (actualMatch.isEdited && actualMatch.originalMatchup) {
+        const origNormalized = normalizeMatchup(
+          actualMatch.originalTeamA?.split(' & ') || [],
+          actualMatch.originalTeamB?.split(' & ') || [],
+        );
+        const newNormalized = normalizeMatchup(newTeamA, newTeamB);
+        const newSwappedNormalized = normalizeMatchup(newTeamB, newTeamA);
+
+        if (
+          origNormalized === newNormalized ||
+          origNormalized === newSwappedNormalized
+        ) {
+          // Reverted to original — clear edit history
+          actualMatch.isEdited = false;
+          actualMatch.editedBy = undefined;
+          actualMatch.originalMatchup = undefined;
+          actualMatch.originalTeamA = undefined;
+          actualMatch.originalTeamB = undefined;
+        } else {
+          actualMatch.editedBy = currentAdminName.value;
+          actualMatch.isEdited = true;
+        }
+      } else {
+        actualMatch.editedBy = currentAdminName.value;
+        actualMatch.isEdited = true;
+        if (!actualMatch.originalMatchup) {
+          actualMatch.originalMatchup = originalMatchup;
+          actualMatch.originalTeamA = originalTeamA;
+          actualMatch.originalTeamB = originalTeamB;
+        }
       }
     }
 
