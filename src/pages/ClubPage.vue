@@ -552,6 +552,9 @@
                             matchmakingMode: match.matchmakingMode,
                             generationType: match.generationType,
                             isEdited: match.isEdited,
+                            originalMatchup: match.originalMatchup,
+                            originalTeamA: match.originalTeamA,
+                            originalTeamB: match.originalTeamB,
                           }"
                         />
                       </q-item-section>
@@ -997,6 +1000,9 @@
                             matchmakingMode: match.matchmakingMode,
                             generationType: match.generationType,
                             isEdited: match.isEdited,
+                            originalMatchup: match.originalMatchup,
+                            originalTeamA: match.originalTeamA,
+                            originalTeamB: match.originalTeamB,
                           }"
                         />
                       </q-item-section>
@@ -1361,6 +1367,9 @@ const matches = computed(() => {
         matchmakingMode: m.matchmakingMode,
         generationType: m.generationType,
         isEdited: m.isEdited,
+        originalMatchup: m.originalMatchup,
+        originalTeamA: m.originalTeamA,
+        originalTeamB: m.originalTeamB,
         teamAScore: undefined as number | undefined,
         teamBScore: undefined as number | undefined,
         completedAt: undefined as string | undefined,
@@ -2142,6 +2151,9 @@ const cancelledMatches = computed(() => {
         matchmakingMode: m.matchmakingMode,
         generationType: m.generationType,
         isEdited: m.isEdited,
+        originalMatchup: m.originalMatchup,
+        originalTeamA: m.originalTeamA,
+        originalTeamB: m.originalTeamB,
       };
     });
 });
@@ -2179,6 +2191,9 @@ const completedMatchViewModels = computed(() => {
       matchmakingMode: m.meta?.matchmakingMode,
       generationType: m.meta?.generationType,
       isEdited: m.meta?.isEdited,
+      originalMatchup: m.meta?.originalMatchup,
+      originalTeamA: m.meta?.originalTeamA,
+      originalTeamB: m.meta?.originalTeamB,
     };
   });
 });
