@@ -17,6 +17,50 @@ export interface UseMatchSettingsContext {
   autoAdvanceNextMatchForCourt: (court?: number) => void;
 }
 
+export const MATCHMAKING_MODE_INFO: {
+  label: string;
+  value: string;
+  description: string;
+}[] = [
+  {
+    label: 'Casual',
+    value: 'fair_balance',
+    description: 'Fair teams from the queue. Ratings stay unchanged.',
+  },
+  {
+    label: 'Social',
+    value: 'variety_first',
+    description:
+      'Fresh partners and opponents each round. Ratings stay unchanged.',
+  },
+  {
+    label: 'Standard',
+    value: 'balanced_variety',
+    description:
+      'Balanced teams with varied matchups. Ratings reflect results after each game.',
+  },
+  {
+    label: 'Competitive',
+    value: 'balance_first',
+    description:
+      'Closest matched games from the queue. Ratings reflect results after each game.',
+  },
+  {
+    label: 'Pro Pick',
+    value: 'strict_balance',
+    description:
+      'Picks from the whole pool for ranked games. Ratings reflect results after each game.',
+  },
+];
+
+export const getMatchmakingModeLabel = (mode: string): string =>
+  MATCHMAKING_MODE_INFO.find((o) => o.value === mode)?.label || mode;
+
+export const getMatchmakingModeDescription = (
+  mode: string,
+): string | undefined =>
+  MATCHMAKING_MODE_INFO.find((o) => o.value === mode)?.description;
+
 export function useMatchSettings(context: UseMatchSettingsContext) {
   const {
     deviceSettings,
@@ -312,39 +356,14 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
     },
   ];
 
-  const matchmakingModeOptions = computed(() => [
-    {
-      label: 'Casual',
-      value: 'fair_balance',
-      description: 'Fair teams from the queue. Ratings stay unchanged.',
-    },
-    {
-      label: 'Social',
-      value: 'variety_first',
-      description:
-        'Fresh partners and opponents each round. Ratings stay unchanged.',
-    },
-    {
-      label: 'Standard',
-      value: 'balanced_variety',
-      description:
-        'Balanced teams with varied matchups. Ratings reflect results after each game.',
-    },
-    {
-      label: 'Competitive',
-      value: 'balance_first',
-      description:
-        'Closest matched games from the queue. Ratings reflect results after each game.',
-      disable: isClubSubscriptionExpired.value,
-    },
-    {
-      label: 'Pro Pick',
-      value: 'strict_balance',
-      description:
-        'Picks from the whole pool for ranked games. Ratings reflect results after each game.',
-      disable: isClubSubscriptionExpired.value,
-    },
-  ]);
+  const matchmakingModeOptions = computed(() =>
+    MATCHMAKING_MODE_INFO.map((o) => ({
+      ...o,
+      disable:
+        (o.value === 'balance_first' || o.value === 'strict_balance') &&
+        isClubSubscriptionExpired.value,
+    })),
+  );
 
   return {
     availableCourts,

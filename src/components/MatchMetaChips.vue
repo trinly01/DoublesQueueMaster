@@ -56,6 +56,14 @@
       icon="balance"
     >
       {{ modeLabel(meta.matchmakingMode) }}
+      <q-tooltip
+        v-if="modeDescription(meta.matchmakingMode)"
+        anchor="top middle"
+        self="bottom middle"
+        :offset="[0, 8]"
+      >
+        {{ modeDescription(meta.matchmakingMode) }}
+      </q-tooltip>
     </q-chip>
     <q-chip
       v-if="meta.generatedBy"
@@ -114,19 +122,15 @@
 
 <script setup lang="ts">
 import type { MatchMeta } from '../types/matchMeta';
+import {
+  getMatchmakingModeLabel,
+  getMatchmakingModeDescription,
+} from '../composables/useMatchSettings';
 
 defineProps<{
   meta?: MatchMeta;
 }>();
 
-const modeLabel = (mode: string): string => {
-  const labels: Record<string, string> = {
-    fair_balance: 'Casual',
-    variety_first: 'Social',
-    balance_first: 'Competitive',
-    balanced_variety: 'Standard',
-    strict_balance: 'Pro Pick',
-  };
-  return labels[mode] || mode;
-};
+const modeLabel = getMatchmakingModeLabel;
+const modeDescription = getMatchmakingModeDescription;
 </script>
