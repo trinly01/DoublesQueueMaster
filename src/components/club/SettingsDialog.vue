@@ -734,7 +734,7 @@
 
         <q-list separator v-else>
           <q-item
-            v-for="item in clubFeedback"
+            v-for="item in sortedFeedback"
             :key="item.id"
             :class="item.type === 'report' ? 'bg-red-1' : 'bg-green-1'"
           >
@@ -749,20 +749,22 @@
             <q-item-section>
               <q-item-label class="text-weight-medium">
                 {{ item.type === 'report' ? 'Report by' : 'Kudos by' }}
-                {{ item.reporterName || 'Unknown' }}
+                <span class="text-weight-medium ellipsis">{{
+                  item.reporterName || 'Unknown'
+                }}</span>
                 <span
                   v-if="item.reporterUsername"
-                  class="text-caption text-grey-6"
+                  class="text-caption text-grey-6 ellipsis"
                 >
                   (@{{ item.reporterUsername }})
                 </span>
               </q-item-label>
-              <q-item-label caption class="text-grey-7">
-                <span class="text-grey-7">To:</span>
-                {{ item.playerName || 'Unknown' }}
+              <q-item-label class="text-weight-medium">
+                <span class="text-grey-7">To: </span>
+                <span class="ellipsis">{{ item.playerName || 'Unknown' }}</span>
                 <span
                   v-if="item.playerUsername"
-                  class="text-caption text-grey-6"
+                  class="text-caption text-grey-6 ellipsis"
                 >
                   (@{{ item.playerUsername }})
                 </span>
@@ -813,7 +815,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import DialogHeader from '../DialogHeader.vue';
 import { getRatingColor, formatDateOnly } from '../../utils/playerHelpers';
@@ -828,7 +830,7 @@ defineOptions({ name: 'SettingsDialog' });
 
 const $q = useQuasar();
 
-defineProps<{
+const props = defineProps<{
   modelValue: boolean;
   unreadClubFeedbackCount: number;
   isCurrentUserAdmin: boolean;
@@ -955,6 +957,14 @@ const clubSettingsSort = defineModel<
 
 const clubLogoInput = ref<HTMLInputElement | null>(null);
 
+const sortedFeedback = computed(() =>
+  [...props.clubFeedback].sort((a, b) => {
+    const dateA = new Date(a.dateCreated || a.date_created || 0).getTime();
+    const dateB = new Date(b.dateCreated || b.date_created || 0).getTime();
+    return dateB - dateA;
+  }),
+);
+
 function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
   const source = item.type === 'report' ? REPORT_ITEMS : COMMEND_ITEMS;
   return item.content.items
@@ -962,3 +972,11 @@ function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
     .filter((i): i is ReportItem => !!i);
 }
 </script>
+
+<style scoped>
+.ellipsis {
+  display: inline-block;
+  max-width: 120px;
+  vertical-align: bottom;
+}
+</style>
