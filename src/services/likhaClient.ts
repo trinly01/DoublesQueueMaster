@@ -49,19 +49,31 @@ const _client = createLikha(LIKHA_URL)
 // Password login (JSON mode) stores refresh_token in LocalStorage.
 // Google SSO (cookie mode) does NOT — the refresh token is only in an
 // httpOnly cookie. If we use JSON mode for SSO users, it sends null → 400.
+//
+// Also: single-flight guard. Directus refresh tokens are SINGLE-USE (rotated
+// on every refresh). If two refreshes run concurrently (e.g., wake refresh +
+// 401 interceptor), both send the same old token — the second one gets 401
+// and invalidates the session, causing random logouts. Sharing one in-flight
+// promise across ALL callers (boot, session guard, 401 interceptor) prevents
+// this.
+let _refreshing: Promise<unknown> | null = null;
 const _originalRefresh = _client.refresh.bind(_client);
 _client.refresh = (async (options?: Record<string, unknown>) => {
+  if (_refreshing) return _refreshing;
   const authData = storage.get();
   const hasRefreshToken = !!authData?.refresh_token;
   const mode = hasRefreshToken ? 'json' : 'cookie';
-  return _originalRefresh({ mode, ...options });
+  _refreshing = _originalRefresh({ mode, ...options }).finally(() => {
+    _refreshing = null;
+  });
+  return _refreshing;
 }) as typeof _client.refresh;
 
 // Global 401 interceptor: if a request fails with 401, refresh the token
 // and retry once. This handles the race condition where the access token
 // expired (e.g., phone screen was locked) but the refresh token is still
 // valid. Without this, users see random error toasts on wake.
-let _refreshing: Promise<unknown> | null = null;
+// Refresh calls are deduplicated by the single-flight guard above.
 const originalRequest = _client.request.bind(_client);
 _client.request = async function (fn: never) {
   try {
@@ -70,13 +82,8 @@ _client.request = async function (fn: never) {
     const error = err as { response?: { status?: number } };
     if (error?.response?.status !== 401) throw err;
     // Token expired — refresh and retry once
-    if (!_refreshing) {
-      _refreshing = _client.refresh().finally(() => {
-        _refreshing = null;
-      });
-    }
     try {
-      await _refreshing;
+      await _client.refresh();
     } catch {
       throw err; // refresh failed — throw original 401
     }
