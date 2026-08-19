@@ -737,12 +737,28 @@ export function useMatchActions(context: UseMatchActionsContext) {
       }
     });
 
+    // Capture original matchup before teams are overwritten
+    const resolveName = (username: string): string => {
+      const p = MatchmakingApp.state.players[username];
+      return p?.firstName || username;
+    };
+    const originalTeamANames = actualMatch.teamA.map(resolveName);
+    const originalTeamBNames = actualMatch.teamB.map(resolveName);
+    const originalTeamA = originalTeamANames.join(' & ');
+    const originalTeamB = originalTeamBNames.join(' & ');
+    const originalMatchup = `${originalTeamA} -VS- ${originalTeamB}`;
+
     // Update the match teams in MatchmakingApp state
     actualMatch.teamA = newTeamA;
     actualMatch.teamB = newTeamB;
     actualMatch.updatedAt = Date.now();
     actualMatch.editedBy = currentAdminName.value;
     actualMatch.isEdited = true;
+    if (!actualMatch.originalMatchup) {
+      actualMatch.originalMatchup = originalMatchup;
+      actualMatch.originalTeamA = originalTeamA;
+      actualMatch.originalTeamB = originalTeamB;
+    }
 
     // Save data (direct state mutation requires explicit persist)
     MatchmakingApp.persist();
