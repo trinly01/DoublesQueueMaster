@@ -7,6 +7,13 @@ import { useNotify } from 'src/composables/useNotify';
 // Shared authentication helpers for all authenticated pages.
 // Provides a single source of truth for logging out and for handling
 // expired/invalid sessions (401 responses) consistently across the app.
+
+// Module-level guard: when several parallel API calls fail with 401 at the
+// same time, each caller invokes handleAuthError → logout. Without this
+// guard the user would see multiple "Session expired" toasts and duplicate
+// redirects/server logout calls.
+let _isLoggingOut = false;
+
 export function useAuth() {
   const { notify } = useNotify();
 
@@ -24,6 +31,8 @@ export function useAuth() {
     router: Router,
     opts: { message?: string; redirect?: string } = {},
   ) => {
+    if (_isLoggingOut) return;
+    _isLoggingOut = true;
     const { message = 'Logged out successfully', redirect = '/login' } = opts;
     try {
       await likhaClient.logout();
@@ -33,6 +42,7 @@ export function useAuth() {
       clearLocalSession();
       notify({ color: 'info', message });
       void router.push(redirect);
+      _isLoggingOut = false;
     }
   };
 
