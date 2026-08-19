@@ -623,7 +623,21 @@ export function useMatchActions(context: UseMatchActionsContext) {
 
   const availableQueuePlayers = computed(() => {
     const matchPlayerNames = selectedPlayers.value.map((p) => p.username);
-    return queue.value.filter((p) => !matchPlayerNames.includes(p.username));
+    const result = queue.value.filter(
+      (p) => !matchPlayerNames.includes(p.username),
+    );
+    // Sort by queue priority mode (without queue type grouping), then by queue entry time
+    return [...result].sort((a, b) => {
+      if (queuePriorityMode.value === 'gamesPlayed') {
+        if (a.matchesPlayed !== b.matchesPlayed) {
+          return a.matchesPlayed - b.matchesPlayed;
+        }
+      }
+      return (
+        ((a as unknown as { enteredAt?: number }).enteredAt ?? 0) -
+        ((b as unknown as { enteredAt?: number }).enteredAt ?? 0)
+      );
+    });
   });
 
   const saveMatchEdit = () => {
