@@ -203,7 +203,11 @@
               <q-item-section>Complete Match</q-item-section>
             </q-item>
 
-            <q-item clickable @click="$emit('editMatch')">
+            <q-item
+              v-if="allowEditCancel"
+              clickable
+              @click="$emit('editMatch')"
+            >
               <q-item-section avatar>
                 <q-icon name="edit" />
               </q-item-section>
@@ -221,9 +225,10 @@
               <q-item-section>Start Match</q-item-section>
             </q-item>
 
-            <q-separator />
+            <q-separator v-if="allowEditCancel" />
 
             <q-item
+              v-if="allowEditCancel"
               clickable
               @click="$emit('cancelMatch')"
               class="text-negative"
@@ -278,11 +283,13 @@ interface Props {
   match: Match;
   showActions?: boolean;
   canStart?: boolean;
+  allowEditCancel?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showActions: true,
   canStart: false,
+  allowEditCancel: true,
 });
 
 const emit = defineEmits<{

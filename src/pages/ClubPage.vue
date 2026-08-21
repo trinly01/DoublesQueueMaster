@@ -78,6 +78,8 @@
         :club-name="clubName"
         :club-logo-url="getClubLogoUrl"
         :is-current-user-admin="isCurrentUserAdmin"
+        :can-manage-session="canManageSession"
+        :user-role="userRole"
         :tts-enabled="ttsEnabled"
         :is-speaking="isSpeaking"
         :unread-club-feedback-count="unreadClubFeedbackCount"
@@ -91,7 +93,7 @@
         "
       />
       <q-ajax-bar
-        v-if="isCurrentUserAdmin"
+        v-if="canManageSession"
         ref="syncAjaxBar"
         position="top"
         color="amber-4"
@@ -149,7 +151,7 @@
                   </template>
                 </q-select>
                 <q-btn
-                  v-if="isCurrentUserAdmin"
+                  v-if="canManageSession"
                   color="white"
                   @click="showAddPlayerDialog = true"
                   icon="person_add"
@@ -165,7 +167,7 @@
                   >
                 </q-btn>
                 <q-btn
-                  v-if="isCurrentUserAdmin"
+                  v-if="canManageSession"
                   color="white"
                   @click="addAllPlayersToQueue"
                   :disable="allPlayersInQueue"
@@ -203,9 +205,9 @@
                   :players="displayPlayers"
                   :current-user-id="currentUserId"
                   :sort-by="sortBy"
-                  :show-actions="isCurrentUserAdmin"
-                  :show-requeue-button="isCurrentUserAdmin"
-                  :show-feedback-button="!isCurrentUserAdmin"
+                  :show-actions="canManageSession"
+                  :show-requeue-button="canManageSession"
+                  :show-feedback-button="!canManageSession"
                   :empty-icon="'people'"
                   :empty-title="
                     searchPlayers
@@ -267,9 +269,9 @@
                   :show-position="true"
                   :show-queue-time="true"
                   :is-in-queue="true"
-                  :show-actions="isCurrentUserAdmin"
+                  :show-actions="canManageSession"
                   :show-requeue-button="false"
-                  :show-feedback-button="!isCurrentUserAdmin"
+                  :show-feedback-button="!canManageSession"
                   :empty-icon="'queue'"
                   :empty-title="'Queue is empty'"
                   :empty-subtitle="'Add players to start generating matches'"
@@ -280,7 +282,7 @@
                 />
               </div>
             </q-card-section>
-            <q-card-section v-if="isCurrentUserAdmin">
+            <q-card-section v-if="canManageSession">
               <!-- Match Type Selector -->
               <div class="q-mb-sm">
                 <q-select
@@ -301,7 +303,7 @@
                 </q-select>
               </div>
 
-              <div v-if="isCurrentUserAdmin" class="q-mb-sm">
+              <div v-if="canManageSession" class="q-mb-sm">
                 <q-select
                   v-model="matchmakingMode"
                   :options="matchmakingModeOptions"
@@ -345,7 +347,7 @@
                   </template>
                 </q-select>
               </div>
-              <div v-if="isCurrentUserAdmin" class="row q-gutter-sm">
+              <div v-if="canManageSession" class="row q-gutter-sm">
                 <!-- Left: dropdown (Pro Pick) or Auto (other modes) -->
                 <div class="col" style="min-width: 0">
                   <q-btn-dropdown
@@ -366,8 +368,9 @@
                         ? 'Top First'
                         : 'Bottom First'
                     "
-                    :disable="!canGenerateMatches()"
-                    :disable-main="!canGenerateMatches()"
+                    :disable-main-btn="
+                      !canGenerateMatches() || !isCurrentUserAdmin
+                    "
                     no-caps
                     @click="generateNewMatches"
                   >
@@ -375,12 +378,14 @@
                       anchor="top middle"
                       self="bottom middle"
                       :offset="[8, 8]"
-                      v-if="!canGenerateMatches()"
+                      v-if="!canGenerateMatches() || !isCurrentUserAdmin"
                     >
                       {{
-                        matchType === 'singles'
-                          ? 'Need at least 2 players'
-                          : 'Need at least 4 players'
+                        !isCurrentUserAdmin
+                          ? 'Admin only'
+                          : matchType === 'singles'
+                            ? 'Need at least 2 players'
+                            : 'Need at least 4 players'
                       }}
                     </q-tooltip>
                     <q-list>
@@ -446,7 +451,10 @@
                     @click="startManualSelection"
                     size="md"
                     icon="touch_app"
-                    :disable="queue.length < (matchType === 'singles' ? 2 : 4)"
+                    :disable="
+                      queue.length < (matchType === 'singles' ? 2 : 4) ||
+                      !isCurrentUserAdmin
+                    "
                     outline
                     stack
                     no-caps
@@ -457,12 +465,17 @@
                       anchor="top middle"
                       self="bottom middle"
                       :offset="[8, 8]"
-                      v-if="queue.length < (matchType === 'singles' ? 2 : 4)"
+                      v-if="
+                        queue.length < (matchType === 'singles' ? 2 : 4) ||
+                        !isCurrentUserAdmin
+                      "
                     >
                       {{
-                        matchType === 'singles'
-                          ? 'Need 2+ players'
-                          : 'Need 4+ players'
+                        !isCurrentUserAdmin
+                          ? 'Admin only'
+                          : matchType === 'singles'
+                            ? 'Need 2+ players'
+                            : 'Need 4+ players'
                       }}
                     </q-tooltip>
                   </q-btn>
@@ -563,7 +576,8 @@
                       :key="match.id"
                       :match="match"
                       :can-start="hasAvailableSlot"
-                      :show-actions="isCurrentUserAdmin"
+                      :show-actions="canManageSession"
+                      :allow-edit-cancel="isCurrentUserAdmin"
                       @completeMatch="openMatchResultDialog(index)"
                       @editMatch="editMatch(index)"
                       @startMatch="startMatch(index)"
@@ -606,7 +620,7 @@
                       </template>
                     </q-select>
                     <q-btn
-                      v-if="isCurrentUserAdmin"
+                      v-if="canManageSession"
                       color="accent"
                       @click="showAddPlayerDialog = true"
                       icon="person_add"
@@ -622,7 +636,7 @@
                       >
                     </q-btn>
                     <q-btn
-                      v-if="isCurrentUserAdmin"
+                      v-if="canManageSession"
                       color="accent"
                       @click="addAllPlayersToQueue"
                       :disable="allPlayersInQueue"
@@ -658,9 +672,9 @@
                   :players="displayPlayers"
                   :current-user-id="currentUserId"
                   :sort-by="sortBy"
-                  :show-actions="isCurrentUserAdmin"
-                  :show-requeue-button="isCurrentUserAdmin"
-                  :show-feedback-button="!isCurrentUserAdmin"
+                  :show-actions="canManageSession"
+                  :show-requeue-button="canManageSession"
+                  :show-feedback-button="!canManageSession"
                   :empty-icon="'people'"
                   :empty-title="
                     searchPlayers
@@ -719,9 +733,9 @@
                   :show-position="true"
                   :show-queue-time="true"
                   :is-in-queue="true"
-                  :show-actions="isCurrentUserAdmin"
+                  :show-actions="canManageSession"
                   :show-requeue-button="false"
-                  :show-feedback-button="!isCurrentUserAdmin"
+                  :show-feedback-button="!canManageSession"
                   :empty-icon="'queue'"
                   :empty-title="'Queue is empty'"
                   :empty-subtitle="'Add players to start generating matches'"
@@ -732,7 +746,7 @@
                 />
               </div>
             </q-card-section>
-            <q-card-section v-if="isCurrentUserAdmin">
+            <q-card-section v-if="canManageSession">
               <!-- Match Type Selector -->
               <div class="q-mb-sm">
                 <q-select
@@ -753,7 +767,7 @@
                 </q-select>
               </div>
 
-              <div v-if="isCurrentUserAdmin" class="q-mb-sm">
+              <div v-if="canManageSession" class="q-mb-sm">
                 <q-select
                   v-model="matchmakingMode"
                   :options="matchmakingModeOptions"
@@ -797,7 +811,7 @@
                   </template>
                 </q-select>
               </div>
-              <div v-if="isCurrentUserAdmin" class="row q-gutter-sm">
+              <div v-if="canManageSession" class="row q-gutter-sm">
                 <!-- Left: dropdown (Pro Pick) or Auto (other modes) -->
                 <div class="col" style="min-width: 0">
                   <q-btn-dropdown
@@ -818,8 +832,9 @@
                         ? 'Top First'
                         : 'Bottom First'
                     "
-                    :disable="!canGenerateMatches()"
-                    :disable-main="!canGenerateMatches()"
+                    :disable-main-btn="
+                      !canGenerateMatches() || !isCurrentUserAdmin
+                    "
                     no-caps
                     @click="generateNewMatches"
                   >
@@ -827,12 +842,14 @@
                       anchor="top middle"
                       self="bottom middle"
                       :offset="[8, 8]"
-                      v-if="!canGenerateMatches()"
+                      v-if="!canGenerateMatches() || !isCurrentUserAdmin"
                     >
                       {{
-                        matchType === 'singles'
-                          ? 'Need at least 2 players'
-                          : 'Need at least 4 players'
+                        !isCurrentUserAdmin
+                          ? 'Admin only'
+                          : matchType === 'singles'
+                            ? 'Need at least 2 players'
+                            : 'Need at least 4 players'
                       }}
                     </q-tooltip>
                     <q-list>
@@ -898,7 +915,10 @@
                     @click="startManualSelection"
                     size="md"
                     icon="touch_app"
-                    :disable="queue.length < (matchType === 'singles' ? 2 : 4)"
+                    :disable="
+                      queue.length < (matchType === 'singles' ? 2 : 4) ||
+                      !isCurrentUserAdmin
+                    "
                     outline
                     stack
                     no-caps
@@ -909,12 +929,17 @@
                       anchor="top middle"
                       self="bottom middle"
                       :offset="[8, 8]"
-                      v-if="queue.length < (matchType === 'singles' ? 2 : 4)"
+                      v-if="
+                        queue.length < (matchType === 'singles' ? 2 : 4) ||
+                        !isCurrentUserAdmin
+                      "
                     >
                       {{
-                        matchType === 'singles'
-                          ? 'Need 2+ players'
-                          : 'Need 4+ players'
+                        !isCurrentUserAdmin
+                          ? 'Admin only'
+                          : matchType === 'singles'
+                            ? 'Need 2+ players'
+                            : 'Need 4+ players'
                       }}
                     </q-tooltip>
                   </q-btn>
@@ -1008,7 +1033,8 @@
                       :key="match.id"
                       :match="match"
                       :can-start="hasAvailableSlot"
-                      :show-actions="isCurrentUserAdmin"
+                      :show-actions="canManageSession"
+                      :allow-edit-cancel="isCurrentUserAdmin"
                       @completeMatch="openMatchResultDialog(index)"
                       @editMatch="editMatch(index)"
                       @startMatch="startMatch(index)"
@@ -1033,7 +1059,7 @@
       <AddPlayerDialog
         v-model="showAddPlayerDialog"
         :club-members="clubMembers"
-        :is-current-user-admin="isCurrentUserAdmin"
+        :is-current-user-admin="canManageSession"
         :level-options="levelOptions"
         :players="players"
         :current-club-id="currentClubId"
@@ -1090,6 +1116,7 @@
         :club-name="clubName"
         :edit-club-loading="editClubLoading"
         :admin-members="adminMembers"
+        :moderator-members="moderatorMembers"
         :regular-members="regularMembers"
         :admin-match-stats="adminMatchStats"
         :club-feedback-loading="clubFeedbackLoading"
@@ -1104,6 +1131,9 @@
         @save-club-details="saveClubDetails"
         @confirm-demote-admin="confirmDemoteAdmin"
         @confirm-promote-to-admin="confirmPromoteToAdmin"
+        @confirm-demote-moderator="confirmDemoteModerator"
+        @confirm-promote-to-moderator="confirmPromoteToModerator"
+        @confirm-promote-moderator-to-admin="confirmPromoteModeratorToAdmin"
         @confirm-remove-member="confirmRemoveMember"
       />
 
@@ -1470,10 +1500,10 @@ const clubSettingsSort = ref<
 
 // Dynamic max-height for queue list: taller when match-type + buttons are hidden
 const queueMaxHeightDesktop = computed(() =>
-  isCurrentUserAdmin.value ? 'calc(100vh - 480px)' : 'calc(100vh - 340px)',
+  canManageSession.value ? 'calc(100vh - 480px)' : 'calc(100vh - 340px)',
 );
 const queueMaxHeightMobile = computed(() =>
-  isCurrentUserAdmin.value ? 'calc(100vh - 460px)' : 'calc(100vh - 300px)',
+  canManageSession.value ? 'calc(100vh - 460px)' : 'calc(100vh - 300px)',
 );
 
 const goHome = () => {
@@ -1561,6 +1591,7 @@ const {
   clubErrorMessage,
   isCurrentUserMember,
   clubAdminIds,
+  clubModeratorIds,
   clubMembers,
   loadClubData,
   populateEditClubFields,
@@ -1590,6 +1621,7 @@ const {
   currentClubUUID,
   currentClubId,
   clubAdminIds,
+  clubModeratorIds,
   currentUserId,
   isOpenPlay,
   likhaUrl,
@@ -1619,6 +1651,38 @@ const isCurrentUserAdmin = computed(() => {
 });
 watch(isCurrentUserAdmin, (val) => setAdminMode(val), { immediate: true });
 
+const isCurrentUserModerator = computed(() => {
+  if (isOpenPlay.value) return false;
+  const mod = clubMembers.value.find(
+    (m) => m.id === currentUserId.value && m.isModerator,
+  );
+  console.log(
+    'isCurrentUserModerator:',
+    !!mod,
+    'currentUserId:',
+    currentUserId.value,
+    'clubModeratorIds:',
+    clubModeratorIds.value,
+    'clubMembers with isModerator:',
+    clubMembers.value
+      .filter((m) => m.isModerator)
+      .map((m) => ({
+        id: m.id,
+        firstName: m.firstName,
+        isModerator: m.isModerator,
+      })),
+  );
+  return !!mod;
+});
+const canManageSession = computed(
+  () => isCurrentUserAdmin.value || isCurrentUserModerator.value,
+);
+const userRole = computed<'admin' | 'moderator' | null>(() => {
+  if (isCurrentUserAdmin.value) return 'admin';
+  if (isCurrentUserModerator.value) return 'moderator';
+  return null;
+});
+
 const isClubSubscriptionExpired = computed(
   () => !isOpenPlay.value && clubStatus.value !== 'published',
 );
@@ -1633,10 +1697,14 @@ watch(
 // Club members composable — extracted member filtering, stats, and management
 const {
   adminMembers,
+  moderatorMembers,
   regularMembers,
   adminMatchStats: _adminMatchStatsComputed,
   confirmDemoteAdmin,
   confirmPromoteToAdmin,
+  confirmDemoteModerator,
+  confirmPromoteToModerator,
+  confirmPromoteModeratorToAdmin,
   confirmRemoveMember,
   refreshClubMembers,
 } = useClubMembers({
