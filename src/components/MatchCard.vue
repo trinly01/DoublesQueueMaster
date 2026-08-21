@@ -153,6 +153,7 @@
           matchmakingMode: match.matchmakingMode,
           generationType: match.generationType,
           isEdited: match.isEdited,
+          editedAt: match.editedAt,
           originalMatchup: match.originalMatchup,
           originalTeamA: match.originalTeamA,
           originalTeamB: match.originalTeamB,
@@ -287,6 +288,7 @@ interface Match {
   matchmakingMode?: string;
   generationType?: 'auto' | 'manual';
   isEdited?: boolean;
+  editedAt?: number;
   originalMatchup?: string;
   originalTeamA?: string;
   originalTeamB?: string;
@@ -344,8 +346,8 @@ const dateLabel = computed(() => {
   ) {
     return '';
   }
-  if (props.match.isEdited && props.match.updatedAt) {
-    return formatDate(props.match.updatedAt);
+  if (props.match.isEdited && props.match.editedAt) {
+    return formatDate(props.match.editedAt);
   }
   if (props.match.cancelledBy && props.match.updatedAt) {
     return formatDate(props.match.updatedAt);
