@@ -66,14 +66,40 @@
       </q-tooltip>
     </q-chip>
     <q-chip
-      v-if="meta.createdAt"
+      v-if="meta.updatedAt && meta.isEdited"
+      color="amber-3"
+      text-color="amber-10"
+      size="xs"
+      dense
+      icon="schedule"
+    >
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+        >Edited at</q-tooltip
+      >
+      {{ formatDate(meta.updatedAt) }}
+    </q-chip>
+    <q-chip
+      v-else-if="meta.updatedAt && meta.cancelledBy"
+      color="red-2"
+      text-color="negative"
+      size="xs"
+      dense
+      icon="schedule"
+    >
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+        >Cancelled at</q-tooltip
+      >
+      {{ formatDate(meta.updatedAt) }}
+    </q-chip>
+    <q-chip
+      v-else-if="meta.createdAt"
       color="grey-3"
       text-color="grey-8"
       size="xs"
       dense
       icon="schedule"
     >
-      {{ formatDateTime(meta.createdAt) }}
+      {{ formatDate(meta.createdAt) }}
     </q-chip>
     <q-chip
       v-if="meta.generatedBy"
@@ -136,16 +162,7 @@ import {
   getMatchmakingModeLabel,
   getMatchmakingModeDescription,
 } from '../composables/useMatchSettings';
-
-const formatDateTime = (v: Date | string | number): string => {
-  const d = v instanceof Date ? v : new Date(v);
-  return d.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-};
+import { formatDate } from '../utils/playerHelpers';
 
 defineProps<{
   meta?: MatchMeta;
