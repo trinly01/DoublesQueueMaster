@@ -13,15 +13,20 @@
     >
       Edited
       <q-tooltip
-        v-if="meta.originalMatchup"
+        v-if="meta.originalMatchup || meta.editedAt || meta.updatedAt"
         anchor="top middle"
         self="bottom middle"
         :offset="[0, 8]"
       >
         <div class="text-center">
-          <div>{{ meta.originalTeamA }}</div>
-          <div>VS</div>
-          <div>{{ meta.originalTeamB }}</div>
+          <div v-if="meta.originalMatchup">
+            <div>{{ meta.originalTeamA }}</div>
+            <div>VS</div>
+            <div>{{ meta.originalTeamB }}</div>
+          </div>
+          <div v-if="editDateLabel" class="q-mt-xs">
+            {{ editDateLabel }}
+          </div>
         </div>
       </q-tooltip>
     </q-chip>
@@ -121,16 +126,25 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { MatchMeta } from '../types/matchMeta';
 import {
   getMatchmakingModeLabel,
   getMatchmakingModeDescription,
 } from '../composables/useMatchSettings';
+import { formatDate } from '../utils/playerHelpers';
 
-defineProps<{
+const props = defineProps<{
   meta?: MatchMeta;
 }>();
 
 const modeLabel = getMatchmakingModeLabel;
 const modeDescription = getMatchmakingModeDescription;
+
+const editDateLabel = computed(() => {
+  if (!props.meta) return '';
+  const editTime = props.meta.editedAt ?? props.meta.updatedAt;
+  if (!editTime) return '';
+  return formatDate(editTime);
+});
 </script>
