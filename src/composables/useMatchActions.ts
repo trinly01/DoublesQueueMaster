@@ -31,6 +31,7 @@ export interface MatchViewModel {
   matchmakingMode?: string;
   generationType?: string;
   isEdited?: boolean;
+  editedAt?: number;
   teamAScore?: number;
   teamBScore?: number;
   completedAt?: string;
@@ -802,6 +803,7 @@ export function useMatchActions(context: UseMatchActionsContext) {
         ) {
           actualMatch.isEdited = false;
           actualMatch.editedBy = undefined;
+          actualMatch.editedAt = undefined;
           actualMatch.originalMatchup = undefined;
           actualMatch.originalTeamA = undefined;
           actualMatch.originalTeamB = undefined;
@@ -824,16 +826,19 @@ export function useMatchActions(context: UseMatchActionsContext) {
           // Reverted to original — clear edit history
           actualMatch.isEdited = false;
           actualMatch.editedBy = undefined;
+          actualMatch.editedAt = undefined;
           actualMatch.originalMatchup = undefined;
           actualMatch.originalTeamA = undefined;
           actualMatch.originalTeamB = undefined;
         } else {
           actualMatch.editedBy = currentAdminName.value;
           actualMatch.isEdited = true;
+          actualMatch.editedAt = Date.now();
         }
       } else {
         actualMatch.editedBy = currentAdminName.value;
         actualMatch.isEdited = true;
+        actualMatch.editedAt = Date.now();
         if (!actualMatch.originalMatchup) {
           actualMatch.originalMatchup = originalMatchup;
           actualMatch.originalTeamA = originalTeamA;

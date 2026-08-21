@@ -6,6 +6,7 @@ export interface MatchMeta {
   matchmakingMode?: string;
   generationType?: 'auto' | 'manual';
   isEdited?: boolean;
+  editedAt?: number;
   originalMatchup?: string;
   originalTeamA?: string;
   originalTeamB?: string;
