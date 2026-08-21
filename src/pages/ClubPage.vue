@@ -562,6 +562,7 @@
                             matchmakingMode: match.matchmakingMode,
                             generationType: match.generationType,
                             isEdited: match.isEdited,
+                            editedAt: match.editedAt,
                             originalMatchup: match.originalMatchup,
                             originalTeamA: match.originalTeamA,
                             originalTeamB: match.originalTeamB,
@@ -1026,6 +1027,7 @@
                             matchmakingMode: match.matchmakingMode,
                             generationType: match.generationType,
                             isEdited: match.isEdited,
+                            editedAt: match.editedAt,
                             originalMatchup: match.originalMatchup,
                             originalTeamA: match.originalTeamA,
                             originalTeamB: match.originalTeamB,
@@ -1405,6 +1407,7 @@ const matches = computed(() => {
         matchmakingMode: m.matchmakingMode,
         generationType: m.generationType,
         isEdited: m.isEdited,
+        editedAt: m.editedAt,
         originalMatchup: m.originalMatchup,
         originalTeamA: m.originalTeamA,
         originalTeamB: m.originalTeamB,
@@ -2272,6 +2275,7 @@ const completedMatchViewModels = computed(() => {
       matchmakingMode: m.meta?.matchmakingMode,
       generationType: m.meta?.generationType,
       isEdited: m.meta?.isEdited,
+      editedAt: m.meta?.editedAt,
       originalMatchup: m.meta?.originalMatchup,
       originalTeamA: m.meta?.originalTeamA,
       originalTeamB: m.meta?.originalTeamB,
@@ -2350,11 +2354,9 @@ const filteredMatches = computed(() => {
       return bCompleted - aCompleted;
     }
     if (matchesFilterBy.value === 'edited') {
-      const aUpdated =
-        (a as unknown as { updatedAt?: number }).updatedAt ?? aTime;
-      const bUpdated =
-        (b as unknown as { updatedAt?: number }).updatedAt ?? bTime;
-      return bUpdated - aUpdated;
+      const aEdited = (a as unknown as { editedAt?: number }).editedAt ?? aTime;
+      const bEdited = (b as unknown as { editedAt?: number }).editedAt ?? bTime;
+      return bEdited - aEdited;
     }
     if ((a.status as string) === 'in-progress') {
       const aStarted =
