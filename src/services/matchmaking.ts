@@ -66,6 +66,7 @@ export interface ActiveMatch {
   matchmakingMode?: string; // Matchmaking mode used at generation time
   generationType?: 'auto' | 'manual'; // Whether match was auto-drafted or manually created
   isEdited?: boolean; // True if match was edited after initial creation
+  editedAt?: number; // Epoch ms when match was last edited
   originalMatchup?: string; // Original team pairing before edit, e.g. "A & B -VS- C & D"
   originalTeamA?: string; // Original team A names before edit, e.g. "A & B"
   originalTeamB?: string; // Original team B names before edit, e.g. "C & D"
@@ -1476,6 +1477,7 @@ export class LocalMatchmakingSystem {
         matchmakingMode: match.matchmakingMode,
         generationType: match.generationType,
         isEdited: match.isEdited,
+        editedAt: match.editedAt,
         originalMatchup: match.originalMatchup,
         originalTeamA: match.originalTeamA,
         originalTeamB: match.originalTeamB,
