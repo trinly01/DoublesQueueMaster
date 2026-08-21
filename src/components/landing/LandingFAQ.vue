@@ -17,7 +17,7 @@
             >
               <q-card>
                 <q-card-section class="text-body2 text-grey-8">
-                  {{ faq.answer }}
+                  <div v-html="faq.answer"></div>
                 </q-card-section>
               </q-card>
             </q-expansion-item>
@@ -75,6 +75,18 @@ const faqs = [
     question: 'What are the leaderboards?',
     answer:
       'Global leaderboard shows the top-rated players across all clubs. From Matches shows top players from events and clubs you have actually played in. Tap the trophy icon on your profile to view them.',
+  },
+  {
+    question: 'What can admins, moderators, and members do?',
+    answer: `<p>Each club has three roles:</p>
+      <p><strong style="color: #F2C037;">🛡 Admins</strong></p>
+      <p><strong>Can:</strong> everything — settings, user roles, Pro Pick, Manual selection, generate, start, score, edit, cancel matches</p>
+      <p><strong style="color: #21BA45;">🛡 Moderators</strong></p>
+      <p><strong>Can:</strong> add players, generate matches, start and score matches</p>
+      <p><strong>Cannot:</strong> change settings, manage user roles, use Pro Pick or Manual selection, edit or cancel matches</p>
+      <p><strong style="color: #311b92;">👤 Members</strong></p>
+      <p><strong>Can:</strong> report and commend players</p>
+      <p><strong>Cannot:</strong> add players, generate matches, or manage matches</p>`,
   },
   {
     question: 'Is this connected to DUPR?',
