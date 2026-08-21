@@ -23,10 +23,12 @@ export interface ClubMember {
   rating?: number;
   level?: 1 | 2 | 3;
   isAdmin?: boolean;
+  isModerator?: boolean;
   avatar?: string;
   duprId?: string;
   playerJunctionId?: string;
   adminJunctionId?: string;
+  moderatorJunctionId?: string;
 }
 
 export interface UseClubMembersContext {
@@ -88,8 +90,11 @@ export function useClubMembers(context: UseClubMembersContext) {
   const adminMembers = computed(() =>
     filteredSortedMembers.value.filter((m) => m.isAdmin),
   );
+  const moderatorMembers = computed(() =>
+    filteredSortedMembers.value.filter((m) => m.isModerator && !m.isAdmin),
+  );
   const regularMembers = computed(() =>
-    filteredSortedMembers.value.filter((m) => !m.isAdmin),
+    filteredSortedMembers.value.filter((m) => !m.isAdmin && !m.isModerator),
   );
 
   const adminMatchStats = computed(() => {
@@ -200,6 +205,81 @@ export function useClubMembers(context: UseClubMembersContext) {
     }
   };
 
+  const demoteAdminToModerator = async (
+    memberId: string,
+    adminJunctionId: string,
+  ) => {
+    if (!currentClubUUID.value) return;
+    try {
+      await likhaClient.request(
+        updateItem('club', currentClubUUID.value, {
+          admins: { delete: [adminJunctionId] },
+          moderators: { create: [{ directus_users_id: memberId }] },
+        }),
+      );
+      await refreshClubMembers();
+      notify({ type: 'positive', message: 'Admin demoted to moderator' });
+    } catch (err) {
+      console.error('Failed to demote admin to moderator:', err);
+      notify({ type: 'negative', message: 'Failed to demote admin' });
+    }
+  };
+
+  const promoteToModerator = async (memberId: string) => {
+    if (!currentClubUUID.value) return;
+    try {
+      await likhaClient.request(
+        updateItem('club', currentClubUUID.value, {
+          moderators: { create: [{ directus_users_id: memberId }] },
+        }),
+      );
+      await refreshClubMembers();
+      notify({ type: 'positive', message: 'Member promoted to moderator' });
+    } catch (err) {
+      console.error('Failed to promote member:', err);
+      notify({ type: 'negative', message: 'Failed to promote member' });
+    }
+  };
+
+  const demoteModerator = async (
+    memberId: string,
+    moderatorJunctionId: string,
+  ) => {
+    if (!currentClubUUID.value) return;
+    try {
+      await likhaClient.request(
+        updateItem('club', currentClubUUID.value, {
+          moderators: { delete: [moderatorJunctionId] },
+        }),
+      );
+      await refreshClubMembers();
+      notify({ type: 'positive', message: 'Moderator demoted to member' });
+    } catch (err) {
+      console.error('Failed to demote moderator:', err);
+      notify({ type: 'negative', message: 'Failed to demote moderator' });
+    }
+  };
+
+  const promoteModeratorToAdmin = async (
+    memberId: string,
+    moderatorJunctionId: string,
+  ) => {
+    if (!currentClubUUID.value) return;
+    try {
+      await likhaClient.request(
+        updateItem('club', currentClubUUID.value, {
+          moderators: { delete: [moderatorJunctionId] },
+          admins: { create: [{ directus_users_id: memberId }] },
+        }),
+      );
+      await refreshClubMembers();
+      notify({ type: 'positive', message: 'Moderator promoted to admin' });
+    } catch (err) {
+      console.error('Failed to promote moderator to admin:', err);
+      notify({ type: 'negative', message: 'Failed to promote moderator' });
+    }
+  };
+
   const confirmDemoteAdmin = (
     memberId: string,
     adminJunctionId: string,
@@ -212,10 +292,10 @@ export function useClubMembers(context: UseClubMembersContext) {
     }
     $q.dialog({
       title: 'Demote Admin',
-      message: `Demote ${name} to regular member?`,
+      message: `Demote ${name} to moderator?`,
       cancel: true,
       persistent: true,
-    }).onOk(() => demoteAdmin(memberId, adminJunctionId));
+    }).onOk(() => demoteAdminToModerator(memberId, adminJunctionId));
   };
 
   const confirmPromoteToAdmin = (memberId: string, name: string) => {
@@ -225,6 +305,41 @@ export function useClubMembers(context: UseClubMembersContext) {
       cancel: true,
       persistent: true,
     }).onOk(() => promoteToAdmin(memberId));
+  };
+
+  const confirmPromoteToModerator = (memberId: string, name: string) => {
+    $q.dialog({
+      title: 'Make Moderator',
+      message: `Promote ${name} to moderator?`,
+      cancel: true,
+      persistent: true,
+    }).onOk(() => promoteToModerator(memberId));
+  };
+
+  const confirmPromoteModeratorToAdmin = (
+    memberId: string,
+    moderatorJunctionId: string,
+    name: string,
+  ) => {
+    $q.dialog({
+      title: 'Promote to Admin',
+      message: `Promote ${name} from moderator to admin?`,
+      cancel: true,
+      persistent: true,
+    }).onOk(() => promoteModeratorToAdmin(memberId, moderatorJunctionId));
+  };
+
+  const confirmDemoteModerator = (
+    memberId: string,
+    moderatorJunctionId: string,
+    name: string,
+  ) => {
+    $q.dialog({
+      title: 'Demote Moderator',
+      message: `Demote ${name} to regular member?`,
+      cancel: true,
+      persistent: true,
+    }).onOk(() => demoteModerator(memberId, moderatorJunctionId));
   };
 
   const confirmRemoveMember = (
@@ -275,10 +390,14 @@ export function useClubMembers(context: UseClubMembersContext) {
             'admins.id',
             'admins.directus_users_id.id',
             'admins.directus_users_id.email',
+            'moderators.id',
+            'moderators.directus_users_id.id',
+            'moderators.directus_users_id.email',
           ] as unknown as string[],
           deep: {
             players: { _limit: -1 },
             admins: { _limit: -1 },
+            moderators: { _limit: -1 },
           },
         }),
       );
@@ -292,6 +411,10 @@ export function useClubMembers(context: UseClubMembersContext) {
           id: string;
           directus_users_id?: { id?: string } | null;
         }>;
+        moderators?: Array<{
+          id: string;
+          directus_users_id?: { id?: string } | null;
+        }>;
       };
       clubAdminIds.value = new Set(
         (club.admins || [])
@@ -302,6 +425,16 @@ export function useClubMembers(context: UseClubMembersContext) {
       (club.admins || []).forEach((a) => {
         const uid = a.directus_users_id?.id;
         if (uid && a.id) adminJunctionMap.set(uid, a.id);
+      });
+      const moderatorIdSet = new Set<string>();
+      (club.moderators || []).forEach((m) => {
+        const uid = m.directus_users_id?.id;
+        if (uid) moderatorIdSet.add(uid);
+      });
+      const moderatorJunctionMap = new Map<string, string>();
+      (club.moderators || []).forEach((m) => {
+        const uid = m.directus_users_id?.id;
+        if (uid && m.id) moderatorJunctionMap.set(uid, m.id);
       });
       clubMembers.value =
         (club.players || [])
@@ -321,11 +454,14 @@ export function useClubMembers(context: UseClubMembersContext) {
               email: typeof u?.email === 'string' ? u.email : undefined,
               rating: typeof u?.rating === 'number' ? u.rating : undefined,
               isAdmin: clubAdminIds.value.has(userId),
+              isModerator: moderatorIdSet.has(userId),
               avatar: avatarId
                 ? `${likhaUrl.value}/assets/${avatarId}`
                 : undefined,
               playerJunctionId: p.id || undefined,
               adminJunctionId: adminJunctionMap.get(userId) || undefined,
+              moderatorJunctionId:
+                moderatorJunctionMap.get(userId) || undefined,
             };
           })
           .filter((m) => m.id) || [];
@@ -337,13 +473,21 @@ export function useClubMembers(context: UseClubMembersContext) {
   return {
     filteredSortedMembers,
     adminMembers,
+    moderatorMembers,
     regularMembers,
     adminMatchStats,
     removeClubMember,
     promoteToAdmin,
     demoteAdmin,
+    promoteToModerator,
+    demoteModerator,
+    demoteAdminToModerator,
+    promoteModeratorToAdmin,
     confirmDemoteAdmin,
     confirmPromoteToAdmin,
+    confirmDemoteModerator,
+    confirmPromoteToModerator,
+    confirmPromoteModeratorToAdmin,
     confirmRemoveMember,
     refreshClubMembers,
   };

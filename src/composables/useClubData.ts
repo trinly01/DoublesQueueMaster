@@ -66,6 +66,7 @@ export function useClubData(context: UseClubDataContext) {
   const clubErrorMessage = ref<string>('');
   const isCurrentUserMember = ref(true);
   const clubAdminIds = ref<Set<string>>(new Set());
+  const clubModeratorIds = ref<Set<string>>(new Set());
   const clubMembers = ref<
     Array<{
       id: string;
@@ -76,10 +77,12 @@ export function useClubData(context: UseClubDataContext) {
       rating?: number;
       level?: 1 | 2 | 3;
       isAdmin?: boolean;
+      isModerator?: boolean;
       avatar?: string;
       duprId?: string;
       playerJunctionId?: string;
       adminJunctionId?: string;
+      moderatorJunctionId?: string;
     }>
   >([]);
 
@@ -205,6 +208,7 @@ export function useClubData(context: UseClubDataContext) {
     const meta = LocalStorage.getItem(`club_meta_${clubId}`) as {
       clubUUID?: string;
       adminIds?: string[];
+      moderatorIds?: string[];
       members?: typeof clubMembers.value;
       clubName?: string;
       clubLogo?: string;
@@ -217,6 +221,7 @@ export function useClubData(context: UseClubDataContext) {
       currentClubUUID.value = meta.clubUUID || '';
       MatchmakingApp.state.clubUUID = meta.clubUUID || '';
       clubAdminIds.value = new Set(meta.adminIds || []);
+      clubModeratorIds.value = new Set(meta.moderatorIds || []);
       clubMembers.value = meta.members || [];
       isCurrentUserMember.value =
         isOpenPlay.value ||
@@ -289,39 +294,84 @@ export function useClubData(context: UseClubDataContext) {
     }
 
     try {
-      const result = await likhaClient.request(
-        readItems('club', {
-          filter: {
-            clubId: {
-              _eq: clubId,
+      let result;
+      try {
+        result = await likhaClient.request(
+          readItems('club', {
+            filter: {
+              clubId: {
+                _eq: clubId,
+              },
             },
-          },
-          fields: [
-            'id',
-            'clubId',
-            'name',
-            'logo',
-            'status',
-            'appState',
-            'players.id',
-            'players.directus_users_id.id',
-            'players.directus_users_id.username',
-            'players.directus_users_id.first_name',
-            'players.directus_users_id.last_name',
-            'players.directus_users_id.email',
-            'players.directus_users_id.rating',
-            'players.directus_users_id.dupr_id',
-            'players.directus_users_id.avatar',
-            'admins.id',
-            'admins.directus_users_id.id',
-            'admins.directus_users_id.email',
-          ] as unknown as string[],
-          deep: {
-            players: { _limit: -1 },
-            admins: { _limit: -1 },
-          },
-        }),
-      );
+            fields: [
+              'id',
+              'clubId',
+              'name',
+              'logo',
+              'status',
+              'appState',
+              'players.id',
+              'players.directus_users_id.id',
+              'players.directus_users_id.username',
+              'players.directus_users_id.first_name',
+              'players.directus_users_id.last_name',
+              'players.directus_users_id.email',
+              'players.directus_users_id.rating',
+              'players.directus_users_id.dupr_id',
+              'players.directus_users_id.avatar',
+              'admins.id',
+              'admins.directus_users_id.id',
+              'admins.directus_users_id.email',
+              'moderators.id',
+              'moderators.directus_users_id.id',
+              'moderators.directus_users_id.email',
+            ] as unknown as string[],
+            deep: {
+              players: { _limit: -1 },
+              admins: { _limit: -1 },
+              moderators: { _limit: -1 },
+            },
+          }),
+        );
+      } catch (modErr) {
+        console.warn(
+          'Club fetch with moderators field failed, retrying without moderators:',
+          modErr,
+        );
+        result = await likhaClient.request(
+          readItems('club', {
+            filter: {
+              clubId: {
+                _eq: clubId,
+              },
+            },
+            fields: [
+              'id',
+              'clubId',
+              'name',
+              'logo',
+              'status',
+              'appState',
+              'players.id',
+              'players.directus_users_id.id',
+              'players.directus_users_id.username',
+              'players.directus_users_id.first_name',
+              'players.directus_users_id.last_name',
+              'players.directus_users_id.email',
+              'players.directus_users_id.rating',
+              'players.directus_users_id.dupr_id',
+              'players.directus_users_id.avatar',
+              'admins.id',
+              'admins.directus_users_id.id',
+              'admins.directus_users_id.email',
+            ] as unknown as string[],
+            deep: {
+              players: { _limit: -1 },
+              admins: { _limit: -1 },
+            },
+          }),
+        );
+      }
 
       // Guard: if the user switched clubs while the API was in-flight, discard this response
       if (
@@ -333,6 +383,14 @@ export function useClubData(context: UseClubDataContext) {
       }
 
       if (result && result.length > 0) {
+        console.log(
+          '[useClubData] Raw club keys from API:',
+          Object.keys(result[0] as Record<string, unknown>),
+        );
+        console.log(
+          '[useClubData] Raw club moderators from API:',
+          (result[0] as Record<string, unknown>)?.moderators,
+        );
         const club = result[0] as unknown as {
           id: string;
           clubId: string;
@@ -397,6 +455,13 @@ export function useClubData(context: UseClubDataContext) {
               email?: string;
             };
           }>;
+          moderators?: Array<{
+            id: string;
+            directus_users_id?: {
+              id: string;
+              email?: string;
+            };
+          }>;
         };
         currentClubId.value = clubId;
         currentClubUUID.value = club.id;
@@ -422,21 +487,25 @@ export function useClubData(context: UseClubDataContext) {
           const isAdminFromData = (club.admins || []).some(
             (a) => a.directus_users_id?.id === currentUserId.value,
           );
+          const isModeratorFromData = (club.moderators || []).some(
+            (m) => m.directus_users_id?.id === currentUserId.value,
+          );
+          const isPrivilegedFromData = isAdminFromData || isModeratorFromData;
 
           if (serverMatchmaking) {
-            if (isAdminFromData) {
-              // Admins: only merge settings that are missing locally — never overwrite existing
+            if (isPrivilegedFromData) {
+              // Admins/Moderators: only merge settings that are missing locally — never overwrite existing
               copyServerSettings(serverMatchmaking, SETTINGS_SEED_FIELDS, true);
             }
-            // Non-admins: settings are overwritten directly in the non-admin block below
+            // Non-privileged: settings are overwritten directly in the non-privileged block below
           } else {
             // Cloud appState is blank/null — clear local data so UI starts fresh
             MatchmakingApp.resetState();
             MatchmakingApp.state.clubId = clubId;
           }
           if (serverMatchmaking) {
-            if (isAdminFromData) {
-              // Admins: smart-merge so a refresh picks up other admins' newly created
+            if (isPrivilegedFromData) {
+              // Admins/Moderators: smart-merge so a refresh picks up other admins' newly created
               //   queues/matches (latest-writer-wins) while preserving player stats.
               // Detect remote reset: another admin cleared all data (full reset).
               // Partial checkpoint advances (session resets) are handled by mergeAppState.
@@ -457,7 +526,7 @@ export function useClubData(context: UseClubDataContext) {
                 serverTime > localTime;
 
               if (isRemoteReset) {
-                // Another admin performed a reset — adopt server state (mergeAppState will purge)
+                // Another privileged user performed a reset — adopt server state (mergeAppState will purge)
                 MatchmakingApp.state.players = {};
                 MatchmakingApp.state.queues = [];
                 MatchmakingApp.state.activeMatches = [];
@@ -471,7 +540,7 @@ export function useClubData(context: UseClubDataContext) {
                   serverMatchmaking.matchesResetAt ?? 0;
                 notify({
                   type: 'info',
-                  message: 'Club data was reset by another admin',
+                  message: 'Club data was reset',
                   timeout: 3000,
                 });
               } else {
@@ -530,7 +599,7 @@ export function useClubData(context: UseClubDataContext) {
                 }
               }
             } else {
-              // Non-admins: server is source of truth — directly overwrite everything, no merge
+              // Non-privileged: server is source of truth — directly overwrite everything, no merge
               if (serverMatchmaking.players) {
                 MatchmakingApp.state.players = {
                   ...serverMatchmaking.players,
@@ -549,7 +618,7 @@ export function useClubData(context: UseClubDataContext) {
                   ...serverMatchmaking.completedMatches,
                 ];
               }
-              // Overwrite settings too — non-admins don't have local settings to preserve
+              // Overwrite settings too — non-privileged users don't have local settings to preserve
               copyServerSettings(
                 serverMatchmaking,
                 SETTINGS_SEED_FIELDS,
@@ -564,8 +633,8 @@ export function useClubData(context: UseClubDataContext) {
                 serverMatchmaking.matchesResetAt ?? 0;
             }
           }
-          // Backward-compat: migrate old separate settings blocks into MatchmakingApp.state (admin only)
-          if (isAdminFromData && club.appState?.courtSettings) {
+          // Backward-compat: migrate old separate settings blocks into MatchmakingApp.state (privileged only)
+          if (isPrivilegedFromData && club.appState?.courtSettings) {
             const ac = club.appState.courtSettings.availableCourts;
             if (MatchmakingApp.state.availableCourts === undefined) {
               MatchmakingApp.state.availableCourts =
@@ -576,7 +645,7 @@ export function useClubData(context: UseClubDataContext) {
                 club.appState.courtSettings.autoAdvanceMatches;
             }
           }
-          if (isAdminFromData && club.appState?.queueSettings) {
+          if (isPrivilegedFromData && club.appState?.queueSettings) {
             if (MatchmakingApp.state.queueReturnMethod === undefined) {
               MatchmakingApp.state.queueReturnMethod =
                 club.appState.queueSettings.queueReturnMethod;
@@ -594,7 +663,7 @@ export function useClubData(context: UseClubDataContext) {
                 club.appState.queueSettings.matchmakingMode;
             }
           }
-          if (isAdminFromData && club.appState?.uiSettings) {
+          if (isPrivilegedFromData && club.appState?.uiSettings) {
             if (MatchmakingApp.state.sortBy === undefined) {
               MatchmakingApp.state.sortBy = club.appState.uiSettings.sortBy;
             }
@@ -616,10 +685,10 @@ export function useClubData(context: UseClubDataContext) {
             });
           }
 
-          // Admins: persist() fires onStateChange → debounced cloud sync (push).
-          // Non-admins: persistSilently() saves to LocalStorage without arming a
-          // cloud push — non-admins never write to the server.
-          if (isAdminFromData) {
+          // Privileged (admins/moderators): persist() fires onStateChange → debounced cloud sync (push).
+          // Non-privileged: persistSilently() saves to LocalStorage without arming a
+          // cloud push — non-privileged users never write to the server.
+          if (isPrivilegedFromData) {
             MatchmakingApp.persist();
           } else {
             MatchmakingApp.persistSilently();
@@ -647,6 +716,20 @@ export function useClubData(context: UseClubDataContext) {
             }
           });
 
+          // Build moderator set and junction ID lookup
+          clubModeratorIds.value = new Set(
+            (club.moderators || [])
+              .map((m) => m.directus_users_id?.id)
+              .filter((id): id is string => !!id),
+          );
+          const moderatorJunctionMap = new Map<string, string>();
+          (club.moderators || []).forEach((m) => {
+            const modUserId = m.directus_users_id?.id;
+            if (modUserId && m.id) {
+              moderatorJunctionMap.set(modUserId, m.id);
+            }
+          });
+
           clubMembers.value =
             (club.players || [])
               .map((p) => {
@@ -669,11 +752,14 @@ export function useClubData(context: UseClubDataContext) {
                   duprId:
                     typeof u?.dupr_id === 'string' ? u.dupr_id : undefined,
                   isAdmin: clubAdminIds.value.has(userId),
+                  isModerator: clubModeratorIds.value.has(userId),
                   avatar: avatarId
                     ? `${likhaUrl.value}/assets/${avatarId}`
                     : undefined,
                   playerJunctionId: p.id || undefined,
                   adminJunctionId: adminJunctionMap.get(userId) || undefined,
+                  moderatorJunctionId:
+                    moderatorJunctionMap.get(userId) || undefined,
                 };
               })
               .filter((m) => m.id) || [];
@@ -683,10 +769,11 @@ export function useClubData(context: UseClubDataContext) {
             isOpenPlay.value ||
             clubMembers.value.some((m) => m.id === currentUserId.value);
 
-          // Persist club metadata for offline admin detection
+          // Persist club metadata for offline admin/moderator detection
           LocalStorage.set(`club_meta_${clubId}`, {
             clubUUID: club.id,
             adminIds: Array.from(clubAdminIds.value),
+            moderatorIds: Array.from(clubModeratorIds.value),
             members: clubMembers.value,
             clubName: club.name || clubId,
             clubLogo: club.logo || '',
@@ -898,6 +985,7 @@ export function useClubData(context: UseClubDataContext) {
     clubErrorMessage,
     isCurrentUserMember,
     clubAdminIds,
+    clubModeratorIds,
     clubMembers,
     populateEditClubFields,
     refreshClubInfo,
