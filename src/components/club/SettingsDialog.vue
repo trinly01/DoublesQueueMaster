@@ -471,115 +471,11 @@
                   <q-item-label caption v-if="member.username" class="ellipsis"
                     >@{{ member.username }}</q-item-label
                   >
-                  <div
-                    v-if="
-                      (adminMatchStats[
-                        member.firstName || member.username || ''
-                      ]?.total ?? 0) > 0
+                  <MemberMatchStats
+                    :stats="
+                      adminMatchStats[member.firstName || member.username || '']
                     "
-                    class="row q-gutter-xs q-mt-xs"
-                  >
-                    <q-chip
-                      :label="
-                        adminMatchStats[
-                          member.firstName || member.username || ''
-                        ].total
-                      "
-                      color="accent"
-                      text-color="white"
-                      size="xs"
-                      dense
-                      icon="sports_tennis"
-                    >
-                      <q-tooltip anchor="top middle" self="bottom middle"
-                        >Total</q-tooltip
-                      >
-                    </q-chip>
-                    <q-chip
-                      v-if="
-                        adminMatchStats[
-                          member.firstName || member.username || ''
-                        ].auto > 0
-                      "
-                      :label="
-                        adminMatchStats[
-                          member.firstName || member.username || ''
-                        ].auto
-                      "
-                      color="green-2"
-                      text-color="green-9"
-                      size="xs"
-                      dense
-                      icon="auto_awesome"
-                    >
-                      <q-tooltip anchor="top middle" self="bottom middle"
-                        >Auto</q-tooltip
-                      >
-                    </q-chip>
-                    <q-chip
-                      v-if="
-                        adminMatchStats[
-                          member.firstName || member.username || ''
-                        ].manual > 0
-                      "
-                      :label="
-                        adminMatchStats[
-                          member.firstName || member.username || ''
-                        ].manual
-                      "
-                      color="orange-2"
-                      text-color="orange-9"
-                      size="xs"
-                      dense
-                      icon="pan_tool"
-                    >
-                      <q-tooltip anchor="top middle" self="bottom middle"
-                        >Manual</q-tooltip
-                      >
-                    </q-chip>
-                    <q-chip
-                      v-if="
-                        adminMatchStats[
-                          member.firstName || member.username || ''
-                        ].edited > 0
-                      "
-                      :label="
-                        adminMatchStats[
-                          member.firstName || member.username || ''
-                        ].edited
-                      "
-                      color="amber-3"
-                      text-color="amber-10"
-                      size="xs"
-                      dense
-                      icon="edit"
-                    >
-                      <q-tooltip anchor="top middle" self="bottom middle"
-                        >Edited</q-tooltip
-                      >
-                    </q-chip>
-                    <q-chip
-                      v-if="
-                        (adminMatchStats[
-                          member.firstName || member.username || ''
-                        ]?.scored ?? 0) > 0
-                      "
-                      :label="
-                        adminMatchStats[
-                          member.firstName || member.username || ''
-                        ].scored
-                      "
-                      color="green-2"
-                      text-color="green-9"
-                      size="xs"
-                      dense
-                      icon="check_circle"
-                    >
-                      <q-tooltip anchor="top middle" self="bottom middle"
-                        >Scored</q-tooltip
-                      >
-                    </q-chip>
-                  </div>
+                  />
                 </q-item-section>
                 <q-item-section side>
                   <q-btn
@@ -655,6 +551,11 @@
                   <q-item-label caption v-if="member.username" class="ellipsis"
                     >@{{ member.username }}</q-item-label
                   >
+                  <MemberMatchStats
+                    :stats="
+                      adminMatchStats[member.firstName || member.username || '']
+                    "
+                  />
                 </q-item-section>
                 <q-item-section side>
                   <div class="row q-gutter-xs">
@@ -911,6 +812,7 @@
 import { ref, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import DialogHeader from '../DialogHeader.vue';
+import MemberMatchStats from './MemberMatchStats.vue';
 import { getRatingColor, formatDateOnly } from '../../utils/playerHelpers';
 import {
   COMMEND_ITEMS,
