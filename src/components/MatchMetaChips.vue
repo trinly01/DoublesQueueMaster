@@ -66,6 +66,16 @@
       </q-tooltip>
     </q-chip>
     <q-chip
+      v-if="meta.createdAt"
+      color="grey-3"
+      text-color="grey-8"
+      size="xs"
+      dense
+      icon="schedule"
+    >
+      {{ formatDateTime(meta.createdAt) }}
+    </q-chip>
+    <q-chip
       v-if="meta.generatedBy"
       color="grey-3"
       text-color="grey-9"
@@ -126,6 +136,16 @@ import {
   getMatchmakingModeLabel,
   getMatchmakingModeDescription,
 } from '../composables/useMatchSettings';
+
+const formatDateTime = (v: Date | string | number): string => {
+  const d = v instanceof Date ? v : new Date(v);
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+};
 
 defineProps<{
   meta?: MatchMeta;

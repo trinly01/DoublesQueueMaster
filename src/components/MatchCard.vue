@@ -149,6 +149,7 @@
           originalMatchup: match.originalMatchup,
           originalTeamA: match.originalTeamA,
           originalTeamB: match.originalTeamB,
+          createdAt: match.createdAt,
         }"
       />
       <!-- <div
@@ -261,9 +262,9 @@ interface Match {
   status: 'waiting' | 'in-progress' | 'completed' | 'cancelled';
   court?: number;
   order: number;
-  createdAt: Date;
-  startedAt?: Date;
-  completedAt?: Date | string;
+  createdAt: Date | string | number;
+  startedAt?: Date | string | number;
+  completedAt?: Date | string | number;
   queueSource?: string;
   expectedDifference?: number;
   winProbability?: number;
@@ -315,12 +316,20 @@ const handleClick = () => {
 };
 let timer: ReturnType<typeof setInterval> | null = null;
 
+const toTimestamp = (v: unknown): number => {
+  if (!v) return 0;
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') return Date.parse(v);
+  return 0;
+};
+
 const updateElapsed = () => {
   if (!props.match.startedAt) {
     elapsed.value = '';
     return;
   }
-  const diff = Date.now() - props.match.startedAt.getTime();
+  const diff = Date.now() - toTimestamp(props.match.startedAt);
   const mins = Math.floor(diff / 60000);
   const secs = Math.floor((diff % 60000) / 1000);
   elapsed.value = `${mins}m ${secs}s`;
@@ -340,7 +349,7 @@ const stopTimer = () => {
 };
 
 watch(
-  () => [props.match.status, props.match.startedAt?.getTime()],
+  () => [props.match.status, toTimestamp(props.match.startedAt)],
   () => {
     if (props.match.status === 'in-progress' && props.match.startedAt) {
       startTimer();

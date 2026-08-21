@@ -9,4 +9,5 @@ export interface MatchMeta {
   originalMatchup?: string;
   originalTeamA?: string;
   originalTeamB?: string;
+  createdAt?: Date | string | number;
 }

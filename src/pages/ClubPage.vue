@@ -565,6 +565,7 @@
                             originalMatchup: match.originalMatchup,
                             originalTeamA: match.originalTeamA,
                             originalTeamB: match.originalTeamB,
+                            createdAt: match.createdAt,
                           }"
                         />
                       </q-item-section>
@@ -1022,6 +1023,7 @@
                             originalMatchup: match.originalMatchup,
                             originalTeamA: match.originalTeamA,
                             originalTeamB: match.originalTeamB,
+                            createdAt: match.createdAt,
                           }"
                         />
                       </q-item-section>
