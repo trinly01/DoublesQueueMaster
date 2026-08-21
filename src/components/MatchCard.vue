@@ -92,6 +92,13 @@
             </q-avatar>
             {{ elapsed }}
           </q-chip>
+          <div
+            v-if="dateLabel"
+            class="text-caption text-grey-6 text-center"
+            style="line-height: 1; margin-top: 2px"
+          >
+            {{ dateLabel }}
+          </div>
         </div>
 
         <!-- Right: Team B players -->
@@ -248,8 +255,12 @@
 </template>
 
 <script setup lang="ts">
-import { inject, ref, onUnmounted, watch } from 'vue';
-import { getRatingColor, getMatchStatusLabel } from '../utils/playerHelpers';
+import { computed, inject, ref, onUnmounted, watch } from 'vue';
+import {
+  getRatingColor,
+  getMatchStatusLabel,
+  formatDate,
+} from '../utils/playerHelpers';
 import type { Player } from '../services/matchmaking';
 import MatchMetaChips from './MatchMetaChips.vue';
 
@@ -325,6 +336,19 @@ const toTimestamp = (v: unknown): number => {
   if (typeof v === 'string') return Date.parse(v);
   return 0;
 };
+
+const dateLabel = computed(() => {
+  if (props.match.isEdited && props.match.updatedAt) {
+    return formatDate(props.match.updatedAt);
+  }
+  if (props.match.cancelledBy && props.match.updatedAt) {
+    return formatDate(props.match.updatedAt);
+  }
+  if (props.match.createdAt) {
+    return formatDate(props.match.createdAt);
+  }
+  return '';
+});
 
 const updateElapsed = () => {
   if (!props.match.startedAt) {
