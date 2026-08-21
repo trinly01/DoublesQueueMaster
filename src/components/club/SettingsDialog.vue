@@ -585,7 +585,7 @@
                   <q-btn
                     flat
                     dense
-                    color="warning"
+                    color="green-8"
                     size="sm"
                     icon="arrow_downward"
                     :disable="adminMembers.length <= 1"
@@ -611,7 +611,7 @@
                       self="bottom middle"
                       :offset="[8, 8]"
                       v-else
-                      >Demote to member</q-tooltip
+                      >Demote to moderator</q-tooltip
                     >
                   </q-btn>
                 </q-item-section>
@@ -628,7 +628,100 @@
 
           <div>
             <div class="text-subtitle2 q-mb-sm">
-              Members ({{ regularMembers.length + adminMembers.length }})
+              Moderators ({{ moderatorMembers.length }})
+            </div>
+            <q-list separator dense class="rounded-borders">
+              <q-item v-for="member in moderatorMembers" :key="member.id">
+                <q-item-section avatar>
+                  <q-avatar size="32px">
+                    <img v-if="member.avatar" :src="member.avatar" />
+                    <q-icon v-else name="person" color="grey-5" />
+                  </q-avatar>
+                </q-item-section>
+                <q-item-section style="min-width: 0">
+                  <div class="row items-center no-wrap">
+                    <q-item-label class="ellipsis">{{
+                      member.firstName || member.username || 'Unknown'
+                    }}</q-item-label>
+                    <q-chip
+                      :label="member.rating ?? 1450"
+                      :color="getRatingColor(member.rating ?? 1450)"
+                      text-color="white"
+                      size="xs"
+                      dense
+                      class="q-ml-xs"
+                    />
+                  </div>
+                  <q-item-label caption v-if="member.username" class="ellipsis"
+                    >@{{ member.username }}</q-item-label
+                  >
+                </q-item-section>
+                <q-item-section side>
+                  <div class="row q-gutter-xs">
+                    <q-btn
+                      flat
+                      dense
+                      color="amber-8"
+                      size="sm"
+                      icon="arrow_upward"
+                      @click="
+                        $emit(
+                          'confirmPromoteModeratorToAdmin',
+                          member.id,
+                          member.moderatorJunctionId!,
+                          member.firstName || member.username || 'this member',
+                        )
+                      "
+                    >
+                      <q-tooltip
+                        anchor="top middle"
+                        self="bottom middle"
+                        :offset="[8, 8]"
+                        >Promote to admin</q-tooltip
+                      >
+                    </q-btn>
+                    <q-btn
+                      flat
+                      dense
+                      color="warning"
+                      size="sm"
+                      icon="arrow_downward"
+                      @click="
+                        $emit(
+                          'confirmDemoteModerator',
+                          member.id,
+                          member.moderatorJunctionId!,
+                          member.firstName || member.username || 'this member',
+                        )
+                      "
+                    >
+                      <q-tooltip
+                        anchor="top middle"
+                        self="bottom middle"
+                        :offset="[8, 8]"
+                        >Demote to member</q-tooltip
+                      >
+                    </q-btn>
+                  </div>
+                </q-item-section>
+              </q-item>
+              <q-item v-if="moderatorMembers.length === 0">
+                <q-item-section class="text-grey">
+                  No moderators found
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </div>
+
+          <q-separator />
+
+          <div>
+            <div class="text-subtitle2 q-mb-sm">
+              Members ({{
+                regularMembers.length +
+                adminMembers.length +
+                moderatorMembers.length
+              }})
             </div>
             <q-list separator dense class="rounded-borders">
               <q-item v-for="member in regularMembers" :key="member.id">
@@ -661,12 +754,12 @@
                     <q-btn
                       flat
                       dense
-                      color="primary"
+                      color="green-8"
                       size="sm"
                       icon="arrow_upward"
                       @click="
                         $emit(
-                          'confirmPromoteToAdmin',
+                          'confirmPromoteToModerator',
                           member.id,
                           member.firstName || member.username || 'this member',
                         )
@@ -676,7 +769,7 @@
                         anchor="top middle"
                         self="bottom middle"
                         :offset="[8, 8]"
-                        >Make admin</q-tooltip
+                        >Make moderator</q-tooltip
                       >
                     </q-btn>
                     <q-btn
@@ -867,6 +960,14 @@ const props = defineProps<{
     rating?: number;
     adminJunctionId?: string;
   }>;
+  moderatorMembers: Array<{
+    id: string;
+    username?: string;
+    firstName?: string;
+    avatar?: string;
+    rating?: number;
+    moderatorJunctionId?: string;
+  }>;
   regularMembers: Array<{
     id: string;
     username?: string;
@@ -916,6 +1017,17 @@ defineEmits<{
   saveClubDetails: [];
   confirmDemoteAdmin: [memberId: string, adminJunctionId: string, name: string];
   confirmPromoteToAdmin: [memberId: string, name: string];
+  confirmDemoteModerator: [
+    memberId: string,
+    moderatorJunctionId: string,
+    name: string,
+  ];
+  confirmPromoteToModerator: [memberId: string, name: string];
+  confirmPromoteModeratorToAdmin: [
+    memberId: string,
+    moderatorJunctionId: string,
+    name: string,
+  ];
   confirmRemoveMember: [
     memberId: string,
     playerJunctionId: string,
