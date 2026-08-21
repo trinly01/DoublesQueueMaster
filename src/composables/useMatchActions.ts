@@ -34,6 +34,7 @@ export interface MatchViewModel {
   teamAScore?: number;
   teamBScore?: number;
   completedAt?: string;
+  updatedAt?: number;
 }
 
 export interface UseMatchActionsContext {

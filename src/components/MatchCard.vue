@@ -150,6 +150,7 @@
           originalTeamA: match.originalTeamA,
           originalTeamB: match.originalTeamB,
           createdAt: match.createdAt,
+          updatedAt: match.updatedAt,
         }"
       />
       <!-- <div
@@ -278,6 +279,7 @@ interface Match {
   originalMatchup?: string;
   originalTeamA?: string;
   originalTeamB?: string;
+  updatedAt?: Date | string | number;
 }
 
 interface Props {

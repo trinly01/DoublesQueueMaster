@@ -254,7 +254,7 @@ export const formatDateOnly = (iso: string): string => {
 /**
  * Format an ISO date to a readable string: "17 Jun '26, 8:22 PM"
  */
-export const formatDate = (iso: string): string => {
+export const formatDate = (iso: string | number | Date): string => {
   const d = new Date(iso);
   const year = String(d.getFullYear()).slice(-2);
   let h = d.getHours();

@@ -566,6 +566,7 @@
                             originalTeamA: match.originalTeamA,
                             originalTeamB: match.originalTeamB,
                             createdAt: match.createdAt,
+                            updatedAt: match.updatedAt,
                           }"
                         />
                       </q-item-section>
@@ -577,7 +578,12 @@
                       :key="match.id"
                       :match="match"
                       :can-start="hasAvailableSlot"
-                      :show-actions="canManageSession"
+                      :show-actions="
+                        canManageSession &&
+                        ['all', 'in-progress', 'waiting'].includes(
+                          matchesFilterBy,
+                        )
+                      "
                       :allow-edit-cancel="isCurrentUserAdmin"
                       @completeMatch="openMatchResultDialog(index)"
                       @editMatch="editMatch(index)"
@@ -1024,6 +1030,7 @@
                             originalTeamA: match.originalTeamA,
                             originalTeamB: match.originalTeamB,
                             createdAt: match.createdAt,
+                            updatedAt: match.updatedAt,
                           }"
                         />
                       </q-item-section>
@@ -1035,7 +1042,12 @@
                       :key="match.id"
                       :match="match"
                       :can-start="hasAvailableSlot"
-                      :show-actions="canManageSession"
+                      :show-actions="
+                        canManageSession &&
+                        ['all', 'in-progress', 'waiting'].includes(
+                          matchesFilterBy,
+                        )
+                      "
                       :allow-edit-cancel="isCurrentUserAdmin"
                       @completeMatch="openMatchResultDialog(index)"
                       @editMatch="editMatch(index)"
@@ -1396,6 +1408,7 @@ const matches = computed(() => {
         originalMatchup: m.originalMatchup,
         originalTeamA: m.originalTeamA,
         originalTeamB: m.originalTeamB,
+        updatedAt: m.updatedAt,
         teamAScore: undefined as number | undefined,
         teamBScore: undefined as number | undefined,
         completedAt: undefined as string | undefined,
