@@ -886,6 +886,7 @@ const props = defineProps<{
       manual: number;
       edited: number;
       scored: number;
+      cancelled: number;
     }
   >;
   clubFeedbackLoading: boolean;
