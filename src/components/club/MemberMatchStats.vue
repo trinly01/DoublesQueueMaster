@@ -1,8 +1,5 @@
 <template>
-  <div
-    v-if="stats && (stats.total ?? 0) > 0"
-    class="row q-gutter-xs q-mt-xs"
-  >
+  <div v-if="stats && (stats.total ?? 0) > 0" class="row q-gutter-xs q-mt-xs">
     <q-chip
       :label="stats.total"
       color="accent"
@@ -57,6 +54,17 @@
     >
       <q-tooltip anchor="top middle" self="bottom middle">Scored</q-tooltip>
     </q-chip>
+    <q-chip
+      v-if="stats.cancelled > 0"
+      :label="stats.cancelled"
+      color="red-2"
+      text-color="red-9"
+      size="xs"
+      dense
+      icon="cancel"
+    >
+      <q-tooltip anchor="top middle" self="bottom middle">Cancelled</q-tooltip>
+    </q-chip>
   </div>
 </template>
 
@@ -67,6 +75,7 @@ interface MatchStats {
   manual: number;
   edited: number;
   scored: number;
+  cancelled: number;
 }
 
 defineProps<{

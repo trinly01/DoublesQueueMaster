@@ -106,51 +106,45 @@ export function useClubMembers(context: UseClubMembersContext) {
         manual: number;
         edited: number;
         scored: number;
+        cancelled: number;
       }
     > = {};
+    const ensureStat = (name: string) => {
+      if (!stats[name])
+        stats[name] = {
+          total: 0,
+          auto: 0,
+          manual: 0,
+          edited: 0,
+          scored: 0,
+          cancelled: 0,
+        };
+    };
     const completed = MatchmakingApp.state.completedMatches;
-    console.log('[adminMatchStats] completedMatches count:', completed.length);
     for (const m of completed) {
-      console.log('[adminMatchStats] match:', m.matchId, 'meta:', m.meta);
       const admin = m.meta?.generatedBy;
       if (!admin) continue;
-      if (!stats[admin])
-        stats[admin] = { total: 0, auto: 0, manual: 0, edited: 0, scored: 0 };
+      ensureStat(admin);
       stats[admin].total++;
       if (m.meta?.isEdited) {
         const editor = m.meta?.editedBy || admin;
-        if (!stats[editor])
-          stats[editor] = {
-            total: 0,
-            auto: 0,
-            manual: 0,
-            edited: 0,
-            scored: 0,
-          };
+        ensureStat(editor);
         stats[editor].edited++;
       } else if (m.meta?.generationType === 'auto') stats[admin].auto++;
       else if (m.meta?.generationType === 'manual') stats[admin].manual++;
       if (m.meta?.scoredBy) {
         const scorer = m.meta.scoredBy;
-        if (!stats[scorer])
-          stats[scorer] = {
-            total: 0,
-            auto: 0,
-            manual: 0,
-            edited: 0,
-            scored: 0,
-          };
+        ensureStat(scorer);
         stats[scorer].scored++;
       }
     }
-    console.log('[adminMatchStats] result:', JSON.stringify(stats));
-    console.log(
-      '[adminMatchStats] adminMembers:',
-      adminMembers.value.map((m) => ({
-        firstName: m.firstName,
-        username: m.username,
-      })),
-    );
+    const active = MatchmakingApp.state.activeMatches;
+    for (const m of active) {
+      if (m.cancelledBy) {
+        ensureStat(m.cancelledBy);
+        stats[m.cancelledBy].cancelled++;
+      }
+    }
     return stats;
   });
 

@@ -1445,6 +1445,7 @@ const _adminMatchStats = ref<
       manual: number;
       edited: number;
       scored: number;
+      cancelled: number;
     }
   >
 >({});
