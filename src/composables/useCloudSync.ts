@@ -22,6 +22,7 @@ export interface CloudSyncContext {
   currentClubUUID: Ref<string>;
   currentClubId: Ref<string>;
   clubAdminIds: Ref<Set<string>>;
+  clubModeratorIds: Ref<Set<string>>;
   currentUserId: Ref<string>;
   isOpenPlay: ComputedRef<boolean>;
   likhaUrl: Ref<string>;
@@ -37,6 +38,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
     currentClubUUID,
     currentClubId,
     clubAdminIds,
+    clubModeratorIds,
     currentUserId,
     isOpenPlay,
     likhaUrl,
@@ -110,16 +112,17 @@ export function useCloudSync(ctx: CloudSyncContext) {
         serverTimestamp = serverMatchmaking?.lastModified ?? 0;
       }
 
-      // 2. Only allow admins to write to the cloud
+      // 2. Only allow admins/moderators to write to the cloud
       if (
         !currentUserId.value ||
-        !clubAdminIds.value.has(currentUserId.value)
+        (!clubAdminIds.value.has(currentUserId.value) &&
+          !clubModeratorIds.value.has(currentUserId.value))
       ) {
-        // Non-admins still advance their base version so they don't false-conflict later.
+        // Non-privileged users still advance their base version so they don't false-conflict later.
         lastSyncedServerTimestamp.value = serverTimestamp;
         hasPendingCloudSync.value = false;
         syncInProgress = false;
-        console.log('Skipped cloud sync: not an admin');
+        console.log('Skipped cloud sync: not admin or moderator');
         return;
       }
 
@@ -134,7 +137,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
       }
 
       // 3. Optimistic concurrency: if the server moved since the version our local
-      // state was based on, another admin wrote concurrently → smart-merge before pushing.
+      // state was based on, another privileged user wrote concurrently → smart-merge before pushing.
       if (
         serverMatchmaking &&
         serverTimestamp !== lastSyncedServerTimestamp.value
@@ -145,7 +148,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
         MatchmakingApp.enforceOneMatchPerPlayer();
         notify({
           type: 'info',
-          message: 'Merged concurrent changes from another admin.',
+          message: 'Merged concurrent changes from another session.',
           timeout: 3000,
         });
       }
@@ -271,7 +274,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
   };
 
   // ---- Real-time sync (WebSocket subscription) ----
-  // Pushes other admins' changes to this client instantly, then smart-merges them.
+  // Pushes other privileged users' changes to this client instantly, then smart-merges them.
   let realtimeUnsub: (() => void) | null = null;
   let realtimeStarting = false;
 
@@ -293,8 +296,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
       return;
     }
 
-    const isCurrentUserAdminForSync =
-      currentUserId.value && clubAdminIds.value.has(currentUserId.value);
+    const isCurrentUserPrivilegedForSync =
+      currentUserId.value &&
+      (clubAdminIds.value.has(currentUserId.value) ||
+        clubModeratorIds.value.has(currentUserId.value));
 
     console.log(
       '[applyServer] incoming — queues:',
@@ -305,12 +310,12 @@ export function useCloudSync(ctx: CloudSyncContext) {
       incomingTs,
       'our last synced:',
       lastSyncedServerTimestamp.value,
-      'isAdmin:',
-      isCurrentUserAdminForSync,
+      'isPrivileged:',
+      isCurrentUserPrivilegedForSync,
     );
 
-    if (isCurrentUserAdminForSync) {
-      // Admins: smart-merge so local offline edits are preserved
+    if (isCurrentUserPrivilegedForSync) {
+      // Privileged (admins/moderators): smart-merge so local offline edits are preserved
       const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
       Object.assign(MatchmakingApp.state, merged);
       // Extra safety: ensure no player appears in multiple matches
@@ -318,7 +323,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
       MatchmakingApp.enforceOneMatchPerPlayer();
       MatchmakingApp.enforceOneMatchPerCourt();
     } else {
-      // Non-admins: server is source of truth — direct overwrite, no merge
+      // Non-privileged: server is source of truth — direct overwrite, no merge
       if (serverMatchmaking.players) {
         MatchmakingApp.state.players = { ...serverMatchmaking.players };
       }
@@ -335,7 +340,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
           ...serverMatchmaking.completedMatches,
         ];
       }
-      // Overwrite settings — non-admins don't have local settings to preserve
+      // Overwrite settings — non-privileged users don't have local settings to preserve
       copyServerSettings(serverMatchmaking, SETTINGS_OVERWRITE_FIELDS, false);
       // Carry checkpoint timestamps
       MatchmakingApp.state.playersResetAt =
@@ -445,10 +450,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
     if (Date.now() - lastResumeSyncAt < 3000) return;
     lastResumeSyncAt = Date.now();
     if (isOnline.value && currentClubId.value) {
-      // loadClubData reads server state and merges. For admins, persist() arms
+      // loadClubData reads server state and merges. For privileged users (admins/moderators), persist() arms
       // the debounced cloud sync (500ms) which handles the push — no need for
       // a separate performCloudSync() call here (that would do a second read).
-      // Non-admins just get the direct overwrite via persistSilently().
+      // Non-privileged users just get the direct overwrite via persistSilently().
       await loadClubData(currentClubId.value);
       void refreshPlayerRatings();
     }
