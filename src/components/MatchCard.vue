@@ -300,12 +300,14 @@ interface Props {
   showActions?: boolean;
   canStart?: boolean;
   allowEditCancel?: boolean;
+  showDate?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showActions: true,
   canStart: false,
-  allowEditCancel: true,
+  allowEditCancel: false,
+  showDate: false,
 });
 
 const emit = defineEmits<{
@@ -340,14 +342,16 @@ const toTimestamp = (v: unknown): number => {
 };
 
 const dateLabel = computed(() => {
+  if (!props.showDate) return '';
+  if (props.match.isEdited) {
+    const editTime = props.match.editedAt ?? props.match.updatedAt;
+    if (editTime) return formatDate(editTime);
+  }
   if (
     props.match.status === 'waiting' ||
     props.match.status === 'in-progress'
   ) {
     return '';
-  }
-  if (props.match.isEdited && props.match.editedAt) {
-    return formatDate(props.match.editedAt);
   }
   if (props.match.cancelledBy && props.match.updatedAt) {
     return formatDate(props.match.updatedAt);
