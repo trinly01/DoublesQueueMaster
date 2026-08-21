@@ -585,6 +585,11 @@
                           matchesFilterBy,
                         )
                       "
+                      :show-date="
+                        ['edited', 'completed', 'cancelled'].includes(
+                          matchesFilterBy,
+                        )
+                      "
                       :allow-edit-cancel="isCurrentUserAdmin"
                       @completeMatch="openMatchResultDialog(index)"
                       @editMatch="editMatch(index)"
@@ -1047,6 +1052,11 @@
                       :show-actions="
                         canManageSession &&
                         ['all', 'in-progress', 'waiting'].includes(
+                          matchesFilterBy,
+                        )
+                      "
+                      :show-date="
+                        ['edited', 'completed', 'cancelled'].includes(
                           matchesFilterBy,
                         )
                       "
