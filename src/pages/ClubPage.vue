@@ -2326,16 +2326,36 @@ const filteredMatches = computed(() => {
       if (aGames !== bGames) return aGames - bGames;
     }
     // First in Line (default): match with oldest queue entry comes first
-    // Cancelled: latest first (newest on top)
+    // Cancelled/Edited/Completed: latest first (newest on top)
     const aTime =
       (a as unknown as { oldestQueueEntryAt?: number }).oldestQueueEntryAt ??
       a.createdAt.getTime();
     const bTime =
       (b as unknown as { oldestQueueEntryAt?: number }).oldestQueueEntryAt ??
       b.createdAt.getTime();
-    if ((a.status as string) === 'cancelled') return bTime - aTime;
-    if ((a.status as string) === 'completed') return bTime - aTime;
-    if (matchesFilterBy.value === 'edited') return bTime - aTime;
+    if ((a.status as string) === 'cancelled') {
+      const aUpdated =
+        (a as unknown as { updatedAt?: number }).updatedAt ?? aTime;
+      const bUpdated =
+        (b as unknown as { updatedAt?: number }).updatedAt ?? bTime;
+      return bUpdated - aUpdated;
+    }
+    if ((a.status as string) === 'completed') {
+      const aCompleted = (a as unknown as { completedAt?: string }).completedAt
+        ? Date.parse((a as unknown as { completedAt: string }).completedAt)
+        : aTime;
+      const bCompleted = (b as unknown as { completedAt?: string }).completedAt
+        ? Date.parse((b as unknown as { completedAt: string }).completedAt)
+        : bTime;
+      return bCompleted - aCompleted;
+    }
+    if (matchesFilterBy.value === 'edited') {
+      const aUpdated =
+        (a as unknown as { updatedAt?: number }).updatedAt ?? aTime;
+      const bUpdated =
+        (b as unknown as { updatedAt?: number }).updatedAt ?? bTime;
+      return bUpdated - aUpdated;
+    }
     if ((a.status as string) === 'in-progress') {
       const aStarted =
         (a as unknown as { startedAt?: Date }).startedAt?.getTime() ?? aTime;

@@ -338,11 +338,20 @@ const toTimestamp = (v: unknown): number => {
 };
 
 const dateLabel = computed(() => {
+  if (
+    props.match.status === 'waiting' ||
+    props.match.status === 'in-progress'
+  ) {
+    return '';
+  }
   if (props.match.isEdited && props.match.updatedAt) {
     return formatDate(props.match.updatedAt);
   }
   if (props.match.cancelledBy && props.match.updatedAt) {
     return formatDate(props.match.updatedAt);
+  }
+  if (props.match.completedAt) {
+    return formatDate(props.match.completedAt);
   }
   if (props.match.createdAt) {
     return formatDate(props.match.createdAt);
