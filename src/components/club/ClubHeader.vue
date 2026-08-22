@@ -56,8 +56,8 @@
               size="20px"
             >
               <q-tooltip
-                anchor="center right"
-                self="center left"
+                anchor="center left"
+                self="center right"
                 :offset="[4, 0]"
                 >Admin</q-tooltip
               >
@@ -69,8 +69,8 @@
               size="20px"
             >
               <q-tooltip
-                anchor="center right"
-                self="center left"
+                anchor="center left"
+                self="center right"
                 :offset="[4, 0]"
                 >Moderator</q-tooltip
               >
