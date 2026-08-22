@@ -388,9 +388,7 @@
                     </q-item-label>
                     <q-item-label caption>
                       {{ log.performedBy }} &middot;
-                      {{
-                        formatDateOnly(new Date(log.timestamp).toISOString())
-                      }}
+                      {{ formatDate(log.timestamp) }}
                     </q-item-label>
                     <q-item-label
                       v-if="log.details && Object.keys(log.details).length"
@@ -901,7 +899,11 @@ import { ref, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import DialogHeader from '../DialogHeader.vue';
 import MemberMatchStats from './MemberMatchStats.vue';
-import { getRatingColor, formatDateOnly } from '../../utils/playerHelpers';
+import {
+  getRatingColor,
+  formatDate,
+  formatDateOnly,
+} from '../../utils/playerHelpers';
 import {
   COMMEND_ITEMS,
   REPORT_ITEMS,
