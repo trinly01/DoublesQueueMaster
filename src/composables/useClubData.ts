@@ -583,7 +583,7 @@ export function useClubData(context: UseClubDataContext) {
                   MatchmakingApp.state.activeMatches.length === 0;
 
                 if (isFreshState) {
-                  // Fresh state: directly adopt server data
+                  // Fresh state: directly adopt server data, including settings
                   if (serverMatchmaking.players) {
                     MatchmakingApp.state.players = {
                       ...serverMatchmaking.players,
@@ -602,6 +602,13 @@ export function useClubData(context: UseClubDataContext) {
                       ...serverMatchmaking.completedMatches,
                     ];
                   }
+                  // Adopt the server's settings directly; a fresh local state
+                  // should not keep the reset defaults from the club switch.
+                  copyServerSettings(
+                    serverMatchmaking,
+                    SETTINGS_SEED_FIELDS,
+                    false,
+                  );
                   // Carry checkpoint timestamps so resets propagate
                   MatchmakingApp.state.playersResetAt =
                     serverMatchmaking.playersResetAt ?? 0;
