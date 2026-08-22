@@ -12,16 +12,22 @@ export interface UseDataManagementContext {
   clubName: ComputedRef<string> | Ref<string>;
   routeParamsId: ComputedRef<string | string[]> | Ref<string | string[]>;
   showSettingsDialog: Ref<boolean>;
+  clubId: ComputedRef<string> | Ref<string>;
 }
 
 export function useDataManagement(context: UseDataManagementContext) {
-  const { duprExportableMatches, clubName, routeParamsId, showSettingsDialog } =
-    context;
+  const {
+    duprExportableMatches,
+    clubName,
+    routeParamsId,
+    showSettingsDialog,
+    clubId: clubIdRef,
+  } = context;
   const $q = useQuasar();
   const { notify: ctxNotify } = useNotify();
   const notify = ctxNotify as NotifyFn;
 
-  const clubId = computed(() => String(routeParamsId.value));
+  const clubId = computed(() => clubIdRef.value || '');
 
   const confirmWithClubId = (opts: {
     title: string;

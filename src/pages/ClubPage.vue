@@ -1993,6 +1993,7 @@ const {
   clubName,
   routeParamsId,
   showSettingsDialog,
+  clubId: currentClubId,
 });
 
 watch([showSettingsDialog, settingsTab], ([showDialog, tab]) => {
