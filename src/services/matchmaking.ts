@@ -2131,20 +2131,70 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   const serverFTS = server.settingsFieldTimestamps ?? {};
   const localIsNewerBlob = localSettingsTime > serverSettingsTime;
 
-  const pickSettings = <T>(localVal: T, serverVal: T, fieldName: string): T => {
-    const localTs = localFTS[fieldName] ?? 0;
-    const serverTs = serverFTS[fieldName] ?? 0;
-    if (localTs > 0 || serverTs > 0) {
-      return localTs >= serverTs ? localVal : serverVal;
-    }
-    // Backward compat: no per-field timestamp, use whole-blob LWW
-    return localIsNewerBlob ? localVal : serverVal;
+  const getEffectiveFieldTs = (
+    val: unknown,
+    fieldTs: number | undefined,
+    blobTs: number,
+  ): number => {
+    // Use the per-field timestamp if we have one.
+    if (fieldTs && fieldTs > 0 && fieldTs <= nowMs) return fieldTs;
+    // Backfill: if the value has been explicitly set (non-default / non-undefined)
+    // but lacks a per-field stamp, use the whole-blob settingsUpdatedAt so it
+    // can participate in per-field LWW instead of being silently clobbered.
+    if (val !== undefined && blobTs > 0 && blobTs <= nowMs) return blobTs;
+    return 0;
   };
 
-  // Merge the settingsFieldTimestamps maps (keep newer timestamp per key)
-  const mergedFTS: Record<string, number> = { ...serverFTS };
+  const pickSettings = <T>(localVal: T, serverVal: T, fieldName: string): T => {
+    const defaultVal = CLUB_SETTINGS[fieldName];
+
+    // Treat default values as effectively-unstamped unless they carry a real
+    // per-field timestamp. A default value without a field stamp is usually
+    // stale/uninitialized state, not an intentional change.
+    const localEffectiveTs =
+      localVal === defaultVal
+        ? (localFTS[fieldName] ?? 0)
+        : getEffectiveFieldTs(localVal, localFTS[fieldName], localSettingsTime);
+    const serverEffectiveTs =
+      serverVal === defaultVal
+        ? (serverFTS[fieldName] ?? 0)
+        : getEffectiveFieldTs(
+            serverVal,
+            serverFTS[fieldName],
+            serverSettingsTime,
+          );
+
+    if (localEffectiveTs > 0 || serverEffectiveTs > 0) {
+      return localEffectiveTs >= serverEffectiveTs ? localVal : serverVal;
+    }
+
+    // Backward compat: no usable timestamp, use whole-blob LWW.
+    // If the winning blob only carries the default/undefined, but the other
+    // side has a concrete non-default value, keep the concrete value. This
+    // prevents a stale server default (e.g. availableCourts: 1) from
+    // clobbering a value the user intentionally changed locally.
+    const winningIsLocal = localIsNewerBlob;
+    const winnerVal = winningIsLocal ? localVal : serverVal;
+    const loserVal = winningIsLocal ? serverVal : localVal;
+
+    if (
+      (winnerVal === undefined || winnerVal === defaultVal) &&
+      loserVal !== undefined &&
+      loserVal !== defaultVal
+    ) {
+      return loserVal as T;
+    }
+    return winnerVal as T;
+  };
+
+  // Merge the settingsFieldTimestamps maps (keep newer timestamp per key),
+  // capping future-dated timestamps so clock skew doesn't persist.
+  const mergedFTS: Record<string, number> = {};
+  for (const [key, ts] of Object.entries(serverFTS)) {
+    if (ts > 0 && ts <= nowMs) mergedFTS[key] = ts;
+  }
   for (const [key, ts] of Object.entries(localFTS)) {
-    if (ts >= (mergedFTS[key] ?? 0)) {
+    if (ts > 0 && ts <= nowMs && ts >= (mergedFTS[key] ?? 0)) {
       mergedFTS[key] = ts;
     }
   }
