@@ -51,17 +51,20 @@ function makeContext() {
   const clubName = ref('Test Club');
   const routeParamsId = ref<string | string[]>('club-123');
   const showSettingsDialog = ref(false);
+  const clubId = ref('test-club-id');
   return {
     context: {
       duprExportableMatches,
       clubName,
       routeParamsId,
       showSettingsDialog,
+      clubId,
     },
     duprExportableMatches,
     clubName,
     routeParamsId,
     showSettingsDialog,
+    clubId,
   };
 }
 
