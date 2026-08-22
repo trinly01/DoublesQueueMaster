@@ -1145,6 +1145,7 @@
         :moderator-members="moderatorMembers"
         :regular-members="regularMembers"
         :admin-match-stats="adminMatchStats"
+        :action-logs="MatchmakingApp.state.actionLogs"
         :club-feedback-loading="clubFeedbackLoading"
         :club-feedback="clubFeedback"
         @reset-games-played="resetGamesPlayed"
@@ -1637,6 +1638,13 @@ const {
   saveLastSyncedTimestamp,
 });
 
+const currentUserName = computed(() => {
+  const member = clubMembers.value.find((m) => m.id === currentUserId.value);
+  return (
+    member?.firstName || member?.username || currentUserId.value || 'Unknown'
+  );
+});
+
 // Cloud sync composable — manages isOnline, hasPendingCloudSync, performCloudSync,
 // realtime subscriptions, online/offline/visibility handlers, and onStateChange wiring.
 const {
@@ -1744,6 +1752,8 @@ const {
   likhaUrl,
   clubSettingsSearch,
   clubSettingsSort,
+  currentUserId,
+  currentUserName,
 });
 watch(
   _adminMatchStatsComputed,
@@ -1994,7 +2004,46 @@ const {
   routeParamsId,
   showSettingsDialog,
   clubId: currentClubId,
+  currentUserId,
+  currentUserName,
 });
+
+// Log settings changes to action logs
+const _settingsInitialized = ref(false);
+const _settingsFields = [
+  'queueReturnMethod',
+  'autoSortQueue',
+  'queuePriorityMode',
+  'matchmakingMode',
+  'availableCourts',
+  'autoAdvanceMatches',
+  'ttsEnabled',
+  'scoreType',
+] as const;
+
+watch(
+  () =>
+    _settingsFields.map(
+      (f) => (MatchmakingApp.state as unknown as Record<string, unknown>)[f],
+    ),
+  (newVals, oldVals) => {
+    if (!_settingsInitialized.value) {
+      _settingsInitialized.value = true;
+      return;
+    }
+    if (!isCurrentUserAdmin.value && !isCurrentUserModerator.value) return;
+    newVals.forEach((val, i) => {
+      if (val !== oldVals[i]) {
+        MatchmakingApp.addActionLog(
+          'settings_change',
+          currentUserName.value,
+          currentUserId.value,
+          { field: _settingsFields[i], oldValue: oldVals[i], newValue: val },
+        );
+      }
+    });
+  },
+);
 
 watch([showSettingsDialog, settingsTab], ([showDialog, tab]) => {
   if (showDialog && tab === 'club') {
