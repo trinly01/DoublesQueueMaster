@@ -1,4 +1,4 @@
-import { type ComputedRef, type Ref } from 'vue';
+import { type ComputedRef, type Ref, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import type { QNotifyCreateOptions } from 'quasar';
 import { MatchmakingApp, type CompletedMatch } from 'src/services/matchmaking';
@@ -21,104 +21,120 @@ export function useDataManagement(context: UseDataManagementContext) {
   const { notify: ctxNotify } = useNotify();
   const notify = ctxNotify as NotifyFn;
 
+  const clubId = computed(() => String(routeParamsId.value));
+
+  const confirmWithClubId = (opts: {
+    title: string;
+    message: string;
+    okLabel: string;
+    okColor: string;
+    okIcon?: string;
+    onConfirm: () => void;
+  }) => {
+    const showDialog = () => {
+      $q.dialog({
+        title: opts.title,
+        message: opts.message,
+        prompt: {
+          model: '',
+          type: 'text',
+          label: `Type "${clubId.value}" to confirm`,
+          outlined: true,
+          isValid: (val) => val.trim() === clubId.value,
+        },
+        cancel: {
+          label: 'Cancel',
+          color: 'grey',
+          flat: true,
+        },
+        ok: {
+          label: opts.okLabel,
+          color: opts.okColor,
+          icon: opts.okIcon,
+        },
+        persistent: true,
+      }).onOk(() => {
+        opts.onConfirm();
+      });
+    };
+    showDialog();
+  };
+
   const resetGamesPlayed = () => {
-    $q.dialog({
+    confirmWithClubId({
       title: 'Confirm Reset Stats',
       message:
-        'Are you sure you want to reset all player stats? This will set games played, wins, and losses to zero for all players.',
-      cancel: {
-        label: 'Cancel',
-        color: 'grey',
-        flat: true,
-      },
-      ok: {
-        label: 'Reset Stats',
-        color: 'accent',
-        icon: 'refresh',
-      },
-      persistent: true,
-    }).onOk(() => {
-      // Reset player stats (preserve ratings)
-      const now = Date.now();
-      Object.values(MatchmakingApp.state.players).forEach((player) => {
-        player.matchesPlayed = 0;
-        player.wins = 0;
-        player.losses = 0;
-        player.statsUpdatedAt = now;
-        player.updatedAt = now;
-      });
+        'This will set games played, wins, and losses to zero for all players. Ratings are preserved.',
+      okLabel: 'Reset Stats',
+      okColor: 'accent',
+      okIcon: 'refresh',
+      onConfirm: () => {
+        // Reset player stats (preserve ratings)
+        const now = Date.now();
+        Object.values(MatchmakingApp.state.players).forEach((player) => {
+          player.matchesPlayed = 0;
+          player.wins = 0;
+          player.losses = 0;
+          player.statsUpdatedAt = now;
+          player.updatedAt = now;
+        });
 
-      MatchmakingApp.persist();
+        MatchmakingApp.persist();
 
-      notify({
-        type: 'positive',
-        message: 'All player stats have been reset',
-      });
+        notify({
+          type: 'positive',
+          message: 'All player stats have been reset',
+        });
+      },
     });
   };
 
   const clearMatches = () => {
-    $q.dialog({
+    confirmWithClubId({
       title: 'Confirm Clear Matches',
-      message:
-        'Are you sure you want to clear all matches? This will remove all current matches from the system.',
-      cancel: {
-        label: 'Cancel',
-        color: 'grey',
-        flat: true,
-      },
-      ok: {
-        label: 'Clear Matches',
-        color: 'warning',
-        icon: 'delete',
-      },
-      persistent: true,
-    }).onOk(() => {
-      // Tombstone all matches instead of wiping (for cross-admin sync)
-      MatchmakingApp.state.activeMatches.forEach((m) => {
-        m.deletedAt = Date.now();
-        m.updatedAt = Date.now();
-      });
-      MatchmakingApp.persist();
+      message: 'This will remove all current matches from the system.',
+      okLabel: 'Clear Matches',
+      okColor: 'warning',
+      okIcon: 'delete',
+      onConfirm: () => {
+        // Tombstone all matches instead of wiping (for cross-admin sync)
+        MatchmakingApp.state.activeMatches.forEach((m) => {
+          m.deletedAt = Date.now();
+          m.updatedAt = Date.now();
+        });
+        MatchmakingApp.persist();
 
-      notify({
-        type: 'positive',
-        message: 'All matches have been cleared',
-      });
+        notify({
+          type: 'positive',
+          message: 'All matches have been cleared',
+        });
+      },
     });
   };
 
   const clearQueue = () => {
-    $q.dialog({
+    confirmWithClubId({
       title: 'Confirm Clear Queue',
-      message:
-        'Are you sure you want to clear the queue? This will remove all players from the queue.',
-      cancel: {
-        label: 'Cancel',
-        color: 'grey',
-        flat: true,
-      },
-      ok: {
-        label: 'Clear Queue',
-        color: 'warning',
-        icon: 'delete_outline',
-      },
-      persistent: true,
-    }).onOk(() => {
-      // Tombstone all queue entries so deletions propagate across admins.
-      // Keep the tombstoned entries in the array (do not wipe the array) —
-      // otherwise a stale admin's live queue would resurrect on the next sync.
-      const now = Date.now();
-      MatchmakingApp.state.queues.forEach((q) => {
-        q.deletedAt = now;
-        q.updatedAt = now;
-      });
-      MatchmakingApp.persist();
+      message: 'This will remove all players from the queue.',
+      okLabel: 'Clear Queue',
+      okColor: 'warning',
+      okIcon: 'delete_outline',
+      onConfirm: () => {
+        // Tombstone all queue entries so deletions propagate across admins.
+        // Keep the tombstoned entries in the array (do not wipe the array) —
+        // otherwise a stale admin's live queue would resurrect on the next sync.
+        const now = Date.now();
+        MatchmakingApp.state.queues.forEach((q) => {
+          q.deletedAt = now;
+          q.updatedAt = now;
+        });
+        MatchmakingApp.persist();
 
-      notify({
-        type: 'positive',
-        message: 'Queue has been cleared',
-      });
+        notify({
+          type: 'positive',
+          message: 'Queue has been cleared',
+        });
+      },
     });
   };
 
@@ -138,7 +154,6 @@ export function useDataManagement(context: UseDataManagementContext) {
     const csv = buildDuprCsv(matches, { eventName, scoreType: scoreTypeVal });
     const filename = `dupr_matches_${routeParamsId.value}_${new Date().toISOString().split('T')[0]}.csv`;
     downloadDuprCsv(csv, filename);
-    MatchmakingApp.markExported();
     notify({
       type: 'positive',
       message: `Exported ${matches.length} match(es) to DUPR CSV`,
@@ -203,63 +218,57 @@ export function useDataManagement(context: UseDataManagementContext) {
       })
         .onOk(() => {
           exportDuprCsv();
-          doReset();
+          confirmWithClubId({
+            title: 'Confirm Reset Session',
+            message:
+              'This will reset all player stats, clear all matches, and clear the queue. Players will be kept.',
+            okLabel: 'Reset Session',
+            okColor: 'negative',
+            okIcon: 'restart_alt',
+            onConfirm: doReset,
+          });
         })
         .onCancel(() => {
-          $q.dialog({
-            title: 'Confirm Reset Without Export',
-            message: 'Are you sure? Unexported match data will be lost.',
-            ok: {
-              label: 'Reset Anyway',
-              color: 'negative',
-            },
-            cancel: {
-              label: 'Cancel',
-              color: 'grey',
-              flat: true,
-            },
-            persistent: true,
-          }).onOk(doReset);
+          confirmWithClubId({
+            title: 'Reset Without Export',
+            message:
+              'Unexported match data will be lost. This will reset all player stats, clear all matches, and clear the queue.',
+            okLabel: 'Reset Anyway',
+            okColor: 'negative',
+            okIcon: 'restart_alt',
+            onConfirm: doReset,
+          });
         });
       return;
     }
 
-    $q.dialog({
-      title: 'Reset Session',
+    confirmWithClubId({
+      title: 'Confirm Reset Session',
       message:
-        'This will reset all player stats, clear all matches, and clear the queue. Players will be kept. Are you sure?',
-      cancel: {
-        label: 'Cancel',
-        color: 'grey',
-        flat: true,
-      },
-      ok: {
-        label: 'Reset Session',
-        color: 'negative',
-        icon: 'restart_alt',
-      },
-      persistent: true,
-    }).onOk(doReset);
+        'This will reset all player stats, clear all matches, and clear the queue. Players will be kept.',
+      okLabel: 'Reset Session',
+      okColor: 'negative',
+      okIcon: 'restart_alt',
+      onConfirm: doReset,
+    });
   };
 
   const resetAllData = () => {
-    $q.dialog({
+    confirmWithClubId({
       title: 'Reset Everything',
       message:
-        'Are you sure you want to delete ALL data including players? This cannot be undone.',
-      cancel: true,
-      persistent: true,
-      ok: {
-        color: 'negative',
-        label: 'Delete Everything',
+        'This will delete ALL data including players. This cannot be undone.',
+      okLabel: 'Delete Everything',
+      okColor: 'negative',
+      okIcon: 'delete_forever',
+      onConfirm: () => {
+        MatchmakingApp.hardResetEverything();
+        showSettingsDialog.value = false;
+        notify({
+          type: 'warning',
+          message: 'All data has been reset',
+        });
       },
-    }).onOk(() => {
-      MatchmakingApp.hardResetEverything();
-      showSettingsDialog.value = false;
-      notify({
-        type: 'warning',
-        message: 'All data has been reset',
-      });
     });
   };
 
