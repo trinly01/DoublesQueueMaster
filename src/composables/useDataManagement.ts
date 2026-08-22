@@ -13,6 +13,8 @@ export interface UseDataManagementContext {
   routeParamsId: ComputedRef<string | string[]> | Ref<string | string[]>;
   showSettingsDialog: Ref<boolean>;
   clubId: ComputedRef<string> | Ref<string>;
+  currentUserId: ComputedRef<string> | Ref<string>;
+  currentUserName: ComputedRef<string> | Ref<string>;
 }
 
 export function useDataManagement(context: UseDataManagementContext) {
@@ -22,6 +24,8 @@ export function useDataManagement(context: UseDataManagementContext) {
     routeParamsId,
     showSettingsDialog,
     clubId: clubIdRef,
+    currentUserId,
+    currentUserName,
   } = context;
   const $q = useQuasar();
   const { notify: ctxNotify } = useNotify();
@@ -75,6 +79,9 @@ export function useDataManagement(context: UseDataManagementContext) {
       okColor: 'accent',
       okIcon: 'refresh',
       onConfirm: () => {
+        const playersAffected = Object.keys(
+          MatchmakingApp.state.players,
+        ).length;
         // Reset player stats (preserve ratings)
         const now = Date.now();
         Object.values(MatchmakingApp.state.players).forEach((player) => {
@@ -86,6 +93,12 @@ export function useDataManagement(context: UseDataManagementContext) {
         });
 
         MatchmakingApp.persist();
+        MatchmakingApp.addActionLog(
+          'reset_stats',
+          currentUserName.value,
+          currentUserId.value,
+          { playersAffected },
+        );
 
         notify({
           type: 'positive',
@@ -103,12 +116,21 @@ export function useDataManagement(context: UseDataManagementContext) {
       okColor: 'warning',
       okIcon: 'delete',
       onConfirm: () => {
+        const matchesCleared = MatchmakingApp.state.activeMatches.filter(
+          (m) => !m.deletedAt,
+        ).length;
         // Tombstone all matches instead of wiping (for cross-admin sync)
         MatchmakingApp.state.activeMatches.forEach((m) => {
           m.deletedAt = Date.now();
           m.updatedAt = Date.now();
         });
         MatchmakingApp.persist();
+        MatchmakingApp.addActionLog(
+          'clear_matches',
+          currentUserName.value,
+          currentUserId.value,
+          { matchesCleared },
+        );
 
         notify({
           type: 'positive',
@@ -126,6 +148,9 @@ export function useDataManagement(context: UseDataManagementContext) {
       okColor: 'warning',
       okIcon: 'delete_outline',
       onConfirm: () => {
+        const queueEntriesCleared = MatchmakingApp.state.queues.filter(
+          (q) => !q.deletedAt,
+        ).length;
         // Tombstone all queue entries so deletions propagate across admins.
         // Keep the tombstoned entries in the array (do not wipe the array) —
         // otherwise a stale admin's live queue would resurrect on the next sync.
@@ -135,6 +160,12 @@ export function useDataManagement(context: UseDataManagementContext) {
           q.updatedAt = now;
         });
         MatchmakingApp.persist();
+        MatchmakingApp.addActionLog(
+          'clear_queue',
+          currentUserName.value,
+          currentUserId.value,
+          { queueEntriesCleared },
+        );
 
         notify({
           type: 'positive',
@@ -160,6 +191,12 @@ export function useDataManagement(context: UseDataManagementContext) {
     const csv = buildDuprCsv(matches, { eventName, scoreType: scoreTypeVal });
     const filename = `dupr_matches_${routeParamsId.value}_${new Date().toISOString().split('T')[0]}.csv`;
     downloadDuprCsv(csv, filename);
+    MatchmakingApp.addActionLog(
+      'export_dupr_csv',
+      currentUserName.value,
+      currentUserId.value,
+      { matchesExported: matches.length },
+    );
     notify({
       type: 'positive',
       message: `Exported ${matches.length} match(es) to DUPR CSV`,
@@ -175,6 +212,11 @@ export function useDataManagement(context: UseDataManagementContext) {
 
     const doReset = () => {
       const now = Date.now();
+      const playersReset = Object.keys(MatchmakingApp.state.players).length;
+      const matchesCleared = MatchmakingApp.state.activeMatches.length;
+      const queueCleared = MatchmakingApp.state.queues.filter(
+        (q) => !q.deletedAt,
+      ).length;
 
       // Reset player stats
       Object.values(MatchmakingApp.state.players).forEach((player) => {
@@ -197,6 +239,12 @@ export function useDataManagement(context: UseDataManagementContext) {
       MatchmakingApp.state.settingsUpdatedAt = now;
       MatchmakingApp.state.lastModified = now;
       MatchmakingApp.persist();
+      MatchmakingApp.addActionLog(
+        'reset_session',
+        currentUserName.value,
+        currentUserId.value,
+        { matchesCleared, queueCleared, playersReset },
+      );
 
       notify({
         type: 'positive',
@@ -269,6 +317,11 @@ export function useDataManagement(context: UseDataManagementContext) {
       okIcon: 'delete_forever',
       onConfirm: () => {
         MatchmakingApp.hardResetEverything();
+        MatchmakingApp.addActionLog(
+          'reset_all',
+          currentUserName.value,
+          currentUserId.value,
+        );
         showSettingsDialog.value = false;
         notify({
           type: 'warning',
