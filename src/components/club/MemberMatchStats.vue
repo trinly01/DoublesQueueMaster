@@ -1,6 +1,15 @@
 <template>
-  <div v-if="stats && (stats.total ?? 0) > 0" class="row q-gutter-xs q-mt-xs">
+  <div
+    v-if="
+      stats &&
+      ((stats.total ?? 0) > 0 ||
+        (stats.cancelled ?? 0) > 0 ||
+        (stats.scored ?? 0) > 0)
+    "
+    class="row q-gutter-xs q-mt-xs"
+  >
     <q-chip
+      v-if="(stats.total ?? 0) > 0"
       :label="stats.total"
       color="accent"
       text-color="white"
