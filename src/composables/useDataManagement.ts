@@ -76,7 +76,7 @@ export function useDataManagement(context: UseDataManagementContext) {
       message:
         'This will set games played, wins, and losses to zero for all players. Ratings are preserved.',
       okLabel: 'Reset Stats',
-      okColor: 'accent',
+      okColor: 'negative',
       okIcon: 'refresh',
       onConfirm: () => {
         const playersAffected = Object.keys(
