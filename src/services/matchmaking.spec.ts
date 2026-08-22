@@ -2297,6 +2297,74 @@ describe('mergeAppState — lower-value merge gaps', () => {
     expect(live.some((q) => q.username === 'pre')).toBe(false);
     assertInvariants(merged);
   });
+  it('per-field settings LWW: a stale server default does not clobber a local non-default value', () => {
+    // Local admin changed availableCourts to 4 at t=1000.
+    const a = makeState({
+      settingsUpdatedAt: 1000,
+      settingsFieldTimestamps: { availableCourts: 1000 },
+      availableCourts: 4,
+      autoAdvanceMatches: true,
+      lastModified: 1000,
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+    });
+    // Server still has the default availableCourts: 1, but a newer whole-blob
+    // settingsUpdatedAt because some other setting (e.g. matchmakingMode) changed.
+    const b = makeState({
+      settingsUpdatedAt: 3000,
+      settingsFieldTimestamps: { matchmakingMode: 3000 },
+      availableCourts: 1, // default, no per-field stamp
+      matchmakingMode: 'fair_balance',
+      autoAdvanceMatches: true,
+      lastModified: 3000,
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+    });
+    const merged = mergeAppState(a, b);
+    expect(merged.availableCourts).toBe(4);
+    expect(merged.matchmakingMode).toBe('fair_balance');
+    expect(merged.settingsFieldTimestamps?.availableCourts).toBe(1000);
+  });
+
+  it('settings LWW: future-dated per-field timestamps are ignored', () => {
+    const future = Date.now() + 10000;
+    const past = Date.now() - 1000;
+    const a = makeState({
+      settingsUpdatedAt: past,
+      settingsFieldTimestamps: { availableCourts: past },
+      availableCourts: 4,
+      lastModified: past,
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+    });
+    const b = makeState({
+      settingsUpdatedAt: past,
+      settingsFieldTimestamps: { availableCourts: future },
+      availableCourts: 1,
+      lastModified: past,
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+    });
+    const merged = mergeAppState(a, b);
+    // Clock skew on B is ignored; A wins.
+    expect(merged.availableCourts).toBe(4);
+    // Future timestamp should not persist.
+    expect(merged.settingsFieldTimestamps?.availableCourts).toBe(past);
+  });
+
+  it('settings LWW: backward-compat backfills missing per-field timestamps from whole-blob', () => {
+    // Both sides lack per-field stamps; the newer whole-blob wins.
+    const a = makeState({
+      settingsUpdatedAt: 1000,
+      availableCourts: 4,
+      lastModified: 1000,
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+    });
+    const b = makeState({
+      settingsUpdatedAt: 2000,
+      availableCourts: 3,
+      lastModified: 2000,
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+    });
+    const merged = mergeAppState(a, b);
+    expect(merged.availableCourts).toBe(3);
+  });
 });
 
 describe('mergeAppState — pure state enforcement helpers', () => {
