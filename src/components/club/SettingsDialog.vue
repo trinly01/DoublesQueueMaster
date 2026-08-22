@@ -287,18 +287,7 @@
               <div class="row q-gutter-sm">
                 <div class="col">
                   <q-btn
-                    color="accent"
-                    @click="$emit('resetGamesPlayed')"
-                    icon="refresh"
-                    label="Reset Stats"
-                    class="full-width"
-                    stack
-                    style="min-height: 72px"
-                  />
-                </div>
-                <div class="col">
-                  <q-btn
-                    color="warning"
+                    color="negative"
                     @click="$emit('clearMatches')"
                     icon="delete"
                     label="Clear Matches"
@@ -309,7 +298,7 @@
                 </div>
                 <div class="col">
                   <q-btn
-                    color="warning"
+                    color="negative"
                     @click="$emit('clearQueue')"
                     icon="delete_outline"
                     label="Clear Queue"
@@ -321,6 +310,17 @@
               </div>
 
               <div class="q-mt-sm row q-gutter-sm">
+                <div class="col">
+                  <q-btn
+                    color="negative"
+                    @click="$emit('resetGamesPlayed')"
+                    icon="refresh"
+                    label="Reset Stats"
+                    class="full-width"
+                    stack
+                    style="min-height: 72px"
+                  />
+                </div>
                 <div class="col">
                   <q-btn
                     color="negative"
@@ -343,6 +343,71 @@
                     style="min-height: 72px"
                   />
                 </div>
+              </div>
+            </div>
+          </q-expansion-item>
+
+          <q-expansion-item
+            v-if="isCurrentUserAdmin"
+            icon="history"
+            label="Action Logs"
+            dense-toggle
+            class="q-mt-sm"
+          >
+            <div class="q-pa-sm">
+              <q-list v-if="actionLogs.length > 0" separator>
+                <q-item v-for="log in actionLogs" :key="log.id" dense>
+                  <q-item-section avatar>
+                    <q-icon
+                      :name="
+                        log.action === 'reset_stats'
+                          ? 'refresh'
+                          : log.action === 'clear_matches'
+                            ? 'delete'
+                            : log.action === 'clear_queue'
+                              ? 'delete_outline'
+                              : log.action === 'reset_session'
+                                ? 'restart_alt'
+                                : log.action === 'reset_all'
+                                  ? 'delete_forever'
+                                  : log.action === 'export_dupr_csv'
+                                    ? 'download'
+                                    : 'settings'
+                      "
+                      :color="
+                        log.action.startsWith('reset') ||
+                        log.action.startsWith('clear')
+                          ? 'negative'
+                          : 'primary'
+                      "
+                    />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-capitalize">
+                      {{ log.action.replace(/_/g, ' ') }}
+                    </q-item-label>
+                    <q-item-label caption>
+                      {{ log.performedBy }} &middot;
+                      {{
+                        formatDateOnly(new Date(log.timestamp).toISOString())
+                      }}
+                    </q-item-label>
+                    <q-item-label
+                      v-if="log.details && Object.keys(log.details).length"
+                      caption
+                      class="text-grey-7"
+                    >
+                      {{
+                        Object.entries(log.details)
+                          .map(([k, v]) => `${k}: ${v}`)
+                          .join(', ')
+                      }}
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="text-caption text-grey-6 q-pa-sm">
+                No actions logged
               </div>
             </div>
           </q-expansion-item>
@@ -848,73 +913,86 @@ defineOptions({ name: 'SettingsDialog' });
 
 const $q = useQuasar();
 
-const props = defineProps<{
-  modelValue: boolean;
-  unreadClubFeedbackCount: number;
-  isCurrentUserAdmin: boolean;
-  queueReturnOptions: Array<{
-    label: string;
-    value: string;
-    description?: string;
-  }>;
-  queuePriorityOptions: Array<{
-    label: string;
-    value: string;
-    description?: string;
-  }>;
-  matchmakingModeOptions: Array<{
-    label: string;
-    value: string;
-    description?: string;
-    disable?: boolean;
-  }>;
-  scoreTypeOptions: Array<{
-    label: string;
-    value: string;
-    description?: string;
-  }>;
-  duprExportableMatches: unknown[];
-  getClubLogoUrl: string | undefined;
-  clubName: string;
-  editClubLoading: boolean;
-  adminMembers: Array<{
-    id: string;
-    username?: string;
-    firstName?: string;
-    avatar?: string;
-    rating?: number;
-    adminJunctionId?: string;
-  }>;
-  moderatorMembers: Array<{
-    id: string;
-    username?: string;
-    firstName?: string;
-    avatar?: string;
-    rating?: number;
-    moderatorJunctionId?: string;
-  }>;
-  regularMembers: Array<{
-    id: string;
-    username?: string;
-    firstName?: string;
-    avatar?: string;
-    rating?: number;
-    playerJunctionId?: string;
-  }>;
-  adminMatchStats: Record<
-    string,
-    {
-      total: number;
-      auto: number;
-      manual: number;
-      edited: number;
-      scored: number;
-      cancelled: number;
-    }
-  >;
-  clubFeedbackLoading: boolean;
-  clubFeedback: ClubFeedbackEntry[];
-}>();
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean;
+    unreadClubFeedbackCount: number;
+    isCurrentUserAdmin: boolean;
+    queueReturnOptions: Array<{
+      label: string;
+      value: string;
+      description?: string;
+    }>;
+    queuePriorityOptions: Array<{
+      label: string;
+      value: string;
+      description?: string;
+    }>;
+    matchmakingModeOptions: Array<{
+      label: string;
+      value: string;
+      description?: string;
+      disable?: boolean;
+    }>;
+    scoreTypeOptions: Array<{
+      label: string;
+      value: string;
+      description?: string;
+    }>;
+    duprExportableMatches: unknown[];
+    getClubLogoUrl: string | undefined;
+    clubName: string;
+    editClubLoading: boolean;
+    adminMembers: Array<{
+      id: string;
+      username?: string;
+      firstName?: string;
+      avatar?: string;
+      rating?: number;
+      adminJunctionId?: string;
+    }>;
+    moderatorMembers: Array<{
+      id: string;
+      username?: string;
+      firstName?: string;
+      avatar?: string;
+      rating?: number;
+      moderatorJunctionId?: string;
+    }>;
+    regularMembers: Array<{
+      id: string;
+      username?: string;
+      firstName?: string;
+      avatar?: string;
+      rating?: number;
+      playerJunctionId?: string;
+    }>;
+    adminMatchStats: Record<
+      string,
+      {
+        total: number;
+        auto: number;
+        manual: number;
+        edited: number;
+        scored: number;
+        cancelled: number;
+      }
+    >;
+    actionLogs?: {
+      id: string;
+      action: string;
+      performedBy: string;
+      performedById: string;
+      timestamp: number;
+      details?: Record<string, unknown>;
+    }[];
+    clubFeedbackLoading: boolean;
+    clubFeedback: ClubFeedbackEntry[];
+  }>(),
+  {
+    actionLogs: () => [],
+  },
+);
 
 defineEmits<{
   'update:modelValue': [value: boolean];
