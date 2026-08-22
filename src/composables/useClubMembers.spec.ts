@@ -79,6 +79,8 @@ function makeContext(overrides: Record<string, unknown> = {}) {
   const likhaUrl = ref('https://api.test');
   const clubSettingsSearch = ref('');
   const clubSettingsSort = ref<ClubSettingsSort>('nameAsc');
+  const currentUserId = ref('u1');
+  const currentUserName = ref('Admin Alice');
 
   return {
     context: {
@@ -89,6 +91,8 @@ function makeContext(overrides: Record<string, unknown> = {}) {
       likhaUrl,
       clubSettingsSearch,
       clubSettingsSort,
+      currentUserId,
+      currentUserName,
       ...overrides,
     },
     clubMembers,

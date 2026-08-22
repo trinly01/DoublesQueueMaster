@@ -39,6 +39,8 @@ export interface UseClubMembersContext {
   likhaUrl: Ref<string>;
   clubSettingsSearch: Ref<string>;
   clubSettingsSort: Ref<ClubSettingsSort>;
+  currentUserId: Ref<string>;
+  currentUserName: Ref<string>;
 }
 
 export function useClubMembers(context: UseClubMembersContext) {
@@ -50,6 +52,8 @@ export function useClubMembers(context: UseClubMembersContext) {
     likhaUrl,
     clubSettingsSearch,
     clubSettingsSort,
+    currentUserId,
+    currentUserName,
   } = context;
   const $q = useQuasar();
   const { notify: ctxNotify } = useNotify();
@@ -160,6 +164,13 @@ export function useClubMembers(context: UseClubMembersContext) {
         }),
       );
       await refreshClubMembers();
+      const member = clubMembers.value.find((m) => m.id === memberId);
+      MatchmakingApp.addActionLog(
+        'remove_member',
+        currentUserName.value,
+        currentUserId.value,
+        { member: member?.firstName || member?.username || memberId },
+      );
       notify({ type: 'positive', message: 'Member removed from club' });
     } catch (err) {
       console.error('Failed to remove club member:', err);
@@ -176,6 +187,13 @@ export function useClubMembers(context: UseClubMembersContext) {
         }),
       );
       await refreshClubMembers();
+      const member = clubMembers.value.find((m) => m.id === memberId);
+      MatchmakingApp.addActionLog(
+        'promote_admin',
+        currentUserName.value,
+        currentUserId.value,
+        { member: member?.firstName || member?.username || memberId },
+      );
       notify({ type: 'positive', message: 'Member promoted to admin' });
     } catch (err) {
       console.error('Failed to promote member:', err);
@@ -192,6 +210,13 @@ export function useClubMembers(context: UseClubMembersContext) {
         }),
       );
       await refreshClubMembers();
+      const member = clubMembers.value.find((m) => m.id === memberId);
+      MatchmakingApp.addActionLog(
+        'demote_admin',
+        currentUserName.value,
+        currentUserId.value,
+        { member: member?.firstName || member?.username || memberId },
+      );
       notify({ type: 'positive', message: 'Admin demoted to member' });
     } catch (err) {
       console.error('Failed to demote admin:', err);
@@ -212,6 +237,13 @@ export function useClubMembers(context: UseClubMembersContext) {
         }),
       );
       await refreshClubMembers();
+      const member = clubMembers.value.find((m) => m.id === memberId);
+      MatchmakingApp.addActionLog(
+        'demote_admin_to_moderator',
+        currentUserName.value,
+        currentUserId.value,
+        { member: member?.firstName || member?.username || memberId },
+      );
       notify({ type: 'positive', message: 'Admin demoted to moderator' });
     } catch (err) {
       console.error('Failed to demote admin to moderator:', err);
@@ -228,6 +260,13 @@ export function useClubMembers(context: UseClubMembersContext) {
         }),
       );
       await refreshClubMembers();
+      const member = clubMembers.value.find((m) => m.id === memberId);
+      MatchmakingApp.addActionLog(
+        'promote_moderator',
+        currentUserName.value,
+        currentUserId.value,
+        { member: member?.firstName || member?.username || memberId },
+      );
       notify({ type: 'positive', message: 'Member promoted to moderator' });
     } catch (err) {
       console.error('Failed to promote member:', err);
@@ -247,6 +286,13 @@ export function useClubMembers(context: UseClubMembersContext) {
         }),
       );
       await refreshClubMembers();
+      const member = clubMembers.value.find((m) => m.id === memberId);
+      MatchmakingApp.addActionLog(
+        'demote_moderator',
+        currentUserName.value,
+        currentUserId.value,
+        { member: member?.firstName || member?.username || memberId },
+      );
       notify({ type: 'positive', message: 'Moderator demoted to member' });
     } catch (err) {
       console.error('Failed to demote moderator:', err);
@@ -267,6 +313,13 @@ export function useClubMembers(context: UseClubMembersContext) {
         }),
       );
       await refreshClubMembers();
+      const member = clubMembers.value.find((m) => m.id === memberId);
+      MatchmakingApp.addActionLog(
+        'promote_moderator_to_admin',
+        currentUserName.value,
+        currentUserId.value,
+        { member: member?.firstName || member?.username || memberId },
+      );
       notify({ type: 'positive', message: 'Moderator promoted to admin' });
     } catch (err) {
       console.error('Failed to promote moderator to admin:', err);

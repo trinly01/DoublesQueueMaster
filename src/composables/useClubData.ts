@@ -86,6 +86,28 @@ export function useClubData(context: UseClubDataContext) {
     }>
   >([]);
 
+  const currentUserName = computed(() => {
+    const member = clubMembers.value.find((m) => m.id === currentUserId.value);
+    return (
+      member?.firstName || member?.username || currentUserId.value || 'Unknown'
+    );
+  });
+
+  const logClubInfoChange = (
+    oldName: string,
+    newName: string,
+    oldId: string,
+    newId: string,
+  ) => {
+    if (oldName === newName && oldId === newId) return;
+    MatchmakingApp.addActionLog(
+      'club_info_change',
+      currentUserName.value,
+      currentUserId.value,
+      { oldName, newName, oldId, newId },
+    );
+  };
+
   const populateEditClubFields = () => {
     editClubName.value = clubName.value;
     editClubId.value = currentClubId.value;
@@ -132,6 +154,11 @@ export function useClubData(context: UseClubDataContext) {
           updateItem('club', currentClubUUID.value, { logo: logoId }),
         );
         clubLogo.value = logoId;
+        MatchmakingApp.addActionLog(
+          'club_logo_change',
+          currentUserName.value,
+          currentUserId.value,
+        );
         notify({ color: 'positive', message: 'Logo updated!' });
       }
     } catch (err) {
@@ -154,6 +181,8 @@ export function useClubData(context: UseClubDataContext) {
       const trimmedName = editClubName.value.trim();
       const trimmedId = editClubId.value.trim();
       const idChanged = trimmedId !== currentClubId.value;
+      const oldName = clubName.value;
+      const oldId = currentClubId.value;
 
       await likhaClient.request(
         updateItem('club', currentClubUUID.value, {
@@ -164,6 +193,7 @@ export function useClubData(context: UseClubDataContext) {
 
       clubName.value = trimmedName;
       currentClubId.value = trimmedId;
+      logClubInfoChange(oldName, trimmedName, oldId, trimmedId);
       notify({ color: 'positive', message: 'Club details updated!' });
 
       if (idChanged) {
