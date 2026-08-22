@@ -2150,19 +2150,22 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
 
     // Treat default values as effectively-unstamped unless they carry a real
     // per-field timestamp. A default value without a field stamp is usually
-    // stale/uninitialized state, not an intentional change.
+    // stale/uninitialized state, not an intentional change. Future timestamps
+    // are ignored in both branches to guard against clock skew.
+    const localTs = localFTS[fieldName] ?? 0;
     const localEffectiveTs =
       localVal === defaultVal
-        ? (localFTS[fieldName] ?? 0)
-        : getEffectiveFieldTs(localVal, localFTS[fieldName], localSettingsTime);
+        ? localTs > 0 && localTs <= nowMs
+          ? localTs
+          : 0
+        : getEffectiveFieldTs(localVal, localTs, localSettingsTime);
+    const serverTs = serverFTS[fieldName] ?? 0;
     const serverEffectiveTs =
       serverVal === defaultVal
-        ? (serverFTS[fieldName] ?? 0)
-        : getEffectiveFieldTs(
-            serverVal,
-            serverFTS[fieldName],
-            serverSettingsTime,
-          );
+        ? serverTs > 0 && serverTs <= nowMs
+          ? serverTs
+          : 0
+        : getEffectiveFieldTs(serverVal, serverTs, serverSettingsTime);
 
     if (localEffectiveTs > 0 || serverEffectiveTs > 0) {
       return localEffectiveTs >= serverEffectiveTs ? localVal : serverVal;

@@ -214,6 +214,7 @@ describe('useClubMembers — adminMatchStats', () => {
       manual: 1,
       edited: 1,
       scored: 1,
+      cancelled: 0,
     });
     expect(adminMatchStats.value['Bob']).toEqual({
       total: 1,
@@ -221,6 +222,7 @@ describe('useClubMembers — adminMatchStats', () => {
       manual: 0,
       edited: 0,
       scored: 2,
+      cancelled: 0,
     });
   });
 
