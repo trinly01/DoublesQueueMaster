@@ -2015,6 +2015,7 @@ const _settingsFields = [
   'autoSortQueue',
   'queuePriorityMode',
   'matchmakingMode',
+  'matchType',
   'availableCourts',
   'autoAdvanceMatches',
   'ttsEnabled',
