@@ -1004,7 +1004,6 @@ export class LocalMatchmakingSystem {
     this.state.queues = [];
     this.state.activeMatches = [];
     this.state.completedMatches = [];
-    this.state.actionLogs = [];
     this.state.playersResetAt = now;
     this.state.queuesResetAt = now;
     this.state.matchesResetAt = now;
