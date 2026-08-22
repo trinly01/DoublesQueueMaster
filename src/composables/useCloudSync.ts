@@ -60,6 +60,21 @@ export function useCloudSync(ctx: CloudSyncContext) {
   const dataFetchBar = ref<{ start: () => void; stop: () => void } | null>(
     null,
   );
+
+  // Club switch guard: suppresses cloud sync while clubs are being switched
+  // to prevent pushing reset defaults to the new club's server.
+  const clubSwitchInProgress = ref(false);
+  let clubSwitchTimeout: ReturnType<typeof setTimeout> | null = null;
+  const setClubSwitchInProgress = (value: boolean) => {
+    clubSwitchInProgress.value = value;
+    if (clubSwitchTimeout) clearTimeout(clubSwitchTimeout);
+    // Safety: auto-clear after 10s in case loadClubData never completes
+    if (value) {
+      clubSwitchTimeout = setTimeout(() => {
+        clubSwitchInProgress.value = false;
+      }, 10000);
+    }
+  };
   watch(hasPendingCloudSync, (pending) => {
     if (pending) syncAjaxBar.value?.start();
     else syncAjaxBar.value?.stop();
@@ -77,6 +92,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
   // Immediate sync to cloud (read-before-write for multi-admin conflict detection)
   const performCloudSync = async (skipServerMerge = false) => {
     if (isOpenPlay.value) return;
+    if (clubSwitchInProgress.value) {
+      hasPendingCloudSync.value = false;
+      return;
+    }
 
     // Mutex: if another sync is in-flight, mark pending and bail.
     if (syncInProgress) {
@@ -464,6 +483,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
   // Watch for matchmaking state changes and sync to cloud
   // Debounced wrapper: batch rapid mutations into a single sync attempt.
   const debouncedCloudSync = () => {
+    if (clubSwitchInProgress.value) return;
     hasPendingCloudSync.value = true;
     if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
     syncDebounceTimer = setTimeout(() => {
@@ -542,6 +562,8 @@ export function useCloudSync(ctx: CloudSyncContext) {
     lastSyncedServerTimestamp,
     syncAjaxBar,
     dataFetchBar,
+    clubSwitchInProgress,
+    setClubSwitchInProgress,
     performCloudSync,
     startRealtime,
     restartRealtime,

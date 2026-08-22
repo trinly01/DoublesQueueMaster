@@ -1607,6 +1607,9 @@ let getDataFetchBar: () =>
   | undefined
   | null = () => undefined;
 
+// Lazy setter for club switch guard — breaks useClubData/useCloudSync circular dependency
+let setClubSwitchInProgressFn: (value: boolean) => void = () => {};
+
 // Club data composable — manages club refs, loadClubData, cache, and club editing.
 const {
   currentClubId,
@@ -1636,6 +1639,8 @@ const {
   getDataFetchBar,
   lastSyncedServerTimestamp,
   saveLastSyncedTimestamp,
+  setClubSwitchInProgress: (v: boolean) => setClubSwitchInProgressFn(v),
+  stopRealtime: () => stopRealtimeFn(),
 });
 
 const currentUserName = computed(() => {
@@ -1651,8 +1656,10 @@ const {
   isOnline,
   syncAjaxBar,
   dataFetchBar,
+  setClubSwitchInProgress,
   performCloudSync,
   startRealtime,
+  stopRealtime,
   doResumeSync,
 } = useCloudSync({
   currentClubUUID,
@@ -1670,6 +1677,9 @@ const {
 });
 
 getDataFetchBar = () => dataFetchBar.value;
+setClubSwitchInProgressFn = setClubSwitchInProgress;
+let stopRealtimeFn: () => void = () => {};
+stopRealtimeFn = stopRealtime;
 
 const isCurrentUserAdmin = computed(() => {
   if (isOpenPlay.value) return true;
@@ -1946,6 +1956,9 @@ onMounted(async () => {
   // Load club from URL param — restoreFromCache will show cached data immediately
   const clubId = route.params['clubId'] as string;
   if (clubId) {
+    // Restore optimistic-concurrency token before loadClubData so the sync guard
+    // has the correct token from the start (loadClubData resets it on club switch).
+    lastSyncedServerTimestamp.value = loadLastSyncedTimestamp(clubId);
     await loadClubData(clubId);
     void loadClubFeedback();
     // Auto-join if not a member (lazy join: works offline if cached, joins when online)
@@ -1957,8 +1970,6 @@ onMounted(async () => {
     ) {
       await handleJoinClub();
     }
-    // Restore optimistic-concurrency token so we don't false-conflict after refresh
-    lastSyncedServerTimestamp.value = loadLastSyncedTimestamp(clubId);
     // Pull any manual directus_users rating edits on first load.
     void refreshPlayerRatings();
     // Subscribe to live updates so other admins' changes arrive without refresh.
@@ -2261,8 +2272,11 @@ const hasAvailableSlot = computed(() => {
 });
 
 const cancelledMatches = computed(() => {
+  const completedIds = new Set(
+    MatchmakingApp.state.completedMatches.map((m) => m.matchId),
+  );
   return MatchmakingApp.state.activeMatches
-    .filter((m) => m.deletedAt)
+    .filter((m) => m.deletedAt && !completedIds.has(m.matchId))
     .map((m, index) => {
       const teamA = m.teamA.map((u) => ({
         ...MatchmakingApp.state.players[u],

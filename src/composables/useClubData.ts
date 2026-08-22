@@ -24,6 +24,8 @@ export interface UseClubDataContext {
     | null;
   lastSyncedServerTimestamp: Ref<number>;
   saveLastSyncedTimestamp: (clubId: string, ts: number) => void;
+  setClubSwitchInProgress: (value: boolean) => void;
+  stopRealtime: () => void;
 }
 
 export function useClubData(context: UseClubDataContext) {
@@ -34,6 +36,8 @@ export function useClubData(context: UseClubDataContext) {
     getDataFetchBar,
     lastSyncedServerTimestamp,
     saveLastSyncedTimestamp,
+    setClubSwitchInProgress,
+    stopRealtime,
   } = context;
   const router = useRouter();
   const { notify: ctxNotify } = useNotify();
@@ -231,10 +235,13 @@ export function useClubData(context: UseClubDataContext) {
   };
 
   const restoreFromCache = (clubId: string): boolean => {
-    const cached = LocalStorage.getItem('matchmaking_state') as Record<
-      string,
-      unknown
-    > | null;
+    // Try per-club LS key first, then migrate from legacy key if needed
+    let cachedState = MatchmakingApp.loadFromClubCache(clubId);
+    if (!cachedState) {
+      MatchmakingApp.migrateToPerClubKey(clubId);
+      cachedState = MatchmakingApp.loadFromClubCache(clubId);
+    }
+
     const meta = LocalStorage.getItem(`club_meta_${clubId}`) as {
       clubUUID?: string;
       adminIds?: string[];
@@ -245,9 +252,11 @@ export function useClubData(context: UseClubDataContext) {
       clubStatus?: string;
     } | null;
 
-    if (cached && Object.keys(cached).length > 0 && meta) {
-      currentClubId.value = clubId;
+    if (cachedState && Object.keys(cachedState).length > 0 && meta) {
+      // Restore the actual matchmaking state, not just meta
+      Object.assign(MatchmakingApp.state, cachedState);
       MatchmakingApp.state.clubId = clubId;
+      currentClubId.value = clubId;
       currentClubUUID.value = meta.clubUUID || '';
       MatchmakingApp.state.clubUUID = meta.clubUUID || '';
       clubAdminIds.value = new Set(meta.adminIds || []);
@@ -303,12 +312,25 @@ export function useClubData(context: UseClubDataContext) {
       return;
     }
 
-    // If switching clubs, clear cached matchmaking state so the new club starts fresh
-    if (
+    // If switching clubs, save old club state to its own LS key and reset for new club
+    const isSwitchingClubs =
       (currentClubId.value && currentClubId.value !== clubId) ||
-      (MatchmakingApp.state.clubId && MatchmakingApp.state.clubId !== clubId)
-    ) {
+      (MatchmakingApp.state.clubId && MatchmakingApp.state.clubId !== clubId);
+
+    if (isSwitchingClubs) {
+      // Suppress cloud sync during the switch to prevent pushing reset defaults
+      setClubSwitchInProgress(true);
+      // Stop realtime subscription for the old club
+      stopRealtime();
+      // Save current state to the old club's per-club LS key
+      const oldClubId = MatchmakingApp.state.clubId || currentClubId.value;
+      if (oldClubId) {
+        MatchmakingApp.saveToClubCache(oldClubId);
+      }
+      // Reset state silently (no onStateChange → no cloud sync armed)
       MatchmakingApp.resetState();
+      // Reset concurrency token to avoid false conflicts with new club's server state
+      lastSyncedServerTimestamp.value = 0;
     }
 
     // Capture expected club so we can abort if the user switched clubs while the API was in-flight
@@ -583,47 +605,24 @@ export function useClubData(context: UseClubDataContext) {
                   MatchmakingApp.state.activeMatches.length === 0;
 
                 if (isFreshState) {
-                  // Fresh state: directly adopt server data, including settings
-                  if (serverMatchmaking.players) {
-                    MatchmakingApp.state.players = {
-                      ...serverMatchmaking.players,
-                    };
-                  }
-                  if (serverMatchmaking.queues) {
-                    MatchmakingApp.state.queues = [...serverMatchmaking.queues];
-                  }
-                  if (serverMatchmaking.activeMatches) {
-                    MatchmakingApp.state.activeMatches = [
-                      ...serverMatchmaking.activeMatches,
-                    ];
-                  }
-                  if (serverMatchmaking.completedMatches) {
-                    MatchmakingApp.state.completedMatches = [
-                      ...serverMatchmaking.completedMatches,
-                    ];
-                  }
-                  // Adopt the server's settings directly; a fresh local state
-                  // should not keep the reset defaults from the club switch.
-                  copyServerSettings(
-                    serverMatchmaking,
-                    SETTINGS_SEED_FIELDS,
-                    false,
+                  // Fresh state: zero out local timestamps so mergeAppState
+                  // adopts the server state entirely (all fields, all timestamps).
+                  // Must zero reset checkpoints too — resetState() sets them to
+                  // now(), which would cause mergeAppState to filter out all
+                  // server queues/matches/players created before now.
+                  MatchmakingApp.state.settingsUpdatedAt = 0;
+                  MatchmakingApp.state.settingsFieldTimestamps = {};
+                  MatchmakingApp.state.lastModified = 0;
+                  MatchmakingApp.state.playersResetAt = 0;
+                  MatchmakingApp.state.queuesResetAt = 0;
+                  MatchmakingApp.state.matchesResetAt = 0;
+                  MatchmakingApp.state.completedMatchesResetAt = 0;
+
+                  const merged = mergeAppState(
+                    MatchmakingApp.state,
+                    serverMatchmaking as AppState,
                   );
-                  // Carry checkpoint timestamps so resets propagate
-                  MatchmakingApp.state.playersResetAt =
-                    serverMatchmaking.playersResetAt ?? 0;
-                  MatchmakingApp.state.queuesResetAt =
-                    serverMatchmaking.queuesResetAt ?? 0;
-                  MatchmakingApp.state.matchesResetAt =
-                    serverMatchmaking.matchesResetAt ?? 0;
-                  // Carry settings timestamps so per-field LWW survives on fresh devices
-                  MatchmakingApp.state.settingsUpdatedAt =
-                    serverMatchmaking.settingsUpdatedAt ?? 0;
-                  if (serverMatchmaking.settingsFieldTimestamps) {
-                    MatchmakingApp.state.settingsFieldTimestamps = {
-                      ...serverMatchmaking.settingsFieldTimestamps,
-                    };
-                  }
+                  Object.assign(MatchmakingApp.state, merged);
                 } else {
                   // Existing local state: smart-merge with server
                   const merged = mergeAppState(
@@ -983,10 +982,7 @@ export function useClubData(context: UseClubDataContext) {
         });
       } else {
         // No cache available — try offline fallback one more time
-        const cached = LocalStorage.getItem('matchmaking_state') as Record<
-          string,
-          unknown
-        > | null;
+        const cached = MatchmakingApp.loadFromClubCache(clubId);
         if (cached && Object.keys(cached).length > 0) {
           if (restoreFromCache(clubId)) {
             clubStatus.value = 'published';
@@ -1003,6 +999,10 @@ export function useClubData(context: UseClubDataContext) {
         clubLoadingState.value = 'error';
         clubErrorMessage.value =
           'Failed to load club data. No cached data available.';
+      }
+    } finally {
+      if (isSwitchingClubs) {
+        setClubSwitchInProgress(false);
       }
     }
   };
