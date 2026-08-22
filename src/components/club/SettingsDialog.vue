@@ -218,111 +218,134 @@
 
           <div>
             <div class="text-subtitle2 q-mb-sm">DUPR Export Settings</div>
-            <q-select
-              v-model="scoreType"
-              :options="scoreTypeOptions"
-              label="Score Type"
-              outlined
-              dense
-              emit-value
-              map-options
-              class="q-mb-sm"
-            >
-              <template v-slot:option="scope">
-                <q-item v-bind="scope.itemProps">
-                  <q-item-section>
-                    <q-item-label>{{ scope.opt.label }}</q-item-label>
-                    <q-item-label
-                      v-if="scope.opt.description"
-                      caption
-                      class="text-grey-7"
-                    >
-                      {{ scope.opt.description }}
-                    </q-item-label>
-                  </q-item-section>
-                </q-item>
-              </template>
-            </q-select>
+            <div class="row q-col-gutter-sm items-center">
+              <div class="col">
+                <q-select
+                  v-model="scoreType"
+                  :options="scoreTypeOptions"
+                  label="Score Type"
+                  outlined
+                  dense
+                  emit-value
+                  map-options
+                >
+                  <template v-slot:option="scope">
+                    <q-item v-bind="scope.itemProps">
+                      <q-item-section>
+                        <q-item-label>{{ scope.opt.label }}</q-item-label>
+                        <q-item-label
+                          v-if="scope.opt.description"
+                          caption
+                          class="text-grey-7"
+                        >
+                          {{ scope.opt.description }}
+                        </q-item-label>
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                </q-select>
+              </div>
+              <div class="col-auto">
+                <q-btn
+                  color="positive"
+                  @click="$emit('exportDuprCsv')"
+                  icon="download"
+                  :label="$q.screen.gt.xs ? 'Export DUPR CSV' : undefined"
+                  unelevated
+                  no-caps
+                  :disable="duprExportableMatches.length === 0"
+                >
+                  <q-tooltip
+                    v-if="duprExportableMatches.length === 0"
+                    anchor="top middle"
+                    self="bottom middle"
+                  >
+                    No completed matches to export
+                  </q-tooltip>
+                  <q-tooltip
+                    v-else-if="$q.screen.lt.sm"
+                    anchor="top middle"
+                    self="bottom middle"
+                  >
+                    Export DUPR CSV
+                  </q-tooltip>
+                </q-btn>
+              </div>
+            </div>
           </div>
 
           <q-separator />
 
-          <div v-if="isCurrentUserAdmin" class="text-subtitle2 q-mb-sm">
-            Data Management
-          </div>
+          <q-expansion-item
+            v-if="isCurrentUserAdmin"
+            icon="admin_panel_settings"
+            label="Data Management"
+            dense-toggle
+            class="q-mt-sm"
+          >
+            <div class="q-pa-sm">
+              <div class="row q-gutter-sm">
+                <div class="col">
+                  <q-btn
+                    color="accent"
+                    @click="$emit('resetGamesPlayed')"
+                    icon="refresh"
+                    label="Reset Stats"
+                    class="full-width"
+                    stack
+                    style="min-height: 72px"
+                  />
+                </div>
+                <div class="col">
+                  <q-btn
+                    color="warning"
+                    @click="$emit('clearMatches')"
+                    icon="delete"
+                    label="Clear Matches"
+                    class="full-width"
+                    stack
+                    style="min-height: 72px"
+                  />
+                </div>
+                <div class="col">
+                  <q-btn
+                    color="warning"
+                    @click="$emit('clearQueue')"
+                    icon="delete_outline"
+                    label="Clear Queue"
+                    class="full-width"
+                    stack
+                    style="min-height: 72px"
+                  />
+                </div>
+              </div>
 
-          <div v-if="isCurrentUserAdmin" class="row q-gutter-sm">
-            <div class="col">
-              <q-btn
-                color="accent"
-                @click="$emit('resetGamesPlayed')"
-                icon="refresh"
-                label="Reset Stats"
-                class="full-width"
-                stack
-                style="min-height: 72px"
-              />
+              <div class="q-mt-sm row q-gutter-sm">
+                <div class="col">
+                  <q-btn
+                    color="negative"
+                    @click="$emit('resetSessionData')"
+                    icon="restart_alt"
+                    label="Reset Session"
+                    class="full-width"
+                    stack
+                    style="min-height: 72px"
+                  />
+                </div>
+                <div class="col">
+                  <q-btn
+                    color="negative"
+                    @click="$emit('resetAllData')"
+                    icon="delete_forever"
+                    label="Reset All"
+                    class="full-width"
+                    stack
+                    style="min-height: 72px"
+                  />
+                </div>
+              </div>
             </div>
-            <div class="col">
-              <q-btn
-                color="warning"
-                @click="$emit('clearMatches')"
-                icon="delete"
-                label="Clear Matches"
-                class="full-width"
-                stack
-                style="min-height: 72px"
-              />
-            </div>
-            <div class="col">
-              <q-btn
-                color="warning"
-                @click="$emit('clearQueue')"
-                icon="delete_outline"
-                label="Clear Queue"
-                class="full-width"
-                stack
-                style="min-height: 72px"
-              />
-            </div>
-          </div>
-
-          <div v-if="isCurrentUserAdmin" class="q-mt-sm row q-gutter-sm">
-            <div class="col">
-              <q-btn
-                color="negative"
-                @click="$emit('resetSessionData')"
-                icon="restart_alt"
-                label="Reset Session"
-                class="full-width"
-                stack
-                style="min-height: 72px"
-              />
-            </div>
-            <div class="col">
-              <q-btn
-                color="positive"
-                @click="$emit('exportDuprCsv')"
-                icon="download"
-                label="Export DUPR CSV"
-                class="full-width"
-                stack
-                style="min-height: 72px"
-                :disable="duprExportableMatches.length === 0"
-              />
-            </div>
-            <div class="col">
-              <q-btn
-                color="negative"
-                @click="$emit('resetAllData')"
-                icon="delete_forever"
-                label="Reset All"
-                class="full-width"
-                stack
-                style="min-height: 72px"
-              />
-            </div>
-          </div>
+          </q-expansion-item>
         </div>
       </div>
 
