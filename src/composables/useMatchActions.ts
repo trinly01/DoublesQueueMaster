@@ -522,7 +522,8 @@ export function useMatchActions(context: UseMatchActionsContext) {
 
         // Tombstone match instead of removing (for cross-admin sync)
         actualMatch.deletedAt = Date.now();
-        actualMatch.cancelledBy = currentAdminName.value;
+        actualMatch.cancelledBy =
+          currentAdminName.value || currentUserId.value || 'Unknown';
         actualMatch.updatedAt = Date.now();
 
         // Auto-advance next match for this specific court
