@@ -178,6 +178,12 @@ export const CLUB_SETTINGS: Record<string, unknown> = {
 };
 
 const STORAGE_KEY = 'matchmaking_state';
+const PER_CLUB_KEY_PREFIX = 'matchmaking_state_';
+
+function getStorageKey(clubId?: string): string {
+  if (clubId) return `${PER_CLUB_KEY_PREFIX}${clubId}`;
+  return STORAGE_KEY;
+}
 
 // Standalone helper: enforce one-match-per-player on any AppState.
 // Losing matches are tombstoned and their players returned to queue.
@@ -907,7 +913,8 @@ export class LocalMatchmakingSystem {
     }
 
     this.state.lastModified = Date.now();
-    LocalStorage.set(STORAGE_KEY, this.state);
+    const clubId = this.state.clubId || undefined;
+    LocalStorage.set(getStorageKey(clubId), this.state);
     if (this.onStateChange) {
       this.onStateChange();
     }
@@ -985,6 +992,33 @@ export class LocalMatchmakingSystem {
     return saved;
   }
 
+  public loadFromClubCache(clubId: string): AppState | null {
+    const key = getStorageKey(clubId);
+    const saved = LocalStorage.getItem(key) as AppState | string | null;
+    if (!saved) return null;
+    if (typeof saved === 'string') {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return null;
+      }
+    }
+    return saved;
+  }
+
+  public saveToClubCache(clubId: string) {
+    LocalStorage.set(getStorageKey(clubId), this.state);
+  }
+
+  public migrateToPerClubKey(clubId: string) {
+    const perClubKey = getStorageKey(clubId);
+    if (LocalStorage.getItem(perClubKey)) return;
+    const legacy = LocalStorage.getItem(STORAGE_KEY);
+    if (legacy) {
+      LocalStorage.set(perClubKey, legacy);
+    }
+  }
+
   // Helper to completely wipe data (Useful for "End Session" button in UI)
   public clearSession() {
     const now = Date.now();
@@ -998,6 +1032,8 @@ export class LocalMatchmakingSystem {
   }
 
   public hardResetEverything() {
+    const clubId = this.state.clubId || undefined;
+    LocalStorage.remove(getStorageKey(clubId));
     LocalStorage.remove(STORAGE_KEY);
     const now = Date.now();
     this.state.players = {};
@@ -1600,7 +1636,8 @@ export class LocalMatchmakingSystem {
   // Save to LocalStorage WITHOUT firing onStateChange (used after a programmatic
   // merge so we don't recursively trigger another cloud sync).
   public persistSilently() {
-    LocalStorage.set(STORAGE_KEY, this.state);
+    const clubId = this.state.clubId || undefined;
+    LocalStorage.set(getStorageKey(clubId), this.state);
   }
 }
 
