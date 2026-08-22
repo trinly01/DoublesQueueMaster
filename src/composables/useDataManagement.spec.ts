@@ -52,6 +52,8 @@ function makeContext() {
   const routeParamsId = ref<string | string[]>('club-123');
   const showSettingsDialog = ref(false);
   const clubId = ref('test-club-id');
+  const currentUserId = ref('user-123');
+  const currentUserName = ref('Test User');
   return {
     context: {
       duprExportableMatches,
@@ -59,12 +61,16 @@ function makeContext() {
       routeParamsId,
       showSettingsDialog,
       clubId,
+      currentUserId,
+      currentUserName,
     },
     duprExportableMatches,
     clubName,
     routeParamsId,
     showSettingsDialog,
     clubId,
+    currentUserId,
+    currentUserName,
   };
 }
 
@@ -77,6 +83,7 @@ beforeEach(() => {
   MatchmakingApp.state.playersResetAt = 0;
   MatchmakingApp.state.queuesResetAt = 0;
   MatchmakingApp.state.matchesResetAt = 0;
+  MatchmakingApp.state.actionLogs = [];
 });
 
 describe('useDataManagement — resetGamesPlayed', () => {
@@ -97,6 +104,7 @@ describe('useDataManagement — resetGamesPlayed', () => {
     expect(MatchmakingApp.state.players['alice'].matchesPlayed).toBe(0);
     expect(MatchmakingApp.state.players['alice'].wins).toBe(0);
     expect(MatchmakingApp.state.players['alice'].losses).toBe(0);
+    expect(MatchmakingApp.state.actionLogs?.[0]?.action).toBe('reset_stats');
   });
 });
 

@@ -98,12 +98,22 @@ export interface CompletedMatch {
   meta?: MatchMeta;
 }
 
+export interface ActionLog {
+  id: string;
+  action: string;
+  performedBy: string;
+  performedById: string;
+  timestamp: number;
+  details?: Record<string, unknown>;
+}
+
 export interface AppState {
   teamSize: number;
   players: Record<string, Player>; // Dictionary of all players ever registered
   queues: QueueEntry[]; // Players currently waiting to play
   activeMatches: ActiveMatch[]; // Matches currently happening on the court
   completedMatches: CompletedMatch[]; // Persisted completed matches for DUPR export
+  actionLogs?: ActionLog[]; // Admin action logs (capped at 100, synced)
 
   // Settings managed by the system
   availableCourts?: number;
@@ -164,6 +174,7 @@ export const CLUB_SETTINGS: Record<string, unknown> = {
   teamSize: 2,
   completedMatchesResetAt: 0,
   lastExportedAt: 0,
+  actionLogs: [],
 };
 
 const STORAGE_KEY = 'matchmaking_state';
@@ -993,6 +1004,7 @@ export class LocalMatchmakingSystem {
     this.state.queues = [];
     this.state.activeMatches = [];
     this.state.completedMatches = [];
+    this.state.actionLogs = [];
     this.state.playersResetAt = now;
     this.state.queuesResetAt = now;
     this.state.matchesResetAt = now;
@@ -1009,6 +1021,7 @@ export class LocalMatchmakingSystem {
     this.state.queues = [];
     this.state.activeMatches = [];
     this.state.completedMatches = [];
+    this.state.actionLogs = [];
     this.state.playersResetAt = now;
     this.state.queuesResetAt = now;
     this.state.matchesResetAt = now;
@@ -1069,6 +1082,29 @@ export class LocalMatchmakingSystem {
   public markExported() {
     this.state.lastExportedAt = Date.now();
     this.stampSetting('lastExportedAt');
+    this.saveState();
+  }
+
+  public addActionLog(
+    action: string,
+    performedBy: string,
+    performedById: string,
+    details?: Record<string, unknown>,
+  ) {
+    const log: ActionLog = {
+      id: `${Date.now()}-${performedById}-${Math.random().toString(36).slice(2, 8)}`,
+      action,
+      performedBy,
+      performedById,
+      timestamp: Date.now(),
+      details,
+    };
+    if (!this.state.actionLogs) this.state.actionLogs = [];
+    this.state.actionLogs.unshift(log);
+    if (this.state.actionLogs.length > 100) {
+      this.state.actionLogs = this.state.actionLogs.slice(0, 100);
+    }
+    this.state.lastModified = Date.now();
     this.saveState();
   }
 
@@ -2126,6 +2162,17 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     );
   }
 
+  // Merge actionLogs: union + dedup by id + sort by timestamp desc + cap at 100
+  const localLogs = local.actionLogs || [];
+  const serverLogs = server.actionLogs || [];
+  const logMap = new Map<string, ActionLog>();
+  for (const log of [...localLogs, ...serverLogs]) {
+    logMap.set(log.id, log);
+  }
+  const mergedActionLogs = Array.from(logMap.values())
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 100);
+
   const mergedState = {
     ...(mergedSettings as Record<string, unknown>),
     settingsFieldTimestamps: mergedFTS,
@@ -2133,6 +2180,7 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     queues: filteredQueues,
     activeMatches: activeMatchesAfterCleanup,
     completedMatches: mergedCompletedMatches,
+    actionLogs: mergedActionLogs,
     lastModified: Math.max(localTime, serverTime),
     settingsUpdatedAt: Math.max(localSettingsTime, serverSettingsTime),
     playersResetAt: effectivePlayersResetAt,
