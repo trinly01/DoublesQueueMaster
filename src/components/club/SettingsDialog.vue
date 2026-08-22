@@ -287,7 +287,7 @@
               <div class="row q-gutter-sm">
                 <div class="col">
                   <q-btn
-                    color="negative"
+                    color="warning"
                     @click="$emit('clearMatches')"
                     icon="delete"
                     label="Clear Matches"
@@ -298,7 +298,7 @@
                 </div>
                 <div class="col">
                   <q-btn
-                    color="negative"
+                    color="warning"
                     @click="$emit('clearQueue')"
                     icon="delete_outline"
                     label="Clear Queue"
@@ -384,7 +384,7 @@
                   </q-item-section>
                   <q-item-section>
                     <q-item-label class="text-capitalize">
-                      {{ log.action.replace(/_/g, ' ') }}
+                      {{ getLogActionLabel(log) }}
                     </q-item-label>
                     <q-item-label caption>
                       {{ log.performedBy }} &middot;
@@ -395,11 +395,22 @@
                       caption
                       class="text-grey-7"
                     >
-                      {{
-                        Object.entries(log.details)
-                          .map(([k, v]) => `${k}: ${v}`)
-                          .join(', ')
-                      }}
+                      <span v-if="log.action === 'settings_change'">
+                        <span class="text-negative">{{
+                          formatSettingValue(log.details.oldValue)
+                        }}</span>
+                        &rarr;
+                        <span class="text-positive">{{
+                          formatSettingValue(log.details.newValue)
+                        }}</span>
+                      </span>
+                      <span v-else>
+                        {{
+                          Object.entries(log.details)
+                            .map(([k, v]) => `${k}: ${v}`)
+                            .join(', ')
+                        }}
+                      </span>
                     </q-item-label>
                   </q-item-section>
                 </q-item>
@@ -910,6 +921,34 @@ import {
   type ClubFeedbackEntry,
   type ReportItem,
 } from '../../services/playerReport';
+
+interface ActionLog {
+  id: string;
+  action: string;
+  performedBy: string;
+  performedById: string;
+  timestamp: number;
+  details?: Record<string, unknown>;
+}
+
+const formatFieldName = (field: string) =>
+  field.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+
+const formatSettingValue = (value: unknown) => {
+  if (typeof value === 'boolean') return value ? 'On' : 'Off';
+  if (typeof value === 'number') return String(value);
+  if (typeof value !== 'string') return String(value);
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const getLogActionLabel = (log: ActionLog) => {
+  if (log.action === 'settings_change' && log.details?.field) {
+    return formatFieldName(log.details.field as string);
+  }
+  return log.action.replace(/_/g, ' ');
+};
 
 defineOptions({ name: 'SettingsDialog' });
 
