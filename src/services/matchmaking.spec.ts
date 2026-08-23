@@ -331,6 +331,20 @@ describe('Pro Pick sort direction persistence', () => {
   });
 });
 
+describe('hardResetEverything per-field stamping', () => {
+  it('hardResetEverything stamps settingsFieldTimestamps for completedMatchesResetAt', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    // Simulate a previous clearCompletedMatches that left an old stamp
+    sys.state.settingsFieldTimestamps = { completedMatchesResetAt: 1000 };
+    const before = Date.now();
+    sys.hardResetEverything();
+    const stamped =
+      sys.state.settingsFieldTimestamps?.['completedMatchesResetAt'];
+    expect(stamped).toBeDefined();
+    expect(stamped).toBeGreaterThanOrEqual(before);
+  });
+});
+
 // Minimal AppState builder for merge tests
 const makeState = (overrides: Partial<AppState> = {}): AppState => ({
   teamSize: 2,
@@ -2150,6 +2164,45 @@ describe('mergeAppState — button actions x offline multi-admin', () => {
     expect(second.activeMatches.filter((m) => !m.deletedAt).length).toBe(0);
     expect(normalizedEqual(first, second)).toBe(true);
     assertInvariants(second);
+  });
+
+  it('Reset All: completed matches do not resurrect when stale admin has older per-field stamp', () => {
+    // Admin A called hardResetEverything() — produces state with
+    // completedMatchesResetAt = now AND (after the fix) a per-field stamp.
+    // We use the real method so the test exercises the actual fix.
+    const sys = new LocalMatchmakingSystem(2);
+    // Seed old completed matches so hardResetEverything has something to clear
+    sys.state.completedMatches = [
+      makeCompletedMatch('old', { completedAt: 3000, updatedAt: 3000 }),
+    ];
+    sys.hardResetEverything();
+    // Override lastModified to a fixed past time so the hard-reset
+    // short-circuit (which requires localTime > serverTime) does NOT
+    // trigger. This simulates another admin making a change AFTER Admin
+    // A's reset, making the server's lastModified newer.
+    const reset = makeState({
+      ...sys.state,
+      lastModified: 5000,
+    });
+
+    // Admin B previously called clearCompletedMatches() at T=2000 (leaving
+    // a per-field stamp), then made an unrelated change at T=6000 (e.g.
+    // added a player to the queue). Because serverTime (6000) > localTime
+    // (5000), the hard-reset short-circuit does NOT trigger and the normal
+    // merge path runs — exposing the per-field LWW bug.
+    const stale = makeState({
+      completedMatchesResetAt: 2000,
+      completedMatches: [
+        makeCompletedMatch('old', { completedAt: 3000, updatedAt: 3000 }),
+      ],
+      settingsUpdatedAt: 2000,
+      settingsFieldTimestamps: { completedMatchesResetAt: 2000 },
+      lastModified: 6000,
+    });
+    const merged = mergeAppState(reset, stale);
+    // After fix: reset's completedMatchesResetAt (stamped) should win,
+    // dropping the match completed at 3000.
+    expect(merged.completedMatches.length).toBe(0);
   });
 });
 
