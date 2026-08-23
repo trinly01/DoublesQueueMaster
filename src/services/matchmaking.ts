@@ -1044,6 +1044,7 @@ export class LocalMatchmakingSystem {
     this.state.queuesResetAt = now;
     this.state.matchesResetAt = now;
     this.state.completedMatchesResetAt = now;
+    this.stampSetting('completedMatchesResetAt');
     this.state.lastExportedAt = 0;
     this.state.settingsUpdatedAt = now;
     this.state.lastModified = now;
