@@ -1810,8 +1810,36 @@ const globalLeaderboard = ref<
 const globalLeaderboardLoading = ref(false);
 const globalLeaderboardFetched = ref(false);
 
+const GLOBAL_LB_CACHE_KEY = 'global_leaderboard_v1';
+
+const loadCachedGlobalLeaderboard = () => {
+  try {
+    const raw = LocalStorage.getItem(GLOBAL_LB_CACHE_KEY) as {
+      data: typeof globalLeaderboard.value;
+      timestamp: number;
+    } | null;
+    if (!raw?.data) return false;
+    const age = Date.now() - (raw.timestamp || 0);
+    if (age > 60 * 60 * 1000) return false; // 1 hour TTL
+    globalLeaderboard.value = raw.data;
+    globalLeaderboardFetched.value = true;
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const saveCachedGlobalLeaderboard = () => {
+  LocalStorage.set(GLOBAL_LB_CACHE_KEY, {
+    data: globalLeaderboard.value,
+    timestamp: Date.now(),
+  });
+};
+
 const fetchGlobalLeaderboard = async () => {
   if (globalLeaderboardLoading.value || globalLeaderboardFetched.value) return;
+  loadCachedGlobalLeaderboard();
+  if (globalLeaderboardFetched.value) return;
   globalLeaderboardLoading.value = true;
   try {
     const matches = (await likhaClient.request(
@@ -1872,6 +1900,7 @@ const fetchGlobalLeaderboard = async () => {
         winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
       }));
     globalLeaderboardFetched.value = true;
+    saveCachedGlobalLeaderboard();
   } catch (err) {
     console.error('Failed to fetch global leaderboard:', err);
   } finally {
@@ -1899,8 +1928,37 @@ const myMatchesLeaderboard = ref<
 const myMatchesLoading = ref(false);
 const myMatchesFetched = ref(false);
 
+const getMyMatchesCacheKey = () =>
+  `my_matches_leaderboard_v1_${currentClubUUID.value}_${currentUserId.value}`;
+
+const loadCachedMyMatches = () => {
+  try {
+    const raw = LocalStorage.getItem(getMyMatchesCacheKey()) as {
+      data: typeof myMatchesLeaderboard.value;
+      timestamp: number;
+    } | null;
+    if (!raw?.data) return false;
+    const age = Date.now() - (raw.timestamp || 0);
+    if (age > 60 * 60 * 1000) return false; // 1 hour TTL
+    myMatchesLeaderboard.value = raw.data;
+    myMatchesFetched.value = true;
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const saveCachedMyMatches = () => {
+  LocalStorage.set(getMyMatchesCacheKey(), {
+    data: myMatchesLeaderboard.value,
+    timestamp: Date.now(),
+  });
+};
+
 const fetchMyMatchesLeaderboard = async () => {
   if (myMatchesLoading.value || myMatchesFetched.value) return;
+  loadCachedMyMatches();
+  if (myMatchesFetched.value) return;
   if (!currentClubUUID.value || !currentUserId.value) return;
 
   myMatchesLoading.value = true;
@@ -1911,11 +1969,7 @@ const fetchMyMatchesLeaderboard = async () => {
         filter: {
           _and: [
             { club: { _eq: currentClubUUID.value } },
-            {
-              players: {
-                directus_users_id: { id: { _eq: currentUserId.value } },
-              },
-            },
+            { players: { directus_users_id: { _eq: currentUserId.value } } },
           ],
         },
         fields: ['*', 'players.directus_users_id.*'],
@@ -2007,17 +2061,18 @@ const fetchMyMatchesLeaderboard = async () => {
         (b.rating || 1450) - (a.rating || 1450),
     );
 
-    // Top 10 + current user (if not already in top 10)
-    const top10 = sorted.slice(0, 10);
+    // Top 30 + current user (if not already in top 30)
+    const top30 = sorted.slice(0, 30);
     const member = clubMembers.value.find((m) => m.id === currentUserId.value);
     const currentUsername = member?.username;
-    if (currentUsername && !top10.some((p) => p.username === currentUsername)) {
+    if (currentUsername && !top30.some((p) => p.username === currentUsername)) {
       const currentEntry = sorted.find((p) => p.username === currentUsername);
-      if (currentEntry) top10.push(currentEntry);
+      if (currentEntry) top30.push(currentEntry);
     }
 
-    myMatchesLeaderboard.value = top10;
+    myMatchesLeaderboard.value = top30;
     myMatchesFetched.value = true;
+    saveCachedMyMatches();
   } catch (err) {
     console.error('Failed to fetch my matches leaderboard:', err);
   } finally {

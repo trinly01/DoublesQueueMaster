@@ -796,7 +796,7 @@
                   leaderboardTab === 'matches' ? 'bg-accent text-white' : ''
                 "
                 icon="sports_tennis"
-                label="From Matches"
+                label="My Matches"
                 dense
                 size="sm"
                 @click="leaderboardTab = 'matches'"
@@ -1308,21 +1308,21 @@ const matchesLeaderboard = computed<LeaderboardEntry[]>(() => {
     (a, b) => b.score - a.score || (b.rating || 1450) - (a.rating || 1450),
   );
 
-  const top10 = sorted.slice(0, 10);
+  const top30 = sorted.slice(0, 30);
   const currentUsername = PlayerProfile.state.username;
   console.log(
     '[matchesLeaderboard] matches:',
     matches.length,
     'players:',
     sorted.length,
-    'top10:',
-    top10,
+    'top30:',
+    top30,
   );
-  if (!currentUsername || top10.some((p) => p.username === currentUsername)) {
-    return top10;
+  if (!currentUsername || top30.some((p) => p.username === currentUsername)) {
+    return top30;
   }
   const currentEntry = sorted.find((p) => p.username === currentUsername);
-  return currentEntry ? [...top10, currentEntry] : top10;
+  return currentEntry ? [...top30, currentEntry] : top30;
 });
 
 const leaderboardData = computed(() => {
