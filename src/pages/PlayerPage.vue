@@ -821,6 +821,14 @@
                     class="text-weight-bold q-mb-xs"
                   >
                     {{ player.score ?? (player.rating || 1450) }}
+                    <q-tooltip
+                      anchor="center left"
+                      self="center right"
+                      :offset="[8, 0]"
+                      class="text-no-wrap"
+                    >
+                      Rating
+                    </q-tooltip>
                   </q-chip>
                   <div v-if="player.games !== undefined" class="text-caption">
                     <span class="text-grey-10">{{ player.games }}G</span>
