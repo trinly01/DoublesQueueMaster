@@ -1,0 +1,26 @@
+=== EXPERIMENT 2: SEEDING ===
+Matches: 1350
+Noise floor: ±0.0110
+
+A: flat 1450                             logLoss=0.6844 ±0.0082  brier=0.2457  [0.6760, 0.6919]
+B: snapshot (production)                 logLoss=0.6272 ±0.0129  brier=0.2181  [0.6166, 0.6396]
+C: level-based                           logLoss=0.6820 ±0.0079  brier=0.2445  [0.6740, 0.6902]
+
+--- Iterated convergence ---
+D: iterated (10 passes, maxΔ=n/a)  logLoss=0.5157  CI=[0.5002, 0.5315]
+
+--- Shrinkage re-test (flat 1450 seeding) ---
+  C= 0  logLoss=0.6844  (shrinkage affects ranking only, not prediction)
+  C= 4  logLoss=0.6844  (shrinkage affects ranking only, not prediction)
+  C= 8  logLoss=0.6844  (shrinkage affects ranking only, not prediction)
+  C=12  logLoss=0.6844  (shrinkage affects ranking only, not prediction)
+  C=20  logLoss=0.6844  (shrinkage affects ranking only, not prediction)
+
+--- Ranked by logLoss ---
+   1  D: iterated (10 passes, Δ=n/a)                0.5157           CI=[0.5002, 0.5315]
+   2  B: snapshot (production)                      0.6272  ±0.0129  CI=[0.6166, 0.6396]
+   3  C: level-based                                0.6820  ±0.0079  CI=[0.6740, 0.6902]
+   4  A: flat 1450                                  0.6844  ±0.0082  CI=[0.6760, 0.6919]
+
+--- Verdict ---
+Best: D: iterated (10 passes, Δ=n/a) (Δ=0.1115 vs production)

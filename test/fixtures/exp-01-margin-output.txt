@@ -1,0 +1,22 @@
+=== EXPERIMENT 1: MARGIN OF VICTORY ===
+Matches: 1350 (competitive doubles)
+Noise floor: ±0.0110 (from baseline bootstrap CI)
+
+A: log (current)                         logLoss=0.6272 ±0.0129  brier=0.2181  [0.6155, 0.6377]
+B: dominance share                       logLoss=0.6266 ±0.0129  brier=0.2178  [0.6151, 0.6385]
+C: winner share                          logLoss=0.6272 ±0.0130  brier=0.2181  [0.6157, 0.6383]
+D: normalized (infer target)             logLoss=0.6272 ±0.0130  brier=0.2181  [0.6169, 0.6382]
+E: joint additive (Kovalchik)            logLoss=0.6249 ±0.0135  brier=0.2169  [0.6138, 0.6361]
+F: no MOV                                logLoss=0.6248 ±0.0136  brier=0.2168  [0.6138, 0.6365]
+
+--- Ranked by walk-forward CV logLoss ---
+Rank  Arm                                CV logLoss  ±sd     In-sample  CI
+   1  F: no MOV                          0.6248    ±0.0136  0.6248    [0.6138, 0.6365]
+   2  E: joint additive (Kovalchik)      0.6249    ±0.0135  0.6249    [0.6138, 0.6361]
+   3  B: dominance share                 0.6266    ±0.0129  0.6266    [0.6151, 0.6385]
+   4  A: log (current)                   0.6272    ±0.0129  0.6272    [0.6155, 0.6377]
+   5  C: winner share                    0.6272    ±0.0130  0.6272    [0.6157, 0.6383]
+   6  D: normalized (infer target)       0.6272    ±0.0130  0.6272    [0.6169, 0.6382]
+
+--- Verdict ---
+No clear winner. Best (F: no MOV) vs baseline Δ=0.0024 is within noise floor (±0.0110).
