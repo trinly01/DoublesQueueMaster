@@ -399,8 +399,9 @@ export function enforceConcurrencyLimitOnState(state: AppState): string[] {
  *
  * Constants chosen by backtesting 245 real doubles matches on calibration
  * (calMAE), partner-differentiation, and long-term rating conservation:
- * - K_DOUBLES = 64, K_SINGLES = 36
- * - MARGIN_WEIGHT = 0.15 (log-elastic, not linear)
+ * - K_DOUBLES = 32, K_SINGLES = 36
+ * - MARGIN_WEIGHT = 0 (MOV is noise — removed per exp-04-comprehensive.mjs)
+ * - AUTOCORR_SCALE = 1000 (538-style correction, tuned for pickleball)
  * High K is safe here precisely because the model is zero-sum: ratings stay
  * calibrated long-term while still separating players (~82% partner diff).
  *
@@ -412,12 +413,16 @@ export function enforceConcurrencyLimitOnState(state: AppState): string[] {
  * creating huge swings. This keeps the ratings calibrated while protecting
  * strong partners. Values chosen from synthetic + real-data backtesting.
  */
-const K_DOUBLES = 64;
+const K_DOUBLES = 32;
 const K_SINGLES = 36;
-const MARGIN_WEIGHT = 0.15;
+const MARGIN_WEIGHT = 0;
 const PARTNER_GAP_FACTOR = 0.5;
 const LOSS_UNDERDOG_BLEND = 1.0;
 const RATING_FLOOR = 100;
+// 538-style autocorrelation correction: downweights wins by favourites,
+// upweights wins by underdogs. 1000 is tuned for pickleball doubles
+// (538's chess-tuned 2200 is too strong). Tuned via exp-04-comprehensive.mjs.
+const AUTOCORR_SCALE = 1000;
 // Cap the ratio between any two partners' rating changes so huge gaps don't
 // create extreme swings. A value of 2.0 means the strong partner can never get
 // more than 2x the weak partner's gain/loss.
@@ -495,7 +500,17 @@ export const RatingEngine = {
     // Single zero-sum pool, sized by the winning team's expectation
     // (smaller pool when the favorite wins, larger on an upset).
     const expectedW = 1 / (1 + Math.pow(10, (ratingL - ratingW) / 400));
-    const pool = Math.round(K * multiplier * (1 - expectedW));
+
+    // 538-style autocorrelation correction: prevents the MOV multiplier from
+    // over-rewarding favourites who win big. From the winner's perspective:
+    //   A(x) = 1 / (1 + x / scale)  where x = ratingW - ratingL
+    // When favourite wins (x > 0): A < 1 → downweight.
+    // When underdog wins (x < 0): A > 1 → upweight.
+    const ratingDiff = ratingW - ratingL;
+    const autoCorrDenom = 1 + ratingDiff / AUTOCORR_SCALE;
+    const autoCorr = autoCorrDenom > 0.1 ? 1 / autoCorrDenom : 10;
+
+    const pool = Math.round(K * multiplier * autoCorr * (1 - expectedW));
 
     // WINS: anti-carry partner-gap penalty. A weaker partner in a large-gap
     // pair gets less credit, so strong players cannot pull up weak players.

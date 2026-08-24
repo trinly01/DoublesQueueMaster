@@ -40,22 +40,23 @@ const NON_COMPETITIVE_MODES = new Set(['variety_first', 'fair_balance']);
 
 const CONFIG = {
   kSingles: 36,
-  kDoubles: 64,
-  marginWeight: 0.15,
+  kDoubles: 32,
+  marginWeight: 0,
   partnerGapFactor: 0.5,
   lossUnderdogBlend: 1.0,
   maxPartnerRatio: 2.0,
   ratingFloor: 100,
   // 538-style autocorrelation correction scale. 0 = off, 2200 = 538's value.
-  // Prevents the MOV multiplier from over-rewarding favourites who win big.
-  autocorrScale: 2200,
+  // 1000 is a milder correction tuned for pickleball doubles via
+  // scripts/exp-04-comprehensive.mjs — 538's chess-tuned 2200 is too strong.
+  autocorrScale: 1000,
   // Iterated convergence: number of forward passes for the ranking replay.
-  // Set to 1 (single pass) — iteration improves prediction (logLoss) but
-  // inflates ratings away from the global live ratings, which are the ground
-  // truth players see. Single pass seeds from the snapshot (the real live
-  // rating at first appearance), so ratings naturally track the global system.
-  // Tuned via scripts/exp-02-seeding.mjs.
-  rankingPasses: 1,
+  // 3 passes feeds final ratings back as seeds twice, removing arbitrary seed
+  // bias. With K=32 and no MOV, the rating spread at 3 passes (765) is tighter
+  // than the old single-pass spread (881) — the inflation problem was caused
+  // by K=64 + MOV amplifying the iteration, not by iteration itself.
+  // Tuned via scripts/exp-04-comprehensive.mjs (logLoss 0.6270 → 0.5956).
+  rankingPasses: 3,
   // Bayesian shrinkage: pulls low-game players' ratings toward their seed.
   // shrunk = initialRating + (rating - initialRating) * n / (n + C)
   // C=12 means a player needs ~12 games before their earned rating change is
@@ -468,19 +469,28 @@ export function replayMatchesForRanking(
  *
  * Fix #3: deterministic tiebreaker chain (the old `score || rating` was a
  * no-op because score === rating for integer Elo).
- * Chain: rating desc → games desc → wins desc → winRate desc → username asc.
+ *
+ * Chain: rating desc → ratedMatchesPlayed desc → winRate desc → wins desc
+ *        → username asc.
+ *
+ * - rating: primary skill signal (already shrunk by n/(n+C))
+ * - ratedMatchesPlayed: more rated games = more proven rating. A 1-game
+ *   player at 1566 should not rank above a 45-game player at 1566.
+ * - winRate: at similar proven-ness, better winning percentage
+ * - wins: more total wins (activity)
+ * - username: deterministic final tiebreaker
  */
 export function rankClubPlayers(
   players: Record<string, RankedPlayer>,
 ): RankedPlayer[] {
   return Object.values(players).sort((a, b) => {
     if (b.rating !== a.rating) return b.rating - a.rating;
-    if (b.matchesPlayed !== a.matchesPlayed)
-      return b.matchesPlayed - a.matchesPlayed;
-    if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.ratedMatchesPlayed !== a.ratedMatchesPlayed)
+      return b.ratedMatchesPlayed - a.ratedMatchesPlayed;
     const wrA = a.matchesPlayed > 0 ? a.wins / a.matchesPlayed : 0;
     const wrB = b.matchesPlayed > 0 ? b.wins / b.matchesPlayed : 0;
     if (wrB !== wrA) return wrB - wrA;
+    if (b.wins !== a.wins) return b.wins - a.wins;
     return a.username < b.username ? -1 : a.username > b.username ? 1 : 0;
   });
 }

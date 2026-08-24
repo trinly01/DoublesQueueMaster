@@ -74,6 +74,7 @@ vi.mock('src/utils/ratingReplay', () => ({
         rating: number;
         initialRating: number;
         matchesPlayed: number;
+        ratedMatchesPlayed: number;
         wins: number;
         losses: number;
         avatar: string;
@@ -93,6 +94,7 @@ vi.mock('src/utils/ratingReplay', () => ({
             rating: p.rating || 1450,
             initialRating: p.rating || 1450,
             matchesPlayed: 0,
+            ratedMatchesPlayed: 0,
             wins: 0,
             losses: 0,
             avatar: p.avatar || '',
@@ -109,11 +111,13 @@ vi.mock('src/utils/ratingReplay', () => ({
           const key = p.userId || p.username || p.firstName;
           players[key].wins++;
           players[key].matchesPlayed++;
+          players[key].ratedMatchesPlayed++;
         }
         for (const p of losers) {
           const key = p.userId || p.username || p.firstName;
           players[key].losses++;
           players[key].matchesPlayed++;
+          players[key].ratedMatchesPlayed++;
         }
       }
     }
@@ -162,7 +166,11 @@ function makeContext(overrides: Record<string, unknown> = {}) {
 }
 
 const mockMatches = [
+  // 5 matches so alice, bob, and charlie each have 5 rated games
+  // (meets the CLUB_LEADERBOARD_MIN_GAMES = 5 threshold)
   {
+    completed_at: new Date().toISOString(),
+    match_key: 'm1',
     team_a_score: 11,
     team_b_score: 5,
     team_a: [
@@ -199,6 +207,102 @@ const mockMatches = [
         },
       },
     ],
+  },
+  {
+    completed_at: new Date().toISOString(),
+    match_key: 'm2',
+    team_a_score: 11,
+    team_b_score: 7,
+    team_a: [
+      {
+        username: 'alice',
+        firstName: 'Alice',
+        lastName: 'Smith',
+        rating: 1500,
+      },
+      { username: 'bob', firstName: 'Bob', lastName: 'Jones', rating: 1400 },
+    ],
+    team_b: [
+      {
+        username: 'charlie',
+        firstName: 'Charlie',
+        lastName: 'Brown',
+        rating: 1450,
+      },
+    ],
+    players: [],
+  },
+  {
+    completed_at: new Date().toISOString(),
+    match_key: 'm3',
+    team_a_score: 11,
+    team_b_score: 9,
+    team_a: [
+      {
+        username: 'alice',
+        firstName: 'Alice',
+        lastName: 'Smith',
+        rating: 1500,
+      },
+      { username: 'bob', firstName: 'Bob', lastName: 'Jones', rating: 1400 },
+    ],
+    team_b: [
+      {
+        username: 'charlie',
+        firstName: 'Charlie',
+        lastName: 'Brown',
+        rating: 1450,
+      },
+    ],
+    players: [],
+  },
+  {
+    completed_at: new Date().toISOString(),
+    match_key: 'm4',
+    team_a_score: 8,
+    team_b_score: 11,
+    team_a: [
+      {
+        username: 'alice',
+        firstName: 'Alice',
+        lastName: 'Smith',
+        rating: 1500,
+      },
+      { username: 'bob', firstName: 'Bob', lastName: 'Jones', rating: 1400 },
+    ],
+    team_b: [
+      {
+        username: 'charlie',
+        firstName: 'Charlie',
+        lastName: 'Brown',
+        rating: 1450,
+      },
+    ],
+    players: [],
+  },
+  {
+    completed_at: new Date().toISOString(),
+    match_key: 'm5',
+    team_a_score: 11,
+    team_b_score: 6,
+    team_a: [
+      {
+        username: 'alice',
+        firstName: 'Alice',
+        lastName: 'Smith',
+        rating: 1500,
+      },
+      { username: 'bob', firstName: 'Bob', lastName: 'Jones', rating: 1400 },
+    ],
+    team_b: [
+      {
+        username: 'charlie',
+        firstName: 'Charlie',
+        lastName: 'Brown',
+        rating: 1450,
+      },
+    ],
+    players: [],
   },
 ];
 
@@ -245,7 +349,7 @@ describe('useLeaderboard — fetchClubLeaderboard', () => {
     expect(clubLeaderboard.value[0]).toHaveProperty('winRate');
   });
 
-  it('limits to 20 entries', async () => {
+  it('limits to 30 entries', async () => {
     const manyMatches = Array.from({ length: 50 }, (_, i) => ({
       team_a_score: 11,
       team_b_score: 5,
@@ -288,7 +392,7 @@ describe('useLeaderboard — fetchClubLeaderboard', () => {
     const { context } = makeContext();
     const { fetchClubLeaderboard, clubLeaderboard } = useLeaderboard(context);
     await fetchClubLeaderboard();
-    expect(clubLeaderboard.value.length).toBeLessThanOrEqual(20);
+    expect(clubLeaderboard.value.length).toBeLessThanOrEqual(30);
   });
 
   it('sorts by score descending then rating', async () => {

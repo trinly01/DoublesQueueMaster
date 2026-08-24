@@ -1,0 +1,109 @@
+=== PHASE 1: SEQUENTIAL OPTIMIZATION ===
+Starting point: K=32, passes=3, C=12, gap=0.5, auto=1000
+Noise floor: +/- 0.0128
+
+--- Step 1: K Doubles ---
+  K=20  logLoss=0.6004 spread=845 max=1841 ***
+  K=24  logLoss=0.5983 spread=820 max=1835 ***
+  K=28  logLoss=0.5967 spread=802 max=1835 ***
+  K=32  logLoss=0.5956 spread=781 max=1833 ***
+  K=36  logLoss=0.5942 spread=782 max=1851 ***
+  K=40  logLoss=0.5930 spread=776 max=1863 ***
+  K=44  logLoss=0.5921 spread=775 max=1881 ***
+  K=48  logLoss=0.5909 spread=774 max=1895 ***
+  Best K=48 (logLoss=0.5909)
+
+--- Step 2: Iterated Passes (K=48) ---
+  passes=1   logLoss=0.6217 spread=902 max=1843 ***
+  passes=2   logLoss=0.6046 spread=794 max=1827 ***
+  passes=3   logLoss=0.5909 spread=774 max=1895 ***
+  passes=4   logLoss=0.5799 spread=837 max=1948 ***
+  passes=5   logLoss=0.5707 spread=912 max=1995 ***
+  passes=7   logLoss=0.5561 spread=1035 max=2068 ***
+  passes=10  logLoss=0.5406 spread=1201 max=2154 ***
+  Best passes=10 (logLoss=0.5406)
+
+--- Step 3: Shrinkage C (K=48, passes=10) ---
+  C=0   logLoss=0.5406 spread=1222 max=2163 ***
+  C=4   logLoss=0.5406 spread=1212 max=2159
+  C=8   logLoss=0.5406 spread=1205 max=2156
+  C=12  logLoss=0.5406 spread=1201 max=2154
+  C=16  logLoss=0.5406 spread=1197 max=2152
+  C=20  logLoss=0.5406 spread=1195 max=2151
+  C=24  logLoss=0.5406 spread=1192 max=2149
+  C=30  logLoss=0.5406 spread=1190 max=2148
+  Best C=0 (logLoss=0.5406)
+
+--- Step 4: Partner Gap Factor (K=48, passes=10, C=0) ---
+  gap=0    logLoss=0.5526 spread=1189 max=2136 ***
+  gap=0.25 logLoss=0.5486 spread=1201 max=2145 ***
+  gap=0.5  logLoss=0.5406 spread=1222 max=2163 ***
+  gap=0.75 logLoss=0.5209 spread=1320 max=2249 ***
+  gap=1    logLoss=0.5051 spread=1381 max=2295 ***
+  gap=1.5  logLoss=0.4949 spread=1438 max=2338 ***
+  Best gap=1.5 (logLoss=0.4949)
+
+--- Step 5: Autocorrelation Scale ---
+  auto=0    logLoss=0.4868 spread=1566 max=2412 ***
+  auto=250  logLoss=0.5209 spread=1216 max=2182
+  auto=500  logLoss=0.5033 spread=1355 max=2282
+  auto=750  logLoss=0.4978 spread=1408 max=2317
+  auto=1000 logLoss=0.4949 spread=1438 max=2338
+  auto=1500 logLoss=0.4921 spread=1475 max=2362
+  auto=2200 logLoss=0.4904 spread=1502 max=2376
+  Best auto=0 (logLoss=0.4868)
+
+--- Step 6: Loss Underdog Blend ---
+  blend=0    logLoss=0.4668 spread=1887 ***
+  blend=0.25 logLoss=0.4698 spread=1807
+  blend=0.5  logLoss=0.4744 spread=1713
+  blend=0.75 logLoss=0.4812 spread=1622
+  blend=1    logLoss=0.4868 spread=1566
+  Best blend=0 (logLoss=0.4668)
+
+=== PHASE 2: ALGORITHMIC VARIANTS ===
+Baseline: K=48 passes=10 C=0 gap=1.5 auto=0 blend=0
+
+Baseline: logLoss=0.4668 spread=1887
+
+--- Variant A: Per-pass Shrinkage ---
+  logLoss=0.4668 spread=1887 delta=0.0000
+
+--- Variant B: No Shrinkage ---
+  logLoss=0.4668 spread=1887 delta=0.0000
+
+--- Variant C: Higher Passes + Shrinkage ---
+  passes=11  logLoss=0.4606 spread=1949 delta=-0.0062
+  passes=12  logLoss=0.4552 spread=2004 delta=-0.0116
+  passes=13  logLoss=0.4503 spread=2056 delta=-0.0165
+
+--- Variant D: Provisional Threshold (C controls both) ---
+  C=0   logLoss=0.4668 spread=1887 delta=0.0000
+  C=4   logLoss=0.4668 spread=1876 delta=0.0000
+  C=8   logLoss=0.4668 spread=1868 delta=0.0000
+
+=== PHASE 3: CROSS-CLUB VALIDATION ===
+Club A: 634 matches, Club B: 617 matches
+
+--- Current config (K=64, MOV=0.15, auto=2200, 1-pass) ---
+  ClubA=0.6084 ClubB=0.6383 avg=0.6233
+
+--- Optimized config ---
+  ClubA=0.4647 ClubB=0.4574 avg=0.4611
+
+=== FINAL SUMMARY ===
+Optimized config:
+  K=48 (was 64)
+  passes=10 (was 1)
+  shrinkage C=0 (was 12)
+  partnerGapFactor=1.5 (was 0.5)
+  autocorrScale=0 (was 2200)
+  lossUnderdogBlend=0 (was 1.0)
+  marginWeight=0 (was 0.15)
+
+logLoss: 0.4668 (current: 0.6270)
+Improvement: 25.5%
+Spread: 1887 (current: ~881)
+Max rating: 2528
+
+Cross-club: ClubA=0.4647 ClubB=0.4574
