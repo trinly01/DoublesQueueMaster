@@ -1,0 +1,27 @@
+=== EXPERIMENT 3: ENGINE ABLATIONS (on iterated baseline) ===
+Matches: 1350
+
+Baseline (iterated, current params):  logLoss=0.5157  CI=[0.5008, 0.5319]
+  passes=10  converged=false
+
+No MOV (multiplier=1)                        logLoss=0.5229  CI=[0.5090, 0.5366]  Δ=-0.0072
+Autocorr scale=2200 (538)                    logLoss=0.5092  CI=[0.4941, 0.5256]  Δ=+0.0064
+Autocorr scale=3000                          logLoss=0.5108  CI=[0.4950, 0.5261]  Δ=+0.0049
+Provisional K (highK=100, thresh=8)          logLoss=0.5126  CI=[0.4964, 0.5293]  Δ=+0.0031
+Provisional K (highK=128, thresh=12)         logLoss=0.5127  CI=[0.4961, 0.5303]  Δ=+0.0030
+No MOV + autocorr=2200                       logLoss=0.5170  CI=[0.5035, 0.5313]  Δ=-0.0013
+No MOV + provisional K (100/8)               logLoss=0.5193  CI=[0.5051, 0.5339]  Δ=-0.0036
+No MOV + autocorr=2200 + prov K              logLoss=0.5136  CI=[0.4978, 0.5286]  Δ=+0.0021
+
+--- Ranked ---
+   1  Autocorr scale=2200 (538)                    0.5092  Δ=+0.0064
+   2  Autocorr scale=3000                          0.5108  Δ=+0.0049
+   3  Provisional K (highK=100, thresh=8)          0.5126  Δ=+0.0031
+   4  Provisional K (highK=128, thresh=12)         0.5127  Δ=+0.0030
+   5  No MOV + autocorr=2200 + prov K              0.5136  Δ=+0.0021
+   6  No MOV + autocorr=2200                       0.5170  Δ=-0.0013
+   7  No MOV + provisional K (100/8)               0.5193  Δ=-0.0036
+   8  No MOV (multiplier=1)                        0.5229  Δ=-0.0072
+
+--- Verdict ---
+Best (Autocorr scale=2200 (538)) Δ=+0.0064 is within noise floor. Iterated convergence alone is the main win.
