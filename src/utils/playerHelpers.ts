@@ -252,15 +252,14 @@ export const formatDateOnly = (iso: string): string => {
 };
 
 /**
- * Format an ISO date to a readable string: "17 Jun '26, 8:22 PM"
+ * Format an ISO date to a readable string: "17 Jun, 8:22 PM"
  */
 export const formatDate = (iso: string | number | Date): string => {
   const d = new Date(iso);
-  const year = String(d.getFullYear()).slice(-2);
   let h = d.getHours();
   const ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12 || 12;
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} '${year}, ${h}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${h}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
 };
 
 /**

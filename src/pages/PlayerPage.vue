@@ -212,8 +212,14 @@
       </q-card-actions>
 
       <!-- Player Stats Dialog -->
-      <q-dialog v-model="showHistoryDialog">
-        <q-card style="width: 480px; max-width: 90vw; max-height: 95vh">
+      <q-dialog v-model="showHistoryDialog" :maximized="$q.screen.lt.md">
+        <q-card
+          :style="
+            $q.screen.lt.md
+              ? 'width: 100vw; max-width: 100vw; max-height: 100vh'
+              : 'width: 480px; max-width: 90vw; max-height: 95vh'
+          "
+        >
           <q-card-section class="row items-center q-pb-none">
             <div class="text-h6">Player Stats</div>
             <q-space />
@@ -227,7 +233,7 @@
             </q-btn>
           </q-card-section>
 
-          <div class="q-px-md q-pt-md">
+          <div :class="$q.screen.lt.md ? 'q-px-sm q-pt-sm' : 'q-px-md q-pt-md'">
             <q-btn-group dense spread>
               <q-btn
                 flat
@@ -284,8 +290,12 @@
 
           <div
             v-if="activeTab === 'history'"
-            class="q-px-md q-pt-md q-pb-sm"
-            style="max-height: 78vh; overflow-y: auto"
+            :class="
+              $q.screen.lt.md
+                ? 'q-px-sm q-pt-sm q-pb-sm'
+                : 'q-px-md q-pt-md q-pb-sm'
+            "
+            style="max-height: 78vh; overflow-y: auto; overflow-x: hidden"
           >
             <div v-if="ratingVelocity" class="row q-col-gutter-sm q-mb-md">
               <div class="col-6">
@@ -352,8 +362,12 @@
 
           <div
             v-else-if="activeTab === 'matches'"
-            class="q-px-md q-pt-md q-pb-sm"
-            style="max-height: 78vh; overflow-y: auto"
+            :class="
+              $q.screen.lt.md
+                ? 'q-px-sm q-pt-sm q-pb-sm'
+                : 'q-px-md q-pt-md q-pb-sm'
+            "
+            style="max-height: 78vh; overflow-y: auto; overflow-x: hidden"
           >
             <div
               ref="matchesChartRef"
@@ -387,8 +401,12 @@
 
           <div
             v-else-if="activeTab === 'partners'"
-            class="q-px-md q-pt-md q-pb-sm"
-            style="max-height: 78vh; overflow-y: auto"
+            :class="
+              $q.screen.lt.md
+                ? 'q-px-sm q-pt-sm q-pb-sm'
+                : 'q-px-md q-pt-md q-pb-sm'
+            "
+            style="max-height: 78vh; overflow-y: auto; overflow-x: hidden"
           >
             <PayBanner
               v-if="isPaymentExpired"
@@ -472,8 +490,12 @@
 
           <div
             v-else-if="activeTab === 'rivals'"
-            class="q-px-md q-pt-md q-pb-sm"
-            style="max-height: 78vh; overflow-y: auto"
+            :class="
+              $q.screen.lt.md
+                ? 'q-px-sm q-pt-sm q-pb-sm'
+                : 'q-px-md q-pt-md q-pb-sm'
+            "
+            style="max-height: 78vh; overflow-y: auto; overflow-x: hidden"
           >
             <PayBanner
               v-if="isPaymentExpired"
@@ -557,8 +579,12 @@
 
           <div
             v-if="activeTab === 'clutch'"
-            class="q-px-md q-pt-md q-pb-sm"
-            style="max-height: 78vh; overflow-y: auto"
+            :class="
+              $q.screen.lt.md
+                ? 'q-px-sm q-pt-sm q-pb-sm'
+                : 'q-px-md q-pt-md q-pb-sm'
+            "
+            style="max-height: 78vh; overflow-y: auto; overflow-x: hidden"
           >
             <PayBanner
               v-if="isPaymentExpired"
@@ -637,8 +663,14 @@
       </q-dialog>
 
       <!-- Leaderboard Dialog -->
-      <q-dialog v-model="showLeaderboardDialog">
-        <q-card style="width: 480px; max-width: 90vw; max-height: 95vh">
+      <q-dialog v-model="showLeaderboardDialog" :maximized="$q.screen.lt.md">
+        <q-card
+          :style="
+            $q.screen.lt.md
+              ? 'width: 100vw; max-width: 100vw; max-height: 100vh'
+              : 'width: 480px; max-width: 90vw; max-height: 95vh'
+          "
+        >
           <q-card-section class="row items-center q-pb-none">
             <div class="text-h6">Leaderboard</div>
             <q-space />
@@ -729,8 +761,12 @@
           </div>
 
           <q-card-section
-            class="q-px-md q-pt-xs q-pb-md"
-            style="max-height: 78vh; overflow-y: auto"
+            :class="
+              $q.screen.lt.md
+                ? 'q-px-sm q-pt-xs q-pb-md'
+                : 'q-px-md q-pt-xs q-pb-md'
+            "
+            style="max-height: 78vh; overflow-y: auto; overflow-x: hidden"
           >
             <div
               v-if="leaderboardLoading && !leaderboardData.length"
@@ -1986,6 +2022,12 @@ const onLogout = () => {
 .player-page {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: 100dvh;
+}
+
+/* Allow q-item-section to shrink below intrinsic content width
+   (prevents horizontal scrollbar in match results list) */
+.q-item__section {
+  min-width: 0;
 }
 .brand-title {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

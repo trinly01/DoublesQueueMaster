@@ -11,37 +11,23 @@
         >
           <span
             :class="[
-              'text-weight-medium text-center',
+              'text-weight-medium text-center player-name',
               isBlurred(player.username) ? 'stats-blur' : '',
             ]"
-            style="
-              max-width: 80px;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-              display: block;
-            "
-            >{{
+          >
+            {{
               blurText(
                 player.firstName || player.name || player.username,
                 player.username,
               )
-            }}</span
-          >
+            }}
+          </span>
           <span
             v-if="player.username && (player.firstName || player.name)"
             :class="[
-              'text-grey-6',
+              'text-grey-6 player-username',
               isBlurred(player.username) ? 'stats-blur' : '',
             ]"
-            style="
-              font-size: 10px;
-              max-width: 80px;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-              display: block;
-            "
           >
             @{{ blurText(player.username, player.username) }}
           </span>
@@ -66,9 +52,9 @@
           pattern="[0-9]*"
           label="Score"
           outlined
-          class="q-mt-sm"
+          class="q-mt-sm score-input"
           input-class="text-h4 text-center"
-          style="max-width: 120px; margin-left: auto; margin-right: auto"
+          style="margin-left: auto; margin-right: auto"
         />
         <div
           v-if="
@@ -92,7 +78,7 @@
       </div>
 
       <!-- Center: Win Probability + Live elapsed + Scores + VS -->
-      <div class="col-auto q-mx-md text-center center-group">
+      <div class="col-auto text-center center-group">
         <!-- Editable: win probability on top, live elapsed below -->
         <div
           v-if="editable && winProbability !== undefined"
@@ -124,11 +110,11 @@
           v-if="
             !editable && teamAScore !== undefined && teamBScore !== undefined
           "
-          class="q-mt-xs"
+          class="q-mt-xs score-grid"
           style="
             display: grid;
             grid-template-columns: 1fr auto 1fr;
-            gap: 0 1.5rem;
+            gap: 0 clamp(0.5rem, 4vw, 1.5rem);
             line-height: 1;
             margin-bottom: 0;
           "
@@ -191,37 +177,23 @@
         >
           <span
             :class="[
-              'text-weight-medium text-center',
+              'text-weight-medium text-center player-name',
               isBlurred(player.username) ? 'stats-blur' : '',
             ]"
-            style="
-              max-width: 80px;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-              display: block;
-            "
-            >{{
+          >
+            {{
               blurText(
                 player.firstName || player.name || player.username,
                 player.username,
               )
-            }}</span
-          >
+            }}
+          </span>
           <span
             v-if="player.username && (player.firstName || player.name)"
             :class="[
-              'text-grey-6',
+              'text-grey-6 player-username',
               isBlurred(player.username) ? 'stats-blur' : '',
             ]"
-            style="
-              font-size: 10px;
-              max-width: 80px;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-              display: block;
-            "
           >
             @{{ blurText(player.username, player.username) }}
           </span>
@@ -246,9 +218,9 @@
           pattern="[0-9]*"
           label="Score"
           outlined
-          class="q-mt-sm"
+          class="q-mt-sm score-input"
           input-class="text-h4 text-center"
-          style="max-width: 120px; margin-left: auto; margin-right: auto"
+          style="margin-left: auto; margin-right: auto"
         />
         <div
           v-if="
@@ -401,12 +373,46 @@ onUnmounted(() => stopElapsedTimer());
 
 <style lang="scss" scoped>
 .match-result {
+  overflow-x: hidden;
+
+  // Allow flex cols to shrink below intrinsic content width
+  .row > .col {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .score-input {
+    max-width: clamp(80px, 30vw, 120px);
+    min-width: 0;
+  }
+
+  .player-name {
+    width: 100%;
+    max-width: clamp(50px, 22vw, 80px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+  }
+
+  .player-username {
+    font-size: clamp(8px, 2.5vw, 10px);
+    width: 100%;
+    max-width: clamp(50px, 22vw, 80px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+  }
+
   .center-group {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
     line-height: 1;
+    margin-left: clamp(4px, 4vw, 16px);
+    margin-right: clamp(4px, 4vw, 16px);
 
     .q-chip {
       margin: 0;
@@ -451,6 +457,20 @@ onUnmounted(() => stopElapsedTimer());
 
 @media (max-width: 768px) {
   .match-result {
+    .row.no-wrap {
+      padding: 2px !important;
+    }
+
+    .score-grid {
+      .text-h5 {
+        font-size: clamp(1.1rem, 5vw, 1.5rem);
+      }
+
+      .text-subtitle2 {
+        font-size: clamp(0.7rem, 3vw, 0.875rem);
+      }
+    }
+
     .center-group {
       .q-chip {
         font-size: 0.7rem;
@@ -471,7 +491,7 @@ onUnmounted(() => stopElapsedTimer());
     }
 
     .text-weight-medium {
-      font-size: 0.8rem;
+      font-size: clamp(0.75rem, 3.5vw, 0.875rem);
     }
   }
 }
