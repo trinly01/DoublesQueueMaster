@@ -690,11 +690,16 @@
                       class="text-weight-bold text-subtitle2 row items-center"
                     >
                       <q-icon name="info" size="20px" class="q-mr-xs" />
-                      How ratings are computed
+                      How leaderboard ranking works
                     </div>
                   </q-card-section>
                   <q-card-section class="q-pt-none">
                     <div class="text-caption" style="line-height: 1.5">
+                      <p class="q-mb-xs">
+                        <b>Global</b>: top 30 across all clubs (12+ rated games
+                        only). <b>My Matches</b>: top 30 from your own match
+                        history.
+                      </p>
                       <p class="q-mb-xs">
                         Up to 500 recent matches count — auto-generated, edited,
                         and manual. <b>Standard</b>, <b>Competitive</b>, and
@@ -702,10 +707,10 @@
                         excluded.
                       </p>
                       <p class="q-mb-xs">
-                        Ratings use an Elo system (K=32) with 3-pass iterated
+                        Rankings use an Elo system (K=32) with 3-pass iterated
                         convergence and Bayesian shrinkage toward your seed
-                        rating until 12 rated games. Players need at least 12
-                        rated games to appear.
+                        rating until 12 rated games. Sorted by rating, then
+                        rated games, then win rate.
                       </p>
                       <p class="q-mb-none">
                         <b>Provisional</b> (pulsing dot): fewer than 12 rated
