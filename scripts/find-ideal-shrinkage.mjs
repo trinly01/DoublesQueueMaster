@@ -137,7 +137,10 @@ function calculateShift(winners, losers, scoreW, scoreL) {
   const expectedW = expected(ratingW, ratingL);
   const pool = Math.round(K * multiplier * (1 - expectedW));
   if (pool <= 0) {
-    return { winnerGains: winners.map(() => 0), loserLosses: losers.map(() => 0) };
+    return {
+      winnerGains: winners.map(() => 0),
+      loserLosses: losers.map(() => 0),
+    };
   }
   const wWeights = winners.map((p, i) => {
     const base = 1 - expected(p.rating, ratingL);
@@ -269,7 +272,12 @@ function evaluate(matches, C, k) {
     const losers = aWon ? tB : tA;
     const sW = aWon ? m.teamAScore : m.teamBScore;
     const sL = aWon ? m.teamBScore : m.teamAScore;
-    const { winnerGains, loserLosses } = calculateShift(winners, losers, sW, sL);
+    const { winnerGains, loserLosses } = calculateShift(
+      winners,
+      losers,
+      sW,
+      sL,
+    );
 
     winners.forEach((p, i) => {
       p.rating = Math.max(ENGINE.ratingFloor, p.rating + winnerGains[i]);
@@ -362,14 +370,18 @@ const sorted = [...results].sort(
 
 const lines = [];
 lines.push('=== SHRINKAGE PARAMETER SEARCH ===');
-lines.push(`Doubles matches: ${sorted[0].predictions} (ties skipped: ${sorted[0].tiesSkipped})`);
-lines.push('Formula: shrunk = initialRating + (rating - initialRating) * n / (n + C)');
-lines.push('         rankingScore = shrunk - k * |rating - initialRating| / sqrt(n + C)');
+lines.push(
+  `Doubles matches: ${sorted[0].predictions} (ties skipped: ${sorted[0].tiesSkipped})`,
+);
+lines.push(
+  'Formula: shrunk = initialRating + (rating - initialRating) * n / (n + C)',
+);
+lines.push(
+  '         rankingScore = shrunk - k * |rating - initialRating| / sqrt(n + C)',
+);
 lines.push('');
 lines.push('--- All configs by logLoss ---');
-lines.push(
-  'Rank  C    k    logLoss  Brier    Stability  Top5Ret  Preds',
-);
+lines.push('Rank  C    k    logLoss  Brier    Stability  Top5Ret  Preds');
 for (let i = 0; i < sorted.length; i++) {
   const r = sorted[i];
   lines.push(
@@ -380,30 +392,44 @@ for (let i = 0; i < sorted.length; i++) {
 lines.push('');
 lines.push('--- Best by logLoss ---');
 const bestLL = sorted[0];
-lines.push(`C=${bestLL.C}, k=${bestLL.k} → logLoss=${bestLL.logLoss?.toFixed(4)}, brier=${bestLL.brier?.toFixed(4)}, stability=${bestLL.stability.toFixed(4)}, top5Ret=${bestLL.top5Retention.toFixed(2)}`);
+lines.push(
+  `C=${bestLL.C}, k=${bestLL.k} → logLoss=${bestLL.logLoss?.toFixed(4)}, brier=${bestLL.brier?.toFixed(4)}, stability=${bestLL.stability.toFixed(4)}, top5Ret=${bestLL.top5Retention.toFixed(2)}`,
+);
 
 lines.push('');
 lines.push('--- Best by rank stability ---');
 const bestStab = [...results].sort((a, b) => b.stability - a.stability)[0];
-lines.push(`C=${bestStab.C}, k=${bestStab.k} → stability=${bestStab.stability.toFixed(4)}, logLoss=${bestStab.logLoss?.toFixed(4)}, top5Ret=${bestStab.top5Retention.toFixed(2)}`);
+lines.push(
+  `C=${bestStab.C}, k=${bestStab.k} → stability=${bestStab.stability.toFixed(4)}, logLoss=${bestStab.logLoss?.toFixed(4)}, top5Ret=${bestStab.top5Retention.toFixed(2)}`,
+);
 
 lines.push('');
 lines.push('--- Best by top-5 retention ---');
-const bestRet = [...results].sort((a, b) => b.top5Retention - a.top5Retention)[0];
-lines.push(`C=${bestRet.C}, k=${bestRet.k} → top5Ret=${bestRet.top5Retention.toFixed(2)}, stability=${bestRet.stability.toFixed(4)}, logLoss=${bestRet.logLoss?.toFixed(4)}`);
+const bestRet = [...results].sort(
+  (a, b) => b.top5Retention - a.top5Retention,
+)[0];
+lines.push(
+  `C=${bestRet.C}, k=${bestRet.k} → top5Ret=${bestRet.top5Retention.toFixed(2)}, stability=${bestRet.stability.toFixed(4)}, logLoss=${bestRet.logLoss?.toFixed(4)}`,
+);
 
 lines.push('');
 lines.push('--- Verdict ---');
 const baseline = results.find((r) => r.C === 0 && r.k === 0);
 const best = sorted[0];
 if (baseline && best.logLoss < baseline.logLoss) {
-  lines.push(`Shrinkage IMPROVES prediction: C=${best.C}, k=${best.k} (logLoss ${best.logLoss?.toFixed(4)} vs baseline ${baseline.logLoss?.toFixed(4)})`);
+  lines.push(
+    `Shrinkage IMPROVES prediction: C=${best.C}, k=${best.k} (logLoss ${best.logLoss?.toFixed(4)} vs baseline ${baseline.logLoss?.toFixed(4)})`,
+  );
   lines.push(`Recommendation: C=${best.C}, k=${best.k}`);
 } else {
-  lines.push(`Shrinkage does NOT improve prediction. Baseline (C=0, k=0) logLoss=${baseline?.logLoss?.toFixed(4)} is already optimal or better.`);
-  lines.push(`Recommendation: C=0, k=0 (no shrinkage)`);
+  lines.push(
+    `Shrinkage does NOT improve prediction. Baseline (C=0, k=0) logLoss=${baseline?.logLoss?.toFixed(4)} is already optimal or better.`,
+  );
+  lines.push('Recommendation: C=0, k=0 (no shrinkage)');
 }
 
 fs.writeFileSync(OUT_PATH, lines.join('\n') + '\n', 'utf8');
 console.log(`Shrinkage search complete. Results written to ${OUT_PATH}`);
-console.log(`Best: C=${best.C}, k=${best.k} → logLoss=${best.logLoss?.toFixed(4)}`);
+console.log(
+  `Best: C=${best.C}, k=${best.k} → logLoss=${best.logLoss?.toFixed(4)}`,
+);
