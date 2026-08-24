@@ -2,7 +2,10 @@ import { ref, type Ref } from 'vue';
 import { LocalStorage } from 'quasar';
 import { readItems } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
-import { replayMatches } from 'src/utils/ratingReplay';
+import {
+  replayMatchesForRanking,
+  rankClubPlayers,
+} from 'src/utils/ratingReplay';
 import { resolveAvatarUrl } from 'src/utils/playerHelpers';
 import type { DirectusCompletedMatch } from 'src/services/playerProfile';
 import type { ClubMember } from 'src/composables/useClubMembers';
@@ -19,6 +22,9 @@ export type ClubLeaderboardEntry = {
   games: number;
   score: number;
   winRate: number;
+  reliability: number;
+  provisional: boolean;
+  gamesToReliable: number;
 };
 
 export interface UseLeaderboardContext {
@@ -33,7 +39,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
   const clubLeaderboardLoading = ref(false);
 
   const getClubLeaderboardCacheKey = () =>
-    `club_leaderboard_${currentClubUUID.value}`;
+    `club_leaderboard_v2_${currentClubUUID.value}`;
 
   const loadCachedClubLeaderboard = () => {
     const raw = LocalStorage.getItem(getClubLeaderboardCacheKey());
@@ -79,24 +85,32 @@ export function useLeaderboard(context: UseLeaderboardContext) {
         }),
       )) as DirectusCompletedMatch[];
 
-      // Replay matches chronologically using the same algorithm as the rating script.
-      const replayed = replayMatches(
-        [...matches].reverse().map((m) => ({
+      // Replay matches using the club-ranking path (with correctness fixes:
+      // deterministic sort, tie skip, guest identity key, level-based seeding).
+      const replayed = replayMatchesForRanking(
+        matches.map((m) => ({
           teamAScore: m.team_a_score,
           teamBScore: m.team_b_score,
+          matchKey: m.match_key,
+          completedAt: m.completed_at,
+          matchmakingMode: m.meta?.matchmakingMode,
           teamA: (m.team_a || []).map((p) => ({
+            userId: p.userId,
             username: p.username,
             name: p.firstName,
             firstName: p.firstName,
             lastName: p.lastName,
+            level: p.level,
             rating: p.rating,
             avatar: p.avatar,
           })),
           teamB: (m.team_b || []).map((p) => ({
+            userId: p.userId,
             username: p.username,
             name: p.firstName,
             firstName: p.firstName,
             lastName: p.lastName,
+            level: p.level,
             rating: p.rating,
             avatar: p.avatar,
           })),
@@ -124,10 +138,11 @@ export function useLeaderboard(context: UseLeaderboardContext) {
         }
       }
 
-      const memberMap = new Map(
-        clubMembers.value.map((m) => [m.username, m]),
-      );
-      const list = Object.values(replayed)
+      const memberMap = new Map(clubMembers.value.map((m) => [m.username, m]));
+
+      // Rank using the deterministic tiebreaker chain.
+      const ranked = rankClubPlayers(replayed);
+      const list = ranked
         .filter((p) => userMap.has(p.username))
         .map((p) => {
           const user = userMap.get(p.username);
@@ -135,8 +150,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
           return {
             id: member?.id || p.username,
             username: p.username,
-            firstName:
-              member?.firstName || user?.firstName || p.firstName,
+            firstName: member?.firstName || user?.firstName || p.firstName,
             lastName: member?.lastName || user?.lastName || p.lastName,
             rating: p.rating,
             avatar: resolveAvatarUrl(
@@ -146,17 +160,13 @@ export function useLeaderboard(context: UseLeaderboardContext) {
             losses: p.losses,
             games: p.matchesPlayed,
             score: Math.round(p.rating),
-            winRate:
-              p.matchesPlayed > 0
-                ? (p.wins / p.matchesPlayed) * 100
-                : 0,
+            winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
+            reliability: p.reliability,
+            provisional: p.provisional,
+            gamesToReliable: p.gamesToReliable,
           };
         });
-      const sorted = list.sort(
-        (a, b) =>
-          b.score - a.score || (b.rating || 1450) - (a.rating || 1450),
-      );
-      clubLeaderboard.value = sorted.slice(0, 20);
+      clubLeaderboard.value = list.slice(0, 20);
       saveCachedClubLeaderboard();
       console.log(
         '[fetchClubLeaderboard] matches:',

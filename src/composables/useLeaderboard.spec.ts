@@ -22,7 +22,7 @@ vi.mock('@likha-erp/likha-sdk', () => ({
   readItems: vi.fn(),
 }));
 
-// Mock replayMatches
+// Mock replayMatches and the new ranking functions
 vi.mock('src/utils/ratingReplay', () => ({
   replayMatches: vi.fn((matches) => {
     const players: Record<
@@ -64,6 +64,71 @@ vi.mock('src/utils/ratingReplay', () => ({
     }
     return players;
   }),
+  replayMatchesForRanking: vi.fn((matches) => {
+    const players: Record<
+      string,
+      {
+        username: string;
+        firstName: string;
+        lastName: string;
+        rating: number;
+        initialRating: number;
+        matchesPlayed: number;
+        wins: number;
+        losses: number;
+        avatar: string;
+        reliability: number;
+        provisional: boolean;
+        gamesToReliable: number;
+      }
+    > = {};
+    for (const m of matches) {
+      for (const p of [...m.teamA, ...m.teamB]) {
+        const key = p.userId || p.username || p.firstName;
+        if (!players[key]) {
+          players[key] = {
+            username: p.username || key,
+            firstName: p.firstName || '',
+            lastName: p.lastName || '',
+            rating: p.rating || 1450,
+            initialRating: p.rating || 1450,
+            matchesPlayed: 0,
+            wins: 0,
+            losses: 0,
+            avatar: p.avatar || '',
+            reliability: 0,
+            provisional: true,
+            gamesToReliable: 12,
+          };
+        }
+      }
+      if (m.teamAScore !== m.teamBScore) {
+        const winners = m.teamAScore > m.teamBScore ? m.teamA : m.teamB;
+        const losers = m.teamAScore > m.teamBScore ? m.teamB : m.teamA;
+        for (const p of winners) {
+          const key = p.userId || p.username || p.firstName;
+          players[key].wins++;
+          players[key].matchesPlayed++;
+        }
+        for (const p of losers) {
+          const key = p.userId || p.username || p.firstName;
+          players[key].losses++;
+          players[key].matchesPlayed++;
+        }
+      }
+    }
+    return players;
+  }),
+  rankClubPlayers: vi.fn((players: Record<string, unknown>) =>
+    (Object.values(players) as Array<Record<string, unknown>>).sort(
+      (a, b) =>
+        (b.rating as number) - (a.rating as number) ||
+        (b.matchesPlayed as number) - (a.matchesPlayed as number) ||
+        (b.wins as number) - (a.wins as number) ||
+        ((a.username as string) < (b.username as string) ? -1 : 1),
+    ),
+  ),
+  CLUB_RANKING_CONFIG: { provisionalThreshold: 12 },
 }));
 
 // Mock resolveAvatarUrl
@@ -74,7 +139,10 @@ vi.mock('src/utils/playerHelpers', () => ({
 import { useLeaderboard } from './useLeaderboard';
 import { likhaClient } from 'src/services/likhaClient';
 import { LocalStorage } from 'quasar';
-import { replayMatches } from 'src/utils/ratingReplay';
+import {
+  replayMatchesForRanking,
+  rankClubPlayers,
+} from 'src/utils/ratingReplay';
 
 function makeContext(overrides: Record<string, unknown> = {}) {
   const currentClubUUID = ref('uuid-123');
@@ -290,15 +358,17 @@ describe('useLeaderboard — fetchClubLeaderboard', () => {
     expect(clubLeaderboardLoading.value).toBe(false);
   });
 
-  it('calls replayMatches with reversed match order', async () => {
+  it('calls replayMatchesForRanking with match data', async () => {
     (likhaClient.request as ReturnType<typeof vi.fn>).mockResolvedValue(
       mockMatches,
     );
     const { context } = makeContext();
     const { fetchClubLeaderboard } = useLeaderboard(context);
     await fetchClubLeaderboard();
-    expect(replayMatches).toHaveBeenCalled();
-    const arg = (replayMatches as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(replayMatchesForRanking).toHaveBeenCalled();
+    expect(rankClubPlayers).toHaveBeenCalled();
+    const arg = (replayMatchesForRanking as ReturnType<typeof vi.fn>).mock
+      .calls[0][0];
     expect(Array.isArray(arg)).toBe(true);
   });
 });
