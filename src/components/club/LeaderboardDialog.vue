@@ -3,7 +3,7 @@
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <q-card style="min-width: 320px; max-width: 90vw">
+    <q-card style="width: 420px; max-width: 90vw">
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6">Club Leaderboard</div>
         <q-btn
@@ -116,8 +116,8 @@
         </q-btn-group>
       </div>
       <q-card-section
-        class="q-px-md q-pt-xs q-pb-md"
-        style="max-height: 78vh; overflow-y: auto"
+        class="leaderboard-scroll q-px-md q-pt-xs q-pb-md"
+        style="max-height: 78vh; overflow-y: overlay"
       >
         <div v-if="activeLoading" class="flex flex-center q-py-md">
           <q-spinner color="accent" size="32px" />
@@ -156,7 +156,7 @@
                 @{{ player.username }}
               </q-item-label>
             </q-item-section>
-            <q-item-section side class="text-right">
+            <q-item-section side class="text-right" style="min-width: 0">
               <div class="row items-center justify-end no-wrap">
                 <q-chip
                   :color="getRatingColor(player.rating || 1450)"
@@ -316,5 +316,31 @@ const activeLoading = computed(() => {
     opacity: 0.4;
     transform: scale(0.8);
   }
+}
+
+/* Thin scrollbar — must be unscoped for ::-webkit-scrollbar to work */
+</style>
+
+<style>
+.leaderboard-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  /* overlay = scrollbar floats over content, no gutter space reserved.
+     Falls back to auto in browsers that don't support overlay. */
+  overflow-y: overlay !important;
+}
+.leaderboard-scroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.leaderboard-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.leaderboard-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+.leaderboard-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
 }
 </style>
