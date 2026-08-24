@@ -1001,7 +1001,7 @@ import { useNotify } from 'src/composables/useNotify';
 import { likhaClient } from 'src/services/likhaClient';
 import PlayerFeedbackButton from 'src/components/PlayerFeedbackButton.vue';
 import {
-  readUsers,
+  readItems,
   uploadFiles,
   updateUser,
   updateMe,
@@ -1028,7 +1028,11 @@ import {
   formatDateOnly,
   wilsonLowerBound,
 } from 'src/utils/playerHelpers';
-import { replayMatches } from 'src/utils/ratingReplay';
+import {
+  replayMatches,
+  replayMatchesForRanking,
+  rankClubPlayers,
+} from 'src/utils/ratingReplay';
 import { useRecentClubs } from 'src/composables/useRecentClubs';
 
 const router = useRouter();
@@ -1967,15 +1971,52 @@ const fetchLeaderboard = async () => {
   }
 
   try {
-    // Global top 10 by current rating
-    const globalResult = await likhaClient.request(
-      readUsers({
-        fields: ['first_name', 'last_name', 'username', 'rating', 'avatar'],
-        sort: ['-rating'],
-        limit: 10,
-        filter: { rating: { _nnull: true } },
+    // Fetch all completed matches (no club filter — global leaderboard)
+    // and replay them through the same rating engine as the club leaderboard.
+    const matches = (await likhaClient.request(
+      readItems('completed_match', {
+        fields: ['*', 'players.directus_users_id.*'],
+        sort: ['-completed_at'],
+        limit: 500,
       }),
+    )) as DirectusCompletedMatch[];
+
+    // Filter to competitive modes only (exclude Casual and Social)
+    const competitiveMatches = matches.filter((m) => {
+      const mode = m.meta?.matchmakingMode;
+      return mode !== 'fair_balance' && mode !== 'variety_first';
+    });
+
+    // Replay using the same ranking path as the club leaderboard
+    const replayed = replayMatchesForRanking(
+      competitiveMatches.map((m) => ({
+        teamAScore: m.team_a_score,
+        teamBScore: m.team_b_score,
+        matchKey: m.match_key,
+        completedAt: m.completed_at,
+        matchmakingMode: m.meta?.matchmakingMode,
+        teamA: (m.team_a || []).map((p) => ({
+          userId: p.userId,
+          username: p.username,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          rating: p.rating,
+          level: p.level,
+          avatar: p.avatar,
+        })),
+        teamB: (m.team_b || []).map((p) => ({
+          userId: p.userId,
+          username: p.username,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          rating: p.rating,
+          level: p.level,
+          avatar: p.avatar,
+        })),
+      })),
     );
+
+    const ranked = rankClubPlayers(replayed);
 
     const resolveAvatar = (avatar: unknown): string => {
       const a = (avatar as string) || '';
@@ -1984,15 +2025,22 @@ const fetchLeaderboard = async () => {
       return `https://api.dinkmatch.club/assets/${a}`;
     };
 
-    globalLeaderboard.value = (
-      Array.isArray(globalResult) ? globalResult : []
-    ).map((u: Record<string, unknown>) => ({
-      firstName: (u.first_name as string) || '',
-      lastName: (u.last_name as string) || '',
-      username: (u.username as string) || '',
-      rating: typeof u.rating === 'number' ? u.rating : Number(u.rating) || 0,
-      avatar: resolveAvatar(u.avatar),
-    }));
+    // Hide players with fewer than 12 rated games, take top 30
+    globalLeaderboard.value = ranked
+      .filter((p) => p.ratedMatchesPlayed >= 12)
+      .slice(0, 30)
+      .map((p) => ({
+        firstName: p.firstName || '',
+        lastName: p.lastName || '',
+        username: p.username,
+        rating: p.rating,
+        avatar: resolveAvatar(p.avatar),
+        score: p.rating,
+        wins: p.wins,
+        losses: p.losses,
+        games: p.matchesPlayed,
+        winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
+      }));
 
     saveLeaderboardCache();
   } catch (err) {
