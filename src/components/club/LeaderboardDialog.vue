@@ -64,6 +64,16 @@
           <q-btn
             flat
             color="accent"
+            :class="leaderboardTab === 'matches' ? 'bg-accent text-white' : ''"
+            icon="sports_tennis"
+            label="My Matches"
+            dense
+            size="sm"
+            @click="leaderboardTab = 'matches'"
+          />
+          <q-btn
+            flat
+            color="accent"
             :class="leaderboardTab === 'global' ? 'bg-accent text-white' : ''"
             icon="public"
             label="Global"
@@ -109,10 +119,7 @@
         class="q-px-md q-pt-xs q-pb-md"
         style="max-height: 78vh; overflow-y: auto"
       >
-        <div
-          v-if="leaderboardTab === 'club' ? loading : globalLoading"
-          class="flex flex-center q-py-md"
-        >
+        <div v-if="activeLoading" class="flex flex-center q-py-md">
           <q-spinner color="accent" size="32px" />
         </div>
         <q-list separator v-else-if="activeLeaderboard.length">
@@ -244,19 +251,43 @@ const props = defineProps<{
     gamesToReliable?: number;
   }>;
   globalLoading?: boolean;
+  myMatchesLeaderboard?: Array<{
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+    avatar?: string;
+    rating: number;
+    score?: number;
+    games?: number;
+    wins?: number;
+    losses?: number;
+    winRate?: number;
+    provisional?: boolean;
+    reliability?: number;
+    gamesToReliable?: number;
+  }>;
+  myMatchesLoading?: boolean;
 }>();
 
 defineEmits<{
   'update:modelValue': [value: boolean];
 }>();
 
-const leaderboardTab = ref<'club' | 'global'>('club');
+const leaderboardTab = ref<'club' | 'matches' | 'global'>('club');
 
-const activeLeaderboard = computed(() =>
-  leaderboardTab.value === 'club'
-    ? props.leaderboard
-    : props.globalLeaderboard || [],
-);
+const activeLeaderboard = computed(() => {
+  if (leaderboardTab.value === 'global') return props.globalLeaderboard || [];
+  if (leaderboardTab.value === 'matches')
+    return props.myMatchesLeaderboard || [];
+  return props.leaderboard;
+});
+
+const activeLoading = computed(() => {
+  if (leaderboardTab.value === 'global') return props.globalLoading || false;
+  if (leaderboardTab.value === 'matches')
+    return props.myMatchesLoading || false;
+  return props.loading;
+});
 </script>
 
 <style scoped>

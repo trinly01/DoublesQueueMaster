@@ -112,6 +112,8 @@
         :loading="clubLeaderboardLoading"
         :global-leaderboard="globalLeaderboard"
         :global-loading="globalLeaderboardLoading"
+        :my-matches-leaderboard="myMatchesLeaderboard"
+        :my-matches-loading="myMatchesLoading"
       />
 
       <ClubLayout
@@ -1292,6 +1294,7 @@ import { useMatchSettings } from '../composables/useMatchSettings';
 import { useClubMembers } from '../composables/useClubMembers';
 import { useLeaderboard } from '../composables/useLeaderboard';
 import {
+  replayMatches,
   replayMatchesForRanking,
   rankClubPlayers,
 } from 'src/utils/ratingReplay';
@@ -1876,6 +1879,152 @@ const fetchGlobalLeaderboard = async () => {
   }
 };
 
+// My Matches leaderboard — replays the current user's matches within this
+// club only. Shows top 10 + the current user (same as profile's "From
+// Matches" tab, but filtered to the current club).
+const myMatchesLeaderboard = ref<
+  Array<{
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+    avatar?: string;
+    rating: number;
+    score?: number;
+    games?: number;
+    wins?: number;
+    losses?: number;
+    winRate?: number;
+  }>
+>([]);
+const myMatchesLoading = ref(false);
+const myMatchesFetched = ref(false);
+
+const fetchMyMatchesLeaderboard = async () => {
+  if (myMatchesLoading.value || myMatchesFetched.value) return;
+  if (!currentClubUUID.value || !currentUserId.value) return;
+
+  myMatchesLoading.value = true;
+  try {
+    // Fetch the current user's completed matches in this club
+    const matches = (await likhaClient.request(
+      readItems('completed_match', {
+        filter: {
+          _and: [
+            { club: { _eq: currentClubUUID.value } },
+            {
+              players: {
+                directus_users_id: { id: { _eq: currentUserId.value } },
+              },
+            },
+          ],
+        },
+        fields: ['*', 'players.directus_users_id.*'],
+        sort: ['-completed_at'],
+        limit: 500,
+      }),
+    )) as DirectusCompletedMatch[];
+
+    if (matches.length === 0) {
+      myMatchesLeaderboard.value = [];
+      myMatchesFetched.value = true;
+      return;
+    }
+
+    // Filter to competitive modes only
+    const competitiveMatches = matches.filter((m) => {
+      const mode = m.meta?.matchmakingMode;
+      return mode !== 'fair_balance' && mode !== 'variety_first';
+    });
+
+    // Replay chronologically (oldest first)
+    const replayed = replayMatches(
+      [...competitiveMatches].reverse().map((m) => ({
+        teamAScore: m.team_a_score,
+        teamBScore: m.team_b_score,
+        teamA: (m.team_a || []).map((p) => ({
+          username: p.username,
+          name: p.firstName,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          rating: p.rating,
+          avatar: p.avatar,
+        })),
+        teamB: (m.team_b || []).map((p) => ({
+          username: p.username,
+          name: p.firstName,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          rating: p.rating,
+          avatar: p.avatar,
+        })),
+      })),
+    );
+
+    // Build registered-user info map from the players junction
+    const userMap = new Map<
+      string,
+      {
+        firstName: string;
+        lastName: string;
+        rating: number;
+        avatar?: string;
+      }
+    >();
+    for (const m of competitiveMatches) {
+      for (const jp of m.players || []) {
+        const user = jp.directus_users_id;
+        if (!user?.username) continue;
+        userMap.set(user.username, {
+          firstName: user.first_name || user.username,
+          lastName: user.last_name || '',
+          rating: user.rating ?? 1450,
+          avatar: resolveAvatarUrl(user.avatar),
+        });
+      }
+    }
+
+    const list = Object.values(replayed)
+      .filter((p) => userMap.has(p.username))
+      .map((p) => {
+        const user = userMap.get(p.username);
+        return {
+          firstName: user?.firstName || p.firstName,
+          lastName: user?.lastName || p.lastName,
+          username: p.username,
+          rating: p.rating,
+          score: Math.round(p.rating),
+          avatar: user?.avatar || p.avatar,
+          wins: p.wins,
+          losses: p.losses,
+          games: p.matchesPlayed,
+          winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
+        };
+      });
+
+    const sorted = list.sort(
+      (a, b) =>
+        (b.score || 0) - (a.score || 0) ||
+        (b.rating || 1450) - (a.rating || 1450),
+    );
+
+    // Top 10 + current user (if not already in top 10)
+    const top10 = sorted.slice(0, 10);
+    const member = clubMembers.value.find((m) => m.id === currentUserId.value);
+    const currentUsername = member?.username;
+    if (currentUsername && !top10.some((p) => p.username === currentUsername)) {
+      const currentEntry = sorted.find((p) => p.username === currentUsername);
+      if (currentEntry) top10.push(currentEntry);
+    }
+
+    myMatchesLeaderboard.value = top10;
+    myMatchesFetched.value = true;
+  } catch (err) {
+    console.error('Failed to fetch my matches leaderboard:', err);
+  } finally {
+    myMatchesLoading.value = false;
+  }
+};
+
 // Pull the latest player ratings from the club's M2M (club.players → directus_users).
 // A manual change to directus_users.rating doesn't touch the club item, so the
 // realtime appState subscription never sees it — we refresh ratings explicitly here.
@@ -2163,6 +2312,7 @@ watch(showLeaderboardDialog, (open) => {
   if (open) {
     fetchClubLeaderboard();
     fetchGlobalLeaderboard();
+    fetchMyMatchesLeaderboard();
   }
 });
 
