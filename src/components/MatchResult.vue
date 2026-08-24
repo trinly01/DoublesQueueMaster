@@ -91,34 +91,33 @@
         </div>
       </div>
 
-      <!-- Center: Court + Win Probability + Status + Scores + VS -->
+      <!-- Center: Win Probability + Live elapsed + Scores + VS -->
       <div class="col-auto q-mx-md text-center center-group">
-        <q-chip
-          v-if="court !== undefined"
-          color="blue-grey-7"
-          text-color="white"
-          size="sm"
-          dense
+        <!-- Editable: win probability on top, live elapsed below -->
+        <div
+          v-if="editable && winProbability !== undefined"
+          class="text-caption text-grey-6"
+          style="line-height: 1"
         >
-          Court
+          {{ (winProbability * 100).toFixed(0) }}%
+          <q-icon name="sports_tennis" color="grey-6" size="sm" />
+          {{ ((1 - winProbability) * 100).toFixed(0) }}%
+        </div>
+        <q-chip
+          v-if="editable && status === 'in-progress' && startedAt"
+          dense
+          rounded
+          class="live-chip bg-amber-2 text-amber-10"
+        >
           <q-avatar
-            color="blue-grey-9"
-            style="left: 10px"
-            dense
-            size="xs"
-            rounded
+            class="live-dot-avatar"
+            color="amber-7"
             text-color="white"
-            >{{ court }}</q-avatar
+            size="14px"
           >
-        </q-chip>
-        <q-chip
-          v-if="status"
-          :color="getMatchStatusColor(status)"
-          text-color="white"
-          size="sm"
-          dense
-        >
-          {{ getMatchStatusLabel(status) }}
+            <span class="live-dot-inner" />
+          </q-avatar>
+          {{ elapsedTime }}
         </q-chip>
         <!-- Read-only: scores + probability in aligned grid -->
         <div
@@ -162,7 +161,6 @@
             </div>
           </div>
         </div>
-        <div v-else class="text-subtitle2 text-weight-bold text-grey-8">VS</div>
         <div
           v-if="completedAt"
           :class="[
@@ -278,16 +276,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch, onUnmounted } from 'vue';
 import type { QInput } from 'quasar';
 import type { MatchMeta } from '../types/matchMeta';
 import type { TeamPlayer } from '../types/player';
-import {
-  getRatingColor,
-  getMatchStatusColor,
-  getMatchStatusLabel,
-  formatDate,
-} from '../utils/playerHelpers';
+import { getRatingColor, formatDate } from '../utils/playerHelpers';
 import MatchMetaChips from './MatchMetaChips.vue';
 
 const props = withDefaults(
@@ -296,7 +289,6 @@ const props = withDefaults(
     teamB: TeamPlayer[];
     teamAScore?: number;
     teamBScore?: number;
-    court?: number;
     winProbability?: number;
     status?: string;
     editable?: boolean;
@@ -362,6 +354,49 @@ const formatDuration = (startIso: string, endIso: string): string => {
   const secs = Math.floor((diff % 60000) / 1000);
   return `${mins}m ${secs}s`;
 };
+
+// Live elapsed-time chip for in-progress matches in the editable dialog
+const elapsedTime = ref('');
+let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+
+const updateElapsedTime = () => {
+  if (!props.startedAt) {
+    elapsedTime.value = '';
+    return;
+  }
+  const diff = Math.max(0, Date.now() - new Date(props.startedAt).getTime());
+  const mins = Math.floor(diff / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+  elapsedTime.value = `${mins}m ${secs}s`;
+};
+
+const startElapsedTimer = () => {
+  if (elapsedTimer) return;
+  updateElapsedTime();
+  elapsedTimer = setInterval(updateElapsedTime, 1000);
+};
+
+const stopElapsedTimer = () => {
+  if (elapsedTimer) {
+    clearInterval(elapsedTimer);
+    elapsedTimer = null;
+  }
+};
+
+watch(
+  () => [props.editable, props.status, props.startedAt],
+  () => {
+    if (props.editable && props.status === 'in-progress' && props.startedAt) {
+      startElapsedTimer();
+    } else {
+      stopElapsedTimer();
+      elapsedTime.value = '';
+    }
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => stopElapsedTimer());
 </script>
 
 <style lang="scss" scoped>
@@ -370,7 +405,7 @@ const formatDuration = (startIso: string, endIso: string): string => {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0;
+    gap: 2px;
     line-height: 1;
 
     .q-chip {
@@ -381,6 +416,36 @@ const formatDuration = (startIso: string, endIso: string): string => {
       margin: 0;
       font-size: 1rem;
     }
+
+    .live-chip {
+      margin: 0;
+    }
+
+    .live-dot-avatar {
+      margin-left: -2px;
+      margin-right: 4px;
+    }
+
+    .live-dot-inner {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #fff;
+      animation: live-dot-pulse 2s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes live-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.8);
   }
 }
 
