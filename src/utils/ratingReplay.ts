@@ -246,12 +246,15 @@ export type RankedPlayer = ReplayPlayer & {
    * Confidence 0..1 derived from the shrinkage formula: n/(n+C).
    * At 0 games: 0% (pure seed). At C games: 50%. At 4C games: 80%.
    * This is the actual weight the earned rating carries vs the seed.
+   * Based on rated matches only (excludes casual/social).
    */
   reliability: number;
-  /** True when games < provisionalThreshold. */
+  /** True when rated games < provisionalThreshold. */
   provisional: boolean;
-  /** Games remaining to reach provisionalThreshold (0 when no longer provisional). */
+  /** Rated games remaining to reach provisionalThreshold (0 when no longer provisional). */
   gamesToReliable: number;
+  /** Number of rated matches (excludes casual/social). Used for shrinkage. */
+  ratedMatchesPlayed: number;
 };
 
 function playerIdentityKey(p: ReplayPlayerInput): string {
@@ -267,7 +270,7 @@ function seedRatingFromPlayer(p: ReplayPlayerInput): number {
   return 1450;
 }
 
-function computeReliability(games: number): {
+function computeReliability(ratedGames: number): {
   reliability: number;
   provisional: boolean;
   gamesToReliable: number;
@@ -276,9 +279,10 @@ function computeReliability(games: number): {
   const C = CONFIG.shrinkagePriorWeight;
   // Shrinkage weight: n/(n+C). This is the actual fraction of the rating
   // that comes from earned results vs the seed. Capped at 1.
-  const reliability = Math.min(1, games / (games + C));
-  const provisional = games < provisionalThreshold;
-  const gamesToReliable = Math.max(0, provisionalThreshold - games);
+  // Uses rated games only — casual/social matches don't earn rating.
+  const reliability = Math.min(1, ratedGames / (ratedGames + C));
+  const provisional = ratedGames < provisionalThreshold;
+  const gamesToReliable = Math.max(0, provisionalThreshold - ratedGames);
   return { reliability, provisional, gamesToReliable };
 }
 
@@ -311,6 +315,7 @@ function replayRankingPass(
           rating: initialRating,
           initialRating,
           matchesPlayed: 0,
+          ratedMatchesPlayed: 0,
           wins: 0,
           losses: 0,
           avatar: p.avatar || '',
@@ -341,10 +346,12 @@ function replayRankingPass(
     // diverging from live ratings on unrated matches.
     const isNonCompetitive = NON_COMPETITIVE_MODES.has(m.matchmakingMode || '');
     if (isNonCompetitive) {
+      // Count W/L but don't update ratings or ratedMatchesPlayed.
+      // Reliability/provisional are based on rated games only.
       winners.forEach((p) => {
         p.matchesPlayed += 1;
         p.wins += 1;
-        const r = computeReliability(p.matchesPlayed);
+        const r = computeReliability(p.ratedMatchesPlayed);
         p.reliability = r.reliability;
         p.provisional = r.provisional;
         p.gamesToReliable = r.gamesToReliable;
@@ -352,7 +359,7 @@ function replayRankingPass(
       losers.forEach((p) => {
         p.matchesPlayed += 1;
         p.losses += 1;
-        const r = computeReliability(p.matchesPlayed);
+        const r = computeReliability(p.ratedMatchesPlayed);
         p.reliability = r.reliability;
         p.provisional = r.provisional;
         p.gamesToReliable = r.gamesToReliable;
@@ -370,8 +377,9 @@ function replayRankingPass(
     winners.forEach((p, i) => {
       p.rating = Math.max(CONFIG.ratingFloor, p.rating + winnerGains[i]);
       p.matchesPlayed += 1;
+      p.ratedMatchesPlayed += 1;
       p.wins += 1;
-      const r = computeReliability(p.matchesPlayed);
+      const r = computeReliability(p.ratedMatchesPlayed);
       p.reliability = r.reliability;
       p.provisional = r.provisional;
       p.gamesToReliable = r.gamesToReliable;
@@ -379,8 +387,9 @@ function replayRankingPass(
     losers.forEach((p, i) => {
       p.rating = Math.max(CONFIG.ratingFloor, p.rating - loserLosses[i]);
       p.matchesPlayed += 1;
+      p.ratedMatchesPlayed += 1;
       p.losses += 1;
-      const r = computeReliability(p.matchesPlayed);
+      const r = computeReliability(p.ratedMatchesPlayed);
       p.reliability = r.reliability;
       p.provisional = r.provisional;
       p.gamesToReliable = r.gamesToReliable;
@@ -440,9 +449,10 @@ export function replayMatchesForRanking(
 
   // Apply Bayesian shrinkage: pull ratings toward seed by n/(n+C).
   // This tempers low-game players without erasing established players.
+  // Uses rated matches only — casual/social matches don't earn rating.
   const C = CONFIG.shrinkagePriorWeight;
   for (const p of Object.values(result)) {
-    const n = p.matchesPlayed;
+    const n = p.ratedMatchesPlayed;
     if (n > 0 && C > 0) {
       const shrunk =
         p.initialRating + (p.rating - p.initialRating) * (n / (n + C));

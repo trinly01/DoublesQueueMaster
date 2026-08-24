@@ -385,6 +385,32 @@ describe('replayMatchesForRanking — mode filtering', () => {
     expect(result['alice'].rating).toBeGreaterThan(1500);
     expect(result['alice'].wins).toBe(2);
     expect(result['alice'].matchesPlayed).toBe(2);
+    // Only 1 rated match — reliability and provisional based on that
+    expect(result['alice'].ratedMatchesPlayed).toBe(1);
+    expect(result['alice'].provisional).toBe(true);
+    expect(result['alice'].gamesToReliable).toBe(11);
+  });
+
+  it('casual matches do not count toward provisional threshold', () => {
+    // 15 casual matches — should still be provisional with 0 rated games
+    const matches: RankedMatchInput[] = Array.from({ length: 15 }, (_, i) => ({
+      teamAScore: 11,
+      teamBScore: 5,
+      matchKey: `m${i}`,
+      completedAt: `2026-01-0${(i % 9) + 1}T00:00:00Z`,
+      matchmakingMode: 'fair_balance',
+      teamA: [{ username: 'alice', rating: 1500 }],
+      teamB: [{ username: 'bob', rating: 1400 }],
+    }));
+    const result = replayMatchesForRanking(matches);
+    // 15 total matches but 0 rated — still provisional
+    expect(result['alice'].matchesPlayed).toBe(15);
+    expect(result['alice'].ratedMatchesPlayed).toBe(0);
+    expect(result['alice'].provisional).toBe(true);
+    expect(result['alice'].gamesToReliable).toBe(12);
+    expect(result['alice'].reliability).toBe(0);
+    // Rating unchanged from seed
+    expect(result['alice'].rating).toBe(1500);
   });
 });
 
@@ -404,6 +430,7 @@ function makeRankedPlayer(
     rating,
     initialRating: 1450,
     matchesPlayed: games,
+    ratedMatchesPlayed: games,
     wins,
     losses,
     avatar: '',
