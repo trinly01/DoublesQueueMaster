@@ -32,7 +32,6 @@
             v-if="matchData"
             :teamA="matchData.teamA"
             :teamB="matchData.teamB"
-            :court="matchData.court"
             :winProbability="matchData.winProbability"
             :status="matchData.status"
             :startedAt="
@@ -102,7 +101,6 @@ const matchData = computed(() => {
   return {
     teamA: m.teamA as TeamPlayer[],
     teamB: m.teamB as TeamPlayer[],
-    court: m.court as number,
     winProbability: m.winProbability as number,
     status: m.status as string,
     startedAt: m.startedAt as Date | undefined,
