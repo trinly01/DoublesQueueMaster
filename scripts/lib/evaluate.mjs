@@ -1,7 +1,7 @@
 /**
  * Evaluation harness: walk-forward CV, bootstrap CIs, baselines.
  */
-import { replay, expected, DEFAULT_PARAMS } from './replayEngine.mjs';
+import { replay, expected } from './replayEngine.mjs';
 
 /**
  * Compute logLoss and Brier from a prediction log.
@@ -44,12 +44,16 @@ export function walkForwardCV(matches, params, options = {}, nFolds = 5) {
     const testMatches = matches.slice(testStart, testEnd);
 
     // Replay on training set to build up ratings
-    const trainResult = replay(trainMatches, params, options);
+    replay(trainMatches, params, options);
 
     // Now replay test matches, collecting predictions
     // We need to continue from the training state, so we replay all
     // but only score the test portion
-    const fullResult = replay([...trainMatches, ...testMatches], params, options);
+    const fullResult = replay(
+      [...trainMatches, ...testMatches],
+      params,
+      options,
+    );
     const testPreds = fullResult.predictions.slice(testStart);
 
     const metrics = scorePredictions(testPreds);
@@ -118,8 +122,10 @@ export function baselineSeedFavourite(matches) {
   let logLossSum = 0;
   let n = 0;
   for (const m of matches) {
-    const rA = m.teamA.reduce((s, p) => s + (p.rating || 1450), 0) / m.teamA.length;
-    const rB = m.teamB.reduce((s, p) => s + (p.rating || 1450), 0) / m.teamB.length;
+    const rA =
+      m.teamA.reduce((s, p) => s + (p.rating || 1450), 0) / m.teamA.length;
+    const rB =
+      m.teamB.reduce((s, p) => s + (p.rating || 1450), 0) / m.teamB.length;
     const probA = expected(rA, rB);
     const aWon = m.teamAScore > m.teamBScore ? 1 : 0;
     const prob = Math.max(1e-4, Math.min(1 - 1e-4, probA));
@@ -145,7 +151,11 @@ export function crossClubCV(matches, params, options = {}) {
       const testMatches = matches.filter((m) => m.club === clubs[j]);
       if (trainMatches.length < 20 || testMatches.length < 20) continue;
 
-      const fullResult = replay([...trainMatches, ...testMatches], params, options);
+      const fullResult = replay(
+        [...trainMatches, ...testMatches],
+        params,
+        options,
+      );
       const testPreds = fullResult.predictions.slice(trainMatches.length);
       const metrics = scorePredictions(testPreds);
       results.push({
@@ -186,6 +196,8 @@ export function formatResult(label, cvResult, ciResult) {
   const ll = cvResult.logLossMean?.toFixed(4) ?? 'n/a';
   const sd = cvResult.logLossSd?.toFixed(4) ?? 'n/a';
   const br = cvResult.brierMean?.toFixed(4) ?? 'n/a';
-  const ci = ciResult ? `[${ciResult.lower.toFixed(4)}, ${ciResult.upper.toFixed(4)}]` : '';
+  const ci = ciResult
+    ? `[${ciResult.lower.toFixed(4)}, ${ciResult.upper.toFixed(4)}]`
+    : '';
   return `${label.padEnd(40)} logLoss=${ll} ±${sd}  brier=${br}  ${ci}`;
 }
