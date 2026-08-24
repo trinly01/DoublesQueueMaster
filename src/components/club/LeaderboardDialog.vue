@@ -49,6 +49,30 @@
         <q-space />
         <q-btn icon="close" flat round dense v-close-popup />
       </q-card-section>
+      <div class="q-px-md q-pt-xs">
+        <q-btn-group spread class="full-width">
+          <q-btn
+            flat
+            color="accent"
+            :class="leaderboardTab === 'club' ? 'bg-accent text-white' : ''"
+            icon="groups"
+            label="Club"
+            dense
+            size="sm"
+            @click="leaderboardTab = 'club'"
+          />
+          <q-btn
+            flat
+            color="accent"
+            :class="leaderboardTab === 'global' ? 'bg-accent text-white' : ''"
+            icon="public"
+            label="Global"
+            dense
+            size="sm"
+            @click="leaderboardTab = 'global'"
+          />
+        </q-btn-group>
+      </div>
       <div class="row q-gutter-xs q-px-md q-pb-xs justify-center">
         <q-chip dense color="grey-6" text-color="white" size="xs">
           Beginner
@@ -85,14 +109,17 @@
         class="q-px-md q-pt-xs q-pb-md"
         style="max-height: 78vh; overflow-y: auto"
       >
-        <div v-if="loading" class="flex flex-center q-py-md">
+        <div
+          v-if="leaderboardTab === 'club' ? loading : globalLoading"
+          class="flex flex-center q-py-md"
+        >
           <q-spinner color="accent" size="32px" />
         </div>
-        <q-list separator v-else-if="leaderboard.length">
+        <q-list separator v-else-if="activeLeaderboard.length">
           <q-item
-            v-for="(player, idx) in leaderboard"
+            v-for="(player, idx) in activeLeaderboard"
             :key="player.username"
-            :class="player.winRate >= 50 ? 'bg-green-1' : 'bg-red-1'"
+            :class="(player.winRate || 0) >= 50 ? 'bg-green-1' : 'bg-red-1'"
           >
             <q-item-section avatar>
               <div class="row items-center no-wrap" style="gap: 8px">
@@ -103,6 +130,7 @@
                 >
                   {{ player.provisional ? '–' : idx + 1 }}
                 </div>
+
                 <PlayerAvatar
                   :name="player.firstName"
                   :username="player.username"
@@ -137,6 +165,7 @@
                   /></span>
                   {{ player.score }}
                   <q-tooltip
+                    v-if="player.provisional !== undefined"
                     anchor="center left"
                     self="center right"
                     :offset="[8, 0]"
@@ -149,7 +178,7 @@
                       to rank up
                     </template>
                     <template v-else>
-                      {{ Math.round(player.reliability * 100) }}% solid
+                      {{ Math.round((player.reliability || 0) * 100) }}% solid
                     </template>
                   </q-tooltip>
                 </q-chip>
@@ -175,12 +204,13 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import PlayerAvatar from '../PlayerAvatar.vue';
 import { getRatingColor } from '../../utils/playerHelpers';
 
 defineOptions({ name: 'LeaderboardDialog' });
 
-defineProps<{
+const props = defineProps<{
   modelValue: boolean;
   leaderboard: Array<{
     id: string;
@@ -198,11 +228,35 @@ defineProps<{
     gamesToReliable: number;
   }>;
   loading: boolean;
+  globalLeaderboard?: Array<{
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+    avatar?: string;
+    rating: number;
+    score?: number;
+    games?: number;
+    wins?: number;
+    losses?: number;
+    winRate?: number;
+    provisional?: boolean;
+    reliability?: number;
+    gamesToReliable?: number;
+  }>;
+  globalLoading?: boolean;
 }>();
 
 defineEmits<{
   'update:modelValue': [value: boolean];
 }>();
+
+const leaderboardTab = ref<'club' | 'global'>('club');
+
+const activeLeaderboard = computed(() =>
+  leaderboardTab.value === 'club'
+    ? props.leaderboard
+    : props.globalLeaderboard || [],
+);
 </script>
 
 <style scoped>

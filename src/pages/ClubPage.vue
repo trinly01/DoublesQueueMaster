@@ -110,6 +110,8 @@
         v-model="showLeaderboardDialog"
         :leaderboard="clubLeaderboard"
         :loading="clubLeaderboardLoading"
+        :global-leaderboard="globalLeaderboard"
+        :global-loading="globalLeaderboardLoading"
       />
 
       <ClubLayout
@@ -1289,6 +1291,12 @@ import { computeWinProbability } from '../services/matchmaking';
 import { useMatchSettings } from '../composables/useMatchSettings';
 import { useClubMembers } from '../composables/useClubMembers';
 import { useLeaderboard } from '../composables/useLeaderboard';
+import {
+  replayMatchesForRanking,
+  rankClubPlayers,
+} from 'src/utils/ratingReplay';
+import { resolveAvatarUrl } from 'src/utils/playerHelpers';
+import type { DirectusCompletedMatch } from 'src/services/playerProfile';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { usePlayerActions } from '../composables/usePlayerActions';
 import { useDataManagement } from '../composables/useDataManagement';
@@ -1780,6 +1788,94 @@ const { clubLeaderboard, clubLeaderboardLoading, fetchClubLeaderboard } =
     clubMembers,
   });
 
+// Global leaderboard — same replay engine but no club filter.
+// Fetched lazily when the user switches to the Global tab.
+const globalLeaderboard = ref<
+  Array<{
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+    avatar?: string;
+    rating: number;
+    score?: number;
+    games?: number;
+    wins?: number;
+    losses?: number;
+    winRate?: number;
+  }>
+>([]);
+const globalLeaderboardLoading = ref(false);
+const globalLeaderboardFetched = ref(false);
+
+const fetchGlobalLeaderboard = async () => {
+  if (globalLeaderboardLoading.value || globalLeaderboardFetched.value) return;
+  globalLeaderboardLoading.value = true;
+  try {
+    const matches = (await likhaClient.request(
+      readItems('completed_match', {
+        fields: ['*', 'players.directus_users_id.*'],
+        sort: ['-completed_at'],
+        limit: 500,
+      }),
+    )) as DirectusCompletedMatch[];
+
+    const competitiveMatches = matches.filter((m) => {
+      const mode = m.meta?.matchmakingMode;
+      return mode !== 'fair_balance' && mode !== 'variety_first';
+    });
+
+    const replayed = replayMatchesForRanking(
+      competitiveMatches.map((m) => ({
+        teamAScore: m.team_a_score,
+        teamBScore: m.team_b_score,
+        matchKey: m.match_key,
+        completedAt: m.completed_at,
+        matchmakingMode: m.meta?.matchmakingMode,
+        teamA: (m.team_a || []).map((p) => ({
+          userId: p.userId,
+          username: p.username,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          rating: p.rating,
+          level: p.level,
+          avatar: p.avatar,
+        })),
+        teamB: (m.team_b || []).map((p) => ({
+          userId: p.userId,
+          username: p.username,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          rating: p.rating,
+          level: p.level,
+          avatar: p.avatar,
+        })),
+      })),
+    );
+
+    const ranked = rankClubPlayers(replayed);
+    globalLeaderboard.value = ranked
+      .filter((p) => p.ratedMatchesPlayed >= 12)
+      .slice(0, 30)
+      .map((p) => ({
+        firstName: p.firstName || '',
+        lastName: p.lastName || '',
+        username: p.username,
+        rating: p.rating,
+        avatar: resolveAvatarUrl(p.avatar),
+        score: p.rating,
+        wins: p.wins,
+        losses: p.losses,
+        games: p.matchesPlayed,
+        winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
+      }));
+    globalLeaderboardFetched.value = true;
+  } catch (err) {
+    console.error('Failed to fetch global leaderboard:', err);
+  } finally {
+    globalLeaderboardLoading.value = false;
+  }
+};
+
 // Pull the latest player ratings from the club's M2M (club.players → directus_users).
 // A manual change to directus_users.rating doesn't touch the club item, so the
 // realtime appState subscription never sees it — we refresh ratings explicitly here.
@@ -2066,6 +2162,7 @@ watch([showSettingsDialog, settingsTab], ([showDialog, tab]) => {
 watch(showLeaderboardDialog, (open) => {
   if (open) {
     fetchClubLeaderboard();
+    fetchGlobalLeaderboard();
   }
 });
 
