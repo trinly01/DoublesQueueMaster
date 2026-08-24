@@ -71,6 +71,6 @@ if (cc) {
 
 // 6. Noise floor
 const noiseFloor = (ci.upper - ci.lower) / 2;
-console.log(`\n=== NOISE FLOOR ===`);
+console.log('\n=== NOISE FLOOR ===');
 console.log(`Bootstrap CI half-width: ±${noiseFloor.toFixed(4)}`);
-console.log(`Any improvement smaller than this is noise.\n`);
+console.log('Any improvement smaller than this is noise.\n');
