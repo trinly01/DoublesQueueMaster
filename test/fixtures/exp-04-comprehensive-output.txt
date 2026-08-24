@@ -1,0 +1,111 @@
+=== COMPREHENSIVE ALGORITHM SWEEP ===
+Dataset: 1350 competitive doubles matches
+Noise floor (CV sd): +/- 0.0128
+Coin-flip baseline: 0.6931
+
+=== PHASE 1: ONE-AT-A-TIME SWEEP ===
+Base: snapshot seed, log MOV, autocorr=2200, K=64, marginW=0.15
+
+--- MOV Mode ---
+  log             inSample=0.6270 CV=0.6270 +/- 0.0128
+  none            inSample=0.6245 CV=0.6245 +/- 0.0136
+  dominance       inSample=0.6263 CV=0.6263 +/- 0.0128
+  winnerShare     inSample=0.6270 CV=0.6270 +/- 0.0129
+  normalized      inSample=0.6269 CV=0.6269 +/- 0.0129
+  jointAdditive   inSample=0.6249 CV=0.6249 +/- 0.0135
+
+--- Autocorrelation Scale ---
+  scale=0         inSample=0.6272 CV=0.6272 +/- 0.0129
+  scale=500       inSample=0.6259 CV=0.6259 +/- 0.0124
+  scale=1000      inSample=0.6265 CV=0.6265 +/- 0.0127
+  scale=2200      inSample=0.6270 CV=0.6270 +/- 0.0128
+  scale=5000      inSample=0.6270 CV=0.6270 +/- 0.0128
+
+--- K Doubles ---
+  K=24            inSample=0.6191 CV=0.6191 +/- 0.0148
+  K=32            inSample=0.6206 CV=0.6206 +/- 0.0142
+  K=40            inSample=0.6221 CV=0.6221 +/- 0.0138
+  K=48            inSample=0.6238 CV=0.6238 +/- 0.0135
+  K=56            inSample=0.6253 CV=0.6253 +/- 0.0131
+  K=64            inSample=0.6270 CV=0.6270 +/- 0.0128
+  K=80            inSample=0.6301 CV=0.6301 +/- 0.0124
+
+--- Margin Weight ---
+  marginW=0       inSample=0.6245 CV=0.6245 +/- 0.0136
+  marginW=0.05    inSample=0.6252 CV=0.6252 +/- 0.0133
+  marginW=0.1     inSample=0.6260 CV=0.6260 +/- 0.0131
+  marginW=0.15    inSample=0.6270 CV=0.6270 +/- 0.0128
+  marginW=0.2     inSample=0.6276 CV=0.6276 +/- 0.0127
+  marginW=0.25    inSample=0.6284 CV=0.6284 +/- 0.0123
+
+--- Seed Mode ---
+  flat            inSample=0.6840 CV=0.6840 +/- 0.0081
+  snapshot        inSample=0.6270 CV=0.6270 +/- 0.0128
+  level           inSample=0.6816 CV=0.6816 +/- 0.0077
+
+--- Provisional K ---
+  off                 inSample=0.6270 CV=0.6270 +/- 0.0128
+  highK=96,thresh=8   inSample=0.6286 CV=0.6286 +/- 0.0113
+  highK=80,thresh=12  inSample=0.6283 CV=0.6283 +/- 0.0117
+
+--- Recency Decay ---
+  off             inSample=0.6270 CV=0.6270 +/- 0.0128
+  90d             inSample=0.6270 CV=0.6270 +/- 0.0128
+  180d            inSample=0.6270 CV=0.6270 +/- 0.0128
+  365d            inSample=0.6270 CV=0.6270 +/- 0.0128
+
+--- Partner Gap Factor ---
+  gap=0           inSample=0.6286 CV=0.6286 +/- 0.0130
+  gap=0.25        inSample=0.6280 CV=0.6280 +/- 0.0127
+  gap=0.5         inSample=0.6270 CV=0.6270 +/- 0.0128
+  gap=0.75        inSample=0.6245 CV=0.6245 +/- 0.0122
+  gap=1           inSample=0.6223 CV=0.6223 +/- 0.0120
+
+=== PHASE 2: ITERATED CONVERGENCE ===
+  passes=1   inSample=0.6270
+  passes=2   inSample=0.6004
+  passes=3   inSample=0.5814
+  passes=5   inSample=0.5558
+  passes=10  inSample=0.5214
+  passes=15  inSample=0.5028
+
+=== PHASE 3: TOP COMBINATIONS ===
+  A: none+K32+auto0                   inSample=0.6196 CI=[0.6100,0.6300] CV=0.6196 +/- 0.0148
+  B: none+K32+auto1000                inSample=0.6194 CI=[0.6099,0.6291] CV=0.6194 +/- 0.0150
+  C: none+K40+auto1000                inSample=0.6205 CI=[0.6106,0.6305] CV=0.6205 +/- 0.0146
+  D: jointAdd+K32+auto0               inSample=0.6196 CI=[0.6097,0.6290] CV=0.6196 +/- 0.0146
+  E: none+K48+auto0                   inSample=0.6222 CI=[0.6117,0.6327] CV=0.6222 +/- 0.0140
+  F: log+K32+auto2200                 inSample=0.6206 CI=[0.6117,0.6310] CV=0.6206 +/- 0.0142
+  G: none+K32+auto2200                inSample=0.6195 CI=[0.6096,0.6290] CV=0.6195 +/- 0.0148
+  H: none+K24+auto1000                inSample=0.6182 CI=[0.6093,0.6273] CV=0.6182 +/- 0.0151
+  I: none+K32+gap0                    inSample=0.6204 CI=[0.6108,0.6300] CV=0.6204 +/- 0.0148
+  J: current (log+K64+auto2200)       inSample=0.6270 CI=[0.6159,0.6381] CV=0.6270 +/- 0.0128
+
+=== PHASE 4: CROSS-CLUB VALIDATION ===
+Club A (22e52ef0): 634 matches
+Club B (46c81532): 617 matches
+
+  H: none+K24+auto1000                ClubA=0.5998 ClubB=0.6307
+  B: none+K32+auto1000                ClubA=0.6008 ClubB=0.6319
+  G: none+K32+auto2200                ClubA=0.6009 ClubB=0.6320
+  J: current (log+K64+auto2200)       ClubA=0.6084 ClubB=0.6383
+
+=== SUMMARY ===
+Noise floor: +/- 0.0128 (CV sd)
+
+Best single dimension values:
+  MOV           best=none                (0.6245) spread=0.0025 <= noise
+  autocorr      best=scale=500           (0.6259) spread=0.0013 <= noise
+  K             best=K=24                (0.6191) spread=0.0110 <= noise
+  marginW       best=marginW=0           (0.6245) spread=0.0039 <= noise
+  seed          best=snapshot            (0.6270) spread=0.0570 > noise
+  provK         best=off                 (0.6270) spread=0.0016 <= noise
+  recency       best=off                 (0.6270) spread=0.0000 <= noise
+  partnerGap    best=gap=1               (0.6223) spread=0.0064 <= noise
+
+Top 5 combinations:
+  #1 H: none+K24+auto1000                inSample=0.6182
+  #2 B: none+K32+auto1000                inSample=0.6194
+  #3 G: none+K32+auto2200                inSample=0.6195
+  #4 D: jointAdd+K32+auto0               inSample=0.6196
+  #5 A: none+K32+auto0                   inSample=0.6196

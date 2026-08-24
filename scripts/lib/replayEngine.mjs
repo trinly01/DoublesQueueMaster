@@ -7,16 +7,16 @@
 
 export const DEFAULT_PARAMS = {
   kSingles: 36,
-  kDoubles: 64,
-  marginWeight: 0.15,
+  kDoubles: 32,
+  marginWeight: 0,
   partnerGapFactor: 0.5,
   lossUnderdogBlend: 1.0,
   maxPartnerRatio: 2.0,
   ratingFloor: 100,
   // MOV mode: 'log' (current), 'none', 'dominance', 'winnerShare', 'normalized', 'jointAdditive'
-  movMode: 'log',
-  // Autocorrelation correction (538-style): 0 = off, 2200 = 538's value
-  autocorrScale: 0,
+  movMode: 'none',
+  // Autocorrelation correction (538-style): 0 = off, 1000 = tuned for pickleball
+  autocorrScale: 1000,
   // Provisional K schedule: null = off, {highK, threshold, normalK} = on
   provisionalK: null,
   // Recency decay half-life in days: 0 = off

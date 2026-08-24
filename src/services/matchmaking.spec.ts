@@ -58,14 +58,16 @@ describe('RatingEngine.calculateShift', () => {
     r.updatedLosers.forEach((p) => expect(p.rating).toBeLessThan(1500));
   });
 
-  it('blowout moves ratings more than a close game', () => {
+  it('blowout and close game move ratings equally (MOV removed)', () => {
+    // With MARGIN_WEIGHT=0, the score margin no longer affects rating changes.
+    // This was validated by exp-04-comprehensive.mjs: MOV is noise, not signal.
     const w = [makePlayer(1500), makePlayer(1500)];
     const l = [makePlayer(1500), makePlayer(1500)];
     const rClose = RatingEngine.calculateShift(w, l, 11, 10);
     const rBlowout = RatingEngine.calculateShift(w, l, 11, 0);
     const closeGain = rClose.updatedWinners[0].rating - 1500;
     const blowoutGain = rBlowout.updatedWinners[0].rating - 1500;
-    expect(blowoutGain).toBeGreaterThan(closeGain);
+    expect(blowoutGain).toBe(closeGain);
   });
 
   it('big upset: underdogs gain large; favorites lose large (zero-sum)', () => {
@@ -101,7 +103,7 @@ describe('RatingEngine.calculateShift', () => {
     expect(highRatedLoss).toBeGreaterThan(0);
   });
 
-  it('per-player swing: singles (K=36) equals doubles per-player (K=64 split by 4)', () => {
+  it('per-player swing: singles (K=36) vs doubles (K=32 split by 4)', () => {
     const sW = [makePlayer(1500)];
     const sL = [makePlayer(1500)];
     const dW = [makePlayer(1500), makePlayer(1500)];
@@ -112,10 +114,11 @@ describe('RatingEngine.calculateShift', () => {
 
     const sGain = singles.updatedWinners[0].rating - 1500;
     const dGain = doubles.updatedWinners[0].rating - 1500;
-    // K_SINGLES=36 means the full singles pool is ~20, divided by 2 players.
-    // K_DOUBLES=64 means the doubles pool is ~35, divided by 4 players.
-    // Both formats yield ~10 points per player for an even close match.
-    expect(Math.abs(sGain - dGain)).toBeLessThanOrEqual(2);
+    // K_SINGLES=36 means the full singles pool is ~18, divided by 2 players.
+    // K_DOUBLES=32 means the doubles pool is ~16, divided by 4 players.
+    // Singles yields ~9 pts/player, doubles ~4 pts/player.
+    // Singles should yield more per player since the pool is split fewer ways.
+    expect(sGain).toBeGreaterThan(dGain);
   });
 
   it('floor hit: rating clamps at 100, never negative', () => {
@@ -202,7 +205,7 @@ describe('RatingEngine.calculateShift', () => {
     const trinGain = r.updatedWinners[1].rating - 1630;
     // Underdog Jayson gets more credit than favorite Trin.
     expect(jaysonGain).toBeGreaterThan(trinGain);
-    expect(jaysonGain).toBeGreaterThan(10);
+    expect(jaysonGain).toBeGreaterThan(5);
     expect(trinGain).toBeGreaterThan(0);
   });
 

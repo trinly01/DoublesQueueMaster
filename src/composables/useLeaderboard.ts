@@ -85,10 +85,18 @@ export function useLeaderboard(context: UseLeaderboardContext) {
         }),
       )) as DirectusCompletedMatch[];
 
+      // Filter to competitive matches only (exclude Casual and Social modes).
+      // Auto-generated, edited, and manual matches all count — if the match
+      // was played in a competitive mode, the result is valid.
+      const competitiveMatches = matches.filter((m) => {
+        const mode = m.meta?.matchmakingMode;
+        return mode !== 'fair_balance' && mode !== 'variety_first';
+      });
+
       // Replay matches using the club-ranking path (with correctness fixes:
       // deterministic sort, tie skip, guest identity key, level-based seeding).
       const replayed = replayMatchesForRanking(
-        matches.map((m) => ({
+        competitiveMatches.map((m) => ({
           teamAScore: m.team_a_score,
           teamBScore: m.team_b_score,
           matchKey: m.match_key,
@@ -166,7 +174,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
             gamesToReliable: p.gamesToReliable,
           };
         });
-      clubLeaderboard.value = list.slice(0, 20);
+      clubLeaderboard.value = list.slice(0, 30);
       saveCachedClubLeaderboard();
       console.log(
         '[fetchClubLeaderboard] matches:',
