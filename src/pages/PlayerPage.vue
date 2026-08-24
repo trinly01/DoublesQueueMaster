@@ -668,7 +668,7 @@
           :style="
             $q.screen.lt.md
               ? 'width: 100vw; max-width: 100vw; max-height: 100vh'
-              : 'width: 480px; max-width: 90vw; max-height: 95vh'
+              : 'width: 420px; max-width: 90vw; max-height: 95vh'
           "
         >
           <q-card-section class="row items-center q-pb-none">
@@ -728,54 +728,54 @@
             </q-btn>
           </q-card-section>
 
-          <div class="q-px-md q-pt-sm">
-            <div class="row q-gutter-xs q-mb-sm justify-center">
-              <q-chip dense color="grey-6" text-color="white" size="xs">
-                Beginner
-                <q-tooltip
-                  anchor="top middle"
-                  self="bottom middle"
-                  :offset="[8, 8]"
-                  >Rating below 1400</q-tooltip
-                >
-              </q-chip>
-              <q-chip dense color="blue-6" text-color="white" size="xs">
-                Intermediate
-                <q-tooltip
-                  anchor="top middle"
-                  self="bottom middle"
-                  :offset="[8, 8]"
-                  >Rating 1400 – 1699</q-tooltip
-                >
-              </q-chip>
-              <q-chip dense color="green-6" text-color="white" size="xs">
-                Advanced
-                <q-tooltip
-                  anchor="top middle"
-                  self="bottom middle"
-                  :offset="[8, 8]"
-                  >Rating 1700 – 1899</q-tooltip
-                >
-              </q-chip>
-              <q-chip dense color="amber-7" text-color="white" size="xs">
-                Expert
-                <q-tooltip
-                  anchor="top middle"
-                  self="bottom middle"
-                  :offset="[8, 8]"
-                  >Rating 1900 – 2099</q-tooltip
-                >
-              </q-chip>
-              <q-chip dense color="red-7" text-color="white" size="xs">
-                Pro
-                <q-tooltip
-                  anchor="top middle"
-                  self="bottom middle"
-                  :offset="[8, 8]"
-                  >Rating 2100+</q-tooltip
-                >
-              </q-chip>
-            </div>
+          <div class="row q-gutter-xs q-px-md q-pb-xs justify-center">
+            <q-chip dense color="grey-6" text-color="white" size="xs">
+              Beginner
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Rating below 1400</q-tooltip
+              >
+            </q-chip>
+            <q-chip dense color="blue-6" text-color="white" size="xs">
+              Intermediate
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Rating 1400 – 1699</q-tooltip
+              >
+            </q-chip>
+            <q-chip dense color="green-6" text-color="white" size="xs">
+              Advanced
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Rating 1700 – 1899</q-tooltip
+              >
+            </q-chip>
+            <q-chip dense color="amber-7" text-color="white" size="xs">
+              Expert
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Rating 1900 – 2099</q-tooltip
+              >
+            </q-chip>
+            <q-chip dense color="red-7" text-color="white" size="xs">
+              Pro
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Rating 2100+</q-tooltip
+              >
+            </q-chip>
+          </div>
+          <div class="q-px-md q-pt-xs">
             <q-btn-group spread class="full-width">
               <q-btn
                 flat
@@ -805,12 +805,8 @@
           </div>
 
           <q-card-section
-            :class="
-              $q.screen.lt.md
-                ? 'q-px-sm q-pt-xs q-pb-md'
-                : 'q-px-md q-pt-xs q-pb-md'
-            "
-            style="max-height: 78vh; overflow-y: auto; overflow-x: hidden"
+            class="leaderboard-scroll q-px-md q-pt-xs q-pb-md"
+            style="max-height: 78vh; overflow-y: overlay; overflow-x: hidden"
           >
             <div
               v-if="leaderboardLoading && !leaderboardData.length"
