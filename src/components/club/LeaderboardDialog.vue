@@ -103,7 +103,10 @@
                     class="text-no-wrap"
                   >
                     <template v-if="player.provisional">
-                      {{ player.gamesToReliable }} games to rank up
+                      {{ player.gamesToReliable }} game{{
+                        player.gamesToReliable === 1 ? '' : 's'
+                      }}
+                      to rank up
                     </template>
                     <template v-else>
                       {{ Math.round(player.reliability * 100) }}% solid
