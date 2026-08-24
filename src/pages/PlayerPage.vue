@@ -673,6 +673,50 @@
         >
           <q-card-section class="row items-center q-pb-none">
             <div class="text-h6">Leaderboard</div>
+            <q-btn
+              icon="info"
+              flat
+              round
+              dense
+              size="xs"
+              class="q-ml-xs"
+              text-color="grey-7"
+              style="margin-top: -12px"
+            >
+              <q-popup-proxy>
+                <q-card class="bg-grey-2" style="max-width: 320px" flat>
+                  <q-card-section class="q-pb-xs">
+                    <div
+                      class="text-weight-bold text-subtitle2 row items-center"
+                    >
+                      <q-icon name="info" size="20px" class="q-mr-xs" />
+                      How ratings are computed
+                    </div>
+                  </q-card-section>
+                  <q-card-section class="q-pt-none">
+                    <div class="text-caption" style="line-height: 1.5">
+                      <p class="q-mb-xs">
+                        Up to 500 recent matches count — auto-generated, edited,
+                        and manual. <b>Standard</b>, <b>Competitive</b>, and
+                        <b>Pro Pick</b> modes only — Casual and Social are
+                        excluded.
+                      </p>
+                      <p class="q-mb-xs">
+                        Ratings use an Elo system (K=32) with 3-pass iterated
+                        convergence and Bayesian shrinkage toward your seed
+                        rating until 12 rated games. Players need at least 12
+                        rated games to appear.
+                      </p>
+                      <p class="q-mb-none">
+                        <b>Provisional</b> (pulsing dot): fewer than 12 rated
+                        games. <b>Solid %</b>: how much of your rating comes
+                        from earned results vs your seed.
+                      </p>
+                    </div>
+                  </q-card-section>
+                </q-card>
+              </q-popup-proxy>
+            </q-btn>
             <q-space />
             <q-btn icon="close" flat round dense v-close-popup>
               <q-tooltip
