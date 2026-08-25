@@ -367,6 +367,8 @@ export function useCloudSync(ctx: CloudSyncContext) {
       MatchmakingApp.state.queuesResetAt = serverMatchmaking.queuesResetAt ?? 0;
       MatchmakingApp.state.matchesResetAt =
         serverMatchmaking.matchesResetAt ?? 0;
+      MatchmakingApp.state.completedMatchesResetAt =
+        serverMatchmaking.completedMatchesResetAt ?? 0;
       if (serverMatchmaking.settingsFieldTimestamps) {
         MatchmakingApp.state.settingsFieldTimestamps = {
           ...serverMatchmaking.settingsFieldTimestamps,

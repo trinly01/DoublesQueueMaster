@@ -1,12 +1,29 @@
-feat: 45-day rolling window for all leaderboards + computed rating on profile
+fix: completedMatchesResetAt survives offline reset + isFreshState zeroing
 
-- Club, Global, and My Matches leaderboards now use last 45 days (limit 500)
-- Profile page shows computed replay rating from last 45 days below saved rating
-- Saved rating label changed from category names to "Dink Points"
-- Computed rating button uses categorical gradient + category label
-- Click computed rating to see popup explaining the difference
-- Tooltips updated: per-tab time windows, kid-friendly stat terminology
-- Soft white tooltip palette with proper visual hierarchy
+Three bugs fixed in the completed matches reset propagation:
+
+1. isFreshState branch (root cause): when an offline admin resets and
+   comes back online, their state looks "fresh" (empty), triggering the
+   isFreshState branch which zeroed completedMatchesResetAt. This wiped
+   the reset epoch, allowing old completed matches to resurrect from
+   the server. Fix: preserve completedMatchesResetAt and its per-field
+   stamp when non-zero (distinguishes local reset from truly fresh state).
+
+2. isRemoteReset branch: did not copy completedMatchesResetAt from
+   server. Fix: use Math.max(local, server) so the most recent reset
+   always wins, with the winning per-field stamp preserved.
+
+3. Non-privileged branches (useClubData + useCloudSync): did not copy
+   completedMatchesResetAt from server. Fix: copy it alongside the
+   other checkpoint timestamps.
+
+4. saveState() local purge: added a safety net that purges completed
+   matches older than completedMatchesResetAt on every saveState call.
+   No-op when resetAt=0 (99% of sessions).
+
+Scenario fixed: Admin A resets offline, Admin B completes a match
+online. When Admin A returns, only the new match survives (was: all 6
+matches resurrected).
 
 Generated with [Devin](https://devin.ai)
 

@@ -590,6 +590,31 @@ export function useClubData(context: UseClubDataContext) {
                   serverMatchmaking.queuesResetAt ?? 0;
                 MatchmakingApp.state.matchesResetAt =
                   serverMatchmaking.matchesResetAt ?? 0;
+                // Carry over completedMatchesResetAt using Math.max so the most
+                // recent reset always wins — without this, a stale admin would
+                // push completedMatchesResetAt=0 on their next sync, wiping the
+                // reset and allowing old completed matches to resurrect.
+                const localResetAt =
+                  MatchmakingApp.state.completedMatchesResetAt ?? 0;
+                const serverResetAt =
+                  serverMatchmaking.completedMatchesResetAt ?? 0;
+                MatchmakingApp.state.completedMatchesResetAt = Math.max(
+                  localResetAt,
+                  serverResetAt,
+                );
+                // Keep the per-field stamp from whichever side won
+                if (
+                  serverResetAt > localResetAt &&
+                  serverMatchmaking.settingsFieldTimestamps
+                ) {
+                  MatchmakingApp.state.settingsFieldTimestamps = {
+                    ...MatchmakingApp.state.settingsFieldTimestamps,
+                    completedMatchesResetAt:
+                      serverMatchmaking.settingsFieldTimestamps[
+                        'completedMatchesResetAt'
+                      ] ?? 0,
+                  };
+                }
                 notify({
                   type: 'info',
                   message: 'Club data was reset',
@@ -610,6 +635,19 @@ export function useClubData(context: UseClubDataContext) {
                   // Must zero reset checkpoints too — resetState() sets them to
                   // now(), which would cause mergeAppState to filter out all
                   // server queues/matches/players created before now.
+                  //
+                  // EXCEPTION: preserve completedMatchesResetAt and its per-field
+                  // stamp if set. A local "Reset All" leaves the state looking
+                  // fresh (empty players/queues/matches), but the reset epoch
+                  // must survive the merge so old completed matches on the server
+                  // are dropped. Without this, an offline admin who resets and
+                  // comes back online would see all old matches resurrect.
+                  const localCompletedResetAt =
+                    MatchmakingApp.state.completedMatchesResetAt ?? 0;
+                  const localCompletedStamp =
+                    (MatchmakingApp.state.settingsFieldTimestamps ?? {})[
+                      'completedMatchesResetAt'
+                    ] ?? 0;
                   MatchmakingApp.state.settingsUpdatedAt = 0;
                   MatchmakingApp.state.settingsFieldTimestamps = {};
                   MatchmakingApp.state.lastModified = 0;
@@ -617,6 +655,16 @@ export function useClubData(context: UseClubDataContext) {
                   MatchmakingApp.state.queuesResetAt = 0;
                   MatchmakingApp.state.matchesResetAt = 0;
                   MatchmakingApp.state.completedMatchesResetAt = 0;
+                  // Restore completedMatchesResetAt if it was set by a local reset
+                  if (localCompletedResetAt > 0) {
+                    MatchmakingApp.state.completedMatchesResetAt =
+                      localCompletedResetAt;
+                    if (localCompletedStamp > 0) {
+                      MatchmakingApp.state.settingsFieldTimestamps = {
+                        completedMatchesResetAt: localCompletedStamp,
+                      };
+                    }
+                  }
 
                   const merged = mergeAppState(
                     MatchmakingApp.state,
@@ -667,6 +715,8 @@ export function useClubData(context: UseClubDataContext) {
                 serverMatchmaking.queuesResetAt ?? 0;
               MatchmakingApp.state.matchesResetAt =
                 serverMatchmaking.matchesResetAt ?? 0;
+              MatchmakingApp.state.completedMatchesResetAt =
+                serverMatchmaking.completedMatchesResetAt ?? 0;
             }
           }
           // Backward-compat: migrate old separate settings blocks into MatchmakingApp.state (privileged only)
