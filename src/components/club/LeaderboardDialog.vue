@@ -39,7 +39,8 @@
                     Top 30 across all clubs (12+ games)
                   </div>
                   <p class="q-mb-xs q-mt-sm">
-                    Only <b>Standard</b>, <b>Competitive</b>, and
+                    Up to 500 recent matches count. Only
+                    <b>Standard</b>, <b>Competitive</b>, and
                     <b>Pro Pick</b> matches count. Casual and Social don't.
                   </p>
                   <p class="q-mb-xs">

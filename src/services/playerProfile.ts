@@ -199,7 +199,7 @@ export class PlayerProfileService {
               },
               fields: ['*', 'club.id', 'players.directus_users_id.*'],
               sort: ['-completed_at'],
-              limit: 250,
+              limit: 500,
             }),
           );
 
