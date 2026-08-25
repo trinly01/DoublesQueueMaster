@@ -927,6 +927,28 @@ export class LocalMatchmakingSystem {
       });
     }
 
+    // Purge completed matches older than the completedMatchesResetAt checkpoint.
+    // This is a local safety net — mergeAppState also does this during cloud
+    // sync, but without this local purge a stale admin who missed the realtime
+    // update could keep old completed matches in their local state and push
+    // them back to the server on the next sync.
+    const completedCheckpoint = this.state.completedMatchesResetAt ?? 0;
+    if (completedCheckpoint > 0) {
+      const before = this.state.completedMatches.length;
+      this.state.completedMatches = this.state.completedMatches.filter(
+        (m) => m.completedAt > completedCheckpoint,
+      );
+      const dropped = before - this.state.completedMatches.length;
+      if (dropped > 0) {
+        console.warn(
+          '[saveState] purged',
+          dropped,
+          'completed matches older than resetAt:',
+          completedCheckpoint,
+        );
+      }
+    }
+
     this.state.lastModified = Date.now();
     const clubId = this.state.clubId || undefined;
     LocalStorage.set(getStorageKey(clubId), this.state);

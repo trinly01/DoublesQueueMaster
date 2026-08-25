@@ -348,6 +348,138 @@ describe('hardResetEverything per-field stamping', () => {
   });
 });
 
+describe('saveState local purge of completedMatches', () => {
+  it('purges completedMatches older than completedMatchesResetAt on saveState', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    // Simulate a stale admin who has old completed matches and a reset epoch
+    // from a remote reset that was applied via isRemoteReset branch.
+    const resetAt = Date.now() - 1000;
+    sys.state.completedMatchesResetAt = resetAt;
+    sys.state.completedMatches = [
+      makeCompletedMatch('old', {
+        completedAt: resetAt - 500,
+        updatedAt: resetAt - 500,
+      }),
+      makeCompletedMatch('new', {
+        completedAt: resetAt + 500,
+        updatedAt: resetAt + 500,
+      }),
+    ];
+    sys.persist();
+    expect(sys.state.completedMatches.length).toBe(1);
+    expect(sys.state.completedMatches[0]?.matchId).toBe('new');
+  });
+
+  it('does not purge when completedMatchesResetAt is 0', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.completedMatchesResetAt = 0;
+    sys.state.completedMatches = [
+      makeCompletedMatch('m1', { completedAt: 1000, updatedAt: 1000 }),
+    ];
+    sys.persist();
+    expect(sys.state.completedMatches.length).toBe(1);
+  });
+
+  it('no-op when all completedMatches are newer than resetAt', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    const resetAt = 1000;
+    sys.state.completedMatchesResetAt = resetAt;
+    sys.state.completedMatches = [
+      makeCompletedMatch('m1', { completedAt: 2000, updatedAt: 2000 }),
+      makeCompletedMatch('m2', { completedAt: 3000, updatedAt: 3000 }),
+    ];
+    sys.persist();
+    expect(sys.state.completedMatches.length).toBe(2);
+  });
+
+  it('mixed: some purged, some kept', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    const resetAt = 2000;
+    sys.state.completedMatchesResetAt = resetAt;
+    sys.state.completedMatches = [
+      makeCompletedMatch('old1', { completedAt: 1000, updatedAt: 1000 }),
+      makeCompletedMatch('old2', { completedAt: 1500, updatedAt: 1500 }),
+      makeCompletedMatch('new1', { completedAt: 2500, updatedAt: 2500 }),
+      makeCompletedMatch('new2', { completedAt: 3000, updatedAt: 3000 }),
+    ];
+    sys.persist();
+    expect(sys.state.completedMatches.length).toBe(2);
+    expect(sys.state.completedMatches.map((m) => m.matchId)).toEqual(
+      expect.arrayContaining(['new1', 'new2']),
+    );
+  });
+
+  // --- Ongoing session safety tests ---
+
+  it('active session with no reset: saveState is no-op on completedMatches', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.completedMatchesResetAt = 0;
+    sys.state.completedMatches = [
+      makeCompletedMatch('m1', { completedAt: 1000, updatedAt: 1000 }),
+      makeCompletedMatch('m2', { completedAt: 2000, updatedAt: 2000 }),
+    ];
+    const beforeCount = sys.state.completedMatches.length;
+    sys.persist();
+    expect(sys.state.completedMatches.length).toBe(beforeCount);
+  });
+
+  it('active session with old reset: saveState is no-op (all matches after reset)', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    const resetAt = 1000;
+    sys.state.completedMatchesResetAt = resetAt;
+    sys.state.completedMatches = [
+      makeCompletedMatch('m1', { completedAt: 2000, updatedAt: 2000 }),
+      makeCompletedMatch('m2', { completedAt: 3000, updatedAt: 3000 }),
+    ];
+    const beforeCount = sys.state.completedMatches.length;
+    sys.persist();
+    expect(sys.state.completedMatches.length).toBe(beforeCount);
+  });
+
+  it('completing a match after reset: match survives purge', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    const resetAt = 1000;
+    sys.state.completedMatchesResetAt = resetAt;
+    // Existing matches after reset
+    sys.state.completedMatches = [
+      makeCompletedMatch('m1', { completedAt: 2000, updatedAt: 2000 }),
+    ];
+    // Simulate completing a new match
+    const newMatch = makeCompletedMatch('m2', {
+      completedAt: 3000,
+      updatedAt: 3000,
+    });
+    sys.state.completedMatches.push(newMatch);
+    sys.persist();
+    expect(sys.state.completedMatches.length).toBe(2);
+    expect(sys.state.completedMatches.some((m) => m.matchId === 'm2')).toBe(
+      true,
+    );
+  });
+
+  it('queue operations unaffected by completedMatches purge', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    const resetAt = 1000;
+    sys.state.completedMatchesResetAt = resetAt;
+    sys.state.completedMatches = [
+      makeCompletedMatch('old', { completedAt: 500, updatedAt: 500 }),
+    ];
+    // Add a player and queue entry
+    sys.state.players['alice'] = makePlayer(1500, {
+      username: 'alice',
+      createdAt: 2000,
+    });
+    sys.state.queues.push(
+      makeQueueEntry('alice', { queuedAt: 2000, createdAt: 2000 }),
+    );
+    sys.persist();
+    // Queue entry survives (purge only affects completedMatches)
+    expect(sys.state.queues.some((q) => q.username === 'alice')).toBe(true);
+    // Old completed match is purged
+    expect(sys.state.completedMatches.length).toBe(0);
+  });
+});
+
 // Minimal AppState builder for merge tests
 const makeState = (overrides: Partial<AppState> = {}): AppState => ({
   teamSize: 2,
@@ -1522,6 +1654,185 @@ describe('mergeAppState — reset / checkpoint consistency', () => {
     const ba = mergeAppState(b, a);
     expect(ab.completedMatches.length).toBe(ba.completedMatches.length);
     expect(ab.completedMatchesResetAt).toBe(ba.completedMatchesResetAt);
+  });
+
+  // --- Multi-admin convergence tests for completedMatchesResetAt ---
+
+  it('two admins reset at different times: higher resetAt wins', () => {
+    const a = makeState({
+      completedMatchesResetAt: 1000,
+      settingsFieldTimestamps: { completedMatchesResetAt: 1000 },
+      completedMatches: [
+        makeCompletedMatch('m1', { completedAt: 2000, updatedAt: 2000 }),
+      ],
+      lastModified: 1000,
+    });
+    const b = makeState({
+      completedMatchesResetAt: 3000,
+      settingsFieldTimestamps: { completedMatchesResetAt: 3000 },
+      completedMatches: [
+        makeCompletedMatch('m1', { completedAt: 2000, updatedAt: 2000 }),
+      ],
+      lastModified: 3000,
+    });
+    const merged = mergeAppState(a, b);
+    expect(merged.completedMatchesResetAt).toBe(3000);
+    // Match at 2000 is older than reset at 3000 → dropped
+    expect(merged.completedMatches.length).toBe(0);
+  });
+
+  it('reset + new match from different admins: match survives if after reset', () => {
+    const a = makeState({
+      completedMatchesResetAt: 1000,
+      settingsFieldTimestamps: { completedMatchesResetAt: 1000 },
+      completedMatches: [],
+      lastModified: 1000,
+    });
+    const b = makeState({
+      completedMatchesResetAt: 0,
+      completedMatches: [
+        makeCompletedMatch('new', { completedAt: 2000, updatedAt: 2000 }),
+      ],
+      lastModified: 2000,
+    });
+    const merged = mergeAppState(a, b);
+    // A's reset at 1000 wins (per-field stamp), B's match at 2000 survives
+    expect(merged.completedMatchesResetAt).toBe(1000);
+    expect(merged.completedMatches.length).toBe(1);
+    expect(merged.completedMatches[0]?.matchId).toBe('new');
+  });
+
+  it('reset + old match from stale admin: old match dropped', () => {
+    const a = makeState({
+      completedMatchesResetAt: 3000,
+      settingsFieldTimestamps: { completedMatchesResetAt: 3000 },
+      completedMatches: [],
+      lastModified: 3000,
+    });
+    const b = makeState({
+      completedMatchesResetAt: 0,
+      completedMatches: [
+        makeCompletedMatch('old', { completedAt: 1000, updatedAt: 1000 }),
+        makeCompletedMatch('older', { completedAt: 500, updatedAt: 500 }),
+      ],
+      lastModified: 1000,
+    });
+    const merged = mergeAppState(a, b);
+    // A's reset at 3000 wins, B's old matches are dropped
+    expect(merged.completedMatchesResetAt).toBe(3000);
+    expect(merged.completedMatches.length).toBe(0);
+  });
+
+  it('mergeAppState carries completedMatchesResetAt in merged state', () => {
+    const a = makeState({
+      completedMatchesResetAt: 5000,
+      settingsFieldTimestamps: { completedMatchesResetAt: 5000 },
+      completedMatches: [],
+      lastModified: 5000,
+    });
+    const b = makeState({
+      completedMatchesResetAt: 0,
+      completedMatches: [],
+      lastModified: 1000,
+    });
+    const merged = mergeAppState(a, b);
+    // The merged state must carry the winning completedMatchesResetAt
+    expect(merged.completedMatchesResetAt).toBe(5000);
+  });
+
+  it('both zero: merged resetAt stays zero', () => {
+    const a = makeState({
+      completedMatchesResetAt: 0,
+      completedMatches: [
+        makeCompletedMatch('m1', { completedAt: 1000, updatedAt: 1000 }),
+      ],
+      lastModified: 1000,
+    });
+    const b = makeState({
+      completedMatchesResetAt: 0,
+      completedMatches: [
+        makeCompletedMatch('m1', { completedAt: 1000, updatedAt: 1000 }),
+      ],
+      lastModified: 2000,
+    });
+    const merged = mergeAppState(a, b);
+    expect(merged.completedMatchesResetAt).toBe(0);
+    expect(merged.completedMatches.length).toBe(1);
+  });
+
+  it('equal reset timestamps: either wins (Math.max = same value)', () => {
+    const a = makeState({
+      completedMatchesResetAt: 3000,
+      settingsFieldTimestamps: { completedMatchesResetAt: 3000 },
+      completedMatches: [],
+      lastModified: 3000,
+    });
+    const b = makeState({
+      completedMatchesResetAt: 3000,
+      settingsFieldTimestamps: { completedMatchesResetAt: 3000 },
+      completedMatches: [],
+      lastModified: 3000,
+    });
+    const merged = mergeAppState(a, b);
+    expect(merged.completedMatchesResetAt).toBe(3000);
+  });
+
+  // --- Offline admin reset scenario ---
+  // Admin A goes offline, resets all. Admin B (online) completes a match.
+  // When Admin A comes back, the merge should drop old matches and keep only
+  // the new one. This tests the mergeAppState side; the isFreshState
+  // preservation is tested separately.
+  it('offline admin resets, online admin completes: only new match survives', () => {
+    const resetTime = 5000;
+    // Admin A: reset at T5, no completed matches, has per-field stamp
+    const a = makeState({
+      completedMatchesResetAt: resetTime,
+      settingsFieldTimestamps: { completedMatchesResetAt: resetTime },
+      completedMatches: [],
+      lastModified: resetTime,
+    });
+    // Admin B: was online, has 5 old matches + 1 new match, no reset
+    const b = makeState({
+      completedMatchesResetAt: 0,
+      completedMatches: [
+        makeCompletedMatch('old1', { completedAt: 1000, updatedAt: 1000 }),
+        makeCompletedMatch('old2', { completedAt: 2000, updatedAt: 2000 }),
+        makeCompletedMatch('old3', { completedAt: 3000, updatedAt: 3000 }),
+        makeCompletedMatch('old4', { completedAt: 4000, updatedAt: 4000 }),
+        makeCompletedMatch('old5', { completedAt: 4500, updatedAt: 4500 }),
+        makeCompletedMatch('new', { completedAt: 6000, updatedAt: 6000 }),
+      ],
+      lastModified: 6000,
+    });
+    const merged = mergeAppState(a, b);
+    // A's reset at 5000 wins (per-field stamp), old matches dropped, new kept
+    expect(merged.completedMatchesResetAt).toBe(resetTime);
+    expect(merged.completedMatches.length).toBe(1);
+    expect(merged.completedMatches[0]?.matchId).toBe('new');
+  });
+
+  it('offline admin resets, online admin completes: symmetric', () => {
+    const resetTime = 5000;
+    const a = makeState({
+      completedMatchesResetAt: resetTime,
+      settingsFieldTimestamps: { completedMatchesResetAt: resetTime },
+      completedMatches: [],
+      lastModified: resetTime,
+    });
+    const b = makeState({
+      completedMatchesResetAt: 0,
+      completedMatches: [
+        makeCompletedMatch('old', { completedAt: 1000, updatedAt: 1000 }),
+        makeCompletedMatch('new', { completedAt: 6000, updatedAt: 6000 }),
+      ],
+      lastModified: 6000,
+    });
+    // Order shouldn't matter
+    const ab = mergeAppState(a, b);
+    const ba = mergeAppState(b, a);
+    expect(ab.completedMatchesResetAt).toBe(ba.completedMatchesResetAt);
+    expect(ab.completedMatches.length).toBe(ba.completedMatches.length);
+    expect(ab.completedMatches.length).toBe(1);
   });
 });
 
