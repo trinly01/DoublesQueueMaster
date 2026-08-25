@@ -1356,6 +1356,15 @@ const sortedMatches = computed(() => {
   return sorted;
 });
 
+// Only competitive modes (Standard, Competitive, Pro Pick) — excludes Casual
+// and Social, matching the leaderboard filter.
+const competitiveMatches = computed(() =>
+  sortedMatches.value.filter((m) => {
+    const mode = m.meta?.matchmakingMode;
+    return mode !== 'fair_balance' && mode !== 'variety_first';
+  }),
+);
+
 const getMatchRowClass = (match: DirectusCompletedMatch): string => {
   const username = PlayerProfile.state.username;
   const inTeamA = match.team_a?.some(
@@ -1447,7 +1456,7 @@ const partnerStats = computed<SynergyStat[]>(() => {
     }
   >();
 
-  for (const match of sortedMatches.value) {
+  for (const match of competitiveMatches.value) {
     const inTeamA = match.team_a?.some((p) => p.username === username);
     const inTeamB = match.team_b?.some((p) => p.username === username);
 
@@ -1531,7 +1540,7 @@ const nemesisStats = computed<SynergyStat[]>(() => {
     }
   >();
 
-  for (const match of sortedMatches.value) {
+  for (const match of competitiveMatches.value) {
     const inTeamA = match.team_a?.some((p) => p.username === username);
     const inTeamB = match.team_b?.some((p) => p.username === username);
 
@@ -1613,7 +1622,7 @@ const clutchStats = computed(() => {
   let clutchWins = 0;
   let clutchLosses = 0;
 
-  for (const match of sortedMatches.value) {
+  for (const match of competitiveMatches.value) {
     const inTeamA = match.team_a?.some(
       (p: { username?: string }) => p.username === username,
     );
