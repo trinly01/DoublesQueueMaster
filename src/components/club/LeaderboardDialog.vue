@@ -3,7 +3,7 @@
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <q-card style="width: 420px; max-width: 90vw">
+    <q-card style="width: 420px; max-width: 90vw; max-height: 95vh">
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6">Club Leaderboard</div>
         <q-btn
@@ -26,28 +26,39 @@
               </q-card-section>
               <q-card-section class="q-pt-none">
                 <div class="text-caption" style="line-height: 1.5">
-                  <p class="q-mb-xs">
-                    <b>Club</b>: all members ranked from this club's matches.
-                    <b>My Matches</b>: top 30 from matches you played in this
-                    club. <b>Global</b>: top 30 across all clubs (12+ rated
-                    games only).
+                  <div class="q-mb-xs">
+                    <b>Club</b><br />
+                    Top 30 from this club's matches
+                  </div>
+                  <div class="q-mb-xs">
+                    <b>My Matches</b><br />
+                    Top 30 from your matches in this club
+                  </div>
+                  <div class="q-mb-xs">
+                    <b>Global</b><br />
+                    Top 30 across all clubs (12+ games)
+                  </div>
+                  <p class="q-mb-xs q-mt-sm">
+                    Only <b>Standard</b>, <b>Competitive</b>, and
+                    <b>Pro Pick</b> matches count. Casual and Social don't.
                   </p>
                   <p class="q-mb-xs">
-                    Up to 500 recent matches count — auto-generated, edited, and
-                    manual. <b>Standard</b>, <b>Competitive</b>, and
-                    <b>Pro Pick</b> modes only — Casual and Social are excluded.
+                    Your rating goes up when you win, down when you lose.
+                    Beating a higher-rated opponent earns more points. New
+                    players start at their seed rating and settle in after 12
+                    games.
                   </p>
                   <p class="q-mb-xs">
-                    Rankings use an Elo system (K=32) with 3-pass iterated
-                    convergence and Bayesian shrinkage toward your seed rating
-                    until 12 rated games. Sorted by rating, then rated games,
-                    then win rate.
+                    Ranked by: rating → games played → win rate
                   </p>
-                  <p class="q-mb-none">
-                    <b>Provisional</b> (pulsing dot): fewer than 12 rated games.
-                    <b>Solid %</b>: how much of your rating comes from earned
-                    results vs your seed.
-                  </p>
+                  <div class="q-mb-xs q-mt-sm">
+                    <b>Pulsing dot</b><br />
+                    Still settling in (under 12 games)
+                  </div>
+                  <div class="q-mb-none">
+                    <b>Solid %</b><br />
+                    How much is earned vs your starting rating
+                  </div>
                 </div>
               </q-card-section>
             </q-card>
@@ -124,7 +135,7 @@
       </div>
       <q-card-section
         class="leaderboard-scroll q-px-md q-pt-xs q-pb-md"
-        style="max-height: 78vh; overflow-y: overlay"
+        style="max-height: 78vh; overflow-y: auto"
       >
         <div v-if="activeLoading" class="flex flex-center q-py-md">
           <q-spinner color="accent" size="32px" />
