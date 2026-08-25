@@ -1,0 +1,4 @@
+fix: consistent 500 match limit across all leaderboards and tooltips
+
+- Bump playerProfile.ts completedMatches fetch from 250 to 500
+- Add "Up to 500 recent matches count" to both leaderboard tooltips
