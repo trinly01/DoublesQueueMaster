@@ -93,9 +93,52 @@
               <span class="text-h4 text-weight-bold text-white">{{
                 playerRating
               }}</span>
-              <span class="text-caption text-white">{{ ratingCategory }}</span>
+              <span class="text-caption text-white">Dink Points</span>
             </div>
           </div>
+
+          <q-btn
+            v-if="replayRating !== null"
+            no-caps
+            rounded
+            size="sm"
+            dense
+            class="full-width replay-rating-btn"
+            :style="{
+              background: getRatingGradient(replayRatingColor),
+              borderRadius: '12px',
+            }"
+          >
+            <q-popup-proxy
+              anchor="top middle"
+              self="bottom middle"
+              :offset="[0, 8]"
+            >
+              <q-card class="lb-tooltip" flat>
+                <q-card-section class="q-pb-md">
+                  <div class="lb-tooltip-title row items-center">
+                    <q-icon name="analytics" size="18px" class="q-mr-xs" />
+                    Computed Rating
+                  </div>
+                </q-card-section>
+                <q-card-section class="q-pt-none">
+                  <div class="lb-tooltip-body">
+                    <p class="lb-line">
+                      Replayed from your last 45 days of competitive matches
+                      (Standard, Competitive, Pro Pick).
+                    </p>
+                    <p class="lb-line">
+                      May differ from your saved Dink Points due to the 45-day
+                      window and shrinkage.
+                    </p>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </q-popup-proxy>
+            <q-icon name="analytics" size="16px" class="q-mr-xs text-white" />
+            <span class="replay-rating-value">{{ replayRating }}</span>
+            <span class="replay-rating-label">{{ replayRatingCategory }}</span>
+          </q-btn>
 
           <div class="row" style="width: 240px; gap: 8px">
             <q-btn
@@ -678,46 +721,55 @@
               style="margin-top: -12px"
             >
               <q-popup-proxy>
-                <q-card class="bg-grey-2" style="max-width: 320px" flat>
-                  <q-card-section class="q-pb-xs">
-                    <div
-                      class="text-weight-bold text-subtitle2 row items-center"
-                    >
-                      <q-icon name="info" size="20px" class="q-mr-xs" />
+                <q-card class="lb-tooltip" flat>
+                  <q-card-section class="q-pb-md">
+                    <div class="lb-tooltip-title row items-center">
+                      <q-icon name="info" size="18px" class="q-mr-xs" />
                       How leaderboard ranking works
                     </div>
                   </q-card-section>
                   <q-card-section class="q-pt-none">
-                    <div class="text-caption" style="line-height: 1.5">
-                      <div class="q-mb-xs">
-                        <b>Global</b><br />
-                        Top 30 across all clubs (12+ games)
+                    <div class="lb-tooltip-body">
+                      <div class="lb-section">
+                        <div class="lb-row">
+                          <span class="lb-label">Global</span>
+                          <span class="lb-desc"
+                            >top 30 everywhere (last 45 days, 12+ games)</span
+                          >
+                        </div>
+                        <div class="lb-row">
+                          <span class="lb-label">My Matches</span>
+                          <span class="lb-desc"
+                            >top 30 you've played with (last 45 days)</span
+                          >
+                        </div>
                       </div>
-                      <div class="q-mb-xs">
-                        <b>My Matches</b><br />
-                        Top 30 from your match history
-                      </div>
-                      <p class="q-mb-xs q-mt-sm">
-                        Up to 500 recent matches count. Only
-                        <b>Standard</b>, <b>Competitive</b>, and
-                        <b>Pro Pick</b> matches count. Casual and Social don't.
+                      <div class="lb-divider"></div>
+                      <p class="lb-line">
+                        Standard, Competitive, Pro Pick only.
                       </p>
-                      <p class="q-mb-xs">
-                        Your rating goes up when you win, down when you lose.
-                        Beating a higher-rated opponent earns more points. New
-                        players start at their seed rating and settle in after
-                        12 games.
+                      <p class="lb-line">
+                        Win → up. Lose → down. Beat a stronger opponent for more
+                        points. Everyone starts with a seed rating.
                       </p>
-                      <p class="q-mb-xs">
-                        Ranked by: rating → games played → win rate
+                      <p class="lb-line lb-order">
+                        Order: score → games → wins
                       </p>
-                      <div class="q-mb-xs q-mt-sm">
-                        <b>Pulsing dot</b><br />
-                        Still settling in (under 12 games)
-                      </div>
-                      <div class="q-mb-none">
-                        <b>Solid %</b><br />
-                        How much is earned vs your starting rating
+                      <div class="lb-divider"></div>
+                      <div class="lb-legend">
+                        <div class="lb-row">
+                          <span class="lb-label">Pulsing dot</span>
+                          <span class="lb-desc"
+                            >provisional — under 12 games, your seed still
+                            outweighs your results</span
+                          >
+                        </div>
+                        <div class="lb-row">
+                          <span class="lb-label">Solid %</span>
+                          <span class="lb-desc"
+                            >reliability — more games, more accurate</span
+                          >
+                        </div>
                       </div>
                     </div>
                   </q-card-section>
@@ -1091,7 +1143,6 @@ const { paymentLoading, fetchPaymentSettings, callPayment } = usePayment();
 const firstName = computed(() => PlayerProfile.state.firstName);
 const playerRating = computed(() => PlayerProfile.state.rating);
 const ratingColor = computed(() => getRatingColor(playerRating.value));
-const ratingCategory = computed(() => getRatingCategory(playerRating.value));
 const username = computed(() => PlayerProfile.state.username);
 const currentUserId = computed(() => PlayerProfile.state.id);
 const isSsoUser = computed(() => PlayerProfile.state.provider === 'google');
@@ -1239,7 +1290,14 @@ const leaderboardLoading = ref(false);
 const globalLeaderboard = ref<LeaderboardEntry[]>([]);
 const matchesLeaderboardCache = ref<LeaderboardEntry[]>([]);
 const matchesLeaderboard = computed<LeaderboardEntry[]>(() => {
-  const matches = PlayerProfile.state.completedMatches || [];
+  const allMatches = PlayerProfile.state.completedMatches || [];
+  if (allMatches.length === 0) return [];
+
+  // Filter to last 45 days for My Matches tab
+  const fortyFiveDaysAgo = Date.now() - 45 * 24 * 60 * 60 * 1000;
+  const matches = allMatches.filter(
+    (m) => new Date(m.completed_at).getTime() >= fortyFiveDaysAgo,
+  );
   if (matches.length === 0) return [];
 
   // Replay matches chronologically using the same algorithm as the rating script.
@@ -1334,6 +1392,24 @@ const leaderboardData = computed(() => {
     ? matchesLeaderboard.value
     : matchesLeaderboardCache.value;
 });
+
+// Replay rating from the user's last 500 competitive matches (same pool as
+// the "My Matches" leaderboard tab). May differ from the saved DB rating
+// because of the 500-window and shrinkage.
+const replayRating = computed(() => {
+  const currentUsername = PlayerProfile.state.username;
+  if (!currentUsername) return null;
+  const entry = matchesLeaderboard.value.find(
+    (p) => p.username === currentUsername,
+  );
+  return entry?.score ?? null;
+});
+const replayRatingColor = computed(() =>
+  replayRating.value !== null ? getRatingColor(replayRating.value) : '',
+);
+const replayRatingCategory = computed(() =>
+  replayRating.value !== null ? getRatingCategory(replayRating.value) : '',
+);
 
 const playerEvents = computed(() => PlayerProfile.state.events || []);
 
@@ -2027,10 +2103,16 @@ const fetchLeaderboard = async () => {
   }
 
   try {
-    // Fetch all completed matches (no club filter — global leaderboard)
+    // Fetch completed matches from the last 45 days (global leaderboard)
     // and replay them through the same rating engine as the club leaderboard.
+    const fortyFiveDaysAgo = new Date(
+      Date.now() - 45 * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const matches = (await likhaClient.request(
       readItems('completed_match', {
+        filter: {
+          completed_at: { _gte: fortyFiveDaysAgo },
+        },
         fields: ['*', 'players.directus_users_id.*'],
         sort: ['-completed_at'],
         limit: 500,
@@ -2131,6 +2213,60 @@ const onLogout = () => {
 </script>
 
 <style scoped>
+.lb-tooltip {
+  max-width: 340px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #f0f0f0;
+}
+.lb-tooltip-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+.lb-tooltip-body {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #666;
+}
+.lb-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.lb-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.lb-label {
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.lb-desc {
+  color: #777;
+}
+.lb-line {
+  margin: 8px 0 0 0;
+}
+.lb-order {
+  color: #aaa;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  margin-top: 10px;
+}
+.lb-divider {
+  height: 1px;
+  background: #f0f0f0;
+  margin: 12px 0;
+}
+.lb-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
 .player-page {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: 100dvh;
@@ -2204,6 +2340,23 @@ const onLogout = () => {
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 180px;
+}
+
+.replay-rating-btn {
+  font-size: 14px;
+  justify-content: center;
+}
+.replay-rating-value {
+  font-weight: 600;
+  color: white;
+  font-size: 14px;
+}
+.replay-rating-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .dupr-badge {
