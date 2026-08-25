@@ -206,6 +206,7 @@ describe('useClubMembers — adminMatchStats', () => {
         },
       } as never,
     ];
+    MatchmakingApp.state.actionLogs = [];
     const { context } = makeContext();
     const { adminMatchStats } = useClubMembers(context);
     expect(adminMatchStats.value['Alice']).toEqual({
@@ -215,6 +216,9 @@ describe('useClubMembers — adminMatchStats', () => {
       edited: 1,
       scored: 1,
       cancelled: 0,
+      checkIns: 0,
+      checkOuts: 0,
+      playerRemovals: 0,
     });
     expect(adminMatchStats.value['Bob']).toEqual({
       total: 1,
@@ -223,6 +227,9 @@ describe('useClubMembers — adminMatchStats', () => {
       edited: 0,
       scored: 2,
       cancelled: 0,
+      checkIns: 0,
+      checkOuts: 0,
+      playerRemovals: 0,
     });
   });
 
@@ -230,9 +237,72 @@ describe('useClubMembers — adminMatchStats', () => {
     MatchmakingApp.state.completedMatches = [
       { matchId: 'm1', meta: {} } as never,
     ];
+    MatchmakingApp.state.actionLogs = [];
     const { context } = makeContext();
     const { adminMatchStats } = useClubMembers(context);
     expect(Object.keys(adminMatchStats.value)).toHaveLength(0);
+  });
+
+  it('counts check-in, check-out, and remove_player from actionLogs', () => {
+    MatchmakingApp.state.completedMatches = [];
+    MatchmakingApp.state.actionLogs = [
+      {
+        id: '1',
+        action: 'check_in',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: Date.now(),
+        details: { player: 'John', source: 'qr' },
+      },
+      {
+        id: '2',
+        action: 'check_in',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: Date.now(),
+        details: { player: 'Jane', source: 'club' },
+      },
+      {
+        id: '3',
+        action: 'check_out',
+        performedBy: 'Bob',
+        performedById: 'b1',
+        timestamp: Date.now(),
+        details: { player: 'John' },
+      },
+      {
+        id: '4',
+        action: 'remove_player',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: Date.now(),
+        details: { player: 'Old' },
+      },
+    ];
+    const { context } = makeContext();
+    const { adminMatchStats } = useClubMembers(context);
+    expect(adminMatchStats.value['Alice']).toEqual({
+      total: 0,
+      auto: 0,
+      manual: 0,
+      edited: 0,
+      scored: 0,
+      cancelled: 0,
+      checkIns: 2,
+      checkOuts: 0,
+      playerRemovals: 1,
+    });
+    expect(adminMatchStats.value['Bob']).toEqual({
+      total: 0,
+      auto: 0,
+      manual: 0,
+      edited: 0,
+      scored: 0,
+      cancelled: 0,
+      checkIns: 0,
+      checkOuts: 1,
+      playerRemovals: 0,
+    });
   });
 });
 

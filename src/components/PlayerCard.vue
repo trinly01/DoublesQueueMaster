@@ -125,16 +125,19 @@
             <q-btn
               flat
               round
-              color="negative"
+              :color="isInQueue || isInMatch ? 'warning' : removeColor"
               @click.stop="$emit('remove', player.username)"
-              icon="delete"
+              :icon="isInQueue || isInMatch ? 'remove_circle' : removeIcon"
               size="xs"
+              :disable="isInMatch"
             >
               <q-tooltip
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
-                >Remove</q-tooltip
+                >{{
+                  isInQueue || isInMatch ? 'Check out' : removeLabel
+                }}</q-tooltip
               >
             </q-btn>
             <q-btn
@@ -199,6 +202,9 @@ interface Props {
   isInQueue?: boolean;
   isInMatch?: boolean;
   sortBy?: string;
+  removeLabel?: string;
+  removeIcon?: string;
+  removeColor?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -210,6 +216,9 @@ const props = withDefaults(defineProps<Props>(), {
   isSelected: false,
   isInQueue: false,
   isInMatch: false,
+  removeLabel: 'Remove',
+  removeIcon: 'delete',
+  removeColor: 'negative',
 });
 
 defineEmits<{

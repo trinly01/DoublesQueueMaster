@@ -228,7 +228,7 @@
                   @player-avatar-click="openPlayerReportDialog"
                   @player-commend="(p) => openPlayerReportDialog(p, 'commend')"
                   @player-report="(p) => openPlayerReportDialog(p, 'report')"
-                  @player-remove="removePlayer"
+                  @player-remove="handlePlayerRemove"
                   @player-requeue="requeuePlayer"
                   @empty-action="showAddPlayerDialog = true"
                 />
@@ -276,6 +276,9 @@
                   :show-actions="canManageSession"
                   :show-requeue-button="false"
                   :show-feedback-button="!canManageSession"
+                  :remove-label="'Check out'"
+                  :remove-icon="'remove_circle'"
+                  :remove-color="'warning'"
                   :empty-icon="'queue'"
                   :empty-title="'Queue is empty'"
                   :empty-subtitle="'Add players to start generating matches'"
@@ -708,7 +711,7 @@
                   @player-avatar-click="openPlayerReportDialog"
                   @player-commend="(p) => openPlayerReportDialog(p, 'commend')"
                   @player-report="(p) => openPlayerReportDialog(p, 'report')"
-                  @player-remove="removePlayer"
+                  @player-remove="handlePlayerRemove"
                   @player-requeue="requeuePlayer"
                   @empty-action="showAddPlayerDialog = true"
                 />
@@ -753,6 +756,9 @@
                   :show-actions="canManageSession"
                   :show-requeue-button="false"
                   :show-feedback-button="!canManageSession"
+                  :remove-label="'Check out'"
+                  :remove-icon="'remove_circle'"
+                  :remove-color="'warning'"
                   :empty-icon="'queue'"
                   :empty-title="'Queue is empty'"
                   :empty-subtitle="'Add players to start generating matches'"
@@ -1346,6 +1352,19 @@ const { removePlayer, removeFromQueue, requeuePlayer, addAllPlayersToQueue } =
     players,
   });
 
+// In the player list, if a player is in queue, the button acts as
+// "Check out" (remove from queue) instead of deleting the player.
+const handlePlayerRemove = (username: string) => {
+  const isInQueue = MatchmakingApp.state.queues.some(
+    (q) => !q.deletedAt && q.username === username,
+  );
+  if (isInQueue) {
+    removeFromQueue(username);
+  } else {
+    removePlayer(username);
+  }
+};
+
 const queue = computed(() => {
   const mapped = MatchmakingApp.state.queues
     .filter((q) => !q.deletedAt)
@@ -1458,6 +1477,9 @@ const _adminMatchStats = ref<
       edited: number;
       scored: number;
       cancelled: number;
+      checkIns: number;
+      checkOuts: number;
+      playerRemovals: number;
     }
   >
 >({});

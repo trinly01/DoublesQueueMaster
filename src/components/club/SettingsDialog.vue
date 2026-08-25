@@ -372,13 +372,22 @@
                                   ? 'delete_forever'
                                   : log.action === 'export_dupr_csv'
                                     ? 'download'
-                                    : 'settings'
+                                    : log.action === 'check_in'
+                                      ? 'how_to_reg'
+                                      : log.action === 'check_out'
+                                        ? 'remove_circle'
+                                        : log.action === 'remove_player'
+                                          ? 'person_remove'
+                                          : 'settings'
                       "
                       :color="
                         log.action.startsWith('reset') ||
-                        log.action.startsWith('clear')
+                        log.action.startsWith('clear') ||
+                        log.action === 'remove_player'
                           ? 'negative'
-                          : 'primary'
+                          : log.action === 'check_out'
+                            ? 'warning'
+                            : 'primary'
                       "
                     />
                   </q-item-section>
@@ -1017,6 +1026,9 @@ const props = withDefaults(
         edited: number;
         scored: number;
         cancelled: number;
+        checkIns: number;
+        checkOuts: number;
+        playerRemovals: number;
       }
     >;
     actionLogs?: {

@@ -4,7 +4,10 @@
       stats &&
       ((stats.total ?? 0) > 0 ||
         (stats.cancelled ?? 0) > 0 ||
-        (stats.scored ?? 0) > 0)
+        (stats.scored ?? 0) > 0 ||
+        (stats.checkIns ?? 0) > 0 ||
+        (stats.checkOuts ?? 0) > 0 ||
+        (stats.playerRemovals ?? 0) > 0)
     "
     class="row q-gutter-xs q-mt-xs"
   >
@@ -74,6 +77,41 @@
     >
       <q-tooltip anchor="top middle" self="bottom middle">Cancelled</q-tooltip>
     </q-chip>
+    <q-chip
+      v-if="(stats.checkIns ?? 0) > 0"
+      :label="stats.checkIns"
+      color="blue-2"
+      text-color="blue-9"
+      size="xs"
+      dense
+      icon="how_to_reg"
+    >
+      <q-tooltip anchor="top middle" self="bottom middle">Check-ins</q-tooltip>
+    </q-chip>
+    <q-chip
+      v-if="(stats.checkOuts ?? 0) > 0"
+      :label="stats.checkOuts"
+      color="orange-2"
+      text-color="orange-9"
+      size="xs"
+      dense
+      icon="remove_circle"
+    >
+      <q-tooltip anchor="top middle" self="bottom middle">Check-outs</q-tooltip>
+    </q-chip>
+    <q-chip
+      v-if="(stats.playerRemovals ?? 0) > 0"
+      :label="stats.playerRemovals"
+      color="red-2"
+      text-color="red-9"
+      size="xs"
+      dense
+      icon="person_remove"
+    >
+      <q-tooltip anchor="top middle" self="bottom middle"
+        >Players removed</q-tooltip
+      >
+    </q-chip>
   </div>
 </template>
 
@@ -85,6 +123,9 @@ interface MatchStats {
   edited: number;
   scored: number;
   cancelled: number;
+  checkIns: number;
+  checkOuts: number;
+  playerRemovals: number;
 }
 
 defineProps<{
