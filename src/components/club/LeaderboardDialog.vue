@@ -17,48 +17,57 @@
           style="margin-top: -12px"
         >
           <q-popup-proxy>
-            <q-card class="bg-grey-2" style="max-width: 320px" flat>
-              <q-card-section class="q-pb-xs">
-                <div class="text-weight-bold text-subtitle2 row items-center">
-                  <q-icon name="info" size="20px" class="q-mr-xs" />
+            <q-card class="lb-tooltip" flat>
+              <q-card-section class="q-pb-md">
+                <div class="lb-tooltip-title row items-center">
+                  <q-icon name="info" size="18px" class="q-mr-xs" />
                   How leaderboard ranking works
                 </div>
               </q-card-section>
               <q-card-section class="q-pt-none">
-                <div class="text-caption" style="line-height: 1.5">
-                  <div class="q-mb-xs">
-                    <b>Club</b><br />
-                    Top 30 from this club's matches
+                <div class="lb-tooltip-body">
+                  <div class="lb-section">
+                    <div class="lb-row">
+                      <span class="lb-label">Club</span>
+                      <span class="lb-desc"
+                        >top 30 in this club (last 45 days)</span
+                      >
+                    </div>
+                    <div class="lb-row">
+                      <span class="lb-label">My Matches</span>
+                      <span class="lb-desc"
+                        >top 30 you've played with (last 45 days)</span
+                      >
+                    </div>
+                    <div class="lb-row">
+                      <span class="lb-label">Global</span>
+                      <span class="lb-desc"
+                        >top 30 everywhere (last 45 days, 12+ games)</span
+                      >
+                    </div>
                   </div>
-                  <div class="q-mb-xs">
-                    <b>My Matches</b><br />
-                    Top 30 from your matches in this club
-                  </div>
-                  <div class="q-mb-xs">
-                    <b>Global</b><br />
-                    Top 30 across all clubs (12+ games)
-                  </div>
-                  <p class="q-mb-xs q-mt-sm">
-                    Up to 500 recent matches count. Only
-                    <b>Standard</b>, <b>Competitive</b>, and
-                    <b>Pro Pick</b> matches count. Casual and Social don't.
+                  <div class="lb-divider"></div>
+                  <p class="lb-line">Standard, Competitive, Pro Pick only.</p>
+                  <p class="lb-line">
+                    Win → up. Lose → down. Beat a stronger opponent for more
+                    points. Everyone starts with a seed rating.
                   </p>
-                  <p class="q-mb-xs">
-                    Your rating goes up when you win, down when you lose.
-                    Beating a higher-rated opponent earns more points. New
-                    players start at their seed rating and settle in after 12
-                    games.
-                  </p>
-                  <p class="q-mb-xs">
-                    Ranked by: rating → games played → win rate
-                  </p>
-                  <div class="q-mb-xs q-mt-sm">
-                    <b>Pulsing dot</b><br />
-                    Still settling in (under 12 games)
-                  </div>
-                  <div class="q-mb-none">
-                    <b>Solid %</b><br />
-                    How much is earned vs your starting rating
+                  <p class="lb-line lb-order">Order: score → games → wins</p>
+                  <div class="lb-divider"></div>
+                  <div class="lb-legend">
+                    <div class="lb-row">
+                      <span class="lb-label">Pulsing dot</span>
+                      <span class="lb-desc"
+                        >provisional — under 12 games, your seed still outweighs
+                        your results</span
+                      >
+                    </div>
+                    <div class="lb-row">
+                      <span class="lb-label">Solid %</span>
+                      <span class="lb-desc"
+                        >reliability — more games, more accurate</span
+                      >
+                    </div>
                   </div>
                 </div>
               </q-card-section>
@@ -310,6 +319,60 @@ const activeLoading = computed(() => {
 </script>
 
 <style scoped>
+.lb-tooltip {
+  max-width: 340px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #f0f0f0;
+}
+.lb-tooltip-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+.lb-tooltip-body {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #666;
+}
+.lb-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.lb-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.lb-label {
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.lb-desc {
+  color: #777;
+}
+.lb-line {
+  margin: 8px 0 0 0;
+}
+.lb-order {
+  color: #aaa;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  margin-top: 10px;
+}
+.lb-divider {
+  height: 1px;
+  background: #f0f0f0;
+  margin: 12px 0;
+}
+.lb-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
 .provisional-dot {
   display: inline-flex;
   align-items: center;

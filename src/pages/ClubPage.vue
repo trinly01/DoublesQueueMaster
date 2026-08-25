@@ -1862,8 +1862,15 @@ const fetchGlobalLeaderboard = async () => {
   // Only show loading spinner if no cached data to show
   globalLeaderboardLoading.value = !hasCache;
   try {
+    // Global leaderboard — last 45 days across all clubs
+    const fortyFiveDaysAgo = new Date(
+      Date.now() - 45 * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const matches = (await likhaClient.request(
       readItems('completed_match', {
+        filter: {
+          completed_at: { _gte: fortyFiveDaysAgo },
+        },
         fields: ['*', 'players.directus_users_id.*'],
         sort: ['-completed_at'],
         limit: 500,
@@ -1981,13 +1988,17 @@ const fetchMyMatchesLeaderboard = async () => {
   // Only show loading spinner if no cached data to show
   myMatchesLoading.value = !hasCache;
   try {
-    // Fetch the current user's completed matches in this club
+    // Fetch the current user's completed matches in this club (last 45 days)
+    const fortyFiveDaysAgo = new Date(
+      Date.now() - 45 * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const matches = (await likhaClient.request(
       readItems('completed_match', {
         filter: {
           _and: [
             { club: { _eq: currentClubUUID.value } },
             { players: { directus_users_id: { _eq: currentUserId.value } } },
+            { completed_at: { _gte: fortyFiveDaysAgo } },
           ],
         },
         fields: ['*', 'players.directus_users_id.*'],

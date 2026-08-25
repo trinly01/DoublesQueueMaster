@@ -72,9 +72,18 @@ export function useLeaderboard(context: UseLeaderboardContext) {
     clubLeaderboardLoading.value =
       !cached || clubLeaderboard.value.length === 0;
     try {
+      // Club leaderboard — last 45 days, limit 500
+      const fortyFiveDaysAgo = new Date(
+        Date.now() - 45 * 24 * 60 * 60 * 1000,
+      ).toISOString();
       const matches = (await likhaClient.request(
         readItems('completed_match', {
-          filter: { club: { _eq: currentClubUUID.value } },
+          filter: {
+            _and: [
+              { club: { _eq: currentClubUUID.value } },
+              { completed_at: { _gte: fortyFiveDaysAgo } },
+            ],
+          },
           fields: ['*', 'players.directus_users_id.*'],
           sort: ['-completed_at'],
           limit: 500,

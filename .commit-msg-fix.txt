@@ -1,4 +1,13 @@
-fix: consistent 500 match limit across all leaderboards and tooltips
+feat: 45-day rolling window for all leaderboards + computed rating on profile
 
-- Bump playerProfile.ts completedMatches fetch from 250 to 500
-- Add "Up to 500 recent matches count" to both leaderboard tooltips
+- Club, Global, and My Matches leaderboards now use last 45 days (limit 500)
+- Profile page shows computed replay rating from last 45 days below saved rating
+- Saved rating label changed from category names to "Dink Points"
+- Computed rating button uses categorical gradient + category label
+- Click computed rating to see popup explaining the difference
+- Tooltips updated: per-tab time windows, kid-friendly stat terminology
+- Soft white tooltip palette with proper visual hierarchy
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
