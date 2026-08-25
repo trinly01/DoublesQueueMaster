@@ -49,11 +49,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
         data: ClubLeaderboardEntry[];
         timestamp: number;
       };
-      if (
-        cached &&
-        Array.isArray(cached.data) &&
-        Date.now() - cached.timestamp < 5 * 60 * 1000
-      ) {
+      if (cached && Array.isArray(cached.data)) {
         clubLeaderboard.value = cached.data;
         return true;
       }

@@ -1819,10 +1819,7 @@ const loadCachedGlobalLeaderboard = () => {
       timestamp: number;
     } | null;
     if (!raw?.data) return false;
-    const age = Date.now() - (raw.timestamp || 0);
-    if (age > 60 * 60 * 1000) return false; // 1 hour TTL
     globalLeaderboard.value = raw.data;
-    globalLeaderboardFetched.value = true;
     return true;
   } catch {
     return false;
@@ -1837,10 +1834,11 @@ const saveCachedGlobalLeaderboard = () => {
 };
 
 const fetchGlobalLeaderboard = async () => {
-  if (globalLeaderboardLoading.value || globalLeaderboardFetched.value) return;
-  loadCachedGlobalLeaderboard();
+  if (globalLeaderboardLoading.value) return;
+  const hasCache = loadCachedGlobalLeaderboard();
   if (globalLeaderboardFetched.value) return;
-  globalLeaderboardLoading.value = true;
+  // Only show loading spinner if no cached data to show
+  globalLeaderboardLoading.value = !hasCache;
   try {
     const matches = (await likhaClient.request(
       readItems('completed_match', {
@@ -1938,10 +1936,7 @@ const loadCachedMyMatches = () => {
       timestamp: number;
     } | null;
     if (!raw?.data) return false;
-    const age = Date.now() - (raw.timestamp || 0);
-    if (age > 60 * 60 * 1000) return false; // 1 hour TTL
     myMatchesLeaderboard.value = raw.data;
-    myMatchesFetched.value = true;
     return true;
   } catch {
     return false;
@@ -1956,12 +1951,13 @@ const saveCachedMyMatches = () => {
 };
 
 const fetchMyMatchesLeaderboard = async () => {
-  if (myMatchesLoading.value || myMatchesFetched.value) return;
-  loadCachedMyMatches();
+  if (myMatchesLoading.value) return;
+  const hasCache = loadCachedMyMatches();
   if (myMatchesFetched.value) return;
   if (!currentClubUUID.value || !currentUserId.value) return;
 
-  myMatchesLoading.value = true;
+  // Only show loading spinner if no cached data to show
+  myMatchesLoading.value = !hasCache;
   try {
     // Fetch the current user's completed matches in this club
     const matches = (await likhaClient.request(
