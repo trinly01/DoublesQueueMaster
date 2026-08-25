@@ -14,6 +14,9 @@
         :is-in-queue="player.isInQueue"
         :is-in-match="player.isInMatch"
         :sort-by="sortBy"
+        :remove-label="removeLabel"
+        :remove-icon="removeIcon"
+        :remove-color="removeColor"
         @click="$emit('playerClick', player)"
         @avatarClick="$emit('playerAvatarClick', $event)"
         @commend="$emit('playerCommend', $event)"
@@ -35,16 +38,16 @@
             <q-btn
               flat
               round
-              color="negative"
+              :color="removeColor"
               @click.stop="$emit('playerRemove', playerItem.username)"
-              icon="delete"
+              :icon="removeIcon"
               size="sm"
             >
               <q-tooltip
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
-                >Remove</q-tooltip
+                >{{ removeLabel }}</q-tooltip
               >
             </q-btn>
             <q-btn
@@ -136,6 +139,9 @@ interface Props {
   emptyActionLabel?: string;
   selectedPlayers?: Player[];
   sortBy?: string;
+  removeLabel?: string;
+  removeIcon?: string;
+  removeColor?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -147,6 +153,9 @@ const props = withDefaults(defineProps<Props>(), {
   isInQueue: false,
   isInMatch: false,
   showRequeueButton: true,
+  removeLabel: 'Remove',
+  removeIcon: 'delete',
+  removeColor: 'negative',
   showFeedbackButton: true,
   emptyIcon: 'people',
   emptyTitle: 'No players found',

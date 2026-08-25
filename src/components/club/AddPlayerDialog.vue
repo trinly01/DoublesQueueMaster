@@ -433,6 +433,7 @@ import { useNotify } from 'src/composables/useNotify';
 import { useAuth } from 'src/composables/useAuth';
 import { MatchmakingApp } from 'src/services/matchmaking';
 import type { Player } from 'src/services/matchmaking';
+import { PlayerProfile } from 'src/services/playerProfile';
 import { likhaClient } from 'src/services/likhaClient';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
 import { readUsers } from '@likha-erp/likha-sdk';
@@ -491,6 +492,14 @@ const handleAuthError = ctxHandleAuthError as (
   err: unknown,
   router: ReturnType<typeof useRouter>,
 ) => Promise<boolean>;
+
+const logCheckIn = (playerName: string, source: string) =>
+  MatchmakingApp.addActionLog(
+    'check_in',
+    PlayerProfile.state.firstName || PlayerProfile.state.username,
+    PlayerProfile.state.id,
+    { player: playerName, source },
+  );
 
 const clubMembers = toRef(props, 'clubMembers');
 const isCurrentUserAdmin = toRef(props, 'isCurrentUserAdmin');
@@ -716,6 +725,7 @@ const onScanSuccess = async (decodedText: string) => {
       },
     );
     if (result === 'added') {
+      logCheckIn(member.firstName || member.username || scannedUsername, 'qr');
       notify({
         type: 'positive',
         message: `Added "${member.firstName || member.username}" to queue`,
@@ -793,6 +803,7 @@ const onScanSuccess = async (decodedText: string) => {
     );
 
     if (checkInResult === 'added') {
+      logCheckIn(firstName || scannedUsername, 'qr');
       notify({
         type: 'positive',
         message: `Joined & added "${firstName || scannedUsername}" to queue`,
@@ -904,6 +915,7 @@ const addClubMembers = () => {
 
     if (result === 'added') {
       added.push(username);
+      logCheckIn(member.firstName || username, 'club');
     } else if (result === 'already_in_queue') {
       alreadyInQueue.push(username);
     } else if (result === 'already_in_match') {
@@ -970,6 +982,7 @@ const addNewPlayer = () => {
     return;
   }
 
+  logCheckIn(trimmedName, 'manual');
   newPlayerName.value = null;
   newPlayerLevel.value = null;
   newPlayerDuprId.value = '';
@@ -1012,7 +1025,9 @@ const addBulkPlayers = () => {
       bulkPlayer.level as 1 | 2 | 3,
       { rating: initialRating },
     );
-    if (result === 'already_in_queue') {
+    if (result === 'added') {
+      logCheckIn(trimmedName, 'bulk');
+    } else if (result === 'already_in_queue') {
       alreadyInQueue.push(trimmedName);
     } else if (result === 'already_in_match') {
       alreadyInMatch.push(trimmedName);

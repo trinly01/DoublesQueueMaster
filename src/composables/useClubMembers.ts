@@ -111,6 +111,9 @@ export function useClubMembers(context: UseClubMembersContext) {
         edited: number;
         scored: number;
         cancelled: number;
+        checkIns: number;
+        checkOuts: number;
+        playerRemovals: number;
       }
     > = {};
     const ensureStat = (name: string) => {
@@ -122,6 +125,9 @@ export function useClubMembers(context: UseClubMembersContext) {
           edited: 0,
           scored: 0,
           cancelled: 0,
+          checkIns: 0,
+          checkOuts: 0,
+          playerRemovals: 0,
         };
     };
     const completed = MatchmakingApp.state.completedMatches;
@@ -147,6 +153,20 @@ export function useClubMembers(context: UseClubMembersContext) {
       if (m.cancelledBy) {
         ensureStat(m.cancelledBy);
         stats[m.cancelledBy].cancelled++;
+      }
+    }
+    // Count check-in, check-out, and player removal actions from logs
+    const logs = MatchmakingApp.state.actionLogs || [];
+    for (const log of logs) {
+      if (log.action === 'check_in') {
+        ensureStat(log.performedBy);
+        stats[log.performedBy].checkIns++;
+      } else if (log.action === 'check_out') {
+        ensureStat(log.performedBy);
+        stats[log.performedBy].checkOuts++;
+      } else if (log.action === 'remove_player') {
+        ensureStat(log.performedBy);
+        stats[log.performedBy].playerRemovals++;
       }
     }
     return stats;

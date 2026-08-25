@@ -3,6 +3,7 @@ import { useQuasar } from 'quasar';
 import type { QNotifyCreateOptions } from 'quasar';
 import { MatchmakingApp } from 'src/services/matchmaking';
 import type { Player } from 'src/services/matchmaking';
+import { PlayerProfile } from 'src/services/playerProfile';
 import { useNotify } from 'src/composables/useNotify';
 
 type NotifyFn = (opts: QNotifyCreateOptions) => void;
@@ -16,6 +17,15 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
   const $q = useQuasar();
   const { notify: ctxNotify } = useNotify();
   const notify = ctxNotify as NotifyFn;
+
+  const logAction = (action: string, details: Record<string, unknown>) => {
+    MatchmakingApp.addActionLog(
+      action,
+      PlayerProfile.state.firstName || PlayerProfile.state.username,
+      PlayerProfile.state.id,
+      details,
+    );
+  };
 
   const removePlayer = (username: string) => {
     $q.dialog({
@@ -33,6 +43,7 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
       MatchmakingApp.removeFromQueue(username);
       MatchmakingApp.state.lastModified = Date.now();
       MatchmakingApp.persist();
+      logAction('remove_player', { player: username });
       notify({
         type: 'info',
         message: `Player "${username}" removed`,
@@ -49,6 +60,7 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
       persistent: true,
     }).onOk(() => {
       MatchmakingApp.removeFromQueue(username);
+      logAction('check_out', { player: username });
       notify({
         type: 'info',
         message: `Player "${username}" removed from queue`,
@@ -85,6 +97,10 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
         return;
       }
 
+      logAction('check_in', {
+        player: p.firstName || p.username,
+        source: 'requeue',
+      });
       notify({
         type: 'positive',
         message: `Player "${username}" added to queue`,
@@ -114,8 +130,13 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
 
       players.value.forEach((p) => {
         const result = MatchmakingApp.checkInPlayer(p.username, p.level);
-        if (result === 'added') addedCount++;
-        else if (result === 'already_in_queue') alreadyInQueueCount++;
+        if (result === 'added') {
+          addedCount++;
+          logAction('check_in', {
+            player: p.firstName || p.username,
+            source: 'requeue',
+          });
+        } else if (result === 'already_in_queue') alreadyInQueueCount++;
         else if (result === 'already_in_match') alreadyInMatchCount++;
       });
 

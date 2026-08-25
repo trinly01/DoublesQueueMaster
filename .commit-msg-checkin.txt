@@ -1,0 +1,16 @@
+feat: log check-ins, check-outs, and player removals in action logs
+
+- Log check_in action (7 paths: manual, club, qr, bulk, requeue) with
+  player name and source
+- Log check_out action when removing from queue
+- Log remove_player action when deleting from player list
+- Add checkIns, checkOuts, playerRemovals counts to adminMatchStats
+- Add 3 new chips to MemberMatchStats (how_to_reg, remove_circle,
+  person_remove)
+- Add check_in/check_out/remove_player icons to action log list
+- Use PlayerProfile singleton for current user context
+- Update useClubMembers.spec.ts with new test for action log counting
+- Queue remove button shows "Check out" with warning color and
+  remove_circle icon via removeLabel/removeIcon/removeColor props
+- Player list remove button switches to "Check out" when player is in
+  queue (enabled, removes from queue) or in match (disabled)
