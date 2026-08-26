@@ -2385,6 +2385,12 @@ watch(
       }
     });
   },
+  // flush: 'sync' so the watcher fires *during* the programmatic merge
+  // (while MatchmakingApp.suppressSettingsLog is still true) instead of
+  // on the next microtask (after the flag has already been cleared).
+  // Without this, server-driven settings changes from other admins get
+  // falsely logged as if the local user made them.
+  { flush: 'sync' },
 );
 
 watch([showSettingsDialog, settingsTab], ([showDialog, tab]) => {
