@@ -113,7 +113,8 @@ export interface AppState {
   queues: QueueEntry[]; // Players currently waiting to play
   activeMatches: ActiveMatch[]; // Matches currently happening on the court
   completedMatches: CompletedMatch[]; // Persisted completed matches for DUPR export
-  actionLogs?: ActionLog[]; // Admin action logs (capped at 100, synced)
+  actionLogs?: ActionLog[]; // Admin action logs (capped at ACTION_LOG_CAP, synced)
+  actionLogsResetAt?: number; // Epoch ms — action logs at/before this are excluded from admin stat counts
 
   // Settings managed by the system
   availableCourts?: number;
@@ -179,6 +180,20 @@ export const CLUB_SETTINGS: Record<string, unknown> = {
 
 const STORAGE_KEY = 'matchmaking_state';
 const PER_CLUB_KEY_PREFIX = 'matchmaking_state_';
+
+// Hard cap on retained action logs. Beyond this, oldest logs are permanently
+// dropped (slice in both addActionLog and mergeAppState). Reset-type logs are
+// exempt from eviction in mergeAppState to preserve the audit trail.
+export const ACTION_LOG_CAP = 200;
+
+// Action types that are exempt from cap eviction in mergeAppState.
+const RESET_LOG_ACTIONS = new Set([
+  'reset_all',
+  'reset_session',
+  'reset_stats',
+  'clear_matches',
+  'clear_queue',
+]);
 
 function getStorageKey(clubId?: string): string {
   if (clubId) return `${PER_CLUB_KEY_PREFIX}${clubId}`;
@@ -765,6 +780,11 @@ export const MatchmakerEngine = {
 export class LocalMatchmakingSystem {
   public state: AppState;
   public onStateChange: (() => void) | null = null;
+  // When true, settings watchers should NOT emit action-log entries.
+  // Set around programmatic merges (mergeAppState, copyServerSettings) so
+  // that server-driven settings changes don't produce false "settings_change"
+  // logs attributed to the local admin.
+  public suppressSettingsLog = false;
 
   constructor(defaultTeamSize: number = 2) {
     let initialState = this.loadState();
@@ -1082,6 +1102,7 @@ export class LocalMatchmakingSystem {
     this.state.matchesResetAt = now;
     this.state.completedMatchesResetAt = now;
     this.stampSetting('completedMatchesResetAt');
+    this.state.actionLogsResetAt = now;
     this.state.lastExportedAt = 0;
     this.state.settingsUpdatedAt = now;
     this.state.lastModified = now;
@@ -1099,6 +1120,7 @@ export class LocalMatchmakingSystem {
     this.state.queuesResetAt = now;
     this.state.matchesResetAt = now;
     this.state.completedMatchesResetAt = now;
+    this.state.actionLogsResetAt = now;
     this.state.lastExportedAt = 0;
     // Reset settings to descriptor defaults (teamSize is set by constructor).
     const resetFields = (
@@ -1174,8 +1196,8 @@ export class LocalMatchmakingSystem {
     };
     if (!this.state.actionLogs) this.state.actionLogs = [];
     this.state.actionLogs.unshift(log);
-    if (this.state.actionLogs.length > 100) {
-      this.state.actionLogs = this.state.actionLogs.slice(0, 100);
+    if (this.state.actionLogs.length > ACTION_LOG_CAP) {
+      this.state.actionLogs = this.state.actionLogs.slice(0, ACTION_LOG_CAP);
     }
     this.state.lastModified = Date.now();
     this.saveState();
@@ -2289,16 +2311,52 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     );
   }
 
-  // Merge actionLogs: union + dedup by id + sort by timestamp desc + cap at 100
+  // Merge actionLogs: union + dedup by id + clamp future-dated timestamps +
+  // sort by timestamp desc + cap at ACTION_LOG_CAP. Reset-type logs are
+  // exempt from cap eviction so the audit trail of a reset is never silently
+  // dropped by a flood of newer non-reset entries.
+  const effectiveActionLogsResetAt = Math.max(
+    local.actionLogsResetAt ?? 0,
+    server.actionLogsResetAt ?? 0,
+  );
   const localLogs = local.actionLogs || [];
   const serverLogs = server.actionLogs || [];
+  const logNowMs = Date.now();
   const logMap = new Map<string, ActionLog>();
   for (const log of [...localLogs, ...serverLogs]) {
-    logMap.set(log.id, log);
+    // Clamp future-dated timestamps so a clock-skewed peer cannot displace
+    // real entries from the cap window.
+    logMap.set(log.id, {
+      ...log,
+      timestamp: Math.min(log.timestamp, logNowMs),
+    });
   }
-  const mergedActionLogs = Array.from(logMap.values())
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, 100);
+  const sortedLogs = Array.from(logMap.values()).sort(
+    (a, b) => b.timestamp - a.timestamp,
+  );
+  let mergedActionLogs = sortedLogs.slice(0, ACTION_LOG_CAP);
+  // Reset-log immunity: if a reset-type log was evicted by the cap, swap it
+  // in for the oldest currently-kept entry.
+  if (sortedLogs.length > ACTION_LOG_CAP) {
+    const evictedResetLog = sortedLogs
+      .slice(ACTION_LOG_CAP)
+      .find((l) => RESET_LOG_ACTIONS.has(l.action));
+    if (evictedResetLog) {
+      const oldestKeptIdx = mergedActionLogs.reduce(
+        (oldestIdx, log, idx, arr) =>
+          log.timestamp < arr[oldestIdx].timestamp ? idx : oldestIdx,
+        0,
+      );
+      const oldestKept = mergedActionLogs[oldestKeptIdx];
+      if (
+        !RESET_LOG_ACTIONS.has(oldestKept.action) ||
+        oldestKept.timestamp < evictedResetLog.timestamp
+      ) {
+        mergedActionLogs = mergedActionLogs.slice();
+        mergedActionLogs[oldestKeptIdx] = evictedResetLog;
+      }
+    }
+  }
 
   const mergedState = {
     ...(mergedSettings as Record<string, unknown>),
@@ -2308,6 +2366,7 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     activeMatches: activeMatchesAfterCleanup,
     completedMatches: mergedCompletedMatches,
     actionLogs: mergedActionLogs,
+    actionLogsResetAt: effectiveActionLogsResetAt,
     lastModified: Math.max(localTime, serverTime),
     settingsUpdatedAt: Math.max(localSettingsTime, serverSettingsTime),
     playersResetAt: effectivePlayersResetAt,

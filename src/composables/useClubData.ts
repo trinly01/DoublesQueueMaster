@@ -4,8 +4,12 @@ import { useNotify } from 'src/composables/useNotify';
 import { useAuth } from 'src/composables/useAuth';
 import { LocalStorage } from 'quasar';
 import type { QNotifyCreateOptions } from 'quasar';
-import { MatchmakingApp, mergeAppState } from 'src/services/matchmaking';
-import type { AppState } from 'src/services/matchmaking';
+import {
+  MatchmakingApp,
+  mergeAppState,
+  ACTION_LOG_CAP,
+} from 'src/services/matchmaking';
+import type { AppState, ActionLog } from 'src/services/matchmaking';
 import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
 import { readItems, updateItem, uploadFiles } from '@likha-erp/likha-sdk';
@@ -253,8 +257,11 @@ export function useClubData(context: UseClubDataContext) {
     } | null;
 
     if (cachedState && Object.keys(cachedState).length > 0 && meta) {
-      // Restore the actual matchmaking state, not just meta
+      // Restore the actual matchmaking state, not just meta.
+      // Suppress settings_change logs — this is a cache restore, not a user action.
+      MatchmakingApp.suppressSettingsLog = true;
       Object.assign(MatchmakingApp.state, cachedState);
+      MatchmakingApp.suppressSettingsLog = false;
       MatchmakingApp.state.clubId = clubId;
       currentClubId.value = clubId;
       currentClubUUID.value = meta.clubUUID || '';
@@ -544,6 +551,10 @@ export function useClubData(context: UseClubDataContext) {
           );
           const isPrivilegedFromData = isAdminFromData || isModeratorFromData;
 
+          // Suppress settings_change logs during programmatic merge —
+          // server-driven settings changes should not be attributed to the
+          // local admin in the action log.
+          MatchmakingApp.suppressSettingsLog = true;
           if (serverMatchmaking) {
             if (isPrivilegedFromData) {
               // Admins/Moderators: only merge settings that are missing locally — never overwrite existing
@@ -615,6 +626,28 @@ export function useClubData(context: UseClubDataContext) {
                       ] ?? 0,
                   };
                 }
+                // Carry over actionLogsResetAt using Math.max so the most
+                // recent admin-action-chip reset always wins.
+                MatchmakingApp.state.actionLogsResetAt = Math.max(
+                  MatchmakingApp.state.actionLogsResetAt ?? 0,
+                  serverMatchmaking.actionLogsResetAt ?? 0,
+                );
+                // Merge actionLogs: union + dedup by id + sort desc + cap.
+                // Without this, the local admin's stale actionLogs (from
+                // before the offline period) would survive and overwrite
+                // the server's actionLogs on the next cloud sync push —
+                // losing the reset_all log that the resetting admin added.
+                const remoteLocalLogs = MatchmakingApp.state.actionLogs || [];
+                const remoteServerLogs = serverMatchmaking.actionLogs || [];
+                const remoteLogMap = new Map<string, ActionLog>();
+                for (const log of [...remoteLocalLogs, ...remoteServerLogs]) {
+                  remoteLogMap.set(log.id, log);
+                }
+                MatchmakingApp.state.actionLogs = Array.from(
+                  remoteLogMap.values(),
+                )
+                  .sort((a, b) => b.timestamp - a.timestamp)
+                  .slice(0, ACTION_LOG_CAP);
                 notify({
                   type: 'info',
                   message: 'Club data was reset',
@@ -648,6 +681,8 @@ export function useClubData(context: UseClubDataContext) {
                     (MatchmakingApp.state.settingsFieldTimestamps ?? {})[
                       'completedMatchesResetAt'
                     ] ?? 0;
+                  const localActionLogsResetAt =
+                    MatchmakingApp.state.actionLogsResetAt ?? 0;
                   MatchmakingApp.state.settingsUpdatedAt = 0;
                   MatchmakingApp.state.settingsFieldTimestamps = {};
                   MatchmakingApp.state.lastModified = 0;
@@ -655,6 +690,7 @@ export function useClubData(context: UseClubDataContext) {
                   MatchmakingApp.state.queuesResetAt = 0;
                   MatchmakingApp.state.matchesResetAt = 0;
                   MatchmakingApp.state.completedMatchesResetAt = 0;
+                  MatchmakingApp.state.actionLogsResetAt = 0;
                   // Restore completedMatchesResetAt if it was set by a local reset
                   if (localCompletedResetAt > 0) {
                     MatchmakingApp.state.completedMatchesResetAt =
@@ -664,6 +700,11 @@ export function useClubData(context: UseClubDataContext) {
                         completedMatchesResetAt: localCompletedStamp,
                       };
                     }
+                  }
+                  // Restore actionLogsResetAt if it was set by a local reset
+                  if (localActionLogsResetAt > 0) {
+                    MatchmakingApp.state.actionLogsResetAt =
+                      localActionLogsResetAt;
                   }
 
                   const merged = mergeAppState(
@@ -702,6 +743,11 @@ export function useClubData(context: UseClubDataContext) {
                   ...serverMatchmaking.completedMatches,
                 ];
               }
+              if (serverMatchmaking.actionLogs) {
+                MatchmakingApp.state.actionLogs = [
+                  ...serverMatchmaking.actionLogs,
+                ];
+              }
               // Overwrite settings too — non-privileged users don't have local settings to preserve
               copyServerSettings(
                 serverMatchmaking,
@@ -717,6 +763,8 @@ export function useClubData(context: UseClubDataContext) {
                 serverMatchmaking.matchesResetAt ?? 0;
               MatchmakingApp.state.completedMatchesResetAt =
                 serverMatchmaking.completedMatchesResetAt ?? 0;
+              MatchmakingApp.state.actionLogsResetAt =
+                serverMatchmaking.actionLogsResetAt ?? 0;
             }
           }
           // Backward-compat: migrate old separate settings blocks into MatchmakingApp.state (privileged only)
@@ -779,6 +827,8 @@ export function useClubData(context: UseClubDataContext) {
           } else {
             MatchmakingApp.persistSilently();
           }
+          // Re-enable settings_change logging now that the merge is complete.
+          MatchmakingApp.suppressSettingsLog = false;
 
           // Update our concurrency token to the server's version so subsequent syncs
           // don't falsely conflict with the state we just merged.

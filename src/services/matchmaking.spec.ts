@@ -13,6 +13,7 @@ import type {
   QueueEntry,
   ActiveMatch,
   CompletedMatch,
+  ActionLog,
 } from './matchmaking';
 
 // Helper to build a minimal player for tests
@@ -2876,5 +2877,236 @@ describe('CLUB_SETTINGS descriptor', () => {
         `merged.${key} should be defined`,
       ).toBeDefined();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// actionLogsResetAt checkpoint + ACTION_LOG_CAP + reset-log immunity
+// ---------------------------------------------------------------------------
+
+const makeLog = (
+  id: string,
+  action: string,
+  timestamp: number,
+  performedBy = 'admin',
+  performedById = 'admin-id',
+): ActionLog => ({
+  id,
+  action,
+  performedBy,
+  performedById,
+  timestamp,
+});
+
+describe('hardResetEverything — actionLogsResetAt', () => {
+  it('stamps actionLogsResetAt to ~now', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    const before = Date.now();
+    sys.hardResetEverything();
+    expect(sys.state.actionLogsResetAt).toBeDefined();
+    expect(sys.state.actionLogsResetAt!).toBeGreaterThanOrEqual(before);
+  });
+
+  it('does NOT delete actionLogs (logs survive for the Action Logs list)', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.actionLogs = [
+      makeLog('log-1', 'check_in', 1000),
+      makeLog('log-2', 'check_out', 2000),
+    ];
+    sys.hardResetEverything();
+    expect(sys.state.actionLogs.length).toBe(2);
+  });
+});
+
+describe('resetState — actionLogsResetAt', () => {
+  it('stamps actionLogsResetAt and clears actionLogs', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.actionLogs = [makeLog('log-1', 'check_in', 1000)];
+    const before = Date.now();
+    sys.resetState();
+    expect(sys.state.actionLogsResetAt).toBeDefined();
+    expect(sys.state.actionLogsResetAt!).toBeGreaterThanOrEqual(before);
+    expect(sys.state.actionLogs.length).toBe(0);
+  });
+});
+
+describe('mergeAppState — actionLogsResetAt checkpoint', () => {
+  it('higher actionLogsResetAt wins (local > server)', () => {
+    const local = makeState({ actionLogsResetAt: 5000 });
+    const server = makeState({ actionLogsResetAt: 1000 });
+    const merged = mergeAppState(local, server);
+    expect(merged.actionLogsResetAt).toBe(5000);
+  });
+
+  it('higher actionLogsResetAt wins (server > local)', () => {
+    const local = makeState({ actionLogsResetAt: 1000 });
+    const server = makeState({ actionLogsResetAt: 5000 });
+    const merged = mergeAppState(local, server);
+    expect(merged.actionLogsResetAt).toBe(5000);
+  });
+
+  it('actionLogsResetAt merge is symmetric', () => {
+    const a = makeState({ actionLogsResetAt: 3000 });
+    const b = makeState({ actionLogsResetAt: 7000 });
+    const ab = mergeAppState(a, b);
+    const ba = mergeAppState(b, a);
+    expect(ab.actionLogsResetAt).toBe(ba.actionLogsResetAt);
+    expect(ab.actionLogsResetAt).toBe(7000);
+  });
+
+  it('both 0 → stays 0', () => {
+    const local = makeState({ actionLogsResetAt: 0 });
+    const server = makeState({ actionLogsResetAt: 0 });
+    const merged = mergeAppState(local, server);
+    expect(merged.actionLogsResetAt).toBe(0);
+  });
+
+  it('missing on both sides → 0 (backward compat)', () => {
+    const local = makeState();
+    const server = makeState();
+    const merged = mergeAppState(local, server);
+    expect(merged.actionLogsResetAt ?? 0).toBe(0);
+  });
+});
+
+describe('addActionLog — ACTION_LOG_CAP (200)', () => {
+  it('caps at 200, dropping oldest', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    for (let i = 0; i < 210; i++) {
+      sys.addActionLog('check_in', 'admin', 'admin-id');
+    }
+    expect(sys.state.actionLogs!.length).toBe(200);
+    // unshift → newest first; index 0 is the last added (i=209)
+    expect(sys.state.actionLogs![0].action).toBe('check_in');
+  });
+});
+
+describe('mergeAppState — ACTION_LOG_CAP (200)', () => {
+  it('caps merged logs at 200', () => {
+    const localLogs: ActionLog[] = [];
+    const serverLogs: ActionLog[] = [];
+    for (let i = 0; i < 150; i++) {
+      localLogs.push(makeLog(`l-${i}`, 'check_in', 1000 + i));
+    }
+    for (let i = 0; i < 150; i++) {
+      serverLogs.push(makeLog(`s-${i}`, 'check_in', 1000 + i));
+    }
+    const local = makeState({ actionLogs: localLogs });
+    const server = makeState({ actionLogs: serverLogs });
+    const merged = mergeAppState(local, server);
+    expect(merged.actionLogs!.length).toBe(200);
+  });
+
+  it('union + dedup by id', () => {
+    const shared = makeLog('shared-1', 'check_in', 1000);
+    const local = makeState({
+      actionLogs: [shared, makeLog('l-1', 'check_in', 2000)],
+    });
+    const server = makeState({
+      actionLogs: [shared, makeLog('s-1', 'check_in', 3000)],
+    });
+    const merged = mergeAppState(local, server);
+    const ids = merged.actionLogs!.map((l) => l.id);
+    expect(ids).toContain('shared-1');
+    expect(ids).toContain('l-1');
+    expect(ids).toContain('s-1');
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('mergeAppState — reset-log cap immunity', () => {
+  it('retains an evicted reset_all log by swapping out the oldest non-reset entry', () => {
+    const now = Date.now();
+    // 200 fresh non-reset logs on local (newest first after sort)
+    const localLogs: ActionLog[] = [];
+    for (let i = 0; i < 200; i++) {
+      localLogs.push(makeLog(`fresh-${i}`, 'check_in', now - i));
+    }
+    // One older reset_all log on server that would be evicted
+    const serverLogs: ActionLog[] = [
+      makeLog('reset-1', 'reset_all', now - 5000),
+    ];
+    const local = makeState({ actionLogs: localLogs });
+    const server = makeState({ actionLogs: serverLogs });
+    const merged = mergeAppState(local, server);
+    const ids = merged.actionLogs!.map((l) => l.id);
+    expect(ids).toContain('reset-1');
+    expect(merged.actionLogs!.length).toBe(200);
+  });
+
+  it('retains an evicted reset_session log', () => {
+    const now = Date.now();
+    const localLogs: ActionLog[] = [];
+    for (let i = 0; i < 200; i++) {
+      localLogs.push(makeLog(`fresh-${i}`, 'check_in', now - i));
+    }
+    const serverLogs: ActionLog[] = [
+      makeLog('rs-1', 'reset_session', now - 5000),
+    ];
+    const local = makeState({ actionLogs: localLogs });
+    const server = makeState({ actionLogs: serverLogs });
+    const merged = mergeAppState(local, server);
+    expect(merged.actionLogs!.map((l) => l.id)).toContain('rs-1');
+  });
+});
+
+describe('mergeAppState — clock skew clamp', () => {
+  it('clamps future-dated log timestamps to now', () => {
+    const future = Date.now() + 10 * 24 * 60 * 60 * 1000; // +10 days
+    const local = makeState({
+      actionLogs: [makeLog('future-1', 'check_in', future)],
+    });
+    const server = makeState({ actionLogs: [] });
+    const merged = mergeAppState(local, server);
+    const log = merged.actionLogs!.find((l) => l.id === 'future-1');
+    expect(log).toBeDefined();
+    expect(log!.timestamp).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('a future-dated log cannot displace real entries from the cap', () => {
+    const now = Date.now();
+    const future = now + 10 * 24 * 60 * 60 * 1000;
+    // 200 real logs on local
+    const localLogs: ActionLog[] = [];
+    for (let i = 0; i < 200; i++) {
+      localLogs.push(makeLog(`real-${i}`, 'check_in', now - i));
+    }
+    // 5 future-dated logs on server that would otherwise take the top 5 slots
+    const serverLogs: ActionLog[] = [];
+    for (let i = 0; i < 5; i++) {
+      serverLogs.push(makeLog(`future-${i}`, 'check_in', future + i));
+    }
+    const local = makeState({ actionLogs: localLogs });
+    const server = makeState({ actionLogs: serverLogs });
+    const merged = mergeAppState(local, server);
+    // After clamping, the 5 future logs compete fairly with real logs.
+    // real-0 (now) should still be present.
+    expect(merged.actionLogs!.map((l) => l.id)).toContain('real-0');
+  });
+});
+
+describe('mergeAppState — offline reset scenario for actionLogsResetAt', () => {
+  it('admin A resets (T1), admin B has logs at T0 and T2 → merged checkpoint is T1', () => {
+    const t0 = 1000;
+    const t1 = 2000;
+    const t2 = 3000;
+    const adminA = makeState({
+      actionLogsResetAt: t1,
+      actionLogs: [makeLog('a-reset', 'reset_all', t1)],
+    });
+    const adminB = makeState({
+      actionLogsResetAt: 0,
+      actionLogs: [
+        makeLog('b-old', 'check_in', t0),
+        makeLog('b-new', 'check_in', t2),
+      ],
+    });
+    const merged = mergeAppState(adminA, adminB);
+    expect(merged.actionLogsResetAt).toBe(t1);
+    // Logs themselves are not deleted
+    const ids = merged.actionLogs!.map((l) => l.id);
+    expect(ids).toContain('a-reset');
+    expect(ids).toContain('b-old');
+    expect(ids).toContain('b-new');
   });
 });
