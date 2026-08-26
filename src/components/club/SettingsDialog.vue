@@ -326,7 +326,7 @@
                     color="negative"
                     @click="$emit('resetSessionData')"
                     icon="restart_alt"
-                    label="Reset Session"
+                    label="Restart Session"
                     class="full-width"
                     stack
                     style="min-height: 72px"
@@ -337,7 +337,7 @@
                     color="negative"
                     @click="$emit('resetAllData')"
                     icon="delete_forever"
-                    label="Reset All"
+                    label="Clear Session"
                     class="full-width"
                     stack
                     style="min-height: 72px"

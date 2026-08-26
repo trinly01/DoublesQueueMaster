@@ -45,6 +45,7 @@ export function useDataManagement(context: UseDataManagementContext) {
       $q.dialog({
         title: opts.title,
         message: opts.message,
+        html: true,
         prompt: {
           model: '',
           type: 'text',
@@ -72,9 +73,13 @@ export function useDataManagement(context: UseDataManagementContext) {
 
   const resetGamesPlayed = () => {
     confirmWithClubId({
-      title: 'Confirm Reset Stats',
+      title: 'Reset Stats',
       message:
-        'This will set games played, wins, and losses to zero for all players. Ratings are preserved.',
+        'Resets games played, wins, and losses to zero for all players.<br><br>' +
+        '• Games played → 0<br>' +
+        '• Wins → 0<br>' +
+        '• Losses → 0<br><br>' +
+        'Ratings, queue, matches, and match history are not affected.',
       okLabel: 'Reset Stats',
       okColor: 'negative',
       okIcon: 'refresh',
@@ -110,8 +115,10 @@ export function useDataManagement(context: UseDataManagementContext) {
 
   const clearMatches = () => {
     confirmWithClubId({
-      title: 'Confirm Clear Matches',
-      message: 'This will remove all current matches from the system.',
+      title: 'Clear Matches',
+      message:
+        'Clears all active (in-progress) matches from this session.<br><br>' +
+        'Queue, player stats, and match history are not affected.',
       okLabel: 'Clear Matches',
       okColor: 'warning',
       okIcon: 'delete',
@@ -142,8 +149,10 @@ export function useDataManagement(context: UseDataManagementContext) {
 
   const clearQueue = () => {
     confirmWithClubId({
-      title: 'Confirm Clear Queue',
-      message: 'This will remove all players from the queue.',
+      title: 'Clear Queue',
+      message:
+        'Empties the queue for this session.<br><br>' +
+        'Player stats, matches, and match history are not affected.',
       okLabel: 'Clear Queue',
       okColor: 'warning',
       okIcon: 'delete_outline',
@@ -204,114 +213,72 @@ export function useDataManagement(context: UseDataManagementContext) {
   };
 
   const resetSessionData = () => {
-    const resetAt = MatchmakingApp.state.completedMatchesResetAt ?? 0;
-    const lastExported = MatchmakingApp.state.lastExportedAt ?? 0;
-    const unexported = MatchmakingApp.state.completedMatches.filter(
-      (m) => m.completedAt > resetAt && m.completedAt > lastExported,
-    );
-
-    const doReset = () => {
-      const now = Date.now();
-      const playersReset = Object.keys(MatchmakingApp.state.players).length;
-      const matchesCleared = MatchmakingApp.state.activeMatches.length;
-      const queueCleared = MatchmakingApp.state.queues.filter(
-        (q) => !q.deletedAt,
-      ).length;
-
-      // Reset player stats
-      Object.values(MatchmakingApp.state.players).forEach((player) => {
-        player.matchesPlayed = 0;
-        player.wins = 0;
-        player.losses = 0;
-        player.statsUpdatedAt = now;
-        player.updatedAt = now;
-      });
-
-      // Hard-delete matches and queues; checkpoint handles cross-admin purge
-      MatchmakingApp.state.activeMatches = [];
-      MatchmakingApp.state.queues = [];
-      MatchmakingApp.state.matchesResetAt = now;
-      MatchmakingApp.state.queuesResetAt = now;
-
-      // Epoch-based clear for completedMatches (multi-admin safe)
-      MatchmakingApp.clearCompletedMatches();
-
-      MatchmakingApp.state.settingsUpdatedAt = now;
-      MatchmakingApp.state.lastModified = now;
-      MatchmakingApp.persist();
-      MatchmakingApp.addActionLog(
-        'reset_session',
-        currentUserName.value,
-        currentUserId.value,
-        { matchesCleared, queueCleared, playersReset },
-      );
-
-      notify({
-        type: 'positive',
-        message: 'Session reset complete',
-      });
-    };
-
-    if (unexported.length > 0) {
-      $q.dialog({
-        title: 'Unexported Matches',
-        message: `You have ${unexported.length} completed match(es) that have not been exported to DUPR.`,
-        ok: {
-          label: 'Export & Reset',
-          color: 'positive',
-          icon: 'download',
-          noCaps: true,
-        },
-        cancel: {
-          label: 'Reset Anyway',
-          color: 'negative',
-          flat: true,
-          noCaps: true,
-        },
-        persistent: true,
-      })
-        .onOk(() => {
-          exportDuprCsv();
-          confirmWithClubId({
-            title: 'Confirm Reset Session',
-            message:
-              'This will reset all player stats, clear all matches, and clear the queue. Players will be kept.',
-            okLabel: 'Reset Session',
-            okColor: 'negative',
-            okIcon: 'restart_alt',
-            onConfirm: doReset,
-          });
-        })
-        .onCancel(() => {
-          confirmWithClubId({
-            title: 'Reset Without Export',
-            message:
-              'Unexported match data will be lost. This will reset all player stats, clear all matches, and clear the queue.',
-            okLabel: 'Reset Anyway',
-            okColor: 'negative',
-            okIcon: 'restart_alt',
-            onConfirm: doReset,
-          });
-        });
-      return;
-    }
-
     confirmWithClubId({
-      title: 'Confirm Reset Session',
+      title: 'Restart Session',
       message:
-        'This will reset all player stats, clear all matches, and clear the queue. Players will be kept.',
-      okLabel: 'Reset Session',
+        'Same players stay — stats, matches, queue, and match history are cleared.<br><br>' +
+        '• Player stats → reset to 0<br>' +
+        '• Active matches → cleared<br>' +
+        '• Queue → emptied<br>' +
+        '• Match history → cleared from this session<br><br>' +
+        'Players and ratings are kept. Match history in the cloud is not affected.',
+      okLabel: 'Restart Session',
       okColor: 'negative',
       okIcon: 'restart_alt',
-      onConfirm: doReset,
+      onConfirm: () => {
+        const now = Date.now();
+        const playersReset = Object.keys(MatchmakingApp.state.players).length;
+        const matchesCleared = MatchmakingApp.state.activeMatches.length;
+        const queueCleared = MatchmakingApp.state.queues.filter(
+          (q) => !q.deletedAt,
+        ).length;
+
+        // Reset player stats
+        Object.values(MatchmakingApp.state.players).forEach((player) => {
+          player.matchesPlayed = 0;
+          player.wins = 0;
+          player.losses = 0;
+          player.statsUpdatedAt = now;
+          player.updatedAt = now;
+        });
+
+        // Hard-delete matches and queues; checkpoint handles cross-admin purge
+        MatchmakingApp.state.activeMatches = [];
+        MatchmakingApp.state.queues = [];
+        MatchmakingApp.state.matchesResetAt = now;
+        MatchmakingApp.state.queuesResetAt = now;
+
+        // Epoch-based clear for completedMatches (multi-admin safe)
+        MatchmakingApp.clearCompletedMatches();
+
+        MatchmakingApp.state.settingsUpdatedAt = now;
+        MatchmakingApp.state.lastModified = now;
+        MatchmakingApp.persist();
+        MatchmakingApp.addActionLog(
+          'reset_session',
+          currentUserName.value,
+          currentUserId.value,
+          { matchesCleared, queueCleared, playersReset },
+        );
+
+        notify({
+          type: 'positive',
+          message: 'Session reset complete',
+        });
+      },
     });
   };
 
   const resetAllData = () => {
     confirmWithClubId({
-      title: 'Reset Everything',
+      title: 'Clear Session',
       message:
-        'This will delete ALL data including players. This cannot be undone.',
+        'All players removed — everything is wiped from this session.<br><br>' +
+        '• Players → ALL removed<br>' +
+        '• Stats & ratings → deleted<br>' +
+        '• Matches & queue → cleared<br>' +
+        '• Match history → cleared from this session<br><br>' +
+        'Match history in the cloud is not affected.',
       okLabel: 'Delete Everything',
       okColor: 'negative',
       okIcon: 'delete_forever',
