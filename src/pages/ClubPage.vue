@@ -2373,6 +2373,7 @@ watch(
       return;
     }
     if (!isCurrentUserAdmin.value && !isCurrentUserModerator.value) return;
+    if (MatchmakingApp.suppressSettingsLog) return;
     newVals.forEach((val, i) => {
       if (val !== oldVals[i]) {
         MatchmakingApp.addActionLog(

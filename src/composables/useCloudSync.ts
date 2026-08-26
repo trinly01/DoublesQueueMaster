@@ -333,6 +333,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
       isCurrentUserPrivilegedForSync,
     );
 
+    // Suppress settings_change logs during programmatic merge —
+    // server-driven settings changes should not be attributed to the
+    // local admin in the action log.
+    MatchmakingApp.suppressSettingsLog = true;
     if (isCurrentUserPrivilegedForSync) {
       // Privileged (admins/moderators): smart-merge so local offline edits are preserved
       const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
@@ -359,6 +363,9 @@ export function useCloudSync(ctx: CloudSyncContext) {
           ...serverMatchmaking.completedMatches,
         ];
       }
+      if (serverMatchmaking.actionLogs) {
+        MatchmakingApp.state.actionLogs = [...serverMatchmaking.actionLogs];
+      }
       // Overwrite settings — non-privileged users don't have local settings to preserve
       copyServerSettings(serverMatchmaking, SETTINGS_OVERWRITE_FIELDS, false);
       // Carry checkpoint timestamps
@@ -369,6 +376,8 @@ export function useCloudSync(ctx: CloudSyncContext) {
         serverMatchmaking.matchesResetAt ?? 0;
       MatchmakingApp.state.completedMatchesResetAt =
         serverMatchmaking.completedMatchesResetAt ?? 0;
+      MatchmakingApp.state.actionLogsResetAt =
+        serverMatchmaking.actionLogsResetAt ?? 0;
       if (serverMatchmaking.settingsFieldTimestamps) {
         MatchmakingApp.state.settingsFieldTimestamps = {
           ...serverMatchmaking.settingsFieldTimestamps,
@@ -377,6 +386,8 @@ export function useCloudSync(ctx: CloudSyncContext) {
     }
 
     MatchmakingApp.persistSilently();
+    // Re-enable settings_change logging now that the merge is complete.
+    MatchmakingApp.suppressSettingsLog = false;
     lastSyncedServerTimestamp.value = incomingTs;
     if (currentClubId.value) {
       saveLastSyncedTimestamp(currentClubId.value, incomingTs);

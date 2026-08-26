@@ -102,6 +102,8 @@ function makeContext(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Reset actionLogsResetAt so chip-count tests start from a clean slate
+  MatchmakingApp.state.actionLogsResetAt = 0;
 });
 
 describe('useClubMembers — filteredSortedMembers', () => {
@@ -418,5 +420,189 @@ describe('useClubMembers — refreshClubMembers', () => {
     await refreshClubMembers();
     // Should not modify clubMembers when result is empty
     expect(clubMembers.value).toHaveLength(3);
+  });
+});
+
+describe('useClubMembers — adminMatchStats with actionLogsResetAt', () => {
+  it('checkIns/checkOuts/playerRemovals are 0 when every log predates actionLogsResetAt', () => {
+    const resetAt = 5000;
+    MatchmakingApp.state.completedMatches = [];
+    MatchmakingApp.state.actionLogsResetAt = resetAt;
+    MatchmakingApp.state.actionLogs = [
+      {
+        id: '1',
+        action: 'check_in',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: 1000,
+      },
+      {
+        id: '2',
+        action: 'check_out',
+        performedBy: 'Bob',
+        performedById: 'b1',
+        timestamp: 2000,
+      },
+      {
+        id: '3',
+        action: 'remove_player',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: 4000,
+      },
+    ];
+    const { context } = makeContext();
+    const { adminMatchStats } = useClubMembers(context);
+    expect(adminMatchStats.value).toEqual({});
+  });
+
+  it('only counts post-checkpoint logs (mixed pre/post)', () => {
+    const resetAt = 3000;
+    MatchmakingApp.state.completedMatches = [];
+    MatchmakingApp.state.actionLogsResetAt = resetAt;
+    MatchmakingApp.state.actionLogs = [
+      // Pre-reset — should be excluded
+      {
+        id: 'old-1',
+        action: 'check_in',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: 1000,
+      },
+      {
+        id: 'old-2',
+        action: 'check_in',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: 2000,
+      },
+      // Post-reset — should be counted
+      {
+        id: 'new-1',
+        action: 'check_in',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: 4000,
+      },
+      {
+        id: 'new-2',
+        action: 'check_out',
+        performedBy: 'Bob',
+        performedById: 'b1',
+        timestamp: 5000,
+      },
+    ];
+    const { context } = makeContext();
+    const { adminMatchStats } = useClubMembers(context);
+    expect(adminMatchStats.value['Alice']).toEqual({
+      total: 0,
+      auto: 0,
+      manual: 0,
+      edited: 0,
+      scored: 0,
+      cancelled: 0,
+      checkIns: 1,
+      checkOuts: 0,
+      playerRemovals: 0,
+    });
+    expect(adminMatchStats.value['Bob']).toEqual({
+      total: 0,
+      auto: 0,
+      manual: 0,
+      edited: 0,
+      scored: 0,
+      cancelled: 0,
+      checkIns: 0,
+      checkOuts: 1,
+      playerRemovals: 0,
+    });
+  });
+
+  it('actionLogsResetAt = 0 counts every log (regression guard)', () => {
+    MatchmakingApp.state.completedMatches = [];
+    MatchmakingApp.state.actionLogsResetAt = 0;
+    MatchmakingApp.state.actionLogs = [
+      {
+        id: '1',
+        action: 'check_in',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: 1000,
+      },
+      {
+        id: '2',
+        action: 'check_out',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: 2000,
+      },
+    ];
+    const { context } = makeContext();
+    const { adminMatchStats } = useClubMembers(context);
+    expect(adminMatchStats.value['Alice'].checkIns).toBe(1);
+    expect(adminMatchStats.value['Alice'].checkOuts).toBe(1);
+  });
+
+  it('boundary: log.timestamp === actionLogsResetAt is excluded', () => {
+    const resetAt = 5000;
+    MatchmakingApp.state.completedMatches = [];
+    MatchmakingApp.state.actionLogsResetAt = resetAt;
+    MatchmakingApp.state.actionLogs = [
+      {
+        id: 'boundary',
+        action: 'check_in',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: resetAt, // exactly equal → excluded
+      },
+      {
+        id: 'after',
+        action: 'check_in',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: resetAt + 1, // just after → included
+      },
+    ];
+    const { context } = makeContext();
+    const { adminMatchStats } = useClubMembers(context);
+    expect(adminMatchStats.value['Alice'].checkIns).toBe(1);
+  });
+
+  it('total/scored/cancelled are unaffected by actionLogsResetAt', () => {
+    const resetAt = 5000;
+    MatchmakingApp.state.completedMatches = [
+      {
+        matchId: 'm1',
+        meta: {
+          generatedBy: 'Alice',
+          generationType: 'auto',
+          scoredBy: 'Alice',
+        },
+      } as never,
+    ];
+    MatchmakingApp.state.activeMatches = [
+      {
+        matchId: 'am1',
+        cancelledBy: 'Bob',
+      } as never,
+    ];
+    MatchmakingApp.state.actionLogsResetAt = resetAt;
+    MatchmakingApp.state.actionLogs = [
+      {
+        id: 'old-1',
+        action: 'check_in',
+        performedBy: 'Alice',
+        performedById: 'a1',
+        timestamp: 1000, // pre-reset → excluded from chips
+      },
+    ];
+    const { context } = makeContext();
+    const { adminMatchStats } = useClubMembers(context);
+    // completedMatches and activeMatches are NOT filtered by actionLogsResetAt
+    expect(adminMatchStats.value['Alice'].total).toBe(1);
+    expect(adminMatchStats.value['Alice'].scored).toBe(1);
+    expect(adminMatchStats.value['Bob'].cancelled).toBe(1);
+    // But the pre-reset check_in IS filtered
+    expect(adminMatchStats.value['Alice'].checkIns).toBe(0);
   });
 });

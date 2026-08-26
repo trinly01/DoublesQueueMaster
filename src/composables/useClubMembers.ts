@@ -155,9 +155,14 @@ export function useClubMembers(context: UseClubMembersContext) {
         stats[m.cancelledBy].cancelled++;
       }
     }
-    // Count check-in, check-out, and player removal actions from logs
+    // Count check-in, check-out, and player removal actions from logs.
+    // Only logs after actionLogsResetAt contribute to chip counts; older
+    // logs remain visible in the Action Logs list but do not count toward
+    // admin/moderator stat chips after a Reset All.
     const logs = MatchmakingApp.state.actionLogs || [];
+    const logsResetAt = MatchmakingApp.state.actionLogsResetAt ?? 0;
     for (const log of logs) {
+      if (log.timestamp <= logsResetAt) continue;
       if (log.action === 'check_in') {
         ensureStat(log.performedBy);
         stats[log.performedBy].checkIns++;
