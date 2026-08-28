@@ -267,6 +267,7 @@
                   :show-actions="canManageSession"
                   :show-requeue-button="canManageSession"
                   :show-feedback-button="!canManageSession"
+                  :can-delete="isCurrentUserAdmin"
                   :empty-icon="'people'"
                   :empty-title="
                     searchPlayers
@@ -750,6 +751,7 @@
                   :show-actions="canManageSession"
                   :show-requeue-button="canManageSession"
                   :show-feedback-button="!canManageSession"
+                  :can-delete="isCurrentUserAdmin"
                   :empty-icon="'people'"
                   :empty-title="
                     searchPlayers

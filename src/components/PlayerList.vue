@@ -17,6 +17,7 @@
         :remove-label="removeLabel"
         :remove-icon="removeIcon"
         :remove-color="removeColor"
+        :can-delete="canDelete"
         @click="$emit('playerClick', player)"
         @avatarClick="$emit('playerAvatarClick', $event)"
         @commend="$emit('playerCommend', $event)"
@@ -42,12 +43,20 @@
               @click.stop="$emit('playerRemove', playerItem.username)"
               :icon="removeIcon"
               size="sm"
+              :disable="!canDelete && !isInQueue"
             >
               <q-tooltip
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
                 >{{ removeLabel }}</q-tooltip
+              >
+              <q-tooltip
+                v-if="!canDelete && !isInQueue"
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Admin only</q-tooltip
               >
             </q-btn>
             <q-btn
@@ -142,6 +151,7 @@ interface Props {
   removeLabel?: string;
   removeIcon?: string;
   removeColor?: string;
+  canDelete?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -156,6 +166,7 @@ const props = withDefaults(defineProps<Props>(), {
   removeLabel: 'Remove',
   removeIcon: 'delete',
   removeColor: 'negative',
+  canDelete: true,
   showFeedbackButton: true,
   emptyIcon: 'people',
   emptyTitle: 'No players found',
