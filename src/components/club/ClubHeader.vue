@@ -49,109 +49,113 @@
         </div>
         <div class="col-auto">
           <div class="row items-center q-gutter-xs">
-            <q-icon
-              v-if="userRole === 'admin'"
-              name="shield"
-              color="amber-4"
-              size="20px"
-            >
-              <q-tooltip
-                anchor="center left"
-                self="center right"
-                :offset="[4, 0]"
-                >Admin</q-tooltip
-              >
-            </q-icon>
-            <q-icon
-              v-else-if="userRole === 'moderator'"
-              name="shield"
-              color="green-4"
-              size="20px"
-            >
-              <q-tooltip
-                anchor="center left"
-                self="center right"
-                :offset="[4, 0]"
-                >Moderator</q-tooltip
-              >
-            </q-icon>
-            <q-fab
-              color="white"
-              text-color="white"
-              icon="menu"
-              direction="down"
+            <q-btn
               flat
+              round
+              color="white"
+              icon="share"
               padding="sm"
+              @click="$emit('show-qr')"
             >
-              <q-fab-action
-                color="white"
-                text-color="primary"
-                icon="emoji_events"
-                @click="$emit('show-leaderboard')"
+              <q-tooltip
+                anchor="center left"
+                self="center right"
+                :offset="[8, 0]"
+                >Share Club</q-tooltip
               >
-                <q-tooltip
-                  anchor="center left"
-                  self="center right"
-                  :offset="[8, 0]"
-                  >Leaderboard</q-tooltip
-                >
-              </q-fab-action>
-              <q-fab-action
-                color="white"
-                text-color="primary"
-                icon="share"
-                @click="$emit('copy-link')"
+            </q-btn>
+            <div style="position: relative">
+              <q-fab
+                v-model="fabOpen"
+                class="fab-transparent"
+                color="transparent"
+                text-color="white"
+                icon="menu"
+                direction="down"
+                flat
+                padding="sm"
               >
-                <q-tooltip
-                  anchor="center left"
-                  self="center right"
-                  :offset="[8, 0]"
-                  >Share</q-tooltip
+                <q-fab-action
+                  color="white"
+                  text-color="primary"
+                  icon="emoji_events"
+                  @click="$emit('show-leaderboard')"
                 >
-              </q-fab-action>
-              <q-fab-action
-                v-if="canManageSession"
-                :color="ttsEnabled ? 'white' : 'amber-4'"
-                :text-color="ttsEnabled ? 'primary' : 'white'"
-                :icon="ttsEnabled ? 'volume_up' : 'volume_off'"
-                :class="{ 'speaking-pulse': isSpeaking }"
-                @click="$emit('toggle-tts')"
-              >
-                <q-tooltip
-                  anchor="center left"
-                  self="center right"
-                  :offset="[8, 0]"
-                  >{{ ttsEnabled ? 'Mute' : 'Unmute' }}</q-tooltip
+                  <q-tooltip
+                    anchor="center left"
+                    self="center right"
+                    :offset="[8, 0]"
+                    >Leaderboard</q-tooltip
+                  >
+                </q-fab-action>
+                <q-fab-action
+                  v-if="canManageSession"
+                  :color="ttsEnabled ? 'white' : 'amber-4'"
+                  :text-color="ttsEnabled ? 'primary' : 'white'"
+                  :icon="ttsEnabled ? 'volume_up' : 'volume_off'"
+                  :class="{ 'speaking-pulse': isSpeaking }"
+                  @click="$emit('toggle-tts')"
                 >
-              </q-fab-action>
-              <q-fab-action
-                v-if="isCurrentUserAdmin"
-                color="white"
-                text-color="primary"
-                icon="settings"
-                @click="$emit('show-settings')"
-              >
-                <q-badge
-                  v-if="unreadClubFeedbackCount > 0"
-                  color="negative"
-                  floating
-                  rounded
-                  style="top: -4px; right: -4px"
+                  <q-tooltip
+                    anchor="center left"
+                    self="center right"
+                    :offset="[8, 0]"
+                    >{{ ttsEnabled ? 'Mute' : 'Unmute' }}</q-tooltip
+                  >
+                </q-fab-action>
+                <q-fab-action
+                  v-if="isCurrentUserAdmin"
+                  color="white"
+                  text-color="primary"
+                  icon="settings"
+                  @click="$emit('show-settings')"
                 >
-                  {{
-                    unreadClubFeedbackCount > 99
-                      ? '99+'
-                      : unreadClubFeedbackCount
-                  }}
-                </q-badge>
-                <q-tooltip
-                  anchor="center left"
-                  self="center right"
-                  :offset="[8, 0]"
-                  >Settings</q-tooltip
+                  <q-badge
+                    v-if="unreadClubFeedbackCount > 0"
+                    color="negative"
+                    floating
+                    rounded
+                    style="top: -4px; right: -4px"
+                  >
+                    {{
+                      unreadClubFeedbackCount > 99
+                        ? '99+'
+                        : unreadClubFeedbackCount
+                    }}
+                  </q-badge>
+                  <q-tooltip
+                    anchor="center left"
+                    self="center right"
+                    :offset="[8, 0]"
+                    >Settings</q-tooltip
+                  >
+                </q-fab-action>
+              </q-fab>
+              <transition name="shield-fade">
+                <div
+                  v-if="
+                    (userRole === 'admin' || userRole === 'moderator') &&
+                    !fabOpen
+                  "
+                  style="position: absolute; top: -2px; right: -2px; z-index: 1"
                 >
-              </q-fab-action>
-            </q-fab>
+                  <q-icon
+                    name="shield"
+                    size="16px"
+                    :color="userRole === 'admin' ? 'amber-4' : 'green-4'"
+                  >
+                    <q-tooltip
+                      anchor="center left"
+                      self="center right"
+                      :offset="[8, 0]"
+                      >{{
+                        userRole === 'admin' ? 'Admin' : 'Moderator'
+                      }}</q-tooltip
+                    >
+                  </q-icon>
+                </div>
+              </transition>
+            </div>
           </div>
         </div>
       </div>
@@ -160,12 +164,39 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch, onUnmounted } from 'vue';
 import { useQuasar } from 'quasar';
 import logoUrl from 'src/assets/queue master logo.png';
 
 defineOptions({ name: 'ClubHeader' });
 
 const $q = useQuasar();
+const fabOpen = ref(false);
+
+// Close FAB when clicking outside of it.
+let fabEl: HTMLElement | null = null;
+
+const handleOutsideClick = (e: MouseEvent) => {
+  if (fabEl && !fabEl.contains(e.target as Node)) {
+    fabOpen.value = false;
+  }
+};
+
+watch(fabOpen, (open) => {
+  if (open) {
+    // Defer to next tick so the click that opened the FAB doesn't close it.
+    setTimeout(() => {
+      fabEl = document.querySelector('.fab-transparent');
+      document.addEventListener('click', handleOutsideClick);
+    }, 0);
+  } else {
+    document.removeEventListener('click', handleOutsideClick);
+  }
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleOutsideClick);
+});
 
 defineProps<{
   clubName: string;
@@ -181,7 +212,29 @@ defineProps<{
 defineEmits<{
   'show-leaderboard': [];
   'show-settings': [];
-  'copy-link': [];
+  'show-qr': [];
   'toggle-tts': [];
 }>();
 </script>
+
+<style scoped>
+.shield-fade-enter-active,
+.shield-fade-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+.shield-fade-enter-from,
+.shield-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+/* FAB with always-visible translucent white background */
+.fab-transparent :deep(.q-btn) {
+  background: rgba(255, 255, 255, 0.15);
+}
+.fab-transparent :deep(.q-btn:hover) {
+  background: rgba(255, 255, 255, 0.25);
+}
+</style>

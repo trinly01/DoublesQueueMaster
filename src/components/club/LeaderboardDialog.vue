@@ -30,19 +30,19 @@
                     <div class="lb-row">
                       <span class="lb-label">Club</span>
                       <span class="lb-desc"
-                        >top 30 in this club (last 45 days)</span
+                        >top 30 in this club (last 30 days)</span
                       >
                     </div>
                     <div class="lb-row">
                       <span class="lb-label">My Matches</span>
                       <span class="lb-desc"
-                        >top 30 you've played with (last 45 days)</span
+                        >top 30 you've played with (last 30 days)</span
                       >
                     </div>
                     <div class="lb-row">
                       <span class="lb-label">Global</span>
                       <span class="lb-desc"
-                        >top 30 everywhere (last 45 days, 12+ games)</span
+                        >top 30 everywhere (last 30 days, 12+ games)</span
                       >
                     </div>
                   </div>
@@ -63,7 +63,7 @@
                       >
                     </div>
                     <div class="lb-row">
-                      <span class="lb-label">Solid %</span>
+                      <span class="lb-label">Reliable %</span>
                       <span class="lb-desc"
                         >reliability — more games, more accurate</span
                       >
@@ -207,13 +207,14 @@
                     class="text-no-wrap"
                   >
                     <template v-if="player.provisional">
-                      {{ player.gamesToReliable }} game{{
+                      Provisional: {{ player.gamesToReliable }} game{{
                         player.gamesToReliable === 1 ? '' : 's'
                       }}
                       to rank up
                     </template>
                     <template v-else>
-                      {{ Math.round((player.reliability || 0) * 100) }}% solid
+                      {{ Math.round((player.reliability || 0) * 100) }}%
+                      reliable
                     </template>
                   </q-tooltip>
                 </q-chip>

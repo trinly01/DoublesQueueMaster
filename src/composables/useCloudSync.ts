@@ -12,6 +12,11 @@ import { MatchmakingApp, mergeAppState } from 'src/services/matchmaking';
 import type { AppState } from 'src/services/matchmaking';
 import { useNotify } from 'src/composables/useNotify';
 import { useAuth } from 'src/composables/useAuth';
+import {
+  shouldUseLightweightRead,
+  shouldSkipFullRead,
+  parseLightweightTimestamp,
+} from 'src/services/cloudSyncHelpers';
 import type { Router } from 'vue-router';
 import type { QNotifyCreateOptions } from 'quasar';
 
@@ -89,6 +94,11 @@ export function useCloudSync(ctx: CloudSyncContext) {
   // Debounce timer for batching rapid local mutations into one sync
   let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // Realtime subscription handle — declared early so performCloudSync can
+  // check isRealtimeActive() via closure. Assigned in startRealtime().
+  let realtimeUnsub: (() => void) | null = null;
+  const isRealtimeActive = () => realtimeUnsub !== null && isOnline.value;
+
   // Immediate sync to cloud (read-before-write for multi-admin conflict detection)
   const performCloudSync = async (skipServerMerge = false) => {
     if (isOpenPlay.value) return;
@@ -115,20 +125,75 @@ export function useCloudSync(ctx: CloudSyncContext) {
       let serverMatchmaking: AppState | undefined;
       let serverTimestamp = 0;
       if (!skipServerMerge) {
-        const serverResult = await likhaClient.request(
-          readItems('club', {
-            filter: { id: { _eq: currentClubUUID.value } },
-            fields: ['appState'],
-          }),
-        );
+        if (shouldUseLightweightRead(isRealtimeActive(), isOnline.value)) {
+          // Lightweight read: just check lastModified timestamp via json() function.
+          // When realtime is active, it keeps lastSyncedServerTimestamp current,
+          // so a timestamp-only check is sufficient to detect concurrent writes.
+          try {
+            const lightResult = await likhaClient.request(
+              readItems('club', {
+                filter: { id: { _eq: currentClubUUID.value } },
+                fields: [
+                  'json(appState, matchmaking.lastModified)',
+                ] as unknown as string[],
+              }),
+            );
+            serverTimestamp = parseLightweightTimestamp(lightResult);
 
-        const serverAppState = (
-          serverResult?.[0] as unknown as {
-            appState?: { matchmaking?: AppState };
+            // If timestamp matches, skip full read — realtime kept us current.
+            if (
+              !shouldSkipFullRead(
+                serverTimestamp,
+                lastSyncedServerTimestamp.value,
+              )
+            ) {
+              // Timestamp moved — do full read to get changes for merging.
+              const serverResult = await likhaClient.request(
+                readItems('club', {
+                  filter: { id: { _eq: currentClubUUID.value } },
+                  fields: ['appState'],
+                }),
+              );
+              const serverAppState = (
+                serverResult?.[0] as unknown as {
+                  appState?: { matchmaking?: AppState };
+                }
+              )?.appState;
+              serverMatchmaking = serverAppState?.matchmaking;
+              serverTimestamp = serverMatchmaking?.lastModified ?? 0;
+            }
+          } catch {
+            // json() failed — fall back to full read (safe).
+            const serverResult = await likhaClient.request(
+              readItems('club', {
+                filter: { id: { _eq: currentClubUUID.value } },
+                fields: ['appState'],
+              }),
+            );
+            const serverAppState = (
+              serverResult?.[0] as unknown as {
+                appState?: { matchmaking?: AppState };
+              }
+            )?.appState;
+            serverMatchmaking = serverAppState?.matchmaking;
+            serverTimestamp = serverMatchmaking?.lastModified ?? 0;
           }
-        )?.appState;
-        serverMatchmaking = serverAppState?.matchmaking;
-        serverTimestamp = serverMatchmaking?.lastModified ?? 0;
+        } else {
+          // Realtime not active — do full read (existing behavior).
+          const serverResult = await likhaClient.request(
+            readItems('club', {
+              filter: { id: { _eq: currentClubUUID.value } },
+              fields: ['appState'],
+            }),
+          );
+          const serverAppState = (
+            serverResult?.[0] as unknown as {
+              appState?: { matchmaking?: AppState };
+            }
+          )?.appState;
+          serverMatchmaking = serverAppState?.matchmaking;
+          serverTimestamp = serverMatchmaking?.lastModified ?? 0;
+        }
       }
 
       // 2. Only allow admins/moderators to write to the cloud
@@ -294,7 +359,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
 
   // ---- Real-time sync (WebSocket subscription) ----
   // Pushes other privileged users' changes to this client instantly, then smart-merges them.
-  let realtimeUnsub: (() => void) | null = null;
+  // realtimeUnsub is declared earlier (near performCloudSync) so the closure can check isRealtimeActive().
   let realtimeStarting = false;
 
   type ClubRealtimeMessage = {
@@ -483,11 +548,12 @@ export function useCloudSync(ctx: CloudSyncContext) {
     lastResumeSyncAt = Date.now();
     if (isOnline.value && currentClubId.value) {
       // loadClubData reads server state and merges. For privileged users (admins/moderators), persist() arms
-      // the debounced cloud sync (500ms) which handles the push — no need for
+      // the debounced cloud sync (1500ms) which handles the push — no need for
       // a separate performCloudSync() call here (that would do a second read).
       // Non-privileged users just get the direct overwrite via persistSilently().
       await loadClubData(currentClubId.value);
-      void refreshPlayerRatings();
+      // refreshPlayerRatings is no longer needed here — loadClubData now fetches
+      // rating_updated_at and applies LWW rating adoption + clubMembers sync.
     }
     // Always reconnect realtime when app comes back to foreground.
     restartRealtime();
@@ -501,7 +567,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
     if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
     syncDebounceTimer = setTimeout(() => {
       performCloudSync();
-    }, 500);
+    }, 1500);
   };
 
   MatchmakingApp.onStateChange = debouncedCloudSync;
@@ -509,9 +575,25 @@ export function useCloudSync(ctx: CloudSyncContext) {
   // Sync-related event listeners (mounted/unmounted in composable)
   let ratingsRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
+  // Flush any pending debounced sync immediately on pagehide (tab close /
+  // navigation / mobile backgrounding). The async performCloudSync may not
+  // complete before the page unloads, but the fetch request usually reaches
+  // the server. LocalStorage (written by saveState) is the backup for the
+  // next load via restoreFromCache + mergeAppState.
+  const handlePageHide = () => {
+    if (syncDebounceTimer) {
+      clearTimeout(syncDebounceTimer);
+      syncDebounceTimer = null;
+    }
+    if (hasPendingCloudSync.value) {
+      void performCloudSync();
+    }
+  };
+
   onMounted(() => {
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
+    window.addEventListener('pagehide', handlePageHide);
 
     // Player ratings live in directus_users (not in club.appState), so realtime
     // can't observe them. Poll the club.players M2M periodically to keep ratings fresh.
@@ -525,6 +607,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
   onUnmounted(() => {
     window.removeEventListener('online', updateOnlineStatus);
     window.removeEventListener('offline', updateOnlineStatus);
+    window.removeEventListener('pagehide', handlePageHide);
     stopRealtime();
     if (ratingsRefreshInterval) {
       clearInterval(ratingsRefreshInterval);

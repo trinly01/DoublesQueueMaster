@@ -1,0 +1,36 @@
+feat: cloud sync optimizations + leaderboard 30-day + club QR share
+
+#5: Increase sync debounce 500ms to 1500ms with pagehide flush to avoid
+losing pending syncs on tab close. LocalStorage backup + merge on next
+load is the safety net.
+
+#3: Merge loadClubData + refreshPlayerRatings into a single query by
+adding rating_updated_at to the Directus fields. Extract mergePlayerFromDB
+pure helper for LWW rating adoption. Fixes 3 bugs: missing rating_updated_at
+field, missing lastName update, clubMembers rating not synced. Removes
+redundant refreshPlayerRatings calls in doResumeSync and first load.
+
+#6: Lightweight server read (timestamp-only via json function) when
+realtime is active. Falls back to full read on mismatch or json failure.
+Extract shouldUseLightweightRead, shouldSkipFullRead, parseLightweightTimestamp
+pure helpers.
+
+#8: Cache refreshClubInfo with 60s TTL. Invalidated on saveClubDetails and
+onLogoSelected. Extract shouldSkipClubInfoRefresh pure helper.
+
+Leaderboard: Change all leaderboard queries from 45-day to 30-day window
+using Directus $NOW(-30 days) server-side variable. Bump club and global
+leaderboard limits from 500 to 1000. Update tooltip wording: "Provisional:
+X games to rank up" and "X% reliable". Update legend "Solid %" to "Reliable %".
+
+Club QR: Add share button (left of menu FAB) that opens a QR dialog with
+club logo, name, and QR code of the club link. Dialog has Copy link and
+Share buttons. Move admin/mod shield badge to FAB menu button with
+fade animation on FAB open. FAB has translucent white background.
+Outside click closes FAB menu.
+
+15 new tests in cloudSyncHelpers.spec.ts covering all extracted helpers.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

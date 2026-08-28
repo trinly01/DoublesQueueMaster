@@ -85,7 +85,7 @@
         :unread-club-feedback-count="unreadClubFeedbackCount"
         @show-leaderboard="showLeaderboardDialog = true"
         @show-settings="showSettingsDialog = true"
-        @copy-link="copyClubLink"
+        @show-qr="openClubQrDialog"
         @toggle-tts="
           ttsEnabled
             ? ((ttsEnabled = false), clearSpeechQueue())
@@ -115,6 +115,61 @@
         :my-matches-leaderboard="myMatchesLeaderboard"
         :my-matches-loading="myMatchesLoading"
       />
+
+      <!-- Club QR Code Dialog -->
+      <q-dialog v-model="showClubQrDialog">
+        <q-card style="min-width: 300px; max-width: 90vw">
+          <q-card-section class="row items-center q-pb-none">
+            <div class="text-h6">Club QR Code</div>
+            <q-space />
+            <q-btn icon="close" flat round dense v-close-popup />
+          </q-card-section>
+          <q-card-section class="flex flex-center q-px-lg q-pt-none q-pb-none">
+            <div class="column items-center">
+              <q-avatar v-if="getClubLogoUrl" size="48px" class="q-mb-xs">
+                <img :src="getClubLogoUrl" :alt="clubName" />
+              </q-avatar>
+              <div
+                class="text-subtitle1 text-weight-bold text-center"
+                style="margin-bottom: 0; line-height: 1.1"
+              >
+                {{ clubName }}
+              </div>
+              <q-img
+                v-if="clubQrCodeDataUrl"
+                :src="clubQrCodeDataUrl"
+                style="width: 240px; height: 240px"
+                fit="contain"
+              />
+            </div>
+          </q-card-section>
+          <q-card-section class="text-center q-pt-none">
+            <div class="text-subtitle2 text-grey-7 q-mb-sm">
+              Scan to join this club
+            </div>
+            <div class="row justify-center q-gutter-sm">
+              <q-btn
+                flat
+                size="sm"
+                color="primary"
+                icon="content_copy"
+                label="Copy link"
+                class="col-5"
+                @click="copyClubLinkToClipboard"
+              />
+              <q-btn
+                flat
+                size="sm"
+                color="primary"
+                icon="share"
+                label="Share"
+                class="col-5"
+                @click="copyClubLink"
+              />
+            </div>
+          </q-card-section>
+        </q-card>
+      </q-dialog>
 
       <ClubLayout
         v-model="activeMobileTab"
@@ -1294,6 +1349,7 @@ import ManualSelectionDialog from '../components/club/ManualSelectionDialog.vue'
 import ClubHeader from '../components/club/ClubHeader.vue';
 import ClubLayout from '../components/club/ClubLayout.vue';
 import SettingsDialog from '../components/club/SettingsDialog.vue';
+import QRCode from 'qrcode';
 import { getRatingColor, getRatingCategory } from '../utils/playerHelpers';
 import { computeWinProbability } from '../services/matchmaking';
 import { useMatchSettings } from '../composables/useMatchSettings';
@@ -1577,6 +1633,10 @@ const goPlay = () => {
   router.push('/play');
 };
 
+// Club QR Code dialog state
+const showClubQrDialog = ref(false);
+const clubQrCodeDataUrl = ref('');
+
 const copyClubLink = async () => {
   const shareUrl = `${window.location.origin}?r=${encodeURIComponent(route.path)}`;
   if (navigator.share) {
@@ -1593,6 +1653,45 @@ const copyClubLink = async () => {
     }
     return;
   }
+  copyToClipboard(shareUrl)
+    .then(() => {
+      $q.notify({
+        color: 'positive',
+        message: 'Club link copied!',
+        icon: 'check_circle',
+        timeout: 1500,
+      });
+    })
+    .catch(() => {
+      $q.notify({
+        color: 'negative',
+        message: 'Failed to copy link',
+        icon: 'error',
+        timeout: 1500,
+      });
+    });
+};
+
+const openClubQrDialog = async () => {
+  const shareUrl = `${window.location.origin}?r=${encodeURIComponent(route.path)}`;
+  try {
+    clubQrCodeDataUrl.value = await QRCode.toDataURL(shareUrl, {
+      width: 280,
+      margin: 2,
+    });
+    showClubQrDialog.value = true;
+  } catch {
+    $q.notify({
+      color: 'negative',
+      message: 'Failed to generate QR code',
+      icon: 'error',
+      timeout: 1500,
+    });
+  }
+};
+
+const copyClubLinkToClipboard = () => {
+  const shareUrl = `${window.location.origin}?r=${encodeURIComponent(route.path)}`;
   copyToClipboard(shareUrl)
     .then(() => {
       $q.notify({
@@ -1862,18 +1961,15 @@ const fetchGlobalLeaderboard = async () => {
   // Only show loading spinner if no cached data to show
   globalLeaderboardLoading.value = !hasCache;
   try {
-    // Global leaderboard — last 45 days across all clubs
-    const fortyFiveDaysAgo = new Date(
-      Date.now() - 45 * 24 * 60 * 60 * 1000,
-    ).toISOString();
+    // Global leaderboard — last 30 days across all clubs
     const matches = (await likhaClient.request(
       readItems('completed_match', {
         filter: {
-          completed_at: { _gte: fortyFiveDaysAgo },
+          completed_at: { _gte: '$NOW(-30 days)' },
         },
         fields: ['*', 'players.directus_users_id.*'],
         sort: ['-completed_at'],
-        limit: 500,
+        limit: 1000,
       }),
     )) as DirectusCompletedMatch[];
 
@@ -1988,17 +2084,14 @@ const fetchMyMatchesLeaderboard = async () => {
   // Only show loading spinner if no cached data to show
   myMatchesLoading.value = !hasCache;
   try {
-    // Fetch the current user's completed matches in this club (last 45 days)
-    const fortyFiveDaysAgo = new Date(
-      Date.now() - 45 * 24 * 60 * 60 * 1000,
-    ).toISOString();
+    // Fetch the current user's completed matches in this club (last 30 days)
     const matches = (await likhaClient.request(
       readItems('completed_match', {
         filter: {
           _and: [
             { club: { _eq: currentClubUUID.value } },
             { players: { directus_users_id: { _eq: currentUserId.value } } },
-            { completed_at: { _gte: fortyFiveDaysAgo } },
+            { completed_at: { _gte: '$NOW(-30 days)' } },
           ],
         },
         fields: ['*', 'players.directus_users_id.*'],
@@ -2299,8 +2392,8 @@ onMounted(async () => {
     ) {
       await handleJoinClub();
     }
-    // Pull any manual directus_users rating edits on first load.
-    void refreshPlayerRatings();
+    // Rating adoption is handled by loadClubData (above) which now fetches
+    // rating_updated_at and applies LWW. No separate refreshPlayerRatings needed.
     // Subscribe to live updates so other admins' changes arrive without refresh.
     void startRealtime();
   } else {
