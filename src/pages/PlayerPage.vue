@@ -124,7 +124,7 @@
                 <q-card-section class="q-pt-none">
                   <div class="lb-tooltip-body">
                     <p class="lb-line">
-                      Replayed from your last 45 days of competitive matches
+                      Replayed from your last 30 days of competitive matches
                       (Standard, Competitive, Pro Pick).
                     </p>
                     <p class="lb-line">
@@ -734,13 +734,13 @@
                         <div class="lb-row">
                           <span class="lb-label">Global</span>
                           <span class="lb-desc"
-                            >top 30 everywhere (last 45 days, 12+ games)</span
+                            >top 30 everywhere (last 30 days, 12+ games)</span
                           >
                         </div>
                         <div class="lb-row">
                           <span class="lb-label">My Matches</span>
                           <span class="lb-desc"
-                            >top 30 you've played with (last 45 days)</span
+                            >top 30 you've played with (last 30 days)</span
                           >
                         </div>
                       </div>
@@ -765,7 +765,7 @@
                           >
                         </div>
                         <div class="lb-row">
-                          <span class="lb-label">Solid %</span>
+                          <span class="lb-label">Reliable %</span>
                           <span class="lb-desc"
                             >reliability — more games, more accurate</span
                           >
@@ -1293,10 +1293,10 @@ const matchesLeaderboard = computed<LeaderboardEntry[]>(() => {
   const allMatches = PlayerProfile.state.completedMatches || [];
   if (allMatches.length === 0) return [];
 
-  // Filter to last 45 days for My Matches tab
-  const fortyFiveDaysAgo = Date.now() - 45 * 24 * 60 * 60 * 1000;
+  // Filter to last 30 days for My Matches tab
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const matches = allMatches.filter(
-    (m) => new Date(m.completed_at).getTime() >= fortyFiveDaysAgo,
+    (m) => new Date(m.completed_at).getTime() >= thirtyDaysAgo,
   );
   if (matches.length === 0) return [];
 
@@ -2103,19 +2103,16 @@ const fetchLeaderboard = async () => {
   }
 
   try {
-    // Fetch completed matches from the last 45 days (global leaderboard)
+    // Fetch completed matches from the last 30 days (global leaderboard)
     // and replay them through the same rating engine as the club leaderboard.
-    const fortyFiveDaysAgo = new Date(
-      Date.now() - 45 * 24 * 60 * 60 * 1000,
-    ).toISOString();
     const matches = (await likhaClient.request(
       readItems('completed_match', {
         filter: {
-          completed_at: { _gte: fortyFiveDaysAgo },
+          completed_at: { _gte: '$NOW(-30 days)' },
         },
         fields: ['*', 'players.directus_users_id.*'],
         sort: ['-completed_at'],
-        limit: 500,
+        limit: 1000,
       }),
     )) as DirectusCompletedMatch[];
 

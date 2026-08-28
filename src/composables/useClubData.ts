@@ -13,6 +13,11 @@ import type { AppState, ActionLog } from 'src/services/matchmaking';
 import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
 import { readItems, updateItem, uploadFiles } from '@likha-erp/likha-sdk';
+import {
+  mergePlayerFromDB,
+  shouldSkipClubInfoRefresh,
+  type DBUser,
+} from 'src/services/cloudSyncHelpers';
 import type { Router } from 'vue-router';
 
 type NotifyFn = (opts: QNotifyCreateOptions) => void;
@@ -121,8 +126,23 @@ export function useClubData(context: UseClubDataContext) {
     editClubId.value = currentClubId.value;
   };
 
-  const refreshClubInfo = async () => {
+  // TTL cache for refreshClubInfo — avoids redundant API calls when the
+  // settings dialog is opened repeatedly within a short window.
+  let clubInfoCacheAt = 0;
+  const CLUB_INFO_CACHE_TTL = 60_000; // 60 seconds
+
+  const refreshClubInfo = async (force = false) => {
     if (!currentClubUUID.value) return;
+    if (
+      !force &&
+      shouldSkipClubInfoRefresh(
+        clubInfoCacheAt,
+        Date.now(),
+        CLUB_INFO_CACHE_TTL,
+      )
+    ) {
+      return;
+    }
     try {
       const result = await likhaClient.request(
         readItems('club', {
@@ -138,6 +158,7 @@ export function useClubData(context: UseClubDataContext) {
         currentClubId.value = club.clubId || currentClubId.value;
         clubLogo.value = club.logo || clubLogo.value;
       }
+      clubInfoCacheAt = Date.now();
     } catch (err) {
       console.warn('Failed to refresh club info:', err);
     }
@@ -162,6 +183,7 @@ export function useClubData(context: UseClubDataContext) {
           updateItem('club', currentClubUUID.value, { logo: logoId }),
         );
         clubLogo.value = logoId;
+        clubInfoCacheAt = 0; // invalidate cache — logo changed
         MatchmakingApp.addActionLog(
           'club_logo_change',
           currentUserName.value,
@@ -201,6 +223,7 @@ export function useClubData(context: UseClubDataContext) {
 
       clubName.value = trimmedName;
       currentClubId.value = trimmedId;
+      clubInfoCacheAt = 0; // invalidate cache — name/id changed
       logClubInfoChange(oldName, trimmedName, oldId, trimmedId);
       notify({ color: 'positive', message: 'Club details updated!' });
 
@@ -376,6 +399,7 @@ export function useClubData(context: UseClubDataContext) {
               'players.directus_users_id.last_name',
               'players.directus_users_id.email',
               'players.directus_users_id.rating',
+              'players.directus_users_id.rating_updated_at',
               'players.directus_users_id.dupr_id',
               'players.directus_users_id.avatar',
               'admins.id',
@@ -418,6 +442,7 @@ export function useClubData(context: UseClubDataContext) {
               'players.directus_users_id.last_name',
               'players.directus_users_id.email',
               'players.directus_users_id.rating',
+              'players.directus_users_id.rating_updated_at',
               'players.directus_users_id.dupr_id',
               'players.directus_users_id.avatar',
               'admins.id',
@@ -931,40 +956,19 @@ export function useClubData(context: UseClubDataContext) {
                 ).find((player) => player.userId === user.id);
 
                 if (existingPlayer) {
-                  // LWW: only adopt the DB rating when it's newer than our local one.
-                  // If we have a local ratingUpdatedAt (from the rating engine or a
-                  // prior manual edit) and the DB timestamp is missing/older, keep local.
-                  const dbTs = Number(user.rating_updated_at || 0);
-                  const localTs = Number(existingPlayer.ratingUpdatedAt || 0);
-                  const dbIsNewer = dbTs > localTs;
-                  const localHasTs = localTs > 0;
-                  const shouldAdopt = dbTs > 0 ? dbIsNewer : !localHasTs; // if DB has no timestamp, only overwrite if local also has none
-
-                  if (shouldAdopt) {
-                    const userRating =
-                      typeof user.rating === 'number' ? user.rating : undefined;
-                    existingPlayer.rating =
-                      userRating || existingPlayer.rating || 1450;
-                    if (dbTs > 0) existingPlayer.ratingUpdatedAt = dbTs;
-                    existingPlayer.updatedAt = Date.now();
-                  }
-
-                  // Update avatar if present
-                  const avatarId =
-                    typeof user.avatar === 'string' ? user.avatar : undefined;
-                  if (avatarId) {
-                    existingPlayer.avatar = `${likhaUrl.value}/assets/${avatarId}`;
-                    existingPlayer.updatedAt = Date.now();
-                  }
-
-                  // Update firstName if present
-                  const firstName =
-                    typeof user.first_name === 'string'
-                      ? user.first_name
-                      : undefined;
-                  if (firstName) {
-                    existingPlayer.firstName = firstName;
-                    existingPlayer.updatedAt = Date.now();
+                  const result = mergePlayerFromDB(
+                    existingPlayer,
+                    user as unknown as DBUser,
+                    likhaUrl.value,
+                    Date.now(),
+                  );
+                  if (result.newRating !== undefined) {
+                    // Keep clubMembers in sync with the adopted rating so the
+                    // settings list reflects the latest DB value immediately.
+                    const member = clubMembers.value.find(
+                      (m) => m.id === user.id,
+                    );
+                    if (member) member.rating = result.newRating;
                   }
                 }
                 // Note: We do NOT add new club members automatically - that should be done via the "Add Club Members" UI
