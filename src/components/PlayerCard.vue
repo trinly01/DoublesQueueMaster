@@ -129,7 +129,7 @@
               @click.stop="$emit('remove', player.username)"
               :icon="isInQueue || isInMatch ? 'remove_circle' : removeIcon"
               size="xs"
-              :disable="isInMatch"
+              :disable="isInMatch || (!canDelete && !isInQueue)"
             >
               <q-tooltip
                 anchor="top middle"
@@ -138,6 +138,13 @@
                 >{{
                   isInQueue || isInMatch ? 'Check out' : removeLabel
                 }}</q-tooltip
+              >
+              <q-tooltip
+                v-if="!canDelete && !isInQueue && !isInMatch"
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >Admin only</q-tooltip
               >
             </q-btn>
             <q-btn
@@ -205,6 +212,7 @@ interface Props {
   removeLabel?: string;
   removeIcon?: string;
   removeColor?: string;
+  canDelete?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -219,6 +227,7 @@ const props = withDefaults(defineProps<Props>(), {
   removeLabel: 'Remove',
   removeIcon: 'delete',
   removeColor: 'negative',
+  canDelete: true,
 });
 
 defineEmits<{
