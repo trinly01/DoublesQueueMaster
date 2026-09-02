@@ -102,8 +102,8 @@ function makeContext() {
   const manualSelectionStep = ref<1 | 2>(1);
   const selectedForSwap = ref<Player | null>(null);
   const selectedForSwapTeam = ref<'team1' | 'team2' | null>(null);
-  const currentMatchIndex = ref(-1);
-  const currentMatchIndexForActions = ref(-1);
+  const currentMatchId = ref<string | null>(null);
+  const currentMatchIdForActions = ref<string | null>(null);
   const teamAScore = ref(0);
   const teamBScore = ref(0);
   const showMatchResultDialog = ref(false);
@@ -131,8 +131,8 @@ function makeContext() {
       manualSelectionStep,
       selectedForSwap,
       selectedForSwapTeam,
-      currentMatchIndex,
-      currentMatchIndexForActions,
+      currentMatchId,
+      currentMatchIdForActions,
       teamAScore,
       teamBScore,
       showMatchResultDialog,
@@ -157,8 +157,8 @@ function makeContext() {
     manualSelectionStep,
     selectedForSwap,
     selectedForSwapTeam,
-    currentMatchIndex,
-    currentMatchIndexForActions,
+    currentMatchId,
+    currentMatchIdForActions,
     teamAScore,
     teamBScore,
     showMatchResultDialog,
@@ -245,12 +245,12 @@ describe('useMatchActions — generateNewMatches', () => {
 });
 
 describe('useMatchActions — openMatchResultDialog', () => {
-  it('sets currentMatchIndex and opens dialog', () => {
+  it('sets currentMatchId and opens dialog', () => {
     const {
       context,
       matches,
       filteredMatches,
-      currentMatchIndex,
+      currentMatchId,
       teamAScore,
       teamBScore,
       showMatchResultDialog,
@@ -260,7 +260,7 @@ describe('useMatchActions — openMatchResultDialog', () => {
     filteredMatches.value = [m];
     const { openMatchResultDialog } = useMatchActions(context);
     openMatchResultDialog(0);
-    expect(currentMatchIndex.value).toBe(0);
+    expect(currentMatchId.value).toBe('m1');
     expect(teamAScore.value).toBe(0);
     expect(teamBScore.value).toBe(0);
     expect(showMatchResultDialog.value).toBe(true);
@@ -268,7 +268,7 @@ describe('useMatchActions — openMatchResultDialog', () => {
 });
 
 describe('useMatchActions — completeMatch', () => {
-  it('aborts when currentMatchIndex is -1', () => {
+  it('aborts when currentMatchId is null', () => {
     const { context } = makeContext();
     const { completeMatch } = useMatchActions(context);
     completeMatch();
@@ -279,13 +279,13 @@ describe('useMatchActions — completeMatch', () => {
     const {
       context,
       matches,
-      currentMatchIndex,
+      currentMatchId,
       teamAScore,
       teamBScore,
       showMatchResultDialog,
     } = makeContext();
     matches.value = [makeMatchVM('m1', 'in-progress', 1)];
-    currentMatchIndex.value = 0;
+    currentMatchId.value = 'm1';
     teamAScore.value = 5;
     teamBScore.value = 5;
     showMatchResultDialog.value = true;
@@ -293,6 +293,100 @@ describe('useMatchActions — completeMatch', () => {
     completeMatch();
     // Dialog should remain open since tie is rejected
     expect(showMatchResultDialog.value).toBe(true);
+  });
+
+  it('closes dialog and warns when match no longer in-progress', () => {
+    const { context, matches, currentMatchId, showMatchResultDialog } =
+      makeContext();
+    // Match was completed by another admin — status is now 'completed'
+    matches.value = [makeMatchVM('m1', 'completed', 1)];
+    currentMatchId.value = 'm1';
+    showMatchResultDialog.value = true;
+    const reportSpy = vi
+      .spyOn(MatchmakingApp, 'reportMatchScore')
+      .mockReturnValue(undefined);
+    const { completeMatch } = useMatchActions(context);
+    completeMatch();
+    expect(showMatchResultDialog.value).toBe(false);
+    expect(currentMatchId.value).toBe(null);
+    expect(reportSpy).not.toHaveBeenCalled();
+    reportSpy.mockRestore();
+  });
+
+  it('closes dialog and warns when match id is stale (not in matches)', () => {
+    const { context, matches, currentMatchId, showMatchResultDialog } =
+      makeContext();
+    matches.value = [makeMatchVM('m1', 'in-progress', 1)];
+    currentMatchId.value = 'gone';
+    showMatchResultDialog.value = true;
+    const reportSpy = vi
+      .spyOn(MatchmakingApp, 'reportMatchScore')
+      .mockReturnValue(undefined);
+    const { completeMatch } = useMatchActions(context);
+    completeMatch();
+    expect(showMatchResultDialog.value).toBe(false);
+    expect(currentMatchId.value).toBe(null);
+    expect(reportSpy).not.toHaveBeenCalled();
+    reportSpy.mockRestore();
+  });
+
+  it('still targets the correct match after the matches array shifts', () => {
+    const {
+      context,
+      matches,
+      filteredMatches,
+      currentMatchId,
+      teamAScore,
+      teamBScore,
+    } = makeContext();
+    const m1 = makeMatchVM('m1', 'in-progress', 1);
+    const m2 = makeMatchVM('m2', 'in-progress', 2);
+    matches.value = [m1, m2];
+    filteredMatches.value = [m1, m2];
+    const { openMatchResultDialog, completeMatch } = useMatchActions(context);
+    openMatchResultDialog(1); // m2
+    expect(currentMatchId.value).toBe('m2');
+    // Concurrent sync: m1 is removed, array shifts
+    matches.value = [m2];
+    filteredMatches.value = [m2];
+    teamAScore.value = 6;
+    teamBScore.value = 4;
+    const reportSpy = vi
+      .spyOn(MatchmakingApp, 'reportMatchScore')
+      .mockReturnValue({} as never);
+    completeMatch();
+    expect(reportSpy).toHaveBeenCalledWith(
+      'm2',
+      6,
+      4,
+      'smart_position',
+      undefined,
+    );
+    reportSpy.mockRestore();
+  });
+
+  it('warns and closes when reportMatchScore returns undefined', () => {
+    const {
+      context,
+      matches,
+      currentMatchId,
+      teamAScore,
+      teamBScore,
+      showMatchResultDialog,
+    } = makeContext();
+    matches.value = [makeMatchVM('m1', 'in-progress', 1)];
+    currentMatchId.value = 'm1';
+    teamAScore.value = 6;
+    teamBScore.value = 4;
+    showMatchResultDialog.value = true;
+    const reportSpy = vi
+      .spyOn(MatchmakingApp, 'reportMatchScore')
+      .mockReturnValue(undefined);
+    const { completeMatch } = useMatchActions(context);
+    completeMatch();
+    expect(showMatchResultDialog.value).toBe(false);
+    expect(currentMatchId.value).toBe(null);
+    reportSpy.mockRestore();
   });
 });
 
@@ -348,13 +442,17 @@ describe('useMatchActions — editMatch', () => {
 });
 
 describe('useMatchActions — saveMatchEdit', () => {
-  it('notifies when match not found', () => {
-    const { context, currentMatchIndexForActions, matches } = makeContext();
+  it('notifies and closes dialog when match not found', () => {
+    const { context, currentMatchIdForActions, matches, showMatchEditDialog } =
+      makeContext();
     matches.value = [makeMatchVM('m1', 'in-progress', 1)];
-    currentMatchIndexForActions.value = 0;
+    currentMatchIdForActions.value = 'm1';
+    showMatchEditDialog.value = true;
     const { saveMatchEdit } = useMatchActions(context);
     saveMatchEdit();
-    // No actualMatch in MatchmakingApp.state, should notify "not found"
+    // No actualMatch in MatchmakingApp.state, should close dialog and clear id
+    expect(showMatchEditDialog.value).toBe(false);
+    expect(currentMatchIdForActions.value).toBe(null);
   });
 });
 

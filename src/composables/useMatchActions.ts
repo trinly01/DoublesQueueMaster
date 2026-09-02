@@ -59,8 +59,8 @@ export interface UseMatchActionsContext {
   manualSelectionStep: Ref<1 | 2>;
   selectedForSwap: Ref<Player | null>;
   selectedForSwapTeam: Ref<'team1' | 'team2' | null>;
-  currentMatchIndex: Ref<number>;
-  currentMatchIndexForActions: Ref<number>;
+  currentMatchId: Ref<string | null>;
+  currentMatchIdForActions: Ref<string | null>;
   teamAScore: Ref<number>;
   teamBScore: Ref<number>;
   showMatchResultDialog: Ref<boolean>;
@@ -89,8 +89,8 @@ export function useMatchActions(context: UseMatchActionsContext) {
     manualSelectionStep,
     selectedForSwap,
     selectedForSwapTeam,
-    currentMatchIndex,
-    currentMatchIndexForActions,
+    currentMatchId,
+    currentMatchIdForActions,
     teamAScore,
     teamBScore,
     showMatchResultDialog,
@@ -349,29 +349,31 @@ export function useMatchActions(context: UseMatchActionsContext) {
   };
 
   const openMatchResultDialog = (filteredIndex: number) => {
-    // Find the actual match in the global matches array
     const filteredMatch = filteredMatches.value[filteredIndex];
-    const globalIndex = matches.value.findIndex(
-      (match) => match.id === filteredMatch.id,
-    );
-
-    currentMatchIndex.value = globalIndex;
+    if (!filteredMatch) return;
+    currentMatchId.value = filteredMatch.id;
     teamAScore.value = 0;
     teamBScore.value = 0;
     showMatchResultDialog.value = true;
   };
 
+  const closeResultDialog = () => {
+    showMatchResultDialog.value = false;
+    currentMatchId.value = null;
+    teamAScore.value = 0;
+    teamBScore.value = 0;
+  };
+
   const completeMatch = () => {
-    if (currentMatchIndex.value === -1) {
-      console.warn('[completeMatch] currentMatchIndex is -1, aborting');
-      return;
-    }
-    const match = matches.value[currentMatchIndex.value];
-    if (!match) {
-      console.warn(
-        '[completeMatch] match is undefined at index',
-        currentMatchIndex.value,
-      );
+    if (!currentMatchId.value) return;
+    const match = matches.value.find((m) => m.id === currentMatchId.value);
+    if (!match || match.status !== 'in-progress') {
+      notify({
+        type: 'warning',
+        message:
+          'This match was already completed or cancelled by another admin.',
+      });
+      closeResultDialog();
       return;
     }
 
@@ -401,13 +403,21 @@ export function useMatchActions(context: UseMatchActionsContext) {
       queueReturnMethod.value,
     );
 
-    MatchmakingApp.reportMatchScore(
+    const completed = MatchmakingApp.reportMatchScore(
       match.id,
       scoreA,
       scoreB,
       queueReturnMethod.value,
       currentAdminName.value,
     );
+    if (!completed) {
+      notify({
+        type: 'warning',
+        message: 'This match was already completed by another admin.',
+      });
+      closeResultDialog();
+      return;
+    }
 
     if (freedCourt && autoAdvanceMatches.value) {
       autoAdvanceNextMatchForCourt(freedCourt);
@@ -420,10 +430,7 @@ export function useMatchActions(context: UseMatchActionsContext) {
       }
     }
 
-    showMatchResultDialog.value = false;
-    currentMatchIndex.value = -1;
-    teamAScore.value = 0;
-    teamBScore.value = 0;
+    closeResultDialog();
 
     notify({
       type: 'positive',
@@ -432,24 +439,9 @@ export function useMatchActions(context: UseMatchActionsContext) {
   };
 
   const cancelMatch = (filteredIndex: number) => {
-    // Find the actual match in the global matches array
     const filteredMatch = filteredMatches.value[filteredIndex];
-    const globalIndex = matches.value.findIndex(
-      (match) => match.id === filteredMatch.id,
-    );
-
-    const match = matches.value[globalIndex];
-    const actualMatch = MatchmakingApp.state.activeMatches.find(
-      (am) => am.matchId === match.id,
-    );
-
-    if (!actualMatch) {
-      notify({
-        type: 'negative',
-        message: 'Match not found',
-      });
-      return;
-    }
+    if (!filteredMatch) return;
+    const match = filteredMatch;
 
     $q.dialog({
       title: 'Cancel Match',
@@ -463,6 +455,20 @@ export function useMatchActions(context: UseMatchActionsContext) {
       },
       persistent: true,
     }).onOk(() => {
+      // Re-resolve the live match by ID — it may have been completed/cancelled
+      // by another admin while the confirm dialog was open.
+      const liveMatch = MatchmakingApp.state.activeMatches.find(
+        (am) => !am.deletedAt && am.matchId === match.id,
+      );
+      if (!liveMatch) {
+        notify({
+          type: 'warning',
+          message:
+            'This match was already completed or cancelled by another admin.',
+        });
+        return;
+      }
+      const actualMatch = liveMatch;
       const players = match.players;
 
       // Show dialog to choose how to return players
@@ -592,21 +598,17 @@ export function useMatchActions(context: UseMatchActionsContext) {
   };
 
   const editMatch = (filteredIndex: number) => {
-    // Find the actual match in the global matches array
     const filteredMatch = filteredMatches.value[filteredIndex];
-    const globalIndex = matches.value.findIndex(
-      (match) => match.id === filteredMatch.id,
-    );
-
-    currentMatchIndexForActions.value = globalIndex;
+    if (!filteredMatch) return;
+    currentMatchIdForActions.value = filteredMatch.id;
     showMatchEditDialog.value = true;
     manualSelectionStep.value = 1;
 
     // Pre-populate with current players
-    selectedPlayers.value = [...matches.value[globalIndex].players];
+    selectedPlayers.value = [...filteredMatch.players];
 
     // Determine match type based on number of players
-    const currentMatch = matches.value[globalIndex];
+    const currentMatch = filteredMatch;
     const isDoublesMatch = currentMatch.players.length === 4;
 
     // For doubles matches, initialize teams
@@ -644,17 +646,24 @@ export function useMatchActions(context: UseMatchActionsContext) {
   });
 
   const saveMatchEdit = () => {
-    // Store original match before updating
-    const originalMatch = matches.value[currentMatchIndexForActions.value];
-    const actualMatch = MatchmakingApp.state.activeMatches.find(
-      (m) => m.matchId === originalMatch.id,
-    );
+    // Resolve the original match by ID at action time
+    const originalMatch = currentMatchIdForActions.value
+      ? matches.value.find((m) => m.id === currentMatchIdForActions.value)
+      : undefined;
+    const actualMatch = originalMatch
+      ? MatchmakingApp.state.activeMatches.find(
+          (m) => !m.deletedAt && m.matchId === originalMatch.id,
+        )
+      : undefined;
 
-    if (!actualMatch) {
+    if (!originalMatch || !actualMatch) {
       notify({
-        type: 'negative',
-        message: 'Match not found',
+        type: 'warning',
+        message:
+          'This match was already completed or cancelled by another admin.',
       });
+      showMatchEditDialog.value = false;
+      currentMatchIdForActions.value = null;
       return;
     }
 
@@ -853,6 +862,7 @@ export function useMatchActions(context: UseMatchActionsContext) {
 
     // Close dialog and reset
     showMatchEditDialog.value = false;
+    currentMatchIdForActions.value = null;
     selectedPlayers.value = [];
     manualTeam1.value = [];
     manualTeam2.value = [];
