@@ -536,7 +536,12 @@ export function useClubMembers(context: UseClubMembersContext) {
                 moderatorJunctionMap.get(userId) || undefined,
             };
           })
-          .filter((m) => m.id) || [];
+          .filter((m) => m.id)
+          // Deduplicate by user ID — a user may have multiple junction records
+          .reduce((acc: ClubMember[], m) => {
+            if (!acc.some((x) => x.id === m.id)) acc.push(m);
+            return acc;
+          }, []) || [];
     } catch (err) {
       console.warn('Failed to refresh club members:', err);
     }

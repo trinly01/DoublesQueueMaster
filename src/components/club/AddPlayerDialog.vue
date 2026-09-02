@@ -590,6 +590,8 @@ const availableClubMembers = computed(() => {
 
   if (search) {
     list = list.filter((m) => {
+      // Always keep selected members visible, even if they don't match the search
+      if (selectedClubMembers.value.includes(m.id)) return true;
       const searchString =
         `${m.firstName || ''} ${m.username || ''} ${m.email || ''}`.toLowerCase();
       return searchString.includes(search);
