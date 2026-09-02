@@ -1547,10 +1547,8 @@ const teamAScore = ref<number>(0);
 const teamBScore = ref<number>(0);
 
 const canCompleteMatch = computed(() => {
-  const match =
-    currentMatchIndex.value >= 0
-      ? matches.value[currentMatchIndex.value]
-      : null;
+  if (!currentMatchId.value) return false;
+  const match = matches.value.find((m) => m.id === currentMatchId.value);
   if (!match || match.status !== 'in-progress') return false;
   const a = Number(teamAScore.value) || 0;
   const b = Number(teamBScore.value) || 0;
@@ -2530,7 +2528,7 @@ const showMatchResultDialog = ref(false);
 const showMatchEditDialog = ref(false);
 const showReplacePlayerDialog = ref(false);
 const playerToReplaceInEdit = ref<Player | null>(null);
-const currentMatchIndex = ref<number>(-1);
+const currentMatchId = ref<string | null>(null);
 
 // Manual selection states — provided by useManualSelection composable (wired later)
 // These lazy stubs are overwritten after the composable is initialized
@@ -2624,7 +2622,7 @@ const { handleCustomAnnounce: _handleCustomAnnounce } = useAnnouncer({
 });
 handleCustomAnnounce = _handleCustomAnnounce;
 
-const currentMatchIndexForActions = ref<number>(-1);
+const currentMatchIdForActions = ref<string | null>(null);
 
 // Computed properties
 const displayPlayers = computed(() => {
@@ -2881,13 +2879,24 @@ const filteredMatches = computed(() => {
 });
 
 const currentMatch = computed(() => {
-  if (
-    currentMatchIndex.value >= 0 &&
-    currentMatchIndex.value < matches.value.length
-  ) {
-    return matches.value[currentMatchIndex.value];
+  if (!currentMatchId.value) return null;
+  return matches.value.find((m) => m.id === currentMatchId.value) ?? null;
+});
+
+// Auto-close the score dialog if the match disappears (e.g. another admin
+// completed/cancelled it while this dialog was open). Without this, the dialog
+// goes blank with a disabled button and no explanation.
+watch(currentMatch, (m) => {
+  if (showMatchResultDialog.value && currentMatchId.value && !m) {
+    showMatchResultDialog.value = false;
+    currentMatchId.value = null;
+    teamAScore.value = 0;
+    teamBScore.value = 0;
+    notify({
+      type: 'info',
+      message: 'This match was completed or cancelled by another admin.',
+    });
   }
-  return null;
 });
 
 // Edit player computed
@@ -3050,8 +3059,8 @@ const {
   manualSelectionStep,
   selectedForSwap,
   selectedForSwapTeam,
-  currentMatchIndex,
-  currentMatchIndexForActions,
+  currentMatchId,
+  currentMatchIdForActions,
   teamAScore,
   teamBScore,
   showMatchResultDialog,
@@ -3128,10 +3137,10 @@ const savePlayerEdit = () => {
 
   // Update in MatchmakingApp state directly
   const playerState = MatchmakingApp.state.players[originalName];
-  if (!playerState) {
+  if (!playerState || playerState.deletedAt) {
     notify({
       type: 'negative',
-      message: 'Player not found',
+      message: 'Player not found or was removed by another admin',
     });
     return;
   }
