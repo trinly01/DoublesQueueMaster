@@ -36,7 +36,8 @@
                     <div class="lb-row">
                       <span class="lb-label">My Matches</span>
                       <span class="lb-desc"
-                        >top 30 you've played with (last 30 days)</span
+                        >top 30 you've played with (last 30 days) — Pro
+                        feature</span
                       >
                     </div>
                     <div class="lb-row">
@@ -147,6 +148,12 @@
         class="leaderboard-scroll q-px-md q-pt-xs q-pb-md"
         style="max-height: 78vh; overflow-y: auto"
       >
+        <PayBanner
+          v-if="leaderboardTab === 'matches' && isPaymentExpired"
+          message="My Matches leaderboard is a Pro feature."
+          :loading="paymentLoading"
+          @pay="emit('pay')"
+        />
         <div v-if="activeLoading" class="flex flex-center q-py-md">
           <q-spinner color="accent" size="32px" />
         </div>
@@ -156,7 +163,13 @@
             :key="player.username"
             :class="(player.winRate || 0) >= 50 ? 'bg-green-1' : 'bg-red-1'"
           >
-            <q-item-section avatar>
+            <q-item-section
+              avatar
+              :class="{
+                'stats-blur':
+                  leaderboardTab === 'matches' && isPaymentExpired && idx < 5,
+              }"
+            >
               <div class="row items-center no-wrap" style="gap: 8px">
                 <div
                   class="text-h6 text-weight-bold text-right"
@@ -172,16 +185,36 @@
                   :color="getRatingColor(player.rating || 1450)"
                   :image-url="player.avatar"
                   size="32px"
+                  :masked="
+                    leaderboardTab === 'matches' && isPaymentExpired && idx < 5
+                  "
                   :index="idx"
                 />
               </div>
             </q-item-section>
-            <q-item-section class="col">
+            <q-item-section
+              class="col"
+              :class="{
+                'stats-blur':
+                  leaderboardTab === 'matches' && isPaymentExpired && idx < 5,
+              }"
+            >
               <q-item-label class="text-weight-medium ellipsis">
-                {{ player.firstName || player.username }}
+                {{
+                  maskText(
+                    player.firstName || player.username,
+                    leaderboardTab === 'matches' && isPaymentExpired && idx < 5,
+                  )
+                }}
               </q-item-label>
               <q-item-label caption class="ellipsis">
-                @{{ player.username }}
+                {{
+                  '@' +
+                  maskText(
+                    player.username,
+                    leaderboardTab === 'matches' && isPaymentExpired && idx < 5,
+                  )
+                }}
               </q-item-label>
             </q-item-section>
             <q-item-section side class="text-right" style="min-width: 0">
@@ -220,12 +253,56 @@
                 </q-chip>
               </div>
               <div class="text-caption">
-                <span class="text-grey-10">{{ player.games }}G</span>
-                <span class="text-green text-weight-bold q-ml-xs"
-                  >{{ player.wins || 0 }}W</span
+                <span
+                  :class="{
+                    'stats-blur':
+                      leaderboardTab === 'matches' &&
+                      isPaymentExpired &&
+                      idx < 3,
+                  }"
+                  class="text-grey-10"
+                  >{{
+                    maskNum(
+                      player.games,
+                      leaderboardTab === 'matches' &&
+                        isPaymentExpired &&
+                        idx < 3,
+                    )
+                  }}G</span
                 >
-                <span class="text-red-10 q-ml-xs"
-                  >{{ player.losses || 0 }}L</span
+                <span
+                  :class="{
+                    'stats-blur':
+                      leaderboardTab === 'matches' &&
+                      isPaymentExpired &&
+                      idx < 3,
+                  }"
+                  class="text-green text-weight-bold q-ml-xs"
+                  >{{
+                    maskNum(
+                      player.wins || 0,
+                      leaderboardTab === 'matches' &&
+                        isPaymentExpired &&
+                        idx < 3,
+                    )
+                  }}W</span
+                >
+                <span
+                  :class="{
+                    'stats-blur':
+                      leaderboardTab === 'matches' &&
+                      isPaymentExpired &&
+                      idx < 3,
+                  }"
+                  class="text-red-10 q-ml-xs"
+                  >{{
+                    maskNum(
+                      player.losses || 0,
+                      leaderboardTab === 'matches' &&
+                        isPaymentExpired &&
+                        idx < 3,
+                    )
+                  }}L</span
                 >
               </div>
             </q-item-section>
@@ -242,7 +319,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import PlayerAvatar from '../PlayerAvatar.vue';
+import PayBanner from '../PayBanner.vue';
 import { getRatingColor } from '../../utils/playerHelpers';
+import { useProFeatures } from '../../composables/useProFeatures';
 
 defineOptions({ name: 'LeaderboardDialog' });
 
@@ -296,11 +375,17 @@ const props = defineProps<{
     gamesToReliable?: number;
   }>;
   myMatchesLoading?: boolean;
+  isPaymentExpired?: boolean;
+  paymentLoading?: boolean;
+  playerUsername?: string;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   'update:modelValue': [value: boolean];
+  pay: [];
 }>();
+
+const { maskNum, maskText } = useProFeatures();
 
 const leaderboardTab = ref<'club' | 'matches' | 'global'>('club');
 
