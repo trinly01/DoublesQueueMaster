@@ -114,6 +114,10 @@
         :global-loading="globalLeaderboardLoading"
         :my-matches-leaderboard="myMatchesLeaderboard"
         :my-matches-loading="myMatchesLoading"
+        :is-payment-expired="isPaymentExpired"
+        :payment-loading="paymentLoading"
+        :player-username="PlayerProfile.state.username"
+        @pay="callPayment({ playerId: PlayerProfile.state.username })"
       />
 
       <!-- Club QR Code Dialog -->
@@ -1324,6 +1328,7 @@ import { useAuth } from 'src/composables/useAuth';
 import { useCloudSync } from '../composables/useCloudSync';
 import { useClubData } from '../composables/useClubData';
 import { usePayment } from '../composables/usePayment';
+import { useProFeatures } from '../composables/useProFeatures';
 import { useDeviceSettings } from 'src/composables/useDeviceSettings';
 
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -1363,6 +1368,7 @@ import {
   rankClubPlayers,
 } from 'src/utils/ratingReplay';
 import { resolveAvatarUrl } from 'src/utils/playerHelpers';
+import { PlayerProfile } from 'src/services/playerProfile';
 import type { DirectusCompletedMatch } from 'src/services/playerProfile';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { usePlayerActions } from '../composables/usePlayerActions';
@@ -1606,6 +1612,7 @@ const route = useRoute();
 const router = useRouter();
 const isOpenPlay = computed(() => route.path === '/openplay');
 const { paymentLoading, fetchPaymentSettings, callPayment } = usePayment();
+const { isPaymentExpired } = useProFeatures();
 
 // Current user and club membership
 const currentUserId = ref<string>('');

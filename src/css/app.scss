@@ -7,3 +7,11 @@
 .text-accent-9 {
   color: #4a2d6b !important;
 }
+
+// Pro feature blur — used by PlayerPage, LeaderboardDialog, and MatchResult
+.stats-blur {
+  filter: blur(4px);
+  opacity: 0.6;
+  user-select: none;
+  pointer-events: none;
+}

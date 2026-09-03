@@ -495,10 +495,4 @@ onUnmounted(() => stopElapsedTimer());
     }
   }
 }
-
-.stats-blur {
-  filter: blur(4px);
-  opacity: 0.6;
-  user-select: none;
-}
 </style>

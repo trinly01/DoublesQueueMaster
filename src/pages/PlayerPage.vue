@@ -265,6 +265,70 @@
         >
           <q-card-section class="row items-center q-pb-none">
             <div class="text-h6">Player Stats</div>
+            <q-btn
+              v-if="['partners', 'rivals', 'clutch'].includes(activeTab)"
+              icon="info"
+              flat
+              round
+              dense
+              size="xs"
+              class="q-ml-xs"
+              text-color="grey-7"
+              style="margin-top: -12px"
+            >
+              <q-popup-proxy>
+                <q-card class="lb-tooltip" flat>
+                  <q-card-section class="q-pb-md">
+                    <div class="lb-tooltip-title row items-center">
+                      <q-icon name="info" size="18px" class="q-mr-xs" />
+                      <span v-if="activeTab === 'partners'">Partner stats</span>
+                      <span v-else-if="activeTab === 'rivals'"
+                        >Rival stats</span
+                      >
+                      <span v-else>Clutch stats</span>
+                    </div>
+                  </q-card-section>
+                  <q-card-section class="q-pt-none">
+                    <div class="lb-tooltip-body">
+                      <div class="lb-section">
+                        <div class="lb-row">
+                          <span class="lb-label">Partners</span>
+                          <span class="lb-desc"
+                            >teammates you win with most</span
+                          >
+                        </div>
+                        <div class="lb-row">
+                          <span class="lb-label">Rivals</span>
+                          <span class="lb-desc"
+                            >opponents who beat you most</span
+                          >
+                        </div>
+                        <div class="lb-row">
+                          <span class="lb-label">Clutch</span>
+                          <span class="lb-desc"
+                            >close games decided by 2 pts or fewer</span
+                          >
+                        </div>
+                      </div>
+                      <div class="lb-divider"></div>
+                      <p class="lb-line">Last 30 days of matches.</p>
+                      <p v-if="activeTab === 'clutch'" class="lb-line">
+                        Standard, Competitive, Pro Pick only.
+                      </p>
+                      <p class="lb-line lb-order">
+                        <span v-if="activeTab === 'partners'"
+                          >Order: win rate → games played</span
+                        >
+                        <span v-else-if="activeTab === 'rivals'"
+                          >Order: loss rate → games played</span
+                        >
+                        <span v-else>Top 10 closest games shown</span>
+                      </p>
+                    </div>
+                  </q-card-section>
+                </q-card>
+              </q-popup-proxy>
+            </q-btn>
             <q-space />
             <q-btn icon="close" flat round dense v-close-popup>
               <q-tooltip
@@ -465,7 +529,7 @@
               >
                 <q-item-section
                   avatar
-                  :class="{ 'stats-blur': isPaymentExpired }"
+                  :class="{ 'stats-blur': isPaymentExpired && idx < 5 }"
                 >
                   <PlayerAvatar
                     :name="row.name"
@@ -474,24 +538,20 @@
                     :image-url="row.avatar"
                     :dupr-id="row.duprId"
                     size="32px"
-                    :masked="isPaymentExpired"
+                    :masked="isPaymentExpired && idx < 5"
                     :index="idx"
                   />
                 </q-item-section>
                 <q-item-section
                   class="col"
-                  :class="{ 'stats-blur': isPaymentExpired }"
+                  :class="{ 'stats-blur': isPaymentExpired && idx < 5 }"
                 >
                   <q-item-label class="text-weight-medium ellipsis">
-                    {{
-                      isPaymentExpired ? row.name.replace(/./g, '*') : row.name
-                    }}
+                    {{ maskText(row.name, isPaymentExpired && idx < 5) }}
                   </q-item-label>
                   <q-item-label caption class="ellipsis">
                     {{
-                      isPaymentExpired
-                        ? '@' + row.username.replace(/./g, '*')
-                        : '@' + row.username
+                      '@' + maskText(row.username, isPaymentExpired && idx < 5)
                     }}
                   </q-item-label>
                 </q-item-section>
@@ -506,11 +566,27 @@
                     {{ row.winRate.toFixed(0) }}%
                   </q-chip>
                   <div class="text-caption">
-                    <span class="text-grey-10">{{ row.games }}G</span>
-                    <span class="text-green text-weight-bold q-ml-xs"
-                      >{{ row.wins }}W</span
+                    <span
+                      :class="{ 'stats-blur': isPaymentExpired && idx < 3 }"
+                      class="text-grey-10"
+                      >{{
+                        maskNum(row.games, isPaymentExpired && idx < 3)
+                      }}G</span
                     >
-                    <span class="text-red-10 q-ml-xs">{{ row.losses }}L</span>
+                    <span
+                      :class="{ 'stats-blur': isPaymentExpired && idx < 3 }"
+                      class="text-green text-weight-bold q-ml-xs"
+                      >{{
+                        maskNum(row.wins, isPaymentExpired && idx < 3)
+                      }}W</span
+                    >
+                    <span
+                      :class="{ 'stats-blur': isPaymentExpired && idx < 3 }"
+                      class="text-red-10 q-ml-xs"
+                      >{{
+                        maskNum(row.losses, isPaymentExpired && idx < 3)
+                      }}L</span
+                    >
                     <span
                       class="q-ml-xs"
                       :class="
@@ -554,7 +630,7 @@
               >
                 <q-item-section
                   avatar
-                  :class="{ 'stats-blur': isPaymentExpired }"
+                  :class="{ 'stats-blur': isPaymentExpired && idx < 5 }"
                 >
                   <PlayerAvatar
                     :name="row.name"
@@ -563,24 +639,20 @@
                     :image-url="row.avatar"
                     :dupr-id="row.duprId"
                     size="32px"
-                    :masked="isPaymentExpired"
+                    :masked="isPaymentExpired && idx < 5"
                     :index="idx"
                   />
                 </q-item-section>
                 <q-item-section
                   class="col"
-                  :class="{ 'stats-blur': isPaymentExpired }"
+                  :class="{ 'stats-blur': isPaymentExpired && idx < 5 }"
                 >
                   <q-item-label class="text-weight-medium ellipsis">
-                    {{
-                      isPaymentExpired ? row.name.replace(/./g, '*') : row.name
-                    }}
+                    {{ maskText(row.name, isPaymentExpired && idx < 5) }}
                   </q-item-label>
                   <q-item-label caption class="ellipsis">
                     {{
-                      isPaymentExpired
-                        ? '@' + row.username.replace(/./g, '*')
-                        : '@' + row.username
+                      '@' + maskText(row.username, isPaymentExpired && idx < 5)
                     }}
                   </q-item-label>
                 </q-item-section>
@@ -595,11 +667,27 @@
                     {{ row.winRate.toFixed(0) }}%
                   </q-chip>
                   <div class="text-caption">
-                    <span class="text-grey-10">{{ row.games }}G</span>
-                    <span class="text-green text-weight-bold q-ml-xs"
-                      >{{ row.wins }}W</span
+                    <span
+                      :class="{ 'stats-blur': isPaymentExpired && idx < 3 }"
+                      class="text-grey-10"
+                      >{{
+                        maskNum(row.games, isPaymentExpired && idx < 3)
+                      }}G</span
                     >
-                    <span class="text-red-10 q-ml-xs">{{ row.losses }}L</span>
+                    <span
+                      :class="{ 'stats-blur': isPaymentExpired && idx < 3 }"
+                      class="text-green text-weight-bold q-ml-xs"
+                      >{{
+                        maskNum(row.wins, isPaymentExpired && idx < 3)
+                      }}W</span
+                    >
+                    <span
+                      :class="{ 'stats-blur': isPaymentExpired && idx < 3 }"
+                      class="text-red-10 q-ml-xs"
+                      >{{
+                        maskNum(row.losses, isPaymentExpired && idx < 3)
+                      }}L</span
+                    >
                     <span
                       class="q-ml-xs"
                       :class="
@@ -675,7 +763,7 @@
               </div>
               <q-list separator v-if="clutchStats.games.length">
                 <q-item
-                  v-for="g in clutchStats.games.slice(0, 10)"
+                  v-for="(g, idx) in clutchStats.games.slice(0, 10)"
                   :key="g.match.match_key"
                   :class="['q-px-sm', getMatchRowClass(g.match)]"
                 >
@@ -688,9 +776,9 @@
                       :winProbability="getMatchWinProbability(g.match)"
                       :completedAt="g.match.completed_at"
                       :startedAt="g.match.started_at"
-                      :blurDate="isPaymentExpired"
+                      :blurDate="isPaymentExpired && idx < 5"
                       :blurExceptUsername="
-                        isPaymentExpired ? username : undefined
+                        isPaymentExpired && idx < 5 ? username : undefined
                       "
                       :meta="g.match.meta"
                     />
@@ -740,7 +828,8 @@
                         <div class="lb-row">
                           <span class="lb-label">My Matches</span>
                           <span class="lb-desc"
-                            >top 30 you've played with (last 30 days)</span
+                            >top 30 you've played with (last 30 days) — Pro
+                            feature</span
                           >
                         </div>
                       </div>
@@ -867,6 +956,12 @@
             class="leaderboard-scroll q-px-md q-pt-xs q-pb-md"
             style="max-height: 78vh; overflow-y: auto; overflow-x: hidden"
           >
+            <PayBanner
+              v-if="leaderboardTab === 'matches' && isPaymentExpired"
+              message="My Matches leaderboard is a Pro feature."
+              :loading="paymentLoading"
+              @pay="callPayment({ playerId: username })"
+            />
             <div
               v-if="leaderboardLoading && !leaderboardData.length"
               class="flex flex-center q-py-md"
@@ -885,7 +980,15 @@
                     : ''
                 "
               >
-                <q-item-section avatar>
+                <q-item-section
+                  avatar
+                  :class="{
+                    'stats-blur':
+                      leaderboardTab === 'matches' &&
+                      isPaymentExpired &&
+                      idx < 5,
+                  }"
+                >
                   <div class="row items-center no-wrap" style="gap: 8px">
                     <div
                       class="text-h6 text-weight-bold text-grey-5 text-right"
@@ -899,17 +1002,45 @@
                       :color="getRatingColor(player.rating || 1450)"
                       :image-url="player.avatar"
                       size="32px"
+                      :masked="
+                        leaderboardTab === 'matches' &&
+                        isPaymentExpired &&
+                        idx < 5
+                      "
                       :index="idx"
                     />
                   </div>
                 </q-item-section>
-                <q-item-section class="col">
+                <q-item-section
+                  class="col"
+                  :class="{
+                    'stats-blur':
+                      leaderboardTab === 'matches' &&
+                      isPaymentExpired &&
+                      idx < 5,
+                  }"
+                >
                   <q-item-label class="text-weight-medium ellipsis">
-                    {{ player.firstName || player.username }}
+                    {{
+                      maskText(
+                        player.firstName || player.username,
+                        leaderboardTab === 'matches' &&
+                          isPaymentExpired &&
+                          idx < 5,
+                      )
+                    }}
                   </q-item-label>
-                  <q-item-label caption class="ellipsis"
-                    >@{{ player.username }}</q-item-label
-                  >
+                  <q-item-label caption class="ellipsis">
+                    {{
+                      '@' +
+                      maskText(
+                        player.username,
+                        leaderboardTab === 'matches' &&
+                          isPaymentExpired &&
+                          idx < 5,
+                      )
+                    }}
+                  </q-item-label>
                 </q-item-section>
                 <q-item-section side class="text-right">
                   <q-chip
@@ -930,12 +1061,56 @@
                     </q-tooltip>
                   </q-chip>
                   <div v-if="player.games !== undefined" class="text-caption">
-                    <span class="text-grey-10">{{ player.games }}G</span>
-                    <span class="text-green text-weight-bold q-ml-xs"
-                      >{{ player.wins || 0 }}W</span
+                    <span
+                      :class="{
+                        'stats-blur':
+                          leaderboardTab === 'matches' &&
+                          isPaymentExpired &&
+                          idx < 3,
+                      }"
+                      class="text-grey-10"
+                      >{{
+                        maskNum(
+                          player.games,
+                          leaderboardTab === 'matches' &&
+                            isPaymentExpired &&
+                            idx < 3,
+                        )
+                      }}G</span
                     >
-                    <span class="text-red-10 q-ml-xs"
-                      >{{ player.losses || 0 }}L</span
+                    <span
+                      :class="{
+                        'stats-blur':
+                          leaderboardTab === 'matches' &&
+                          isPaymentExpired &&
+                          idx < 3,
+                      }"
+                      class="text-green text-weight-bold q-ml-xs"
+                      >{{
+                        maskNum(
+                          player.wins || 0,
+                          leaderboardTab === 'matches' &&
+                            isPaymentExpired &&
+                            idx < 3,
+                        )
+                      }}W</span
+                    >
+                    <span
+                      :class="{
+                        'stats-blur':
+                          leaderboardTab === 'matches' &&
+                          isPaymentExpired &&
+                          idx < 3,
+                      }"
+                      class="text-red-10 q-ml-xs"
+                      >{{
+                        maskNum(
+                          player.losses || 0,
+                          leaderboardTab === 'matches' &&
+                            isPaymentExpired &&
+                            idx < 3,
+                        )
+                      }}L</span
                     >
                   </div>
                 </q-item-section>
@@ -1114,6 +1289,7 @@ import { computeWinProbability } from 'src/services/matchmaking';
 import type { Player } from 'src/services/matchmaking';
 import { useAuth } from 'src/composables/useAuth';
 import { usePayment } from 'src/composables/usePayment';
+import { useProFeatures } from 'src/composables/useProFeatures';
 import MatchResult from 'src/components/MatchResult.vue';
 import PlayerAvatar from 'src/components/PlayerAvatar.vue';
 import PayBanner from 'src/components/PayBanner.vue';
@@ -1146,13 +1322,7 @@ const ratingColor = computed(() => getRatingColor(playerRating.value));
 const username = computed(() => PlayerProfile.state.username);
 const currentUserId = computed(() => PlayerProfile.state.id);
 const isSsoUser = computed(() => PlayerProfile.state.provider === 'google');
-const isPaymentExpired = computed(() => {
-  const lastPayment = PlayerProfile.state.lastPayment;
-  if (!lastPayment) return false;
-  const lastDate = new Date(lastPayment).getTime();
-  const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-  return lastDate < oneMonthAgo;
-});
+const { isPaymentExpired, maskNum, maskText } = useProFeatures();
 
 const getRatingGradient = (color: string): string => {
   const gradients: Record<string, string> = {
@@ -1433,14 +1603,27 @@ const sortedMatches = computed(() => {
   return sorted;
 });
 
-// Only competitive modes (Standard, Competitive, Pro Pick) — excludes Casual
-// and Social, matching the leaderboard filter.
-const competitiveMatches = computed(() =>
-  sortedMatches.value.filter((m) => {
+// All matches from the last 30 days (all modes — Casual, Social, Standard,
+// Competitive, Pro Pick). Used by partner and rival stats so you see everyone
+// you've played with regardless of mode.
+const recentMatches = computed(() => {
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  return sortedMatches.value.filter(
+    (m) => new Date(m.completed_at).getTime() >= thirtyDaysAgo,
+  );
+});
+
+// Competitive modes only (Standard, Competitive, Pro Pick) — excludes Casual
+// and Social, matching the leaderboard filter. Also limited to the last 30
+// days. Used by clutch stats.
+const competitiveMatches = computed(() => {
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  return sortedMatches.value.filter((m) => {
     const mode = m.meta?.matchmakingMode;
-    return mode !== 'fair_balance' && mode !== 'variety_first';
-  }),
-);
+    if (mode === 'fair_balance' || mode === 'variety_first') return false;
+    return new Date(m.completed_at).getTime() >= thirtyDaysAgo;
+  });
+});
 
 const getMatchRowClass = (match: DirectusCompletedMatch): string => {
   const username = PlayerProfile.state.username;
@@ -1533,7 +1716,7 @@ const partnerStats = computed<SynergyStat[]>(() => {
     }
   >();
 
-  for (const match of competitiveMatches.value) {
+  for (const match of recentMatches.value) {
     const inTeamA = match.team_a?.some((p) => p.username === username);
     const inTeamB = match.team_b?.some((p) => p.username === username);
 
@@ -1617,7 +1800,7 @@ const nemesisStats = computed<SynergyStat[]>(() => {
     }
   >();
 
-  for (const match of competitiveMatches.value) {
+  for (const match of recentMatches.value) {
     const inTeamA = match.team_a?.some((p) => p.username === username);
     const inTeamB = match.team_b?.some((p) => p.username === username);
 
@@ -2365,13 +2548,6 @@ const onLogout = () => {
   background: linear-gradient(135deg, #1e88e5 0%, #42a5f5 100%);
   box-shadow: 0 2px 8px rgba(30, 136, 229, 0.3);
   min-width: 180px;
-}
-
-.stats-blur {
-  filter: blur(4px);
-  opacity: 0.6;
-  user-select: none;
-  pointer-events: none;
 }
 
 .ellipsis {
