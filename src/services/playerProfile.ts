@@ -1,7 +1,7 @@
 import { reactive } from 'vue';
 import { LocalStorage } from 'quasar';
 import { likhaClient } from 'src/services/likhaClient';
-import { readMe, readItems } from '@likha-erp/likha-sdk';
+import { readMe, readItems, readSingleton } from '@likha-erp/likha-sdk';
 import type { MatchMeta } from '../types/matchMeta';
 export interface RatingEvent {
   day: string;
@@ -69,6 +69,7 @@ export interface UserProfile {
   lastModified?: number;
   events?: RatingEvent[];
   completedMatches?: DirectusCompletedMatch[];
+  ratingResetAt?: string | null;
 }
 
 const STORAGE_KEY = 'player_profile';
@@ -94,6 +95,7 @@ export class PlayerProfileService {
       lastModified: saved?.lastModified || 0,
       events: saved?.events || [],
       completedMatches: saved?.completedMatches || [],
+      ratingResetAt: saved?.ratingResetAt ?? null,
     });
   }
 
@@ -185,6 +187,18 @@ export class PlayerProfileService {
             : [];
         } catch {
           this.state.events = [];
+        }
+
+        try {
+          const reset = await likhaClient.request(
+            readSingleton('rating_reset', {
+              fields: ['reset_at'],
+            }),
+          );
+          this.state.ratingResetAt =
+            (reset as { reset_at?: string })?.reset_at ?? null;
+        } catch {
+          this.state.ratingResetAt = null;
         }
 
         try {

@@ -436,31 +436,42 @@
               v-if="sortedEvents.length"
             ></div>
             <q-list separator v-if="sortedEvents.length">
-              <q-item
-                v-for="event in sortedEvents"
-                :key="event.day"
-                class="q-px-sm"
-              >
-                <q-item-section>
-                  <q-item-label caption class="text-grey">{{
-                    formatDateOnly(event.day)
-                  }}</q-item-label>
-                  <q-item-label class="text-weight-medium">
-                    <span class="text-positive">{{ event.wins }}W</span>
-                    <span class="text-grey"> / </span>
-                    <span class="text-negative">{{ event.losses }}L</span>
-                  </q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-chip
-                    class="history-rating text-weight-bold"
-                    text-color="white"
-                    size="md"
+              <template v-for="(event, idx) in sortedEvents" :key="event.day">
+                <div
+                  v-if="isSeasonReset(idx)"
+                  class="season-reset-divider row items-center q-my-sm q-px-sm"
+                >
+                  <q-separator class="col" />
+                  <span
+                    class="text-caption text-weight-medium text-teal q-mx-sm"
                   >
-                    {{ event.rating }}
-                  </q-chip>
-                </q-item-section>
-              </q-item>
+                    <q-icon name="restart_alt" size="14px" class="q-mr-xs" />
+                    Season reset
+                  </span>
+                  <q-separator class="col" />
+                </div>
+                <q-item class="q-px-sm">
+                  <q-item-section>
+                    <q-item-label caption class="text-grey">{{
+                      formatDateOnly(event.day)
+                    }}</q-item-label>
+                    <q-item-label class="text-weight-medium">
+                      <span class="text-positive">{{ event.wins }}W</span>
+                      <span class="text-grey"> / </span>
+                      <span class="text-negative">{{ event.losses }}L</span>
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-chip
+                      class="history-rating text-weight-bold"
+                      text-color="white"
+                      size="md"
+                    >
+                      {{ event.rating }}
+                    </q-chip>
+                  </q-item-section>
+                </q-item>
+              </template>
             </q-list>
             <div v-else class="text-center text-grey q-py-md">
               No rating history available.
@@ -482,24 +493,38 @@
               v-if="matchChartData.length"
             ></div>
             <q-list separator v-if="sortedMatches.length">
-              <q-item
-                v-for="match in sortedMatches"
+              <template
+                v-for="(match, idx) in sortedMatches"
                 :key="match.match_key"
-                :class="['q-px-sm', getMatchRowClass(match)]"
               >
-                <q-item-section>
-                  <MatchResult
-                    :teamA="match.team_a"
-                    :teamB="match.team_b"
-                    :teamAScore="match.team_a_score"
-                    :teamBScore="match.team_b_score"
-                    :winProbability="getMatchWinProbability(match)"
-                    :completedAt="match.completed_at"
-                    :startedAt="match.started_at"
-                    :meta="match.meta"
-                  />
-                </q-item-section>
-              </q-item>
+                <div
+                  v-if="isMatchAtSeasonReset(idx)"
+                  class="season-reset-divider row items-center q-my-sm q-px-sm"
+                >
+                  <q-separator class="col" />
+                  <span
+                    class="text-caption text-weight-medium text-teal q-mx-sm"
+                  >
+                    <q-icon name="restart_alt" size="14px" class="q-mr-xs" />
+                    Season reset
+                  </span>
+                  <q-separator class="col" />
+                </div>
+                <q-item :class="['q-px-sm', getMatchRowClass(match)]">
+                  <q-item-section>
+                    <MatchResult
+                      :teamA="match.team_a"
+                      :teamB="match.team_b"
+                      :teamAScore="match.team_a_score"
+                      :teamBScore="match.team_b_score"
+                      :winProbability="getMatchWinProbability(match)"
+                      :completedAt="match.completed_at"
+                      :startedAt="match.started_at"
+                      :meta="match.meta"
+                    />
+                  </q-item-section>
+                </q-item>
+              </template>
             </q-list>
             <div v-else class="text-center text-grey q-py-md">
               No completed matches available.
@@ -1591,6 +1616,65 @@ const sortedEvents = computed<RatingEvent[]>(() => {
   });
 });
 
+const SEED_RATING = 1450;
+const RATING_K = 20; // approx. rating change per game
+
+/**
+ * Detect seasonal reset between two consecutive daily events.
+ * Events are sorted newest-first, so idx-1 is the NEWER (post-reset) event.
+ *
+ * Primary: server-side reset_at timestamp from the rating_reset singleton.
+ *   Shows divider when older.day < reset_at <= newer.day.
+ *   This catches ALL players (including those near 1450).
+ *
+ * Fallback (R11 heuristic): if no server reset date is available,
+ *   toward = |older - 1450| - |newer - 1450|  (movement toward seed)
+ *   resid  = (newer.rating - older.rating) - (newer.wins - newer.losses) * K
+ *   reset  ⇔  toward >= 50  &&  |resid| >= 60
+ *   Measured: 16/30 resets caught, 3 false positives in 1,348 normal pairs.
+ */
+const isSeasonReset = (idx: number): boolean => {
+  if (idx <= 0 || idx >= sortedEvents.value.length) return false;
+  const newer = sortedEvents.value[idx - 1];
+  const older = sortedEvents.value[idx];
+
+  // Primary: server-side reset date
+  const resetAt = PlayerProfile.state.ratingResetAt;
+  if (resetAt) {
+    const resetDate = new Date(resetAt).getTime();
+    const olderDay = new Date(older.day).getTime();
+    const newerDay = new Date(newer.day).getTime();
+    if (olderDay < resetDate && resetDate <= newerDay) return true;
+  }
+
+  // Fallback: R11 heuristic
+  const delta = newer.rating - older.rating;
+  const toward =
+    Math.abs(older.rating - SEED_RATING) - Math.abs(newer.rating - SEED_RATING);
+  const resid = delta - (newer.wins - newer.losses) * RATING_K;
+  return toward >= 50 && Math.abs(resid) >= 60;
+};
+
+/**
+ * Detect seasonal reset boundary in the matches list.
+ * Matches are sorted newest-first by completed_at.
+ * Shows the divider before the first PRE-reset match — i.e. between
+ * the last post-reset match (above) and the first pre-reset match (below).
+ */
+const isMatchAtSeasonReset = (idx: number): boolean => {
+  const resetAt = PlayerProfile.state.ratingResetAt;
+  if (!resetAt) return false;
+  const resetDate = new Date(resetAt).getTime();
+  const match = sortedMatches.value[idx];
+  const matchTime = new Date(match.completed_at).getTime();
+  // This match must be BEFORE the reset
+  if (matchTime >= resetDate) return false;
+  // The next newer match (idx-1) must be AT or AFTER the reset
+  if (idx === 0) return false;
+  const newerMatch = sortedMatches.value[idx - 1];
+  return new Date(newerMatch.completed_at).getTime() >= resetDate;
+};
+
 const sortedMatches = computed(() => {
   const matches = PlayerProfile.state.completedMatches || [];
   console.log('[PlayerPage] raw completedMatches from state:', matches);
@@ -2051,6 +2135,22 @@ const initChart = () => {
         lineStyle: { width: 3 },
         emphasis: { focus: 'series' },
         data: ratings,
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          label: {
+            formatter: 'Seed (1450)',
+            position: 'insideStartTop',
+            fontSize: 10,
+            color: '#aaa',
+          },
+          lineStyle: {
+            type: 'dashed',
+            color: '#ccc',
+            width: 1,
+          },
+          data: [{ yAxis: 1450 }],
+        },
       },
     ],
   });
@@ -2507,6 +2607,13 @@ const onLogout = () => {
   width: 100%;
   height: 280px;
   margin-bottom: 16px;
+}
+.season-reset-divider {
+  user-select: none;
+}
+.season-reset-divider .q-separator {
+  background: #009688 !important;
+  opacity: 0.4;
 }
 .history-rating {
   background: linear-gradient(135deg, #764ba2 0%, #9f7aea 100%) !important;
