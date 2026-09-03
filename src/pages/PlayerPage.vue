@@ -783,9 +783,6 @@
                 </div>
               </div>
 
-              <div class="text-subtitle2 text-weight-medium q-mb-sm">
-                Recent Clutch Games
-              </div>
               <q-list separator v-if="clutchStats.games.length">
                 <q-item
                   v-for="(g, idx) in clutchStats.games.slice(0, 10)"
