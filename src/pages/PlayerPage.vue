@@ -266,7 +266,6 @@
           <q-card-section class="row items-center q-pb-none">
             <div class="text-h6">Player Stats</div>
             <q-btn
-              v-if="['partners', 'rivals', 'clutch'].includes(activeTab)"
               icon="info"
               flat
               round
@@ -281,7 +280,13 @@
                   <q-card-section class="q-pb-md">
                     <div class="lb-tooltip-title row items-center">
                       <q-icon name="info" size="18px" class="q-mr-xs" />
-                      <span v-if="activeTab === 'partners'">Partner stats</span>
+                      <span v-if="activeTab === 'history'">Rating history</span>
+                      <span v-else-if="activeTab === 'matches'"
+                        >Match history</span
+                      >
+                      <span v-else-if="activeTab === 'partners'"
+                        >Partner stats</span
+                      >
                       <span v-else-if="activeTab === 'rivals'"
                         >Rival stats</span
                       >
@@ -290,33 +295,80 @@
                   </q-card-section>
                   <q-card-section class="q-pt-none">
                     <div class="lb-tooltip-body">
-                      <div class="lb-section">
+                      <div v-if="activeTab === 'history'" class="lb-section">
                         <div class="lb-row">
-                          <span class="lb-label">Partners</span>
+                          <span class="lb-label">Daily events</span>
                           <span class="lb-desc"
-                            >teammates you win with most</span
+                            >wins, losses, and end-of-day rating (last 10 active
+                            days)</span
                           >
                         </div>
                         <div class="lb-row">
-                          <span class="lb-label">Rivals</span>
+                          <span class="lb-label">Seed (1450)</span>
                           <span class="lb-desc"
-                            >opponents who beat you most</span
+                            >dashed line — everyone starts here each
+                            season</span
                           >
                         </div>
                         <div class="lb-row">
-                          <span class="lb-label">Clutch</span>
+                          <span class="lb-label">Season reset</span>
                           <span class="lb-desc"
-                            >close games decided by 2 pts or fewer</span
+                            >divider marks when all ratings were reset to
+                            1450</span
                           >
                         </div>
                       </div>
+                      <div
+                        v-else-if="activeTab === 'matches'"
+                        class="lb-section"
+                      >
+                        <p class="lb-line">
+                          All completed matches, newest first.
+                        </p>
+                        <div class="lb-row">
+                          <span class="lb-label">Season reset</span>
+                          <span class="lb-desc"
+                            >divider marks when all ratings were reset to
+                            1450</span
+                          >
+                        </div>
+                      </div>
+                      <div
+                        v-else-if="activeTab === 'partners'"
+                        class="lb-section"
+                      >
+                        <p class="lb-line">Teammates you win with most.</p>
+                      </div>
+                      <div
+                        v-else-if="activeTab === 'rivals'"
+                        class="lb-section"
+                      >
+                        <p class="lb-line">Opponents who beat you most.</p>
+                      </div>
+                      <div v-else class="lb-section">
+                        <p class="lb-line">
+                          Close games decided by 2 pts or fewer.
+                        </p>
+                      </div>
                       <div class="lb-divider"></div>
-                      <p class="lb-line">Last 30 days of matches.</p>
+                      <p v-if="activeTab === 'history'" class="lb-line">
+                        One event per day you played.
+                      </p>
+                      <p v-else-if="activeTab === 'matches'" class="lb-line">
+                        All modes included.
+                      </p>
+                      <p v-else class="lb-line">Last 30 days of matches.</p>
                       <p v-if="activeTab === 'clutch'" class="lb-line">
                         Standard, Competitive, Pro Pick only.
                       </p>
                       <p class="lb-line lb-order">
-                        <span v-if="activeTab === 'partners'"
+                        <span v-if="activeTab === 'history'"
+                          >Newest day at top</span
+                        >
+                        <span v-else-if="activeTab === 'matches'"
+                          >Newest match at top</span
+                        >
+                        <span v-else-if="activeTab === 'partners'"
                           >Order: win rate → games played</span
                         >
                         <span v-else-if="activeTab === 'rivals'"
