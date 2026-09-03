@@ -309,6 +309,114 @@
     "accountability": "all"
   },
   {
+    "id": "41606a0f-59c5-45ec-8567-f308b31df55b",
+    "name": "Submit DUPR Matches",
+    "icon": "bolt",
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "method": "POST"
+    },
+    "operation": null,
+    "operations": [],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "7e6e70b0-22c6-4a83-9cf2-4105e5c9e097",
+    "name": "Fetch DUPR Rating",
+    "icon": "bolt",
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "method": "POST"
+    },
+    "operation": "93664c50-1e2a-4ab4-b36c-782846519b9e",
+    "operations": [
+      {
+        "id": "84323acd-7ce4-4d67-abba-0556f2f02fe1",
+        "name": "script",
+        "key": "script",
+        "type": "exec",
+        "position_x": 42,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n\t// Do something...\n\tconst settings = data.read_dupr_settings[0]; // or however Directus passes the previous step\n    const authHeader = Buffer.from(`${settings.client_key}:${settings.client_secret}`).toString('base64');\n    return { authHeader, api_base_url: settings.api_base_url };\n}"
+        },
+        "resolve": "f0c67cbf-a108-444c-8628-e483eb930ffe",
+        "reject": null
+      },
+      {
+        "id": "93664c50-1e2a-4ab4-b36c-782846519b9e",
+        "name": "read dupr settings",
+        "key": "read_dupr_settings",
+        "type": "item-read",
+        "position_x": 19,
+        "position_y": 1,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "dupr_settings"
+        },
+        "resolve": "84323acd-7ce4-4d67-abba-0556f2f02fe1",
+        "reject": null
+      },
+      {
+        "id": "d1ca92f6-02c1-4af0-bbcf-ca969d9208cc",
+        "name": "Get User Details",
+        "key": "get_user_details",
+        "type": "request",
+        "position_x": 47,
+        "position_y": 22,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_dupr_settings[0].api_base_url }}/user/v1.0/details",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "Bearer {{ generate_partner_access_token.partnerToken }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"duprIds\": [\"{{ $trigger.body.duprId }}\"]\n}"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "f0c67cbf-a108-444c-8628-e483eb930ffe",
+        "name": "Generate Partner Access Token",
+        "key": "generate_partner_access_token",
+        "type": "request",
+        "position_x": 10,
+        "position_y": 23,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_dupr_settings[0].api_base_url }}/auth/v1.0/token",
+          "headers": [
+            {
+              "header": "x-authorization",
+              "value": "{{ script.authHeader }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "resolve": "d1ca92f6-02c1-4af0-bbcf-ca969d9208cc",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "8d01e431-d0b9-468e-b0bd-15faa5db1e80",
     "name": "update player rating",
     "icon": "bolt",
@@ -478,6 +586,88 @@
             }
           ],
           "body": "{\"ttl\": 86400}"
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "a0fa19af-d57a-49d4-a385-d9fc07a3af42",
+    "name": "reset all rating",
+    "icon": "bolt",
+    "color": null,
+    "description": null,
+    "trigger": "manual",
+    "options": {
+      "requireConfirmation": true,
+      "collections": [
+        "rating_reset"
+      ],
+      "requireSelection": false
+    },
+    "operation": "4a050d9c-b12f-4535-ab71-34948925c9cd",
+    "operations": [
+      {
+        "id": "2b1e4160-6ebb-4d53-b0cb-215a80062dd0",
+        "name": "Update Data",
+        "key": "item_update_9rkbj",
+        "type": "item-update",
+        "position_x": 1,
+        "position_y": 28,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": true,
+          "collection": "directus_users",
+          "payload": {
+            "rating": 1450
+          }
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "4a050d9c-b12f-4535-ab71-34948925c9cd",
+        "name": "SQL Operation",
+        "key": "likha_sql_eicbc",
+        "type": "likha_sql",
+        "position_x": 17,
+        "position_y": 18,
+        "options": {
+          "sql": "/* UPDATE directus_users SET rating = 1450 WHERE id = 'be90e5a7-6c48-4d7e-ae9d-747cdf008387'; */\nUPDATE directus_users SET rating = 1450;"
+        },
+        "resolve": "e61e6c9a-c6ed-4809-bf1a-83f126f400a0",
+        "reject": null
+      },
+      {
+        "id": "e61e6c9a-c6ed-4809-bf1a-83f126f400a0",
+        "name": "get timestamp",
+        "key": "get_timestamp",
+        "type": "exec",
+        "position_x": 25,
+        "position_y": 2,
+        "options": {
+          "code": "module.exports = async function(data) {\n  return { now: new Date().toISOString() };\n}"
+        },
+        "resolve": "f45cc6fb-c620-4913-95eb-1aa71982c48c",
+        "reject": null
+      },
+      {
+        "id": "f45cc6fb-c620-4913-95eb-1aa71982c48c",
+        "name": "log reset",
+        "key": "log_reset",
+        "type": "item-update",
+        "position_x": 43,
+        "position_y": 2,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "rating_reset",
+          "payload": {
+            "reset_at": "{{get_timestamp.now}}"
+          }
         },
         "resolve": null,
         "reject": null
@@ -957,44 +1147,6 @@
           "collection": "directus_users"
         },
         "resolve": "3ac0d039-c00b-46b9-a085-32af48fa4000",
-        "reject": null
-      }
-    ],
-    "flow_manager_category": null,
-    "accountability": "all"
-  },
-  {
-    "id": "a0fa19af-d57a-49d4-a385-d9fc07a3af42",
-    "name": "reset all rating",
-    "icon": "bolt",
-    "color": null,
-    "description": null,
-    "trigger": "manual",
-    "options": {
-      "requireConfirmation": true,
-      "collections": [
-        "club"
-      ],
-      "requireSelection": false
-    },
-    "operation": "2b1e4160-6ebb-4d53-b0cb-215a80062dd0",
-    "operations": [
-      {
-        "id": "2b1e4160-6ebb-4d53-b0cb-215a80062dd0",
-        "name": "Update Data",
-        "key": "item_update_9rkbj",
-        "type": "item-update",
-        "position_x": 19,
-        "position_y": 1,
-        "options": {
-          "permissions": "$full",
-          "emitEvents": true,
-          "collection": "directus_users",
-          "payload": {
-            "rating": 1500
-          }
-        },
-        "resolve": null,
         "reject": null
       }
     ],
