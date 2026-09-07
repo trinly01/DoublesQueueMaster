@@ -12,4 +12,5 @@ export interface MatchMeta {
   originalTeamB?: string;
   createdAt?: Date | string | number;
   updatedAt?: Date | string | number;
+  duprStatus?: string | null;
 }
