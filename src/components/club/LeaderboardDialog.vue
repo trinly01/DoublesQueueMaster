@@ -76,8 +76,27 @@
                     <div class="lb-row">
                       <span class="lb-label">Duo Rating</span>
                       <span class="lb-desc"
-                        >Team score (same formula as matchmaking) + synergy
-                        bonus. Higher = better chance of winning.</span
+                        >(team rating + synergy + form + margin) × diversity.
+                        Synergy shrunk for low samples.</span
+                      >
+                    </div>
+                    <div class="lb-row">
+                      <span class="lb-label">Form</span>
+                      <span class="lb-desc"
+                        >recent results vs overall — hot streaks get a
+                        bonus</span
+                      >
+                    </div>
+                    <div class="lb-row">
+                      <span class="lb-label">Margin</span>
+                      <span class="lb-desc"
+                        >actual score gap vs expected from ratings</span
+                      >
+                    </div>
+                    <div class="lb-row">
+                      <span class="lb-label">Diversity</span>
+                      <span class="lb-desc"
+                        >penalizes beating the same opponents repeatedly</span
                       >
                     </div>
                   </div>
@@ -364,37 +383,35 @@
             <q-item-section avatar class="duo-rank">
               <div
                 class="text-weight-bold text-right text-grey-8"
-                style="min-width: 20px; font-size: 13px"
+                style="min-width: 18px; font-size: 12px"
               >
                 {{ idx + 1 }}
               </div>
             </q-item-section>
-            <q-item-section class="col">
-              <!-- Player 1 with avatar -->
-              <div class="row items-center no-wrap duo-player" style="gap: 6px">
+            <q-item-section class="col duo-main">
+              <!-- Both players inline: avatar name & avatar name -->
+              <div
+                class="row items-center no-wrap duo-players"
+                style="gap: 3px"
+              >
                 <PlayerAvatar
                   :name="duo.player1.firstName"
                   :username="duo.player1.username"
                   :color="getRatingColor(duo.player1.rating || 1450)"
                   :image-url="duo.player1.avatar"
-                  size="20px"
+                  size="18px"
                   :index="idx * 2"
                 />
                 <span class="text-weight-medium ellipsis duo-name">{{
                   duo.player1.firstName
                 }}</span>
-              </div>
-              <!-- Player 2 with avatar -->
-              <div
-                class="row items-center no-wrap duo-player q-mt-xs"
-                style="gap: 6px"
-              >
+                <span class="text-grey-5 text-bold duo-amp">&amp;</span>
                 <PlayerAvatar
                   :name="duo.player2.firstName"
                   :username="duo.player2.username"
                   :color="getRatingColor(duo.player2.rating || 1450)"
                   :image-url="duo.player2.avatar"
-                  size="20px"
+                  size="18px"
                   :index="idx * 2 + 1"
                 />
                 <span class="text-weight-medium ellipsis duo-name">{{
@@ -408,12 +425,26 @@
                   >{{ duo.wins }}W</span
                 >
                 <span class="text-red-10 q-ml-xs">{{ duo.losses }}L</span>
-                <span class="text-grey-5 q-ml-xs">· {{ duo.winRate }}%</span>
+                <span class="text-grey-5 q-ml-xs">{{ duo.winRate }}%</span>
                 <span
                   class="q-ml-xs"
                   :class="duo.synergy >= 0 ? 'text-blue-6' : 'text-orange-8'"
                 >
-                  · {{ duo.synergy >= 0 ? '+' : '' }}{{ duo.synergy }}%</span
+                  {{ duo.synergy >= 0 ? '+' : '' }}{{ duo.synergy }}%</span
+                >
+                <span
+                  v-if="duo.recentForm !== 0"
+                  class="q-ml-xs"
+                  :class="
+                    duo.recentForm > 0
+                      ? 'text-teal-6'
+                      : duo.recentForm < 0
+                        ? 'text-deep-orange-6'
+                        : 'text-grey-5'
+                  "
+                >
+                  {{ duo.recentForm > 0 ? '↑' : '↓'
+                  }}{{ Math.abs(duo.recentForm) }}%</span
                 >
               </div>
             </q-item-section>
@@ -431,12 +462,18 @@
                   self="center right"
                   :offset="[8, 0]"
                 >
-                  Duo Rating = team rating (harmonic mean) + synergy bonus. Same
-                  team score formula as matchmaking, plus chemistry.
+                  Duo rating — team strength + chemistry + form
                 </q-tooltip>
               </q-chip>
-              <div class="text-caption text-grey-6 q-mt-xs">
-                {{ duo.combinedRating }} team
+              <div class="text-caption text-grey-6 q-mt-xs duo-team">
+                {{ duo.combinedRating }}
+                <q-tooltip
+                  anchor="center left"
+                  self="center right"
+                  :offset="[8, 0]"
+                >
+                  Team rating — raw skill of both players
+                </q-tooltip>
               </div>
             </q-item-section>
           </q-item>
@@ -536,12 +573,16 @@ const props = defineProps<{
     losses: number;
     winRate: number;
     synergy: number;
+    rawSynergy: number;
     avgPointDiff: number;
     combinedRating: number;
     closeGames: number;
     closeWins: number;
     closeWinRate: number;
     duoScore: number;
+    recentForm: number;
+    marginPerf: number;
+    diversityFactor: number;
     topOpponentNames?: string;
     topOpponentGames?: number;
   }>;
@@ -575,27 +616,56 @@ const activeLoading = computed(() => {
 
 <style scoped>
 .duo-row {
-  padding: 6px 8px;
+  padding: 4px 6px;
   min-height: auto;
 }
 .duo-rank {
-  min-width: 28px;
-  padding-right: 4px;
+  min-width: 22px;
+  padding-right: 2px;
 }
-.duo-player {
-  min-height: 22px;
+.duo-players {
+  min-height: 20px;
+  flex-wrap: nowrap;
 }
 .duo-name {
-  font-size: 13px;
-  line-height: 1.2;
+  font-size: 12px;
+  line-height: 1.15;
+  min-width: 0;
+}
+.duo-amp {
+  font-size: 11px;
+  flex-shrink: 0;
 }
 .duo-stats {
-  font-size: 11px;
-  line-height: 1.2;
+  font-size: 10px;
+  line-height: 1.15;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 .duo-rating-col {
-  min-width: 52px;
-  padding-left: 4px;
+  min-width: 44px;
+  padding-left: 2px;
+  padding-right: 8px;
+}
+.duo-team {
+  font-size: 10px;
+  line-height: 1;
+  padding-right: 4px;
+}
+/* Tighter on very small screens */
+@media (max-width: 380px) {
+  .duo-row {
+    padding: 3px 4px;
+  }
+  .duo-name {
+    font-size: 11px;
+  }
+  .duo-stats {
+    font-size: 9px;
+  }
+  .duo-rating-col {
+    min-width: 38px;
+  }
 }
 .lb-tooltip {
   max-width: 340px;
