@@ -32,6 +32,7 @@ interface DuprSettings {
   submit_flow_url: string | null;
   rating_flow_url: string | null;
   connect_flow_url: string | null;
+  disconnect_flow_url: string | null;
   client_key: string;
   user_api_base_url?: string;
 }
@@ -105,6 +106,7 @@ class DuprService {
             'submit_flow_url',
             'rating_flow_url',
             'connect_flow_url',
+            'disconnect_flow_url',
             'client_key',
             'user_api_base_url',
           ],
@@ -471,6 +473,55 @@ class DuprService {
       return null;
     } finally {
       this.state.submitting = false;
+    }
+  }
+
+  /**
+   * Disconnect DUPR via server-side flow (clears connection, credentials,
+   * and unsubscribes from rating updates).
+   */
+  async disconnectViaFlow(): Promise<boolean> {
+    this.state.connecting = true;
+    this.state.error = '';
+    try {
+      const settings = this.state.settings;
+      if (!settings?.disconnect_flow_url) {
+        // Fallback to local disconnect if no flow configured
+        return this.disconnect();
+      }
+
+      const response = await fetch(settings.disconnect_flow_url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(errText || `Flow returned ${response.status}`);
+      }
+
+      // Clear local state
+      this.state.connection = null;
+      LocalStorage.remove(DUPR_CACHE_KEY);
+
+      // Clear from PlayerProfile
+      const { PlayerProfile } = await import('src/services/playerProfile');
+      PlayerProfile.state.duprId = '';
+      PlayerProfile.saveState();
+
+      return true;
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : 'Failed to disconnect DUPR';
+      this.state.error = msg;
+      console.error('[DUPR] Disconnect flow failed:', err);
+      return false;
+    } finally {
+      this.state.connecting = false;
     }
   }
 
