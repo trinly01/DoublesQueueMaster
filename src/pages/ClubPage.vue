@@ -586,6 +586,22 @@
                   <q-icon name="sports_tennis" class="q-mr-sm" />
                   Matches ({{ filteredMatches.length }})
                 </q-toolbar-title>
+                <q-btn
+                  v-if="
+                    matchesFilterBy === 'completed' &&
+                    isCurrentUserAdmin &&
+                    duprExportableMatches.length > 0
+                  "
+                  flat
+                  dense
+                  round
+                  color="white"
+                  icon="cloud_upload"
+                  :loading="Dupr.state.submitting"
+                  @click="handleSubmitAllDupr"
+                >
+                  <q-tooltip>Submit all to DUPR</q-tooltip>
+                </q-btn>
                 <q-select
                   v-model="matchesFilterBy"
                   :options="matchesFilterOptions"
@@ -635,8 +651,37 @@
                             originalTeamB: match.originalTeamB,
                             createdAt: match.createdAt,
                             updatedAt: match.updatedAt,
+                            duprStatus: getDuprStatus(match.id),
                           }"
                         />
+                      </q-item-section>
+                      <q-item-section side v-if="isCurrentUserAdmin">
+                        <q-btn
+                          color="grey-7"
+                          icon="more_vert"
+                          flat
+                          round
+                          size="sm"
+                        >
+                          <q-tooltip>Options</q-tooltip>
+                          <q-menu auto-close>
+                            <q-list style="min-width: 180px">
+                              <q-item
+                                clickable
+                                @click="handleSubmitSingleDupr(match.id)"
+                                :disable="
+                                  !getMatchKey(match.id) ||
+                                  Dupr.state.submitting
+                                "
+                              >
+                                <q-item-section avatar>
+                                  <q-icon name="cloud_upload" />
+                                </q-item-section>
+                                <q-item-section>Submit to DUPR</q-item-section>
+                              </q-item>
+                            </q-list>
+                          </q-menu>
+                        </q-btn>
                       </q-item-section>
                     </q-item>
                   </template>
@@ -1064,7 +1109,7 @@
             <q-card-section class="q-pa-none">
               <div class="card-content mobile-card-content">
                 <!-- Mobile filter control -->
-                <div class="q-pa-md q-pb-sm">
+                <div class="q-pa-md q-pb-sm row items-center q-gutter-sm">
                   <q-select
                     v-model="matchesFilterBy"
                     :options="matchesFilterOptions"
@@ -1078,6 +1123,22 @@
                       <q-icon name="filter_list" />
                     </template>
                   </q-select>
+                  <q-btn
+                    v-if="
+                      matchesFilterBy === 'completed' &&
+                      isCurrentUserAdmin &&
+                      duprExportableMatches.length > 0
+                    "
+                    flat
+                    dense
+                    round
+                    color="primary"
+                    icon="cloud_upload"
+                    :loading="Dupr.state.submitting"
+                    @click="handleSubmitAllDupr"
+                  >
+                    <q-tooltip>Submit all to DUPR</q-tooltip>
+                  </q-btn>
                 </div>
                 <q-list separator v-if="filteredMatches.length > 0">
                   <template v-if="matchesFilterBy === 'completed'">
@@ -1109,8 +1170,37 @@
                             originalTeamB: match.originalTeamB,
                             createdAt: match.createdAt,
                             updatedAt: match.updatedAt,
+                            duprStatus: getDuprStatus(match.id),
                           }"
                         />
+                      </q-item-section>
+                      <q-item-section side v-if="isCurrentUserAdmin">
+                        <q-btn
+                          color="grey-7"
+                          icon="more_vert"
+                          flat
+                          round
+                          size="sm"
+                        >
+                          <q-tooltip>Options</q-tooltip>
+                          <q-menu auto-close>
+                            <q-list style="min-width: 180px">
+                              <q-item
+                                clickable
+                                @click="handleSubmitSingleDupr(match.id)"
+                                :disable="
+                                  !getMatchKey(match.id) ||
+                                  Dupr.state.submitting
+                                "
+                              >
+                                <q-item-section avatar>
+                                  <q-icon name="cloud_upload" />
+                                </q-item-section>
+                                <q-item-section>Submit to DUPR</q-item-section>
+                              </q-item>
+                            </q-list>
+                          </q-menu>
+                        </q-btn>
                       </q-item-section>
                     </q-item>
                   </template>
@@ -1360,6 +1450,7 @@ import QRCode from 'qrcode';
 import { getRatingColor, getRatingCategory } from '../utils/playerHelpers';
 import { computeWinProbability } from '../services/matchmaking';
 import { useMatchSettings } from '../composables/useMatchSettings';
+import { useDupr } from '../composables/useDupr';
 import { useClubMembers } from '../composables/useClubMembers';
 import { useLeaderboard } from '../composables/useLeaderboard';
 import {
@@ -1387,6 +1478,21 @@ import {
 const $q = useQuasar();
 useWakeLock();
 const { notify } = useNotify();
+
+// DUPR composable instance
+const Dupr = useDupr();
+
+// Map of matchId → match_key for DUPR submission (fetched from completed_match collection)
+const completedMatchKeyMap = ref<Record<string, string>>({});
+
+// DUPR submission status map: match_key → status
+const duprSubmissionMap = computed(() => {
+  const map: Record<string, string> = {};
+  for (const s of Dupr.state.submissions) {
+    map[s.match_key] = s.status;
+  }
+  return map;
+});
 
 // Lazy stub for handleCustomAnnounce (wired from useAnnouncer composable later)
 let handleCustomAnnounce: (match: {
@@ -1530,6 +1636,141 @@ const duprExportableMatches = computed(() => {
     (m) => m.completedAt > resetAt,
   );
 });
+
+/**
+ * Fetch completed_match records from Directus to map matchId → match_key.
+ * Also fetches DUPR submission statuses for the current club.
+ */
+async function fetchCompletedMatchKeys() {
+  if (!currentClubUUID.value) return;
+  try {
+    const matches = (await likhaClient.request(
+      readItems('completed_match', {
+        filter: { club: { _eq: currentClubUUID.value } },
+        fields: ['match_key', 'match_id'],
+        limit: 500,
+        sort: ['-completed_at'],
+      }),
+    )) as { match_key: string; match_id: string }[];
+
+    const map: Record<string, string> = {};
+    for (const m of matches) {
+      if (m.match_id) map[m.match_id] = m.match_key;
+    }
+    completedMatchKeyMap.value = map;
+  } catch (err) {
+    console.warn('[DUPR] Failed to fetch completed match keys:', err);
+  }
+}
+
+/**
+ * Get the match_key for a completed match by its matchId.
+ */
+function getMatchKey(matchId: string): string | null {
+  return completedMatchKeyMap.value[matchId] || null;
+}
+
+/**
+ * Get DUPR submission status for a completed match by its matchId.
+ */
+function getDuprStatus(matchId: string): string | null {
+  const key = getMatchKey(matchId);
+  if (!key) return null;
+  return duprSubmissionMap.value[key] || null;
+}
+
+/**
+ * Submit a single completed match to DUPR.
+ */
+async function handleSubmitSingleDupr(matchId: string) {
+  const matchKey = getMatchKey(matchId);
+  if (!matchKey) {
+    notify({ color: 'negative', message: 'Match not synced to server yet' });
+    return;
+  }
+  if (!currentClubUUID.value || !currentUserId.value) {
+    notify({ color: 'negative', message: 'Club or user not loaded' });
+    return;
+  }
+
+  const result = await Dupr.submitMatches(
+    [matchKey],
+    currentClubUUID.value,
+    currentUserId.value,
+  );
+
+  if (result) {
+    notify({ color: 'positive', message: 'Match submitted to DUPR' });
+  } else {
+    notify({
+      color: 'negative',
+      message: Dupr.state.error || 'Failed to submit to DUPR',
+    });
+  }
+}
+
+/**
+ * Submit all completed matches to DUPR in bulk.
+ */
+async function handleSubmitAllDupr() {
+  const exportable = duprExportableMatches.value;
+  if (exportable.length === 0) {
+    notify({ color: 'info', message: 'No completed matches to submit' });
+    return;
+  }
+  if (!currentClubUUID.value || !currentUserId.value) {
+    notify({ color: 'negative', message: 'Club or user not loaded' });
+    return;
+  }
+
+  const matchKeys: string[] = [];
+  for (const m of exportable) {
+    const key = getMatchKey(m.matchId);
+    if (key) matchKeys.push(key);
+  }
+
+  if (matchKeys.length === 0) {
+    notify({
+      color: 'negative',
+      message: 'No synced matches available for DUPR submission',
+    });
+    return;
+  }
+
+  $q.dialog({
+    title: 'Submit to DUPR',
+    message: `Submit ${matchKeys.length} completed match(es) to DUPR?`,
+    cancel: true,
+    persistent: true,
+  }).onOk(async () => {
+    const result = await Dupr.submitMatches(
+      matchKeys,
+      currentClubUUID.value!,
+      currentUserId.value,
+    );
+
+    if (result) {
+      const successCount = result.submitted ?? 0;
+      const failedCount = result.failed ?? 0;
+      if (failedCount === 0) {
+        notify({
+          color: 'positive',
+          message: `Submitted ${successCount} match(es) to DUPR`,
+        });
+      } else {
+        notify({
+          color: 'warning',
+          message: `Submitted ${successCount}, failed ${failedCount}`,
+        });
+      }
+    } else {
+      notify({
+        color: 'negative',
+        message: Dupr.state.error || 'Failed to submit to DUPR',
+      });
+    }
+  });
+}
 
 const _adminMatchStats = ref<
   Record<
@@ -2403,6 +2644,12 @@ onMounted(async () => {
     // rating_updated_at and applies LWW. No separate refreshPlayerRatings needed.
     // Subscribe to live updates so other admins' changes arrive without refresh.
     void startRealtime();
+    // Fetch completed match keys and DUPR submissions for DUPR integration
+    void Dupr.fetchSettings();
+    void fetchCompletedMatchKeys();
+    if (currentClubUUID.value) {
+      void Dupr.fetchSubmissions(currentClubUUID.value);
+    }
   } else {
     clubLoadingState.value = 'loaded';
     if (isOpenPlay.value) {

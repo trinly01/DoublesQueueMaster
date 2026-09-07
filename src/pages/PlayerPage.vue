@@ -44,19 +44,6 @@
           style="width: 240px; gap: 8px; margin: 0 auto"
         >
           <q-btn
-            v-if="PlayerProfile.state.duprId"
-            color="primary"
-            icon="verified"
-            :label="`DUPR ID: ${PlayerProfile.state.duprId}`"
-            size="sm"
-            dense
-            flat
-            rounded
-            class="full-width"
-            style="border-radius: 12px"
-          />
-
-          <q-btn
             v-if="username"
             no-caps
             rounded
@@ -67,6 +54,72 @@
             class="full-width"
             @click="openQrDialog"
           />
+
+          <!-- DUPR Connected -->
+          <q-btn
+            v-if="duprConnected"
+            color="primary"
+            icon="verified"
+            :label="`DUPR: ${duprId}`"
+            size="sm"
+            dense
+            flat
+            rounded
+            class="full-width"
+            style="border-radius: 12px"
+          >
+            <q-tooltip
+              anchor="top middle"
+              self="bottom middle"
+              :offset="[0, 8]"
+            >
+              <div class="text-center">
+                <div>Verified DUPR Connection</div>
+                <div v-if="duprSinglesRating !== null">
+                  Singles: {{ duprSinglesRating }}
+                </div>
+                <div v-if="duprDoublesRating !== null">
+                  Doubles: {{ duprDoublesRating }}
+                </div>
+              </div>
+            </q-tooltip>
+            <q-menu anchor="bottom middle" self="top middle" :offset="[0, 8]">
+              <q-list dense style="min-width: 160px">
+                <q-item clickable v-close-popup @click="handleDisconnectDupr">
+                  <q-item-section avatar>
+                    <q-icon name="link_off" color="negative" size="18px" />
+                  </q-item-section>
+                  <q-item-section>Disconnect DUPR</q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
+          </q-btn>
+
+          <!-- DUPR Not Connected -->
+          <q-btn
+            v-else
+            color="primary"
+            outline
+            icon="link"
+            :label="
+              PlayerProfile.state.duprId
+                ? 'Connect to Verify DUPR'
+                : 'Connect DUPR'
+            "
+            size="sm"
+            dense
+            unelevated
+            rounded
+            no-caps
+            class="full-width"
+            style="border-radius: 12px"
+            :loading="Dupr.state.connecting"
+            @click="handleConnectDupr"
+          >
+            <q-tooltip v-if="PlayerProfile.state.duprId">
+              Manual DUPR ID detected — connect to verify
+            </q-tooltip>
+          </q-btn>
 
           <q-btn
             color="amber-7"
@@ -1246,46 +1299,77 @@
               class="q-mb-sm"
               :rules="[(val) => !!val?.trim() || 'First name is required']"
             />
-            <q-banner
-              dense
-              class="bg-blue-1 text-blue-8 q-mb-sm rounded-borders"
-            >
-              <div class="text-caption q-mb-xs">
-                DUPR ID is optional — to find it, navigate to
+            <!-- DUPR Connection Section -->
+            <div class="q-mb-sm">
+              <div class="text-subtitle2 text-grey-8 q-mb-xs">DUPR Account</div>
+
+              <!-- Connected state -->
+              <div v-if="duprConnected" class="column q-gutter-xs">
+                <q-banner dense class="bg-green-1 text-green-8 rounded-borders">
+                  <template v-slot:avatar>
+                    <q-icon name="verified" color="green" />
+                  </template>
+                  <div class="text-caption">
+                    <div>DUPR ID: {{ duprId }}</div>
+                    <div v-if="duprSinglesRating !== null">
+                      Singles: {{ duprSinglesRating }}
+                    </div>
+                    <div v-if="duprDoublesRating !== null">
+                      Doubles: {{ duprDoublesRating }}
+                    </div>
+                  </div>
+                </q-banner>
+                <q-btn
+                  color="negative"
+                  icon="link_off"
+                  label="Disconnect DUPR"
+                  size="sm"
+                  dense
+                  outline
+                  rounded
+                  no-caps
+                  :loading="Dupr.state.connecting"
+                  @click="handleDisconnectDupr"
+                />
               </div>
-              <q-breadcrumbs
-                gutter="xs"
-                class="text-caption text-blue-9 no-wrap"
-                style="font-size: 10px"
-                dense
-              >
-                <template v-slot:separator>
-                  <q-icon size="0.9em" name="chevron_right" color="blue-9" />
-                </template>
-                <q-breadcrumbs-el
-                  class="text-blue-6"
-                  label="My DUPR"
-                  icon="person"
+
+              <!-- Not connected state -->
+              <div v-else class="column q-gutter-xs">
+                <q-banner
+                  v-if="PlayerProfile.state.duprId"
+                  dense
+                  class="bg-orange-1 text-orange-8 rounded-borders"
+                >
+                  <template v-slot:avatar>
+                    <q-icon name="warning" color="orange" />
+                  </template>
+                  <div class="text-caption">
+                    Manual DUPR ID detected: {{ PlayerProfile.state.duprId }}
+                    <br />
+                    Connect to verify your DUPR account.
+                  </div>
+                </q-banner>
+                <q-btn
+                  color="primary"
+                  icon="link"
+                  :label="
+                    PlayerProfile.state.duprId
+                      ? 'Connect to Verify'
+                      : 'Connect DUPR'
+                  "
+                  size="sm"
+                  dense
+                  unelevated
+                  rounded
+                  no-caps
+                  :loading="Dupr.state.connecting"
+                  @click="handleConnectDupr"
                 />
-                <q-breadcrumbs-el
-                  class="text-blue-6"
-                  label="Share"
-                  icon="share"
-                />
-                <q-breadcrumbs-el
-                  class="text-blue-6"
-                  label="Copy DUPR ID"
-                  icon="content_copy"
-                />
-              </q-breadcrumbs>
-            </q-banner>
-            <q-input
-              v-model="editDuprId"
-              filled
-              label="DUPR ID (optional)"
-              dense
-              class="q-mb-sm"
-            />
+                <div class="text-caption text-grey-6 text-center">
+                  Login with your DUPR account to link ratings
+                </div>
+              </div>
+            </div>
             <template v-if="!isSsoUser">
               <q-separator class="q-my-sm" />
               <div class="text-subtitle2 text-grey-8 q-mb-xs">
@@ -1383,6 +1467,7 @@ import {
   rankClubPlayers,
 } from 'src/utils/ratingReplay';
 import { useRecentClubs } from 'src/composables/useRecentClubs';
+import { useDupr } from 'src/composables/useDupr';
 
 const router = useRouter();
 const $q = useQuasar();
@@ -1397,6 +1482,24 @@ const username = computed(() => PlayerProfile.state.username);
 const currentUserId = computed(() => PlayerProfile.state.id);
 const isSsoUser = computed(() => PlayerProfile.state.provider === 'google');
 const { isPaymentExpired, maskNum, maskText } = useProFeatures();
+const Dupr = useDupr();
+
+// Primary indicator: directus_users.dupr_id (survives refresh via fetchProfile)
+// Detailed state: dupr_connection (ratings, status, tokens)
+const duprConnected = computed(
+  () =>
+    !!PlayerProfile.state.duprId ||
+    Dupr.state.connection?.status === 'connected',
+);
+const duprId = computed(
+  () => Dupr.state.connection?.dupr_id || PlayerProfile.state.duprId || '',
+);
+const duprSinglesRating = computed(
+  () => Dupr.state.connection?.singles_rating ?? null,
+);
+const duprDoublesRating = computed(
+  () => Dupr.state.connection?.doubles_rating ?? null,
+);
 
 const getRatingGradient = (color: string): string => {
   const gradients: Record<string, string> = {
@@ -1456,7 +1559,6 @@ const avatarInput = ref<HTMLInputElement | null>(null);
 
 const showEditProfileDialog = ref(false);
 const editFirstName = ref(firstName.value);
-const editDuprId = ref(PlayerProfile.state.duprId || '');
 const currentPassword = ref('');
 const newPassword = ref('');
 const confirmNewPassword = ref('');
@@ -1465,13 +1567,6 @@ const editProfileLoading = ref(false);
 watch(firstName, (newVal) => {
   editFirstName.value = newVal;
 });
-
-watch(
-  () => PlayerProfile.state.duprId,
-  (newVal) => {
-    editDuprId.value = newVal || '';
-  },
-);
 
 const isEditProfileDisabled = computed(() => {
   const hasNoFirstName = !editFirstName.value?.trim();
@@ -2336,6 +2431,58 @@ const onAvatarSelected = async (event: Event) => {
   }
 };
 
+const handleConnectDupr = async () => {
+  // Ensure settings are loaded — retry if needed
+  if (!Dupr.state.settings) {
+    console.log('[DUPR] Settings not loaded, retrying...');
+    await Dupr.fetchSettings();
+  }
+  if (!Dupr.state.settings) {
+    console.warn('[DUPR] Settings still not loaded');
+    notify({ color: 'negative', message: 'DUPR settings not loaded' });
+    return;
+  }
+  console.log('[DUPR] Starting SSO iframe flow');
+  Dupr.openSsoIframe(
+    async (ssoData) => {
+      console.log('[DUPR] SSO success, sending to backend:', {
+        duprId: ssoData.duprId,
+        userId: ssoData.userId,
+      });
+      // SSO login succeeded — send tokens to backend for verification
+      const success = await Dupr.connect(ssoData, currentUserId.value);
+      if (success) {
+        notify({ color: 'positive', message: 'DUPR account connected!' });
+      } else {
+        notify({
+          color: 'negative',
+          message: Dupr.state.error || 'Failed to connect DUPR',
+        });
+      }
+    },
+    (err) => {
+      console.error('[DUPR] SSO error:', err);
+      notify({ color: 'negative', message: err });
+    },
+  );
+};
+
+const handleDisconnectDupr = async () => {
+  $q.dialog({
+    title: 'Disconnect DUPR',
+    message: 'Are you sure you want to disconnect your DUPR account?',
+    cancel: true,
+    persistent: true,
+  }).onOk(async () => {
+    const success = await Dupr.disconnect();
+    if (success) {
+      notify({ color: 'positive', message: 'DUPR account disconnected' });
+    } else {
+      notify({ color: 'negative', message: 'Failed to disconnect' });
+    }
+  });
+};
+
 const editProfile = async () => {
   if (!currentUserId.value || !editFirstName.value.trim()) return;
   editProfileLoading.value = true;
@@ -2348,15 +2495,13 @@ const editProfile = async () => {
       });
     }
 
-    // 2. Update first name and DUPR ID
+    // 2. Update first name (DUPR connection handled separately)
     await likhaClient.request(
       updateUser(currentUserId.value, {
         first_name: editFirstName.value.trim(),
-        dupr_id: editDuprId.value?.trim() || null,
       } as Record<string, unknown>),
     );
     PlayerProfile.state.firstName = editFirstName.value.trim();
-    PlayerProfile.state.duprId = editDuprId.value?.trim() || '';
     PlayerProfile.saveState();
 
     // 3. Update password if provided
@@ -2423,6 +2568,10 @@ onMounted(async () => {
       message: PlayerProfile.error.value,
     });
   }
+
+  // Fetch DUPR settings and connection status
+  await Dupr.fetchSettings();
+  await Dupr.fetchConnection();
 });
 
 const fetchLeaderboard = async () => {

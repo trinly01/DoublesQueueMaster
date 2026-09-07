@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="meta && (meta.generationType || meta.generatedBy)"
+    v-if="meta && (meta.generationType || meta.generatedBy || meta.duprStatus)"
     class="row justify-center q-gutter-xs q-mt-xs"
   >
     <q-chip
@@ -121,6 +121,45 @@
         >Cancelled by</q-tooltip
       >
       {{ meta.cancelledBy }}
+    </q-chip>
+    <q-chip
+      v-if="meta.duprStatus === 'submitted'"
+      color="blue-2"
+      text-color="blue-9"
+      size="xs"
+      dense
+      icon="cloud_done"
+    >
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+        >Submitted to DUPR</q-tooltip
+      >
+      DUPR
+    </q-chip>
+    <q-chip
+      v-else-if="meta.duprStatus === 'failed'"
+      color="red-2"
+      text-color="negative"
+      size="xs"
+      dense
+      icon="cloud_off"
+    >
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+        >DUPR submission failed</q-tooltip
+      >
+      DUPR Failed
+    </q-chip>
+    <q-chip
+      v-else-if="meta.duprStatus === 'pending'"
+      color="orange-2"
+      text-color="orange-9"
+      size="xs"
+      dense
+      icon="cloud_sync"
+    >
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+        >DUPR submission pending</q-tooltip
+      >
+      DUPR Pending
     </q-chip>
   </div>
 </template>
