@@ -586,22 +586,6 @@
                   <q-icon name="sports_tennis" class="q-mr-sm" />
                   Matches ({{ filteredMatches.length }})
                 </q-toolbar-title>
-                <q-btn
-                  v-if="
-                    matchesFilterBy === 'completed' &&
-                    isCurrentUserAdmin &&
-                    duprExportableMatches.length > 0
-                  "
-                  flat
-                  dense
-                  round
-                  color="white"
-                  icon="cloud_upload"
-                  :loading="Dupr.state.submitting"
-                  @click="handleSubmitAllDupr"
-                >
-                  <q-tooltip>Submit all to DUPR</q-tooltip>
-                </q-btn>
                 <q-select
                   v-model="matchesFilterBy"
                   :options="matchesFilterOptions"
@@ -617,6 +601,26 @@
                     <q-icon name="filter_list" />
                   </template>
                 </q-select>
+                <q-btn
+                  v-if="
+                    matchesFilterBy === 'completed' &&
+                    isCurrentUserAdmin &&
+                    duprExportableMatches.length > 0
+                  "
+                  flat
+                  dense
+                  :loading="Dupr.state.submitting"
+                  @click="handleSubmitAllDupr"
+                  class="q-ml-sm"
+                >
+                  <DuprLogo :size="20" />
+                  <q-tooltip
+                    anchor="center right"
+                    self="center left"
+                    style="white-space: nowrap"
+                    >Submit all to DUPR</q-tooltip
+                  >
+                </q-btn>
               </q-toolbar>
             </q-card-section>
             <q-card-section class="q-pa-none">
@@ -671,13 +675,26 @@
                                 @click="handleSubmitSingleDupr(match.id)"
                                 :disable="
                                   !getMatchKey(match.id) ||
-                                  Dupr.state.submitting
+                                  Dupr.state.submitting ||
+                                  !isMatchDuprReady(match)
                                 "
                               >
                                 <q-item-section avatar>
-                                  <q-icon name="cloud_upload" />
+                                  <DuprLogo :size="20" />
                                 </q-item-section>
-                                <q-item-section>Submit to DUPR</q-item-section>
+                                <q-item-section style="white-space: nowrap"
+                                  >Submit to DUPR</q-item-section
+                                >
+                                <q-item-section
+                                  v-if="!isMatchDuprReady(match)"
+                                  side
+                                >
+                                  <q-tooltip
+                                    >Not all players have connected
+                                    DUPR</q-tooltip
+                                  >
+                                  <q-icon name="lock" color="grey" size="xs" />
+                                </q-item-section>
                               </q-item>
                             </q-list>
                           </q-menu>
@@ -1109,7 +1126,7 @@
             <q-card-section class="q-pa-none">
               <div class="card-content mobile-card-content">
                 <!-- Mobile filter control -->
-                <div class="q-pa-md q-pb-sm row items-center q-gutter-sm">
+                <div class="q-pa-md q-pb-sm row items-center justify-between">
                   <q-select
                     v-model="matchesFilterBy"
                     :options="matchesFilterOptions"
@@ -1117,7 +1134,8 @@
                     outlined
                     emit-value
                     map-options
-                    style="min-width: 120px"
+                    class="col"
+                    style="min-width: 120px; max-width: 200px"
                   >
                     <template v-slot:prepend>
                       <q-icon name="filter_list" />
@@ -1131,13 +1149,16 @@
                     "
                     flat
                     dense
-                    round
-                    color="primary"
-                    icon="cloud_upload"
                     :loading="Dupr.state.submitting"
                     @click="handleSubmitAllDupr"
                   >
-                    <q-tooltip>Submit all to DUPR</q-tooltip>
+                    <DuprLogo :size="20" />
+                    <q-tooltip
+                      anchor="center right"
+                      self="center left"
+                      style="white-space: nowrap"
+                      >Submit all to DUPR</q-tooltip
+                    >
                   </q-btn>
                 </div>
                 <q-list separator v-if="filteredMatches.length > 0">
@@ -1190,13 +1211,26 @@
                                 @click="handleSubmitSingleDupr(match.id)"
                                 :disable="
                                   !getMatchKey(match.id) ||
-                                  Dupr.state.submitting
+                                  Dupr.state.submitting ||
+                                  !isMatchDuprReady(match)
                                 "
                               >
                                 <q-item-section avatar>
-                                  <q-icon name="cloud_upload" />
+                                  <DuprLogo :size="20" />
                                 </q-item-section>
-                                <q-item-section>Submit to DUPR</q-item-section>
+                                <q-item-section style="white-space: nowrap"
+                                  >Submit to DUPR</q-item-section
+                                >
+                                <q-item-section
+                                  v-if="!isMatchDuprReady(match)"
+                                  side
+                                >
+                                  <q-tooltip
+                                    >Not all players have connected
+                                    DUPR</q-tooltip
+                                  >
+                                  <q-icon name="lock" color="grey" size="xs" />
+                                </q-item-section>
                               </q-item>
                             </q-list>
                           </q-menu>
@@ -1436,6 +1470,7 @@ import {
 } from '../services/playerReport';
 import MatchCard from '../components/MatchCard.vue';
 import MatchResult from '../components/MatchResult.vue';
+import DuprLogo from '../components/DuprLogo.vue';
 import MatchResultDialog from '../components/club/MatchResultDialog.vue';
 import EditPlayerDialog from '../components/club/EditPlayerDialog.vue';
 import ReplacePlayerDialog from '../components/club/ReplacePlayerDialog.vue';
@@ -1671,6 +1706,17 @@ function getMatchKey(matchId: string): string | null {
 }
 
 /**
+ * Check if all players in a completed match have DUPR IDs.
+ */
+function isMatchDuprReady(match: {
+  teamA?: { duprId?: string }[];
+  teamB?: { duprId?: string }[];
+}): boolean {
+  const all = [...(match.teamA || []), ...(match.teamB || [])];
+  return all.length > 0 && all.every((p) => !!p.duprId);
+}
+
+/**
  * Get DUPR submission status for a completed match by its matchId.
  */
 function getDuprStatus(matchId: string): string | null {
@@ -1693,20 +1739,44 @@ async function handleSubmitSingleDupr(matchId: string) {
     return;
   }
 
-  const result = await Dupr.submitMatches(
-    [matchKey],
-    currentClubUUID.value,
-    currentUserId.value,
-  );
+  $q.dialog({
+    title: 'Submit to DUPR',
+    message:
+      'Submit this match to DUPR?<br><br>' +
+      'This will send the match results to DUPR for rating calculation.',
+    html: true,
+    prompt: {
+      model: '',
+      type: 'text',
+      label: `Type "${currentClubId.value}" to confirm`,
+      outlined: true,
+      isValid: (val) => val.trim() === currentClubId.value,
+    },
+    cancel: { label: 'Cancel', color: 'grey', flat: true },
+    ok: { label: 'Submit', color: 'primary', icon: 'cloud_upload' },
+    persistent: true,
+  }).onOk(async () => {
+    const result = await Dupr.submitMatches(
+      [matchKey],
+      currentClubUUID.value!,
+      currentUserId.value,
+    );
 
-  if (result) {
-    notify({ color: 'positive', message: 'Match submitted to DUPR' });
-  } else {
-    notify({
-      color: 'negative',
-      message: Dupr.state.error || 'Failed to submit to DUPR',
-    });
-  }
+    if (result) {
+      const failedCount = result.failed ?? 0;
+      if (failedCount === 0) {
+        notify({ color: 'positive', message: 'Match submitted to DUPR' });
+      } else {
+        const err = result.results[0]?.error || 'Submission failed';
+        notify({ color: 'warning', message: err });
+      }
+    } else {
+      notify({
+        color: 'negative',
+        message: Dupr.state.error || 'Failed to submit to DUPR',
+      });
+    }
+  });
 }
 
 /**
@@ -1739,8 +1809,19 @@ async function handleSubmitAllDupr() {
 
   $q.dialog({
     title: 'Submit to DUPR',
-    message: `Submit ${matchKeys.length} completed match(es) to DUPR?`,
-    cancel: true,
+    message:
+      `Submit ${matchKeys.length} completed match(es) to DUPR?<br><br>` +
+      'This will send all completed match results to DUPR for rating calculation.',
+    html: true,
+    prompt: {
+      model: '',
+      type: 'text',
+      label: `Type "${currentClubId.value}" to confirm`,
+      outlined: true,
+      isValid: (val) => val.trim() === currentClubId.value,
+    },
+    cancel: { label: 'Cancel', color: 'grey', flat: true },
+    ok: { label: 'Submit All', color: 'primary', icon: 'cloud_upload' },
     persistent: true,
   }).onOk(async () => {
     const result = await Dupr.submitMatches(
@@ -2485,6 +2566,7 @@ const refreshPlayerRatings = async () => {
               first_name?: string;
               last_name?: string;
               email?: string;
+              dupr_id?: string;
             };
           }>;
         }
@@ -2524,6 +2606,15 @@ const refreshPlayerRatings = async () => {
       if (typeof u.last_name === 'string') {
         if (local.lastName !== u.last_name) {
           local.lastName = u.last_name;
+          local.updatedAt = Date.now();
+          changed = true;
+        }
+      }
+
+      // Update DUPR ID if present
+      if (typeof u.dupr_id === 'string') {
+        if (local.duprId !== u.dupr_id) {
+          local.duprId = u.dupr_id;
           local.updatedAt = Date.now();
           changed = true;
         }
