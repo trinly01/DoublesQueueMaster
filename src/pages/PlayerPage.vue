@@ -2474,7 +2474,7 @@ const handleDisconnectDupr = async () => {
     cancel: true,
     persistent: true,
   }).onOk(async () => {
-    const success = await Dupr.disconnect();
+    const success = await Dupr.disconnectViaFlow();
     if (success) {
       notify({ color: 'positive', message: 'DUPR account disconnected' });
     } else {
