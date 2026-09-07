@@ -119,6 +119,7 @@
         :is-payment-expired="isPaymentExpired"
         :payment-loading="paymentLoading"
         :player-username="PlayerProfile.state.username"
+        v-model:include-non-competitive="includeNonCompetitive"
         @pay="callPayment({ playerId: PlayerProfile.state.username })"
       />
 
@@ -2250,16 +2251,21 @@ watch(
 );
 
 // Leaderboard composable — extracted fetch/cache logic
-const { clubLeaderboard, clubLeaderboardLoading, fetchClubLeaderboard } =
-  useLeaderboard({
-    currentClubUUID,
-    clubMembers,
-  });
+const {
+  clubLeaderboard,
+  clubLeaderboardLoading,
+  fetchClubLeaderboard,
+  includeNonCompetitive,
+} = useLeaderboard({
+  currentClubUUID,
+  clubMembers,
+});
 
 // Duo leaderboard — Best Duo tab
 const { duoLeaderboard, duoLeaderboardLoading, fetchDuoLeaderboard } =
   useDuoLeaderboard({
     currentClubUUID,
+    includeNonCompetitive,
   });
 
 // Global leaderboard — same replay engine but no club filter.
@@ -2865,6 +2871,11 @@ watch(showLeaderboardDialog, (open) => {
     fetchMyMatchesLeaderboard();
     fetchDuoLeaderboard();
   }
+});
+
+watch(includeNonCompetitive, () => {
+  fetchClubLeaderboard();
+  fetchDuoLeaderboard();
 });
 
 const clubFeedback = ref<ClubFeedbackEntry[]>([]);

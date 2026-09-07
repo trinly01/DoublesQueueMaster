@@ -56,9 +56,16 @@
                   </div>
                   <div class="lb-divider"></div>
                   <p class="lb-line">
-                    Club &amp; Global: Standard, Competitive, Pro Pick only.
+                    Club: Standard, Competitive, Pro Pick only. Toggle to
+                    include non-competitive (Casual &amp; Social).
                   </p>
-                  <p class="lb-line">Best Duo: all doubles matches count.</p>
+                  <p class="lb-line">
+                    Global: Standard, Competitive, Pro Pick only.
+                  </p>
+                  <p class="lb-line">
+                    Best Duo: all doubles matches count. Toggle to filter
+                    competitive only.
+                  </p>
                   <p class="lb-line">
                     Win → up. Lose → down. Beat a stronger opponent for more
                     points. Everyone starts with a seed rating.
@@ -199,6 +206,19 @@
             @click="leaderboardTab = 'duo'"
           />
         </q-btn-group>
+      </div>
+      <div
+        v-if="leaderboardTab === 'club' || leaderboardTab === 'duo'"
+        class="row items-center justify-center q-px-md q-py-xs"
+      >
+        <q-toggle
+          :model-value="includeNonCompetitive"
+          @update:model-value="$emit('update:includeNonCompetitive', $event)"
+          label="Include non-competitive"
+          dense
+          size="xs"
+          color="accent"
+        />
       </div>
       <q-card-section
         class="leaderboard-scroll q-px-md q-pt-xs q-pb-md"
@@ -587,10 +607,12 @@ const props = defineProps<{
     topOpponentGames?: number;
   }>;
   duoLoading?: boolean;
+  includeNonCompetitive?: boolean;
 }>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
+  'update:includeNonCompetitive': [value: boolean];
   pay: [];
 }>();
 

@@ -37,9 +37,10 @@ export function useLeaderboard(context: UseLeaderboardContext) {
 
   const clubLeaderboard = ref<ClubLeaderboardEntry[]>([]);
   const clubLeaderboardLoading = ref(false);
+  const includeNonCompetitive = ref(false);
 
   const getClubLeaderboardCacheKey = () =>
-    `club_leaderboard_v2_${currentClubUUID.value}`;
+    `club_leaderboard_v2_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
 
   const loadCachedClubLeaderboard = () => {
     const raw = LocalStorage.getItem(getClubLeaderboardCacheKey());
@@ -67,7 +68,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
   };
 
   const fetchClubLeaderboard = async () => {
-    if (!currentClubUUID.value || clubLeaderboardLoading.value) return;
+    if (!currentClubUUID.value) return;
     const cached = loadCachedClubLeaderboard();
     clubLeaderboardLoading.value =
       !cached || clubLeaderboard.value.length === 0;
@@ -87,13 +88,14 @@ export function useLeaderboard(context: UseLeaderboardContext) {
         }),
       )) as DirectusCompletedMatch[];
 
-      // Filter to competitive matches only (exclude Casual and Social modes).
-      // Auto-generated, edited, and manual matches all count — if the match
-      // was played in a competitive mode, the result is valid.
-      const competitiveMatches = matches.filter((m) => {
-        const mode = m.meta?.matchmakingMode;
-        return mode !== 'fair_balance' && mode !== 'variety_first';
-      });
+      // Filter to competitive matches only (exclude Casual and Social modes),
+      // unless the user has toggled to include non-competitive matches.
+      const competitiveMatches = includeNonCompetitive.value
+        ? matches
+        : matches.filter((m) => {
+            const mode = m.meta?.matchmakingMode;
+            return mode !== 'fair_balance' && mode !== 'variety_first';
+          });
 
       // Replay matches using the club-ranking path (with correctness fixes:
       // deterministic sort, tie skip, guest identity key, level-based seeding).
@@ -200,5 +202,6 @@ export function useLeaderboard(context: UseLeaderboardContext) {
     clubLeaderboard,
     clubLeaderboardLoading,
     fetchClubLeaderboard,
+    includeNonCompetitive,
   };
 }

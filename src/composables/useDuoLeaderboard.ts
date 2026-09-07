@@ -94,6 +94,7 @@ export type DuoLeaderboardEntry = {
 
 export interface UseDuoLeaderboardContext {
   currentClubUUID: Ref<string>;
+  includeNonCompetitive: Ref<boolean>;
 }
 
 const MIN_GAMES = 3;
@@ -120,12 +121,13 @@ type DuoAccum = {
 };
 
 export function useDuoLeaderboard(context: UseDuoLeaderboardContext) {
-  const { currentClubUUID } = context;
+  const { currentClubUUID, includeNonCompetitive } = context;
 
   const duoLeaderboard = ref<DuoLeaderboardEntry[]>([]);
   const duoLeaderboardLoading = ref(false);
 
-  const getCacheKey = () => `club_duo_leaderboard_${currentClubUUID.value}`;
+  const getCacheKey = () =>
+    `club_duo_leaderboard_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
 
   const loadCached = () => {
     const raw = LocalStorage.getItem(getCacheKey());
@@ -198,12 +200,20 @@ export function useDuoLeaderboard(context: UseDuoLeaderboardContext) {
   };
 
   const fetchDuoLeaderboard = async () => {
-    if (!currentClubUUID.value || duoLeaderboardLoading.value) return;
+    if (!currentClubUUID.value) return;
     const cached = loadCached();
     duoLeaderboardLoading.value = !cached || duoLeaderboard.value.length === 0;
     try {
       const matches = await fetchAllMatches();
-      const allMatches = matches;
+      // Best Duo considers all doubles matches by default.
+      // When includeNonCompetitive is off, filter out casual/social modes
+      // (same as club leaderboard) for consistency.
+      const allMatches = includeNonCompetitive.value
+        ? matches
+        : matches.filter((m) => {
+            const mode = m.meta?.matchmakingMode;
+            return mode !== 'fair_balance' && mode !== 'variety_first';
+          });
       const now = Date.now();
 
       // Step 1: Replay matches to get current player ratings (starting from 1450 seed)
