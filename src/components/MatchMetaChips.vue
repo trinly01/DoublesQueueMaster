@@ -128,8 +128,8 @@
       text-color="blue-9"
       size="xs"
       dense
-      icon="cloud_done"
     >
+      <DuprLogo :size="12" class="q-mr-xs" />
       <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
         >Submitted to DUPR</q-tooltip
       >
@@ -141,8 +141,8 @@
       text-color="negative"
       size="xs"
       dense
-      icon="cloud_off"
     >
+      <DuprLogo :size="12" class="q-mr-xs" />
       <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
         >DUPR submission failed</q-tooltip
       >
@@ -154,8 +154,8 @@
       text-color="orange-9"
       size="xs"
       dense
-      icon="cloud_sync"
     >
+      <DuprLogo :size="12" class="q-mr-xs" />
       <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
         >DUPR submission pending</q-tooltip
       >
@@ -172,6 +172,7 @@ import {
   getMatchmakingModeDescription,
 } from '../composables/useMatchSettings';
 import { formatDate } from '../utils/playerHelpers';
+import DuprLogo from './DuprLogo.vue';
 
 const props = defineProps<{
   meta?: MatchMeta;

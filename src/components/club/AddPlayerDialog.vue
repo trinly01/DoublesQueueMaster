@@ -86,18 +86,6 @@
             </template>
           </q-input>
 
-          <q-input
-            v-model="newPlayerDuprId"
-            label="DUPR ID (optional)"
-            type="text"
-            outlined
-            dense
-          >
-            <template v-slot:prepend>
-              <q-icon name="badge" />
-            </template>
-          </q-input>
-
           <q-select
             v-model="newPlayerLevel"
             :options="levelOptions"
@@ -516,7 +504,6 @@ const showAddPlayerDialog = computed({
 
 const newPlayerName = ref<string | null>(null);
 const newPlayerLevel = ref<1 | 2 | 3 | null>(null);
-const newPlayerDuprId = ref<string>('');
 const addPlayerMode = ref<'single' | 'bulk' | 'club' | 'qr'>('single');
 const selectedClubMembers = ref<string[]>([]);
 const clubMemberSearch = ref('');
@@ -863,7 +850,6 @@ watch(showAddPlayerDialog, (open) => {
     clubMemberSearch.value = '';
     newPlayerName.value = null;
     newPlayerLevel.value = null;
-    newPlayerDuprId.value = '';
     bulkPlayerText.value = '';
     bulkPlayers.value = [];
     bulkDefaultLevel.value = 2;
@@ -965,7 +951,7 @@ const addNewPlayer = () => {
   const result = MatchmakingApp.checkInPlayer(
     trimmedName,
     newPlayerLevel.value,
-    { rating: initialRating, duprId: newPlayerDuprId.value || undefined },
+    { rating: initialRating },
   );
 
   if (result === 'already_in_match') {
@@ -987,7 +973,6 @@ const addNewPlayer = () => {
   logCheckIn(trimmedName, 'manual');
   newPlayerName.value = null;
   newPlayerLevel.value = null;
-  newPlayerDuprId.value = '';
   showAddPlayerDialog.value = false;
   notify({
     type: 'positive',
