@@ -114,6 +114,8 @@
         :global-loading="globalLeaderboardLoading"
         :my-matches-leaderboard="myMatchesLeaderboard"
         :my-matches-loading="myMatchesLoading"
+        :duo-leaderboard="duoLeaderboard"
+        :duo-loading="duoLeaderboardLoading"
         :is-payment-expired="isPaymentExpired"
         :payment-loading="paymentLoading"
         :player-username="PlayerProfile.state.username"
@@ -1488,6 +1490,7 @@ import { useMatchSettings } from '../composables/useMatchSettings';
 import { useDupr } from '../composables/useDupr';
 import { useClubMembers } from '../composables/useClubMembers';
 import { useLeaderboard } from '../composables/useLeaderboard';
+import { useDuoLeaderboard } from '../composables/useDuoLeaderboard';
 import {
   replayMatches,
   replayMatchesForRanking,
@@ -2168,6 +2171,7 @@ watch(currentClubId, () => {
   clubQrCodeDataUrl.value = '';
   _isClubSubscriptionExpired.value = false;
   _adminMatchStats.value = {};
+  duoLeaderboard.value = [];
 });
 
 const isCurrentUserModerator = computed(() => {
@@ -2250,6 +2254,12 @@ const { clubLeaderboard, clubLeaderboardLoading, fetchClubLeaderboard } =
   useLeaderboard({
     currentClubUUID,
     clubMembers,
+  });
+
+// Duo leaderboard — Best Duo tab
+const { duoLeaderboard, duoLeaderboardLoading, fetchDuoLeaderboard } =
+  useDuoLeaderboard({
+    currentClubUUID,
   });
 
 // Global leaderboard — same replay engine but no club filter.
@@ -2853,6 +2863,7 @@ watch(showLeaderboardDialog, (open) => {
     fetchClubLeaderboard();
     fetchGlobalLeaderboard();
     fetchMyMatchesLeaderboard();
+    fetchDuoLeaderboard();
   }
 });
 

@@ -46,14 +46,41 @@
                         >top 30 everywhere (last 30 days, 12+ games)</span
                       >
                     </div>
+                    <div class="lb-row">
+                      <span class="lb-label">Best Duo</span>
+                      <span class="lb-desc"
+                        >best duos in this club (last 30 days, 3+ games
+                        together)</span
+                      >
+                    </div>
                   </div>
                   <div class="lb-divider"></div>
-                  <p class="lb-line">Standard, Competitive, Pro Pick only.</p>
+                  <p class="lb-line">
+                    Club &amp; Global: Standard, Competitive, Pro Pick only.
+                  </p>
+                  <p class="lb-line">Best Duo: all doubles matches count.</p>
                   <p class="lb-line">
                     Win → up. Lose → down. Beat a stronger opponent for more
                     points. Everyone starts with a seed rating.
                   </p>
                   <p class="lb-line lb-order">Order: score → games → wins</p>
+                  <div class="lb-divider"></div>
+                  <div class="lb-section">
+                    <div class="lb-row">
+                      <span class="lb-label">Synergy</span>
+                      <span class="lb-desc"
+                        >how much a duo overperforms vs their combined rating
+                        expectation (Elo-based)</span
+                      >
+                    </div>
+                    <div class="lb-row">
+                      <span class="lb-label">Duo Rating</span>
+                      <span class="lb-desc"
+                        >Team score (same formula as matchmaking) + synergy
+                        bonus. Higher = better chance of winning.</span
+                      >
+                    </div>
+                  </div>
                   <div class="lb-divider"></div>
                   <div class="lb-legend">
                     <div class="lb-row">
@@ -142,6 +169,16 @@
             size="sm"
             @click="leaderboardTab = 'global'"
           />
+          <q-btn
+            flat
+            color="accent"
+            :class="leaderboardTab === 'duo' ? 'bg-accent text-white' : ''"
+            icon="diversity_3"
+            label="Best Duo"
+            dense
+            size="sm"
+            @click="leaderboardTab = 'duo'"
+          />
         </q-btn-group>
       </div>
       <q-card-section
@@ -157,7 +194,10 @@
         <div v-if="activeLoading" class="flex flex-center q-py-md">
           <q-spinner color="accent" size="32px" />
         </div>
-        <q-list separator v-else-if="activeLeaderboard.length">
+        <q-list
+          separator
+          v-else-if="leaderboardTab !== 'duo' && activeLeaderboard.length"
+        >
           <q-item
             v-for="(player, idx) in activeLeaderboard"
             :key="player.username"
@@ -308,8 +348,105 @@
             </q-item-section>
           </q-item>
         </q-list>
+        <!-- Best Duo tab -->
+        <q-list
+          separator
+          v-else-if="
+            leaderboardTab === 'duo' && duoLeaderboard && duoLeaderboard.length
+          "
+        >
+          <q-item
+            v-for="(duo, idx) in duoLeaderboard"
+            :key="duo.key"
+            :class="duo.winRate >= 50 ? 'bg-green-1' : 'bg-red-1'"
+            class="duo-row"
+          >
+            <q-item-section avatar class="duo-rank">
+              <div
+                class="text-weight-bold text-right text-grey-8"
+                style="min-width: 20px; font-size: 13px"
+              >
+                {{ idx + 1 }}
+              </div>
+            </q-item-section>
+            <q-item-section class="col">
+              <!-- Player 1 with avatar -->
+              <div class="row items-center no-wrap duo-player" style="gap: 6px">
+                <PlayerAvatar
+                  :name="duo.player1.firstName"
+                  :username="duo.player1.username"
+                  :color="getRatingColor(duo.player1.rating || 1450)"
+                  :image-url="duo.player1.avatar"
+                  size="20px"
+                  :index="idx * 2"
+                />
+                <span class="text-weight-medium ellipsis duo-name">{{
+                  duo.player1.firstName
+                }}</span>
+              </div>
+              <!-- Player 2 with avatar -->
+              <div
+                class="row items-center no-wrap duo-player q-mt-xs"
+                style="gap: 6px"
+              >
+                <PlayerAvatar
+                  :name="duo.player2.firstName"
+                  :username="duo.player2.username"
+                  :color="getRatingColor(duo.player2.rating || 1450)"
+                  :image-url="duo.player2.avatar"
+                  size="20px"
+                  :index="idx * 2 + 1"
+                />
+                <span class="text-weight-medium ellipsis duo-name">{{
+                  duo.player2.firstName
+                }}</span>
+              </div>
+              <!-- Stats line -->
+              <div class="row items-center no-wrap q-mt-xs duo-stats">
+                <span class="text-grey-7">{{ duo.games }}G</span>
+                <span class="text-green text-weight-bold q-ml-xs"
+                  >{{ duo.wins }}W</span
+                >
+                <span class="text-red-10 q-ml-xs">{{ duo.losses }}L</span>
+                <span class="text-grey-5 q-ml-xs">· {{ duo.winRate }}%</span>
+                <span
+                  class="q-ml-xs"
+                  :class="duo.synergy >= 0 ? 'text-blue-6' : 'text-orange-8'"
+                >
+                  · {{ duo.synergy >= 0 ? '+' : '' }}{{ duo.synergy }}%</span
+                >
+              </div>
+            </q-item-section>
+            <q-item-section side class="text-right duo-rating-col">
+              <q-chip
+                :color="getRatingColor(duo.duoScore)"
+                text-color="white"
+                size="sm"
+                dense
+                class="text-weight-bold"
+              >
+                {{ Math.round(duo.duoScore) }}
+                <q-tooltip
+                  anchor="center left"
+                  self="center right"
+                  :offset="[8, 0]"
+                >
+                  Duo Rating = team rating (harmonic mean) + synergy bonus. Same
+                  team score formula as matchmaking, plus chemistry.
+                </q-tooltip>
+              </q-chip>
+              <div class="text-caption text-grey-6 q-mt-xs">
+                {{ duo.combinedRating }} team
+              </div>
+            </q-item-section>
+          </q-item>
+        </q-list>
         <div v-else class="text-center text-grey q-py-md">
-          No completed matches yet.
+          {{
+            leaderboardTab === 'duo'
+              ? 'No duos with 3+ games yet.'
+              : 'No completed matches yet.'
+          }}
         </div>
       </q-card-section>
     </q-card>
@@ -378,6 +515,37 @@ const props = defineProps<{
   isPaymentExpired?: boolean;
   paymentLoading?: boolean;
   playerUsername?: string;
+  duoLeaderboard?: Array<{
+    key: string;
+    player1: {
+      username: string;
+      firstName: string;
+      lastName?: string;
+      avatar?: string;
+      rating: number;
+    };
+    player2: {
+      username: string;
+      firstName: string;
+      lastName?: string;
+      avatar?: string;
+      rating: number;
+    };
+    games: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+    synergy: number;
+    avgPointDiff: number;
+    combinedRating: number;
+    closeGames: number;
+    closeWins: number;
+    closeWinRate: number;
+    duoScore: number;
+    topOpponentNames?: string;
+    topOpponentGames?: number;
+  }>;
+  duoLoading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -387,7 +555,7 @@ const emit = defineEmits<{
 
 const { maskNum, maskText } = useProFeatures();
 
-const leaderboardTab = ref<'club' | 'matches' | 'global'>('club');
+const leaderboardTab = ref<'club' | 'matches' | 'global' | 'duo'>('club');
 
 const activeLeaderboard = computed(() => {
   if (leaderboardTab.value === 'global') return props.globalLeaderboard || [];
@@ -400,11 +568,35 @@ const activeLoading = computed(() => {
   if (leaderboardTab.value === 'global') return props.globalLoading || false;
   if (leaderboardTab.value === 'matches')
     return props.myMatchesLoading || false;
+  if (leaderboardTab.value === 'duo') return props.duoLoading || false;
   return props.loading;
 });
 </script>
 
 <style scoped>
+.duo-row {
+  padding: 6px 8px;
+  min-height: auto;
+}
+.duo-rank {
+  min-width: 28px;
+  padding-right: 4px;
+}
+.duo-player {
+  min-height: 22px;
+}
+.duo-name {
+  font-size: 13px;
+  line-height: 1.2;
+}
+.duo-stats {
+  font-size: 11px;
+  line-height: 1.2;
+}
+.duo-rating-col {
+  min-width: 52px;
+  padding-left: 4px;
+}
 .lb-tooltip {
   max-width: 340px;
   background: #fff;
