@@ -2159,6 +2159,17 @@ const isCurrentUserAdmin = computed(() => {
 });
 watch(isCurrentUserAdmin, (val) => setAdminMode(val), { immediate: true });
 
+// Clear per-club UI state when switching clubs to prevent data contamination
+watch(currentClubId, () => {
+  completedMatchKeyMap.value = {};
+  Dupr.state.submissions = [];
+  clubSettingsSearch.value = '';
+  showClubQrDialog.value = false;
+  clubQrCodeDataUrl.value = '';
+  _isClubSubscriptionExpired.value = false;
+  _adminMatchStats.value = {};
+});
+
 const isCurrentUserModerator = computed(() => {
   if (isOpenPlay.value) return false;
   const mod = clubMembers.value.find(
