@@ -69,6 +69,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
 
   const fetchClubLeaderboard = async () => {
     if (!currentClubUUID.value) return;
+    if (clubLeaderboardLoading.value) return;
     const cached = loadCachedClubLeaderboard();
     clubLeaderboardLoading.value =
       !cached || clubLeaderboard.value.length === 0;
