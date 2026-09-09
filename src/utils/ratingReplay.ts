@@ -297,6 +297,7 @@ function computeReliability(ratedGames: number): {
 function replayRankingPass(
   matches: RankedMatchInput[],
   seedOverrides?: Map<string, number>,
+  includeNonCompetitive = false,
 ): Record<string, RankedPlayer> {
   const players: Record<string, RankedPlayer> = {};
 
@@ -345,7 +346,11 @@ function replayRankingPass(
     // Mirror matchmaking.ts:1492-1494 — casual/social modes count W/L
     // but don't update ratings. Prevents leaderboard ratings from
     // diverging from live ratings on unrated matches.
-    const isNonCompetitive = NON_COMPETITIVE_MODES.has(m.matchmakingMode || '');
+    // When includeNonCompetitive is set, treat them as rated (the user
+    // opted in to counting non-competitive matches toward rating).
+    const isNonCompetitive =
+      !includeNonCompetitive &&
+      NON_COMPETITIVE_MODES.has(m.matchmakingMode || '');
     if (isNonCompetitive) {
       // Count W/L but don't update ratings or ratedMatchesPlayed.
       // Reliability/provisional are based on rated games only.
@@ -426,6 +431,7 @@ function replayRankingPass(
  */
 export function replayMatchesForRanking(
   matches: RankedMatchInput[],
+  includeNonCompetitive = false,
 ): Record<string, RankedPlayer> {
   // Fix #4: deterministic sort by completedAt then matchKey
   const sorted = [...matches].sort((a, b) => {
@@ -439,13 +445,13 @@ export function replayMatchesForRanking(
 
   // Iterated convergence: repeat forward passes, feeding final ratings
   // back as seeds.
-  let result = replayRankingPass(sorted);
+  let result = replayRankingPass(sorted, undefined, includeNonCompetitive);
   for (let pass = 1; pass < CONFIG.rankingPasses; pass++) {
     const seedOverrides = new Map<string, number>();
     for (const [key, p] of Object.entries(result)) {
       seedOverrides.set(key, p.rating);
     }
-    result = replayRankingPass(sorted, seedOverrides);
+    result = replayRankingPass(sorted, seedOverrides, includeNonCompetitive);
   }
 
   // Apply Bayesian shrinkage: pull ratings toward seed by n/(n+C).

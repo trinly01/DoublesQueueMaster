@@ -127,6 +127,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
             avatar: p.avatar,
           })),
         })),
+        includeNonCompetitive.value,
       );
 
       // Build registered-user info map from the players junction.
