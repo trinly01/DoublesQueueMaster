@@ -97,7 +97,7 @@ export interface UseDuoLeaderboardContext {
   includeNonCompetitive: Ref<boolean>;
 }
 
-const MIN_GAMES = 3;
+const MIN_GAMES = 2;
 const PAGE_SIZE = 500;
 const MAX_PAGES = 10;
 
@@ -245,8 +245,10 @@ export function useDuoLeaderboard(context: UseDuoLeaderboardContext) {
         })),
       }));
 
-      const replayed: Record<string, RankedPlayer> =
-        replayMatchesForRanking(replayInputs);
+      const replayed: Record<string, RankedPlayer> = replayMatchesForRanking(
+        replayInputs,
+        includeNonCompetitive.value,
+      );
 
       const ratingMap = new Map<string, number>();
       for (const [key, player] of Object.entries(replayed)) {

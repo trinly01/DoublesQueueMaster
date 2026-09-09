@@ -49,7 +49,7 @@
                     <div class="lb-row">
                       <span class="lb-label">Best Duo</span>
                       <span class="lb-desc"
-                        >best duos in this club (last 30 days, 3+ games
+                        >best duos in this club (last 30 days, 2+ games
                         together)</span
                       >
                     </div>
@@ -501,7 +501,7 @@
         <div v-else class="text-center text-grey q-py-md">
           {{
             leaderboardTab === 'duo'
-              ? 'No duos with 3+ games yet.'
+              ? 'No duos with 2+ games yet.'
               : 'No completed matches yet.'
           }}
         </div>
