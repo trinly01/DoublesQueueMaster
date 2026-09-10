@@ -1,0 +1,1460 @@
+[
+  {
+    "id": "fa05750b-fd1e-42ae-a379-fb169b90e8d8",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788877645918_c08bgpl",
+    "match_id": "c08bgpl",
+    "match_type": "doubles",
+    "team_a_score": 12,
+    "team_b_score": 10,
+    "completed_at": "2026-09-08T14:27:25.918Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "2006d3b7-5b23-409b-97b4-aa52a77ddd21",
+        "username": "pasaoaednalyn830#flz",
+        "firstName": "Ednalyn",
+        "lastName": "Pasaoa",
+        "level": 2,
+        "rating": 1389
+      },
+      {
+        "userId": "736abe22-2229-4e9f-8bad-dfd26d651591",
+        "username": "antonrafaelcatalan#71o",
+        "firstName": "Anton",
+        "lastName": "Catalan",
+        "level": 2,
+        "rating": 1512
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "15ff5edd-242d-4ac7-bc48-988a62c3e749",
+        "username": "jamesmanganaan1808#1xb",
+        "firstName": "James",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1544
+      },
+      {
+        "userId": "76e8da5d-9e30-4942-8c8e-dfa6167f13d8",
+        "username": "jeunicegachallan#hry",
+        "firstName": "Jeunice",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1454
+      }
+    ]
+  },
+  {
+    "id": "858c49c1-8e82-49dd-93f9-3d9a1c9d04b4",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788876549099_79s61mq",
+    "match_id": "79s61mq",
+    "match_type": "doubles",
+    "team_a_score": 11,
+    "team_b_score": 3,
+    "completed_at": "2026-09-08T14:09:09.099Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "2162ca81-387c-49d7-b763-da54a52ea05a",
+        "username": "ncrensonpastoral#r53",
+        "firstName": "NcRenson",
+        "lastName": "Pastoral",
+        "level": 2,
+        "rating": 1392
+      },
+      {
+        "userId": "3cc9b6ac-bd8b-4811-87bb-2d6d5756716f",
+        "username": "shanjm89#nuh",
+        "firstName": "Joven",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1468
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "c8309785-5c78-4718-8fec-a2bc4747f970",
+        "username": "jelenamanganaan1012#zv5",
+        "firstName": "Jel",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1542
+      },
+      {
+        "userId": "e27c3e63-c790-41c1-a3a6-5417caad530a",
+        "username": "hjohnuel21#d2u",
+        "firstName": "Marc Johnuel",
+        "lastName": "Humangit",
+        "level": 2,
+        "rating": 1456
+      }
+    ]
+  },
+  {
+    "id": "f9546747-57e8-4cd4-bd51-97fab023c400",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788875912324_8w0hiq3",
+    "match_id": "8w0hiq3",
+    "match_type": "doubles",
+    "team_a_score": 9,
+    "team_b_score": 11,
+    "completed_at": "2026-09-08T13:58:32.324Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "574b1ea8-9afc-4244-bdc3-e2d8f2f4c737",
+        "username": "gachallanf#mpr",
+        "firstName": "Lenz",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1491
+      },
+      {
+        "userId": "9d21df12-f098-4465-91cf-e86d5c674a58",
+        "username": "roselapalaylay#nv0",
+        "firstName": "Ela",
+        "lastName": "Palaylay",
+        "level": 2,
+        "rating": 1480
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "736abe22-2229-4e9f-8bad-dfd26d651591",
+        "username": "antonrafaelcatalan#71o",
+        "firstName": "Anton",
+        "lastName": "Catalan",
+        "level": 2,
+        "rating": 1512
+      },
+      {
+        "userId": "f81c6e1a-ce63-4797-907d-6742f1902e30",
+        "username": "reinbow932#03a",
+        "firstName": "gxelo",
+        "level": 2,
+        "rating": 1450
+      }
+    ]
+  },
+  {
+    "id": "b5fa564f-f558-4e90-aabf-43992b474e3c",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788875261891_81oda91",
+    "match_id": "81oda91",
+    "match_type": "doubles",
+    "team_a_score": 12,
+    "team_b_score": 10,
+    "completed_at": "2026-09-08T13:47:41.891Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "15ff5edd-242d-4ac7-bc48-988a62c3e749",
+        "username": "jamesmanganaan1808#1xb",
+        "firstName": "James",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1544
+      },
+      {
+        "userId": "2006d3b7-5b23-409b-97b4-aa52a77ddd21",
+        "username": "pasaoaednalyn830#flz",
+        "firstName": "Ednalyn",
+        "lastName": "Pasaoa",
+        "level": 2,
+        "rating": 1389
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "3cc9b6ac-bd8b-4811-87bb-2d6d5756716f",
+        "username": "shanjm89#nuh",
+        "firstName": "Joven",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1468
+      },
+      {
+        "userId": "e27c3e63-c790-41c1-a3a6-5417caad530a",
+        "username": "hjohnuel21#d2u",
+        "firstName": "Marc Johnuel",
+        "lastName": "Humangit",
+        "level": 2,
+        "rating": 1456
+      }
+    ]
+  },
+  {
+    "id": "54eb25b2-55c1-40fd-9691-e546d6f754fb",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788874184960_exoh87q",
+    "match_id": "exoh87q",
+    "match_type": "doubles",
+    "team_a_score": 5,
+    "team_b_score": 11,
+    "completed_at": "2026-09-08T13:29:44.960Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "username": "Froi",
+        "level": 2,
+        "rating": 1500
+      },
+      {
+        "userId": "c8309785-5c78-4718-8fec-a2bc4747f970",
+        "username": "jelenamanganaan1012#zv5",
+        "firstName": "Jel",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1542
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "3bda75ac-beff-46e5-b112-28dc89af3bae",
+        "username": "crisnrose556#ois",
+        "firstName": "Obal",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1616
+      },
+      {
+        "userId": "76e8da5d-9e30-4942-8c8e-dfa6167f13d8",
+        "username": "jeunicegachallan#hry",
+        "firstName": "Jeunice",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1454
+      }
+    ]
+  },
+  {
+    "id": "52ef51e8-e97f-44a5-9c6a-1e3609a0d07e",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788873109291_s22nqm9",
+    "match_id": "s22nqm9",
+    "match_type": "doubles",
+    "team_a_score": 7,
+    "team_b_score": 11,
+    "completed_at": "2026-09-08T13:11:49.291Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "c8309785-5c78-4718-8fec-a2bc4747f970",
+        "username": "jelenamanganaan1012#zv5",
+        "firstName": "Jel",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1542
+      },
+      {
+        "userId": "f81c6e1a-ce63-4797-907d-6742f1902e30",
+        "username": "reinbow932#03a",
+        "firstName": "gxelo",
+        "level": 2,
+        "rating": 1450
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "2006d3b7-5b23-409b-97b4-aa52a77ddd21",
+        "username": "pasaoaednalyn830#flz",
+        "firstName": "Ednalyn",
+        "lastName": "Pasaoa",
+        "level": 2,
+        "rating": 1389
+      },
+      {
+        "userId": "9d21df12-f098-4465-91cf-e86d5c674a58",
+        "username": "roselapalaylay#nv0",
+        "firstName": "Ela",
+        "lastName": "Palaylay",
+        "level": 2,
+        "rating": 1480
+      }
+    ]
+  },
+  {
+    "id": "8bee1817-d91a-48b7-b45e-05fb2795ba7d",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788872232518_au6r1ls",
+    "match_id": "au6r1ls",
+    "match_type": "doubles",
+    "team_a_score": 11,
+    "team_b_score": 9,
+    "completed_at": "2026-09-08T12:57:12.518Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "15ff5edd-242d-4ac7-bc48-988a62c3e749",
+        "username": "jamesmanganaan1808#1xb",
+        "firstName": "James",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1544
+      },
+      {
+        "userId": "3cc9b6ac-bd8b-4811-87bb-2d6d5756716f",
+        "username": "shanjm89#nuh",
+        "firstName": "Joven",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1468
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "736abe22-2229-4e9f-8bad-dfd26d651591",
+        "username": "antonrafaelcatalan#71o",
+        "firstName": "Anton",
+        "lastName": "Catalan",
+        "level": 2,
+        "rating": 1512
+      },
+      {
+        "userId": "1e90f898-80e0-4805-bf67-e8f1a03b1413",
+        "username": "mikegbj0814#q9g",
+        "firstName": "Miguel",
+        "lastName": "Bautista",
+        "level": 2,
+        "rating": 1546
+      }
+    ]
+  },
+  {
+    "id": "7088eebc-1b4a-4542-b0c3-c80603aa5f59",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788871286426_e9fpo10",
+    "match_id": "e9fpo10",
+    "match_type": "doubles",
+    "team_a_score": 11,
+    "team_b_score": 5,
+    "completed_at": "2026-09-08T12:41:26.426Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "e27c3e63-c790-41c1-a3a6-5417caad530a",
+        "username": "hjohnuel21#d2u",
+        "firstName": "Marc Johnuel",
+        "lastName": "Humangit",
+        "level": 2,
+        "rating": 1456
+      },
+      {
+        "userId": "574b1ea8-9afc-4244-bdc3-e2d8f2f4c737",
+        "username": "gachallanf#mpr",
+        "firstName": "Lenz",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1491
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "b983a93d-364a-4d41-8bcc-f99d0114b1df",
+        "username": "lykamariebascon#v9b",
+        "firstName": "Nieka",
+        "lastName": "Bascon",
+        "level": 2,
+        "rating": 1435
+      },
+      {
+        "userId": "76e8da5d-9e30-4942-8c8e-dfa6167f13d8",
+        "username": "jeunicegachallan#hry",
+        "firstName": "Jeunice",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1454
+      }
+    ]
+  },
+  {
+    "id": "41de50d3-fe36-4094-81fd-7fc2ea504c40",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788870289060_q1442gp",
+    "match_id": "q1442gp",
+    "match_type": "doubles",
+    "team_a_score": 3,
+    "team_b_score": 11,
+    "completed_at": "2026-09-08T12:24:49.060Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "75fc4a06-fd56-45b6-86d7-0ade30179ca3",
+        "username": "jaijaipq431#3ka",
+        "firstName": "Jaira",
+        "lastName": "pq",
+        "level": 2,
+        "rating": 1530
+      },
+      {
+        "userId": "f81c6e1a-ce63-4797-907d-6742f1902e30",
+        "username": "reinbow932#03a",
+        "firstName": "gxelo",
+        "level": 2,
+        "rating": 1450
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "9d21df12-f098-4465-91cf-e86d5c674a58",
+        "username": "roselapalaylay#nv0",
+        "firstName": "Ela",
+        "lastName": "Palaylay",
+        "level": 2,
+        "rating": 1480
+      },
+      {
+        "userId": "a2a86ed4-fc9f-4165-9eb8-e5cc4945d5cb",
+        "username": "nairettap#yh3",
+        "firstName": "Aira",
+        "lastName": "Pastoral",
+        "level": 2,
+        "rating": 1475
+      }
+    ]
+  },
+  {
+    "id": "47f3a1b5-1bf0-4a3f-9a65-6e2179ad5fbd",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788869266485_yqumnrd",
+    "match_id": "yqumnrd",
+    "match_type": "doubles",
+    "team_a_score": 5,
+    "team_b_score": 11,
+    "completed_at": "2026-09-08T12:07:46.485Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "a2a86ed4-fc9f-4165-9eb8-e5cc4945d5cb",
+        "username": "nairettap#yh3",
+        "firstName": "Aira",
+        "lastName": "Pastoral",
+        "level": 2,
+        "rating": 1475
+      },
+      {
+        "userId": "76e8da5d-9e30-4942-8c8e-dfa6167f13d8",
+        "username": "jeunicegachallan#hry",
+        "firstName": "Jeunice",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1454
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "574b1ea8-9afc-4244-bdc3-e2d8f2f4c737",
+        "username": "gachallanf#mpr",
+        "firstName": "Lenz",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1491
+      },
+      {
+        "userId": "b983a93d-364a-4d41-8bcc-f99d0114b1df",
+        "username": "lykamariebascon#v9b",
+        "firstName": "Nieka",
+        "lastName": "Bascon",
+        "level": 2,
+        "rating": 1435
+      }
+    ]
+  },
+  {
+    "id": "da8343ad-0b36-4c53-952c-905a1d21c0d6",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788868499350_1end098",
+    "match_id": "1end098",
+    "match_type": "doubles",
+    "team_a_score": 11,
+    "team_b_score": 3,
+    "completed_at": "2026-09-08T11:54:59.350Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "736abe22-2229-4e9f-8bad-dfd26d651591",
+        "username": "antonrafaelcatalan#71o",
+        "firstName": "Anton",
+        "lastName": "Catalan",
+        "level": 2,
+        "rating": 1512
+      },
+      {
+        "userId": "e27c3e63-c790-41c1-a3a6-5417caad530a",
+        "username": "hjohnuel21#d2u",
+        "firstName": "Marc Johnuel",
+        "lastName": "Humangit",
+        "level": 2,
+        "rating": 1456
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "f81c6e1a-ce63-4797-907d-6742f1902e30",
+        "username": "reinbow932#03a",
+        "firstName": "gxelo",
+        "level": 2,
+        "rating": 1450
+      },
+      {
+        "userId": "9d21df12-f098-4465-91cf-e86d5c674a58",
+        "username": "roselapalaylay#nv0",
+        "firstName": "Ela",
+        "lastName": "Palaylay",
+        "level": 2,
+        "rating": 1480
+      }
+    ]
+  },
+  {
+    "id": "231231a3-9722-4fc1-9121-8b3fda38cb67",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788867906408_doipkcc",
+    "match_id": "doipkcc",
+    "match_type": "doubles",
+    "team_a_score": 11,
+    "team_b_score": 9,
+    "completed_at": "2026-09-08T11:45:06.408Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "3cc9b6ac-bd8b-4811-87bb-2d6d5756716f",
+        "username": "shanjm89#nuh",
+        "firstName": "Joven",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1468
+      },
+      {
+        "userId": "1e90f898-80e0-4805-bf67-e8f1a03b1413",
+        "username": "mikegbj0814#q9g",
+        "firstName": "Miguel",
+        "lastName": "Bautista",
+        "level": 2,
+        "rating": 1546
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "105f8234-64ff-4d94-86a4-d9dd08fe7036",
+        "username": "lauricemichelle#aq1",
+        "firstName": "Mikki",
+        "lastName": "Palma",
+        "level": 2,
+        "rating": 1399
+      },
+      {
+        "userId": "3bda75ac-beff-46e5-b112-28dc89af3bae",
+        "username": "crisnrose556#ois",
+        "firstName": "Obal",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1616
+      }
+    ]
+  },
+  {
+    "id": "225185e9-53a0-4d8e-8d3a-72563818165f",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788866554928_jnwepaw",
+    "match_id": "jnwepaw",
+    "match_type": "doubles",
+    "team_a_score": 4,
+    "team_b_score": 11,
+    "completed_at": "2026-09-08T11:22:34.928Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "e27c3e63-c790-41c1-a3a6-5417caad530a",
+        "username": "hjohnuel21#d2u",
+        "firstName": "Marc Johnuel",
+        "lastName": "Humangit",
+        "level": 2,
+        "rating": 1456
+      },
+      {
+        "userId": "9d21df12-f098-4465-91cf-e86d5c674a58",
+        "username": "roselapalaylay#nv0",
+        "firstName": "Ela",
+        "lastName": "Palaylay",
+        "level": 2,
+        "rating": 1480
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "76e8da5d-9e30-4942-8c8e-dfa6167f13d8",
+        "username": "jeunicegachallan#hry",
+        "firstName": "Jeunice",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1454
+      },
+      {
+        "userId": "574b1ea8-9afc-4244-bdc3-e2d8f2f4c737",
+        "username": "gachallanf#mpr",
+        "firstName": "Lenz",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1491
+      }
+    ]
+  },
+  {
+    "id": "a7104cbf-7b32-4343-b509-679b552b1ead",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788865673486_q4okpns",
+    "match_id": "q4okpns",
+    "match_type": "doubles",
+    "team_a_score": 11,
+    "team_b_score": 4,
+    "completed_at": "2026-09-08T11:07:53.486Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "15ff5edd-242d-4ac7-bc48-988a62c3e749",
+        "username": "jamesmanganaan1808#1xb",
+        "firstName": "James",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1544
+      },
+      {
+        "userId": "a2a86ed4-fc9f-4165-9eb8-e5cc4945d5cb",
+        "username": "nairettap#yh3",
+        "firstName": "Aira",
+        "lastName": "Pastoral",
+        "level": 2,
+        "rating": 1475
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "c8309785-5c78-4718-8fec-a2bc4747f970",
+        "username": "jelenamanganaan1012#zv5",
+        "firstName": "Jel",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1542
+      },
+      {
+        "userId": "75fc4a06-fd56-45b6-86d7-0ade30179ca3",
+        "username": "jaijaipq431#3ka",
+        "firstName": "Jaira",
+        "lastName": "pq",
+        "level": 2,
+        "rating": 1530
+      }
+    ]
+  },
+  {
+    "id": "18cea746-2b72-4726-a3ed-54aacf70f95c",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788864413203_gvjgz8o",
+    "match_id": "gvjgz8o",
+    "match_type": "doubles",
+    "team_a_score": 0,
+    "team_b_score": 11,
+    "completed_at": "2026-09-08T10:46:53.203Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "f81c6e1a-ce63-4797-907d-6742f1902e30",
+        "username": "reinbow932#03a",
+        "firstName": "gxelo",
+        "level": 2,
+        "rating": 1450
+      },
+      {
+        "userId": "5cdce0f5-9eb0-4063-b1ba-417860fd3f19",
+        "username": "rose_n_raf#sg8",
+        "firstName": "Osang",
+        "lastName": "Catalan",
+        "level": 2,
+        "rating": 1428
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "105f8234-64ff-4d94-86a4-d9dd08fe7036",
+        "username": "lauricemichelle#aq1",
+        "firstName": "Mikki",
+        "lastName": "Palma",
+        "level": 2,
+        "rating": 1399
+      },
+      {
+        "userId": "1e90f898-80e0-4805-bf67-e8f1a03b1413",
+        "username": "mikegbj0814#q9g",
+        "firstName": "Miguel",
+        "lastName": "Bautista",
+        "level": 2,
+        "rating": 1546
+      }
+    ]
+  },
+  {
+    "id": "d15c3d69-e42a-427f-b9c3-1cb9d0641c5a",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788863764995_g7w7yt5",
+    "match_id": "g7w7yt5",
+    "match_type": "doubles",
+    "team_a_score": 7,
+    "team_b_score": 11,
+    "completed_at": "2026-09-08T10:36:04.995Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "736abe22-2229-4e9f-8bad-dfd26d651591",
+        "username": "antonrafaelcatalan#71o",
+        "firstName": "Anton",
+        "lastName": "Catalan",
+        "level": 2,
+        "rating": 1512
+      },
+      {
+        "userId": "b983a93d-364a-4d41-8bcc-f99d0114b1df",
+        "username": "lykamariebascon#v9b",
+        "firstName": "Nieka",
+        "lastName": "Bascon",
+        "level": 2,
+        "rating": 1435
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "3bda75ac-beff-46e5-b112-28dc89af3bae",
+        "username": "crisnrose556#ois",
+        "firstName": "Obal",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1616
+      },
+      {
+        "userId": "2006d3b7-5b23-409b-97b4-aa52a77ddd21",
+        "username": "pasaoaednalyn830#flz",
+        "firstName": "Ednalyn",
+        "lastName": "Pasaoa",
+        "level": 2,
+        "rating": 1389
+      }
+    ]
+  },
+  {
+    "id": "b78b182a-e232-40e0-9a9b-309f585f14e1",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788791467433_dvbd1dh",
+    "match_id": "dvbd1dh",
+    "match_type": "doubles",
+    "team_a_score": 11,
+    "team_b_score": 7,
+    "completed_at": "2026-09-07T14:31:07.433Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "4fc171f7-66ed-4d7c-ae6b-ec5ba1bf3eaa",
+        "username": "batidarell16#zib",
+        "firstName": "Darell",
+        "lastName": "Bati",
+        "level": 2,
+        "rating": 1473
+      },
+      {
+        "userId": "c8309785-5c78-4718-8fec-a2bc4747f970",
+        "username": "jelenamanganaan1012#zv5",
+        "firstName": "Jel",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1542
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "f81c6e1a-ce63-4797-907d-6742f1902e30",
+        "username": "reinbow932#03a",
+        "firstName": "gxelo",
+        "level": 2,
+        "rating": 1450
+      },
+      {
+        "userId": "76e8da5d-9e30-4942-8c8e-dfa6167f13d8",
+        "username": "jeunicegachallan#hry",
+        "firstName": "Jeunice",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1454
+      }
+    ]
+  },
+  {
+    "id": "8f8ac430-cbfe-42b6-b185-59a8afec34df",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788790846772_cp2gocx",
+    "match_id": "cp2gocx",
+    "match_type": "doubles",
+    "team_a_score": 9,
+    "team_b_score": 11,
+    "completed_at": "2026-09-07T14:20:46.772Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "574b1ea8-9afc-4244-bdc3-e2d8f2f4c737",
+        "username": "gachallanf#mpr",
+        "firstName": "Lenz",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1491
+      },
+      {
+        "userId": "15ff5edd-242d-4ac7-bc48-988a62c3e749",
+        "username": "jamesmanganaan1808#1xb",
+        "firstName": "James",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1544
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "a5a718a1-8990-4707-8fb0-322b30da7941",
+        "username": "joshuapepitopalaylay#nr8",
+        "firstName": "Joshua pepito",
+        "lastName": "Palaylay",
+        "level": 2,
+        "rating": 1450
+      },
+      {
+        "userId": "3cc9b6ac-bd8b-4811-87bb-2d6d5756716f",
+        "username": "shanjm89#nuh",
+        "firstName": "Joven",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1468
+      }
+    ]
+  },
+  {
+    "id": "3feb5d0c-38d7-4954-903d-51869d34b78e",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788789620387_5rulrc1",
+    "match_id": "5rulrc1",
+    "match_type": "doubles",
+    "team_a_score": 1,
+    "team_b_score": 11,
+    "completed_at": "2026-09-07T14:00:20.387Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "a2a86ed4-fc9f-4165-9eb8-e5cc4945d5cb",
+        "username": "nairettap#yh3",
+        "firstName": "Aira",
+        "lastName": "Pastoral",
+        "level": 2,
+        "rating": 1475
+      },
+      {
+        "userId": "c8309785-5c78-4718-8fec-a2bc4747f970",
+        "username": "jelenamanganaan1012#zv5",
+        "firstName": "Jel",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1542
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "072387b0-0a81-4b5e-8a0c-816c6880ea7f",
+        "username": "boyet.castillo74#p2l",
+        "firstName": "Boyet",
+        "lastName": "Castillo",
+        "level": 2,
+        "rating": 1552
+      },
+      {
+        "userId": "c9c6b84d-bd6f-4e08-97b4-e523132e77e2",
+        "username": "Timdev0421#tru",
+        "firstName": "Timot",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1434
+      }
+    ]
+  },
+  {
+    "id": "37c8854b-030d-4745-8f69-5879c43ba80b",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788788954984_lvjd8bt",
+    "match_id": "lvjd8bt",
+    "match_type": "doubles",
+    "team_a_score": 5,
+    "team_b_score": 11,
+    "completed_at": "2026-09-07T13:49:14.984Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "bae8f049-407a-439e-88b1-c87fe8ead76c",
+        "username": "seraficaluigi3#hul",
+        "firstName": "Luigi",
+        "lastName": "Serafica",
+        "level": 2,
+        "rating": 1489
+      },
+      {
+        "userId": "105f8234-64ff-4d94-86a4-d9dd08fe7036",
+        "username": "lauricemichelle#aq1",
+        "firstName": "Mikki",
+        "lastName": "Palma",
+        "level": 2,
+        "rating": 1399
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "3bda75ac-beff-46e5-b112-28dc89af3bae",
+        "username": "crisnrose556#ois",
+        "firstName": "Obal",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1616
+      },
+      {
+        "userId": "f81c6e1a-ce63-4797-907d-6742f1902e30",
+        "username": "reinbow932#03a",
+        "firstName": "gxelo",
+        "level": 2,
+        "rating": 1450
+      }
+    ]
+  },
+  {
+    "id": "3ec71f34-94ec-4520-9492-7cc312fdb26f",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788787973841_8kjim23",
+    "match_id": "8kjim23",
+    "match_type": "doubles",
+    "team_a_score": 11,
+    "team_b_score": 6,
+    "completed_at": "2026-09-07T13:32:53.841Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "15ff5edd-242d-4ac7-bc48-988a62c3e749",
+        "username": "jamesmanganaan1808#1xb",
+        "firstName": "James",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1544
+      },
+      {
+        "userId": "a5a718a1-8990-4707-8fb0-322b30da7941",
+        "username": "joshuapepitopalaylay#nr8",
+        "firstName": "Joshua pepito",
+        "lastName": "Palaylay",
+        "level": 2,
+        "rating": 1450
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "5cdce0f5-9eb0-4063-b1ba-417860fd3f19",
+        "username": "rose_n_raf#sg8",
+        "firstName": "Osang",
+        "lastName": "Catalan",
+        "level": 2,
+        "rating": 1428
+      },
+      {
+        "userId": "75fc4a06-fd56-45b6-86d7-0ade30179ca3",
+        "username": "jaijaipq431#3ka",
+        "firstName": "Jaira",
+        "lastName": "pq",
+        "level": 2,
+        "rating": 1530
+      }
+    ]
+  },
+  {
+    "id": "188d3dea-415a-4772-9527-43e9751b0125",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788787096796_h3khbih",
+    "match_id": "h3khbih",
+    "match_type": "doubles",
+    "team_a_score": 8,
+    "team_b_score": 11,
+    "completed_at": "2026-09-07T13:18:16.796Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "4fc171f7-66ed-4d7c-ae6b-ec5ba1bf3eaa",
+        "username": "batidarell16#zib",
+        "firstName": "Darell",
+        "lastName": "Bati",
+        "level": 2,
+        "rating": 1473
+      },
+      {
+        "userId": "76e8da5d-9e30-4942-8c8e-dfa6167f13d8",
+        "username": "jeunicegachallan#hry",
+        "firstName": "Jeunice",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1454
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "3cc9b6ac-bd8b-4811-87bb-2d6d5756716f",
+        "username": "shanjm89#nuh",
+        "firstName": "Joven",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1468
+      },
+      {
+        "userId": "736abe22-2229-4e9f-8bad-dfd26d651591",
+        "username": "antonrafaelcatalan#71o",
+        "firstName": "Anton",
+        "lastName": "Catalan",
+        "level": 2,
+        "rating": 1512
+      }
+    ]
+  },
+  {
+    "id": "d55e2b48-3734-413d-88df-e19310c5b106",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788786273691_i2tpq3b",
+    "match_id": "i2tpq3b",
+    "match_type": "doubles",
+    "team_a_score": 3,
+    "team_b_score": 11,
+    "completed_at": "2026-09-07T13:04:33.691Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "f81c6e1a-ce63-4797-907d-6742f1902e30",
+        "username": "reinbow932#03a",
+        "firstName": "gxelo",
+        "level": 2,
+        "rating": 1450
+      },
+      {
+        "userId": "072387b0-0a81-4b5e-8a0c-816c6880ea7f",
+        "username": "boyet.castillo74#p2l",
+        "firstName": "Boyet",
+        "lastName": "Castillo",
+        "level": 2,
+        "rating": 1552
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "574b1ea8-9afc-4244-bdc3-e2d8f2f4c737",
+        "username": "gachallanf#mpr",
+        "firstName": "Lenz",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1491
+      },
+      {
+        "userId": "4880d60c-d767-46cf-95b7-18600da27366",
+        "username": "flores2flores78#j0q",
+        "firstName": "Mac",
+        "lastName": "Flores",
+        "level": 2,
+        "rating": 1450
+      }
+    ]
+  },
+  {
+    "id": "e8a58a77-fb3f-4799-9594-d24400c9424e",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788785662582_pyu84fe",
+    "match_id": "pyu84fe",
+    "match_type": "doubles",
+    "team_a_score": 8,
+    "team_b_score": 11,
+    "completed_at": "2026-09-07T12:54:22.582Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "3bda75ac-beff-46e5-b112-28dc89af3bae",
+        "username": "crisnrose556#ois",
+        "firstName": "Obal",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1616
+      },
+      {
+        "userId": "105f8234-64ff-4d94-86a4-d9dd08fe7036",
+        "username": "lauricemichelle#aq1",
+        "firstName": "Mikki",
+        "lastName": "Palma",
+        "level": 2,
+        "rating": 1399
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "c9c6b84d-bd6f-4e08-97b4-e523132e77e2",
+        "username": "Timdev0421#tru",
+        "firstName": "Timot",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1434
+      },
+      {
+        "userId": "c8309785-5c78-4718-8fec-a2bc4747f970",
+        "username": "jelenamanganaan1012#zv5",
+        "firstName": "Jel",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1542
+      }
+    ]
+  },
+  {
+    "id": "aea845cb-2f09-4e06-a2f7-8e5c75b45fbf",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788784667906_1zh71uf",
+    "match_id": "1zh71uf",
+    "match_type": "doubles",
+    "team_a_score": 10,
+    "team_b_score": 11,
+    "completed_at": "2026-09-07T12:37:47.906Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "5cdce0f5-9eb0-4063-b1ba-417860fd3f19",
+        "username": "rose_n_raf#sg8",
+        "firstName": "Osang",
+        "lastName": "Catalan",
+        "level": 2,
+        "rating": 1428
+      },
+      {
+        "userId": "a2a86ed4-fc9f-4165-9eb8-e5cc4945d5cb",
+        "username": "nairettap#yh3",
+        "firstName": "Aira",
+        "lastName": "Pastoral",
+        "level": 2,
+        "rating": 1475
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "736abe22-2229-4e9f-8bad-dfd26d651591",
+        "username": "antonrafaelcatalan#71o",
+        "firstName": "Anton",
+        "lastName": "Catalan",
+        "level": 2,
+        "rating": 1512
+      },
+      {
+        "userId": "76e8da5d-9e30-4942-8c8e-dfa6167f13d8",
+        "username": "jeunicegachallan#hry",
+        "firstName": "Jeunice",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1454
+      }
+    ]
+  },
+  {
+    "id": "a2a2babb-d636-47bd-897c-7c97a738042d",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788783587454_sthizg1",
+    "match_id": "sthizg1",
+    "match_type": "doubles",
+    "team_a_score": 3,
+    "team_b_score": 11,
+    "completed_at": "2026-09-07T12:19:47.454Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "a5a718a1-8990-4707-8fb0-322b30da7941",
+        "username": "joshuapepitopalaylay#nr8",
+        "firstName": "Joshua pepito",
+        "lastName": "Palaylay",
+        "level": 2,
+        "rating": 1450
+      },
+      {
+        "userId": "75fc4a06-fd56-45b6-86d7-0ade30179ca3",
+        "username": "jaijaipq431#3ka",
+        "firstName": "Jaira",
+        "lastName": "pq",
+        "level": 2,
+        "rating": 1530
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "4fc171f7-66ed-4d7c-ae6b-ec5ba1bf3eaa",
+        "username": "batidarell16#zib",
+        "firstName": "Darell",
+        "lastName": "Bati",
+        "level": 2,
+        "rating": 1473
+      },
+      {
+        "userId": "3cc9b6ac-bd8b-4811-87bb-2d6d5756716f",
+        "username": "shanjm89#nuh",
+        "firstName": "Joven",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1468
+      }
+    ]
+  },
+  {
+    "id": "dc346c1b-dd6d-4226-abf8-f613fb1678c0",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788782980020_egw0fht",
+    "match_id": "egw0fht",
+    "match_type": "doubles",
+    "team_a_score": 3,
+    "team_b_score": 11,
+    "completed_at": "2026-09-07T12:09:40.020Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "15ff5edd-242d-4ac7-bc48-988a62c3e749",
+        "username": "jamesmanganaan1808#1xb",
+        "firstName": "James",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1544
+      },
+      {
+        "userId": "1e90f898-80e0-4805-bf67-e8f1a03b1413",
+        "username": "mikegbj0814#q9g",
+        "firstName": "Miguel",
+        "lastName": "Bautista",
+        "level": 2,
+        "rating": 1546
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "072387b0-0a81-4b5e-8a0c-816c6880ea7f",
+        "username": "boyet.castillo74#p2l",
+        "firstName": "Boyet",
+        "lastName": "Castillo",
+        "level": 2,
+        "rating": 1552
+      },
+      {
+        "userId": "4880d60c-d767-46cf-95b7-18600da27366",
+        "username": "flores2flores78#j0q",
+        "firstName": "Mac",
+        "lastName": "Flores",
+        "level": 2,
+        "rating": 1450
+      }
+    ]
+  },
+  {
+    "id": "cb3646e6-f3a6-4503-a753-96efc52e8c80",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788782237574_s4ovlov",
+    "match_id": "s4ovlov",
+    "match_type": "doubles",
+    "team_a_score": 11,
+    "team_b_score": 8,
+    "completed_at": "2026-09-07T11:57:17.574Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "f81c6e1a-ce63-4797-907d-6742f1902e30",
+        "username": "reinbow932#03a",
+        "firstName": "gxelo",
+        "level": 2,
+        "rating": 1450
+      },
+      {
+        "userId": "574b1ea8-9afc-4244-bdc3-e2d8f2f4c737",
+        "username": "gachallanf#mpr",
+        "firstName": "Lenz",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1491
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "76e8da5d-9e30-4942-8c8e-dfa6167f13d8",
+        "username": "jeunicegachallan#hry",
+        "firstName": "Jeunice",
+        "lastName": "Gachallan",
+        "level": 2,
+        "rating": 1454
+      },
+      {
+        "userId": "a2a86ed4-fc9f-4165-9eb8-e5cc4945d5cb",
+        "username": "nairettap#yh3",
+        "firstName": "Aira",
+        "lastName": "Pastoral",
+        "level": 2,
+        "rating": 1475
+      }
+    ]
+  },
+  {
+    "id": "6470b75c-c126-4e8c-83d5-568f15798ce8",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788781451019_i5zxr59",
+    "match_id": "i5zxr59",
+    "match_type": "doubles",
+    "team_a_score": 11,
+    "team_b_score": 10,
+    "completed_at": "2026-09-07T11:44:11.019Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "c8309785-5c78-4718-8fec-a2bc4747f970",
+        "username": "jelenamanganaan1012#zv5",
+        "firstName": "Jel",
+        "lastName": "Manganaan",
+        "level": 2,
+        "rating": 1542
+      },
+      {
+        "userId": "105f8234-64ff-4d94-86a4-d9dd08fe7036",
+        "username": "lauricemichelle#aq1",
+        "firstName": "Mikki",
+        "lastName": "Palma",
+        "level": 2,
+        "rating": 1399
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "77a776cc-ff4c-497e-8ef5-2f05597d7ab1",
+        "username": "boadilla.randy.p#b3d",
+        "firstName": "Ydnar🖤",
+        "lastName": "Boadilla",
+        "level": 2,
+        "rating": 1405
+      },
+      {
+        "userId": "736abe22-2229-4e9f-8bad-dfd26d651591",
+        "username": "antonrafaelcatalan#71o",
+        "firstName": "Anton",
+        "lastName": "Catalan",
+        "level": 2,
+        "rating": 1512
+      }
+    ]
+  },
+  {
+    "id": "70b9a65a-e507-4fa5-914d-ae713808d5ef",
+    "club": "c4921ecb-bc3a-4daf-971c-e8157b7480a5",
+    "match_key": "1788780300392_qku81ax",
+    "match_id": "qku81ax",
+    "match_type": "doubles",
+    "team_a_score": 4,
+    "team_b_score": 11,
+    "completed_at": "2026-09-07T11:25:00.392Z",
+    "meta": {
+      "matchmakingMode": "variety_first"
+    },
+    "team_a": [
+      {
+        "userId": "75fc4a06-fd56-45b6-86d7-0ade30179ca3",
+        "username": "jaijaipq431#3ka",
+        "firstName": "Jaira",
+        "lastName": "pq",
+        "level": 2,
+        "rating": 1530
+      },
+      {
+        "userId": "3cc9b6ac-bd8b-4811-87bb-2d6d5756716f",
+        "username": "shanjm89#nuh",
+        "firstName": "Joven",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1468
+      }
+    ],
+    "team_b": [
+      {
+        "userId": "3bda75ac-beff-46e5-b112-28dc89af3bae",
+        "username": "crisnrose556#ois",
+        "firstName": "Obal",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1616
+      },
+      {
+        "userId": "c9c6b84d-bd6f-4e08-97b4-e523132e77e2",
+        "username": "Timdev0421#tru",
+        "firstName": "Timot",
+        "lastName": "Eslabra",
+        "level": 2,
+        "rating": 1434
+      }
+    ]
+  }
+]
