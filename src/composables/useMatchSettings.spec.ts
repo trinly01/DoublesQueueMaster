@@ -396,10 +396,18 @@ describe('useMatchSettings — static option arrays', () => {
     expect(scoreTypeOptions.map((o) => o.value)).toEqual(['RALLY', 'SIDEOUT']);
   });
 
-  it('sortOptions has 6 options', () => {
+  it('sortOptions has 7 options', () => {
     const { context } = makeContext();
     const { sortOptions } = useMatchSettings(context);
-    expect(sortOptions).toHaveLength(6);
+    expect(sortOptions.map((o) => o.value)).toEqual([
+      'queueStatus',
+      'rating',
+      'winRate',
+      'wins',
+      'matchesPlayed',
+      'losses',
+      'name',
+    ]);
   });
 
   it('matchesFilterOptions has all, in-progress, waiting, cancelled, completed, edited', () => {
