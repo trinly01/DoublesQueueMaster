@@ -415,6 +415,7 @@ export const buildMatchDescription = (
 // ── Next in Line (waiting status match, no court assigned) ─
 // Finds the next match that is still in 'waiting' status AND has no court assigned.
 // Matches already assigned to a court are queued up and should not be "next in line".
+// Next in line = earliest createdAt (pure FIFO — matches the Matches column order).
 // createdAt = when the match was first generated
 // startedAt = when the match began play (only set after status changes to 'in-progress')
 export const getNextInLine = (
@@ -423,24 +424,16 @@ export const getNextInLine = (
     status: string;
     createdAt: Date;
     court?: number;
-    minGamesPlayed?: number;
-    oldestQueueEntryAt?: number;
   }>,
-  queuePriorityMode: string,
   activeMatches: ActiveMatch[],
 ): ActiveMatch | null => {
   // Filter to only matches waiting for a court (no court assigned yet)
   const waiting = matches
     .filter((m) => m.status === 'waiting' && !m.court)
     .sort((a, b) => {
-      if (queuePriorityMode === 'gamesPlayed') {
-        const aGames = a.minGamesPlayed ?? 0;
-        const bGames = b.minGamesPlayed ?? 0;
-        if (aGames !== bGames) return aGames - bGames;
-      }
-      const aTime = a.oldestQueueEntryAt ?? a.createdAt.getTime();
-      const bTime = b.oldestQueueEntryAt ?? b.createdAt.getTime();
-      return aTime - bTime;
+      const diff = a.createdAt.getTime() - b.createdAt.getTime();
+      if (diff !== 0) return diff;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
     });
 
   if (!waiting[0]) return null;
@@ -452,6 +445,7 @@ export const buildMatchAnnounceText = (
   teamA: string[],
   teamB: string[],
   isNextInLine?: boolean,
+  court?: number,
 ): string => {
   const aStr =
     teamA.length > 1 ? `${teamA[0]}, and ${teamA[1]}` : teamA[0] || '';
@@ -460,7 +454,10 @@ export const buildMatchAnnounceText = (
   if (isNextInLine) {
     return `Next in line, please prepare..... ${aStr}... versus... ${bStr}....`;
   }
-  return `${aStr}... versus... ${bStr}... Please take the next open court. One minute dinking only....`;
+  const courtText = court
+    ? `Please proceed to court ${court}`
+    : 'Please take the next open court';
+  return `${aStr}... versus... ${bStr}... ${courtText}. One minute dinking only....`;
 };
 
 // ── Match Start Announcement ─────────────────────────────
@@ -472,7 +469,7 @@ export const announceMatchStart = (
 ) => {
   const a = match.teamA.map((u) => getPlayerName(players, u));
   const b = match.teamB.map((u) => getPlayerName(players, u));
-  const text = buildMatchAnnounceText(a, b);
+  const text = buildMatchAnnounceText(a, b, false, match.court);
 
   // Announce the newly started match 2 times (ideal for noisy clubs)
   for (let i = 0; i < 2; i++) {

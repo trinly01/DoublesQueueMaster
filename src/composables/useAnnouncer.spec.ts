@@ -85,10 +85,16 @@ describe('useAnnouncer — handleCustomAnnounce', () => {
     handleCustomAnnounce({
       id: 'm1',
       status: 'in-progress',
+      court: 3,
       teamA: [{ firstName: 'Alice', username: 'alice' }],
       teamB: [{ firstName: 'Bob', username: 'bob' }],
     });
-    expect(buildMatchAnnounceText).toHaveBeenCalledWith(['Alice'], ['Bob']);
+    expect(buildMatchAnnounceText).toHaveBeenCalledWith(
+      ['Alice'],
+      ['Bob'],
+      false,
+      3,
+    );
     expect(announce).toHaveBeenCalled();
   });
 
@@ -133,7 +139,12 @@ describe('useAnnouncer — handleCustomAnnounce', () => {
       teamA: [{ username: 'alice' }],
       teamB: [{ username: 'bob' }],
     });
-    expect(buildMatchAnnounceText).toHaveBeenCalledWith(['alice'], ['bob']);
+    expect(buildMatchAnnounceText).toHaveBeenCalledWith(
+      ['alice'],
+      ['bob'],
+      false,
+      undefined,
+    );
   });
 });
 
@@ -147,6 +158,7 @@ describe('useAnnouncer — watcher', () => {
       {
         id: 'm1',
         status: 'in-progress',
+        court: 2,
         startedAt: { getTime: () => startTime },
         createdAt: new Date(),
         teamA: [{ firstName: 'Alice', username: 'alice' }],
@@ -158,7 +170,12 @@ describe('useAnnouncer — watcher', () => {
     // Wait for watcher to fire
     await new Promise((r) => setTimeout(r, 10));
 
-    expect(buildMatchAnnounceText).toHaveBeenCalledWith(['Alice'], ['Bob']);
+    expect(buildMatchAnnounceText).toHaveBeenCalledWith(
+      ['Alice'],
+      ['Bob'],
+      false,
+      2,
+    );
     expect(announce).toHaveBeenCalled();
   });
 

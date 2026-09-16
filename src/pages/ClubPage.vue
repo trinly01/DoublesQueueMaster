@@ -3216,52 +3216,36 @@ const filteredMatches = computed(() => {
       (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
     if (statusDiff !== 0) return statusDiff;
 
-    // Within same status, use queue priority order (matches the queue setting)
-    if (queuePriorityMode.value === 'gamesPlayed') {
-      // Less Played First: match with lowest min games played comes first
-      const aGames =
-        (a as unknown as { minGamesPlayed?: number }).minGamesPlayed ?? 0;
-      const bGames =
-        (b as unknown as { minGamesPlayed?: number }).minGamesPlayed ?? 0;
-      if (aGames !== bGames) return aGames - bGames;
-    }
-    // First in Line (default): match with oldest queue entry comes first
-    // Cancelled/Edited/Completed: latest first (newest on top)
-    const aTime =
-      (a as unknown as { oldestQueueEntryAt?: number }).oldestQueueEntryAt ??
-      a.createdAt.getTime();
-    const bTime =
-      (b as unknown as { oldestQueueEntryAt?: number }).oldestQueueEntryAt ??
-      b.createdAt.getTime();
-    if ((a.status as string) === 'cancelled') {
-      const aUpdated =
-        (a as unknown as { updatedAt?: number }).updatedAt ?? aTime;
-      const bUpdated =
-        (b as unknown as { updatedAt?: number }).updatedAt ?? bTime;
-      return bUpdated - aUpdated;
-    }
-    if ((a.status as string) === 'completed') {
-      const aCompleted = (a as unknown as { completedAt?: string }).completedAt
-        ? Date.parse((a as unknown as { completedAt: string }).completedAt)
-        : aTime;
-      const bCompleted = (b as unknown as { completedAt?: string }).completedAt
-        ? Date.parse((b as unknown as { completedAt: string }).completedAt)
-        : bTime;
-      return bCompleted - aCompleted;
-    }
+    // FIFO by each status's applicable date:
+    //   in-progress → startedAt (first started on top)
+    //   waiting → createdAt (first created = next in line)
+    //   cancelled → updatedAt (cancel time), completed → completedAt,
+    //   edited → editedAt — history views show newest first.
+    // Queue-priority settings only affect who gets drafted into a match,
+    // not the order of matches that already exist.
+    const time = (v?: Date | string | number): number | undefined =>
+      v instanceof Date
+        ? v.getTime()
+        : v != null
+          ? new Date(v).getTime()
+          : undefined;
+    const aCreated = a.createdAt.getTime();
+    const bCreated = b.createdAt.getTime();
+    let diff: number;
     if (matchesFilterBy.value === 'edited') {
-      const aEdited = (a as unknown as { editedAt?: number }).editedAt ?? aTime;
-      const bEdited = (b as unknown as { editedAt?: number }).editedAt ?? bTime;
-      return bEdited - aEdited;
+      diff = (time(b.editedAt) ?? bCreated) - (time(a.editedAt) ?? aCreated);
+    } else if ((a.status as string) === 'cancelled') {
+      diff = (time(b.updatedAt) ?? bCreated) - (time(a.updatedAt) ?? aCreated);
+    } else if ((a.status as string) === 'completed') {
+      diff =
+        (time(b.completedAt) ?? bCreated) - (time(a.completedAt) ?? aCreated);
+    } else if ((a.status as string) === 'in-progress') {
+      diff = (time(a.startedAt) ?? aCreated) - (time(b.startedAt) ?? bCreated);
+    } else {
+      diff = aCreated - bCreated;
     }
-    if ((a.status as string) === 'in-progress') {
-      const aStarted =
-        (a as unknown as { startedAt?: Date }).startedAt?.getTime() ?? aTime;
-      const bStarted =
-        (b as unknown as { startedAt?: Date }).startedAt?.getTime() ?? bTime;
-      return aStarted - bStarted;
-    }
-    return aTime - bTime;
+    if (diff !== 0) return diff;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 
   return filtered;
