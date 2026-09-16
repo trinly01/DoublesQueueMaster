@@ -7,7 +7,14 @@ import { MatchmakingApp } from 'src/services/matchmaking';
 // device retains its own value regardless of what other devices set.
 export type DeviceSettings = {
   ttsEnabled?: boolean;
-  sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
+  sortBy?:
+    | 'matchesPlayed'
+    | 'rating'
+    | 'winRate'
+    | 'wins'
+    | 'losses'
+    | 'name'
+    | 'queueStatus';
   matchesFilterBy?:
     | 'all'
     | 'in-progress'

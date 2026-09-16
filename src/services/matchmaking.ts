@@ -128,7 +128,14 @@ export interface AppState {
     | 'balanced_variety'
     | 'strict_balance'
     | 'fair_balance';
-  sortBy?: 'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name';
+  sortBy?:
+    | 'matchesPlayed'
+    | 'rating'
+    | 'winRate'
+    | 'wins'
+    | 'losses'
+    | 'name'
+    | 'queueStatus';
   matchType?: 'singles' | 'doubles';
   allStarSortDirection?: 'desc' | 'asc'; // Pro Pick draft direction
   matchesFilterBy?:
@@ -383,14 +390,26 @@ export function enforceConcurrencyLimitOnState(state: AppState): string[] {
     demotedIds.push(m.matchId);
   }
 
-  // Compact surviving in-progress matches onto slots 1..cap
+  // Compact surviving in-progress matches onto slots 1..cap.
+  // Keep a survivor's existing court when it's in range and unclaimed —
+  // renumbering a live match would make its displayed court diverge
+  // from the physical court it's actually being played on.
   const survivors = inProgress.slice(0, cap);
-  survivors.forEach((m, i) => {
-    const newSlot = i + 1;
-    if (m.court !== newSlot) {
-      m.court = newSlot;
-      m.updatedAt = now;
+  const claimedCourts = new Set<number>();
+  survivors.forEach((m) => {
+    if (
+      m.court !== undefined &&
+      m.court <= cap &&
+      !claimedCourts.has(m.court)
+    ) {
+      claimedCourts.add(m.court);
+      return;
     }
+    let newSlot = 1;
+    while (claimedCourts.has(newSlot)) newSlot++;
+    m.court = newSlot;
+    claimedCourts.add(newSlot);
+    m.updatedAt = now;
   });
 
   console.log(

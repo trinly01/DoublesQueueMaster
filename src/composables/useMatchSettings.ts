@@ -239,7 +239,13 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
   });
 
   const sortBy = computed<
-    'matchesPlayed' | 'rating' | 'winRate' | 'wins' | 'losses' | 'name'
+    | 'matchesPlayed'
+    | 'rating'
+    | 'winRate'
+    | 'wins'
+    | 'losses'
+    | 'name'
+    | 'queueStatus'
   >({
     get: () =>
       (deviceSettings.sortBy || 'matchesPlayed') as
@@ -248,7 +254,8 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
         | 'winRate'
         | 'wins'
         | 'losses'
-        | 'name',
+        | 'name'
+        | 'queueStatus',
     set: (val) => {
       deviceSettings.sortBy = val;
       saveDeviceSettings();
@@ -308,6 +315,7 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
   ];
 
   const sortOptions = [
+    { label: 'On-Queue', value: 'queueStatus' },
     { label: 'Rating', value: 'rating' },
     { label: 'Win Rate', value: 'winRate' },
     { label: 'Wins', value: 'wins' },

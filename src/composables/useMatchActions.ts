@@ -570,14 +570,18 @@ export function useMatchActions(context: UseMatchActionsContext) {
     );
     if (!actualMatch) return;
 
-    // Assign a slot if not already assigned
-    if (!actualMatch.court) {
-      actualMatch.court = assignCourt();
-      actualMatch.updatedAt = Date.now();
+    // Resolve which court to use: keep a pinned court if it's free,
+    // otherwise take the best available court. Never leave a court
+    // assigned while the match stays waiting — a stale pin would block
+    // auto-advance onto other courts and skew future load balancing.
+    let court = actualMatch.court;
+    if (court === undefined || !isCourtAvailable(court)) {
+      const candidate = assignCourt();
+      court = isCourtAvailable(candidate) ? candidate : undefined;
     }
 
     // Check if slot is available
-    if (!isCourtAvailable(actualMatch.court)) {
+    if (court === undefined) {
       notify({
         type: 'negative',
         message: 'All slots are currently in use',
@@ -586,7 +590,7 @@ export function useMatchActions(context: UseMatchActionsContext) {
     }
 
     // Start the match
-    startMatchOnCourt(actualMatch, actualMatch.court);
+    startMatchOnCourt(actualMatch, court);
 
     // Save data
     MatchmakingApp.persist();
