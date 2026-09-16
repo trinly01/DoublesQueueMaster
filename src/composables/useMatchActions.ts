@@ -267,7 +267,8 @@ export function useMatchActions(context: UseMatchActionsContext) {
     // Only auto-advance if the setting is enabled
     if (!autoAdvanceMatches.value) return;
 
-    // Find the highest-priority waiting match based on queuePriorityMode
+    // Find the next waiting match — pure FIFO: the match displayed at the
+    // top of the waiting list (earliest createdAt) is the one that starts.
     const waitingMatches = matches.value
       .filter(
         (match) =>
@@ -275,21 +276,9 @@ export function useMatchActions(context: UseMatchActionsContext) {
           (!match.court || match.court === courtNumber),
       )
       .sort((a, b) => {
-        // Use queue priority order (same logic as filteredMatches)
-        if (queuePriorityMode.value === 'gamesPlayed') {
-          const aGames =
-            (a as unknown as { minGamesPlayed?: number }).minGamesPlayed ?? 0;
-          const bGames =
-            (b as unknown as { minGamesPlayed?: number }).minGamesPlayed ?? 0;
-          if (aGames !== bGames) return aGames - bGames;
-        }
-        const aTime =
-          (a as unknown as { oldestQueueEntryAt?: number })
-            .oldestQueueEntryAt ?? a.createdAt.getTime();
-        const bTime =
-          (b as unknown as { oldestQueueEntryAt?: number })
-            .oldestQueueEntryAt ?? b.createdAt.getTime();
-        return aTime - bTime;
+        const diff = a.createdAt.getTime() - b.createdAt.getTime();
+        if (diff !== 0) return diff;
+        return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
       });
 
     const nextMatch = waitingMatches[0];

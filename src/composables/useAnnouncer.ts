@@ -29,16 +29,12 @@ export interface UseAnnouncerContext {
 }
 
 export function useAnnouncer(context: UseAnnouncerContext) {
-  const { matches, queuePriorityMode } = context;
+  const { matches } = context;
   const { notify: ctxNotify } = useNotify();
   const notify = ctxNotify as NotifyFn;
 
   const nextInLineMatch = computed(() =>
-    getNextInLine(
-      matches.value,
-      queuePriorityMode.value,
-      MatchmakingApp.state.activeMatches,
-    ),
+    getNextInLine(matches.value, MatchmakingApp.state.activeMatches),
   );
 
   // Seed with current max startedAt so existing matches aren't re-announced.
@@ -83,7 +79,7 @@ export function useAnnouncer(context: UseAnnouncerContext) {
       for (const m of newlyStarted) {
         const a = m.teamA.map((p) => p.firstName || p.username);
         const b = m.teamB.map((p) => p.firstName || p.username);
-        const text = buildMatchAnnounceText(a, b);
+        const text = buildMatchAnnounceText(a, b, false, m.court);
         for (let i = 0; i < 2; i++) {
           announce(notify, text, m.id);
         }
@@ -131,7 +127,6 @@ export function useAnnouncer(context: UseAnnouncerContext) {
     if (match.status === 'waiting') {
       const next = getNextInLine(
         matches.value,
-        queuePriorityMode.value,
         MatchmakingApp.state.activeMatches,
       );
       if (next) {
@@ -150,7 +145,7 @@ export function useAnnouncer(context: UseAnnouncerContext) {
     // For in-progress matches, announce the match normally
     const a = match.teamA.map((p) => p.firstName || p.username);
     const b = match.teamB.map((p) => p.firstName || p.username);
-    const text = buildMatchAnnounceText(a, b);
+    const text = buildMatchAnnounceText(a, b, false, match.court);
     announce(notify, text, match.id);
   };
 
