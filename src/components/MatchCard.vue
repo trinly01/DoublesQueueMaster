@@ -55,6 +55,23 @@
 
         <!-- Center: Status + Icon stacked -->
         <div class="col-auto q-mx-md center-group">
+          <q-chip
+            v-if="match.status === 'in-progress' && match.court"
+            dense
+            size="xs"
+            class="court-chip"
+            color="grey-4"
+            text-color="grey-9"
+          >
+            Court
+            <q-avatar
+              color="grey-8"
+              text-color="white"
+              size="16px"
+              font-size="9px"
+              >{{ match.court }}</q-avatar
+            >
+          </q-chip>
           <span class="text-caption text-grey-6">
             {{
               match.winProbability !== undefined
@@ -436,6 +453,28 @@ onUnmounted(() => {
       margin: 0;
     }
 
+    .court-chip {
+      margin: 0;
+      margin-right: 5px; // room for the avatar hanging off the right edge
+      overflow: visible;
+      padding-right: 13px; // extended right end the avatar overlaps
+
+      // Avatar is out of flow — pinned to the chip's right end so it reads
+      // as inside the chip, but bigger than the chip itself.
+      .q-avatar {
+        position: absolute;
+        right: -5px;
+        top: 50%;
+        transform: translateY(-50%);
+        margin: 0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
+    }
+
     .live-dot-avatar {
       margin-left: -2px;
       margin-right: 4px;
@@ -470,6 +509,14 @@ onUnmounted(() => {
         font-size: 0.7rem;
         min-height: 18px;
         padding: 0 5px;
+      }
+
+      // Court chip must stay xs-sized like the meta chips — undo the
+      // min-height/padding the generic rule above would force on it.
+      .court-chip.q-chip {
+        min-height: 0;
+        padding: 0 0.4em;
+        padding-right: 13px;
       }
 
       .q-icon {

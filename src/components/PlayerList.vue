@@ -126,6 +126,7 @@ type Player = BasePlayer & {
   queueType?: 'GENERAL' | 'WINNERS' | 'LOSERS';
   isInMatch?: boolean;
   isInQueue?: boolean;
+  matchOrder?: number;
 };
 
 interface Props {
@@ -195,6 +196,32 @@ const displayPlayers = computed(() => {
 
   return [...props.players].sort((a, b) => {
     switch (props.sortBy) {
+      case 'queueStatus': {
+        // Mirrors the Queue column order (type groups, then enteredAt),
+        // then the Matches column order (matchOrder), then everyone else.
+        const statusOrder = (p: Player) =>
+          p.isInQueue ? 0 : p.isInMatch ? 1 : 2;
+        const sA = statusOrder(a);
+        const sB = statusOrder(b);
+        if (sA !== sB) return sA - sB;
+        if (sA === 0) {
+          const typeOrder: Record<string, number> = {
+            GENERAL: 0,
+            WINNERS: 1,
+            LOSERS: 2,
+          };
+          const tA = typeOrder[a.queueType || 'GENERAL'] ?? 2;
+          const tB = typeOrder[b.queueType || 'GENERAL'] ?? 2;
+          if (tA !== tB) return tA - tB;
+          return (a.enteredAt || 0) - (b.enteredAt || 0);
+        }
+        if (sA === 1) {
+          return (a.matchOrder ?? 0) - (b.matchOrder ?? 0);
+        }
+        const idleA = (a.firstName || a.username).toLowerCase();
+        const idleB = (b.firstName || b.username).toLowerCase();
+        return idleA.localeCompare(idleB);
+      }
       case 'rating':
         return b.rating - a.rating;
       case 'matchesPlayed':

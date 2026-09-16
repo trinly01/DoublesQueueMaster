@@ -591,7 +591,7 @@
                 </q-toolbar-title>
                 <q-select
                   v-model="matchesFilterBy"
-                  :options="matchesFilterOptions"
+                  :options="matchesFilterOptionsWithCounts"
                   dense
                   outlined
                   dark
@@ -1132,7 +1132,7 @@
                 <div class="q-pa-md q-pb-sm row items-center justify-between">
                   <q-select
                     v-model="matchesFilterBy"
-                    :options="matchesFilterOptions"
+                    :options="matchesFilterOptionsWithCounts"
                     dense
                     outlined
                     emit-value
@@ -1661,6 +1661,8 @@ const matches = computed(() => {
         originalMatchup: m.originalMatchup,
         originalTeamA: m.originalTeamA,
         originalTeamB: m.originalTeamB,
+        oldestQueueEntryAt: m.oldestQueueEntryAt,
+        minGamesPlayed: m.minGamesPlayed,
         updatedAt: m.updatedAt,
         teamAScore: undefined as number | undefined,
         teamBScore: undefined as number | undefined,
@@ -3018,16 +3020,33 @@ const displayPlayers = computed(() => {
     });
   }
 
-  // Add isInMatch and isInQueue properties to each player
-  const queueUsernames = new Set(
+  // Queue position info — mirrors the Queue column ordering
+  const queueInfo = new Map(
     MatchmakingApp.state.queues
       .filter((q) => !q.deletedAt)
-      .map((q) => q.username),
+      .map((q) => [
+        q.username,
+        { enteredAt: q.enteredAt, queueType: q.queueType },
+      ]),
   );
+  // Match order — mirrors the Matches column ordering (by match index/court)
+  const matchOrder = new Map<string, number>();
+  MatchmakingApp.state.activeMatches
+    .filter((m) => !m.deletedAt)
+    .forEach((m, idx) => {
+      const order = m.court ?? idx;
+      for (const u of [...m.teamA, ...m.teamB]) {
+        if (!matchOrder.has(u)) matchOrder.set(u, order);
+      }
+    });
+
   const withStatus = result.map((p) => ({
     ...p,
-    isInMatch: isPlayerInMatch(p.username),
-    isInQueue: queueUsernames.has(p.username),
+    isInMatch: matchOrder.has(p.username),
+    isInQueue: queueInfo.has(p.username),
+    enteredAt: queueInfo.get(p.username)?.enteredAt,
+    queueType: queueInfo.get(p.username)?.queueType,
+    matchOrder: matchOrder.get(p.username),
   }));
 
   return withStatus;
@@ -3062,15 +3081,6 @@ const allPlayersInQueue = computed(() => {
   const queuePlayerNames = new Set(queue.value.map((p) => p.username));
   return players.value.every((p) => queuePlayerNames.has(p.username));
 });
-
-// Helper function to check if a player is in a match
-const isPlayerInMatch = (username: string): boolean => {
-  return MatchmakingApp.state.activeMatches.some(
-    (m) =>
-      !m.deletedAt &&
-      (m.teamA.includes(username) || m.teamB.includes(username)),
-  );
-};
 
 const hasAvailableSlot = computed(() => {
   const cap = getCourtCount();
@@ -3119,6 +3129,7 @@ const cancelledMatches = computed(() => {
         originalMatchup: m.originalMatchup,
         originalTeamA: m.originalTeamA,
         originalTeamB: m.originalTeamB,
+        updatedAt: m.updatedAt,
       };
     });
 });
@@ -3254,6 +3265,34 @@ const filteredMatches = computed(() => {
   });
 
   return filtered;
+});
+
+// Filter options with per-status counts appended to the label.
+// Zero-count options are hidden — except 'all' and the currently
+// selected option (so the select never shows a raw value).
+const matchesFilterOptionsWithCounts = computed(() => {
+  const counts: Record<string, number> = {
+    all: matches.value.length,
+    'in-progress': matches.value.filter((m) => m.status === 'in-progress')
+      .length,
+    waiting: matches.value.filter((m) => m.status === 'waiting').length,
+    cancelled: cancelledMatches.value.length,
+    completed: completedMatchViewModels.value.length,
+    edited:
+      matches.value.filter((m) => m.isEdited).length +
+      completedMatchViewModels.value.filter((m) => m.isEdited).length,
+  };
+  return matchesFilterOptions
+    .filter(
+      (o) =>
+        o.value === 'all' ||
+        (counts[o.value] ?? 0) > 0 ||
+        o.value === matchesFilterBy.value,
+    )
+    .map((o) => ({
+      ...o,
+      label: `${o.label} (${counts[o.value] ?? 0})`,
+    }));
 });
 
 const currentMatch = computed(() => {
