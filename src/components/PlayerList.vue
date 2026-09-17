@@ -253,12 +253,22 @@ const isPlayerSelected = (player: Player): boolean => {
   return props.selectedPlayers.some((p) => p.username === player.username);
 };
 
+// Precompute queue positions once per list change — the per-row filter+findIndex
+// version was O(n²) (queue of 50 = 2,500 iterations per render).
+const positionByUsername = computed(() => {
+  const map = new Map<string, number>();
+  const counters: Record<string, number> = {};
+  for (const p of props.players) {
+    const type = p.queueType || 'GENERAL';
+    const next = (counters[type] ?? 0) + 1;
+    counters[type] = next;
+    map.set(p.username, next);
+  }
+  return map;
+});
+
 const getPlayerPosition = (player: Player): number => {
-  const playerType = player.queueType || 'GENERAL';
-  const sameType = props.players.filter(
-    (p) => (p.queueType || 'GENERAL') === playerType,
-  );
-  return sameType.findIndex((p) => p.username === player.username) + 1;
+  return positionByUsername.value.get(player.username) ?? 0;
 };
 
 const getPositionColor = (player: Player): string => {

@@ -4,7 +4,7 @@
  * Used by useCloudSync composable — see Step 2.0/2.1 of the maintainability refactor.
  */
 
-import type { Player } from './matchmaking';
+import type { AppState, Player } from './matchmaking';
 
 /**
  * Returns true if the cloud sync should be skipped entirely.
@@ -244,4 +244,48 @@ export const mergePlayerFromDB = (
   }
 
   return { changed, newRating };
+};
+
+// ---------------------------------------------------------------------------
+// #9 — applyMergedState: assign only collections that actually changed
+// ---------------------------------------------------------------------------
+
+/**
+ * Cheap deep-equality check via JSON serialization. AppState is pure JSON data
+ * (no functions/Dates), so stringify equality implies semantic equality.
+ * False negatives (e.g. different key insertion order in a dict) only lose the
+ * optimization — the value is still assigned. Never a correctness risk.
+ */
+export const jsonEqual = (a: unknown, b: unknown): boolean =>
+  JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Applies a merged AppState onto the live reactive state, assigning each top-
+ * level key only when its content actually changed.
+ *
+ * Why: `Object.assign(state, merged)` replaces every collection's reference on
+ * every sync merge — even when the merge produced identical content — which
+ * invalidates every computed on the Club page and re-renders all columns.
+ * Skipping identical keys makes no-op merges (echoes, resume-sync pulls where
+ * nothing changed) visually free.
+ *
+ * Semantics match Object.assign(target, merged) exactly: every key present in
+ * `merged` ends up on `target`; the only difference is that keys whose content
+ * is already identical keep their existing reference.
+ *
+ * Returns true if any key was assigned (i.e. the merge changed something).
+ */
+export const applyMergedState = (
+  target: AppState,
+  merged: AppState,
+): boolean => {
+  let changed = false;
+  for (const key of Object.keys(merged) as Array<keyof AppState>) {
+    const incoming = merged[key];
+    if (!jsonEqual(target[key], incoming)) {
+      (target as unknown as Record<string, unknown>)[key] = incoming;
+      changed = true;
+    }
+  }
+  return changed;
 };

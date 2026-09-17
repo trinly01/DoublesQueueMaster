@@ -58,7 +58,11 @@
     </q-banner>
 
     <!-- Desktop/Large Tablet Layout: 3 Columns -->
-    <div class="row q-col-gutter-lg gt-sm">
+    <!-- v-if (not just gt-sm CSS) so the inactive layout is never mounted —
+         previously both rendered simultaneously, doubling every PlayerList,
+         MatchCard, avatar request, and reactive dependency. $q.screen is
+         reactive, so crossing the breakpoint remounts once. -->
+    <div v-if="$q.screen.gt.sm" class="row q-col-gutter-lg gt-sm">
       <!-- Left Column: Players List -->
       <div class="col-12 col-md-4">
         <slot name="players-desktop" />
@@ -76,7 +80,7 @@
     </div>
 
     <!-- Mobile Layout: qTabs -->
-    <div class="lt-md">
+    <div v-else class="lt-md">
       <q-tabs
         :model-value="modelValue"
         @update:model-value="$emit('update:modelValue', String($event))"
@@ -109,10 +113,14 @@
 
       <q-separator />
 
+      <!-- keep-alive: without it every tab switch unmounts the old column and
+           remounts the new one from scratch (all PlayerCards/MatchCards +
+           avatar fetches). Cached panels make switches near-instant. -->
       <q-tab-panels
         :model-value="modelValue"
         @update:model-value="$emit('update:modelValue', String($event))"
         animated
+        keep-alive
       >
         <!-- Players Tab -->
         <q-tab-panel name="players">

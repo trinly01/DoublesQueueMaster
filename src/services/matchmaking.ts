@@ -211,12 +211,17 @@ function getStorageKey(clubId?: string): string {
 // Losing matches are tombstoned and their players returned to queue.
 export function gcTombstones(state: AppState, now: number) {
   const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-  state.queues = state.queues.filter(
+  // Assign only when entries were actually dropped — a fresh array with
+  // identical content would needlessly invalidate every dependent computed.
+  const queues = state.queues.filter(
     (q) => !q.deletedAt || now - q.deletedAt < SEVEN_DAYS,
   );
-  state.activeMatches = state.activeMatches.filter(
+  if (queues.length !== state.queues.length) state.queues = queues;
+  const matches = state.activeMatches.filter(
     (m) => !m.deletedAt || now - m.deletedAt < SEVEN_DAYS,
   );
+  if (matches.length !== state.activeMatches.length)
+    state.activeMatches = matches;
 }
 
 function enforceOneMatchPerPlayerOnState(state: AppState) {
@@ -840,9 +845,36 @@ export class LocalMatchmakingSystem {
     if (initialState.clubUUID === undefined) initialState.clubUUID = '';
 
     this.state = reactive(initialState);
+
+    // Flush any pending deferred LocalStorage write before unload.
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', () => this.flushPersist());
+    }
   }
 
   // --- INTERNAL STORAGE METHODS ---
+
+  // Deferred LocalStorage write — saveState() runs on every mutation, and
+  // serializing the whole AppState (including completedMatches history) on
+  // every call blocked the UI. Writes are coalesced into one macrotask;
+  // flushPersist() forces the write immediately (pagehide, persistSilently).
+  private pendingPersistTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private schedulePersist() {
+    if (this.pendingPersistTimer) return;
+    this.pendingPersistTimer = setTimeout(() => {
+      this.pendingPersistTimer = null;
+      this.flushPersist();
+    }, 0);
+  }
+
+  public flushPersist() {
+    if (this.pendingPersistTimer) {
+      clearTimeout(this.pendingPersistTimer);
+      this.pendingPersistTimer = null;
+    }
+    LocalStorage.set(getStorageKey(this.state.clubId || undefined), this.state);
+  }
 
   // Stamp both global settingsUpdatedAt and a per-field timestamp for granular LWW.
   public stampSetting(field: string) {
@@ -872,7 +904,9 @@ export class LocalMatchmakingSystem {
     // Remove orphaned queue entries (entries without a matching player profile)
     this.cleanupOrphanedQueueEntries();
 
-    // Deduplicate activeMatches by matchId (keep newest updatedAt)
+    // Deduplicate activeMatches by matchId (keep newest updatedAt).
+    // Assign only when dupes were actually removed — a fresh array with
+    // identical content would needlessly invalidate dependent computeds.
     const uniqueMatches = new Map<string, ActiveMatch>();
     this.state.activeMatches.forEach((m) => {
       const existing = uniqueMatches.get(m.matchId);
@@ -880,7 +914,9 @@ export class LocalMatchmakingSystem {
         uniqueMatches.set(m.matchId, m);
       }
     });
-    this.state.activeMatches = Array.from(uniqueMatches.values());
+    if (uniqueMatches.size !== this.state.activeMatches.length) {
+      this.state.activeMatches = Array.from(uniqueMatches.values());
+    }
 
     // Deduplicate queues by username (keep newest queuedAt first,
     // then updatedAt, including tombstones so a newer deletion can win
@@ -906,18 +942,25 @@ export class LocalMatchmakingSystem {
         }
       }
     });
-    this.state.queues = Array.from(uniqueQueues.values());
+    if (uniqueQueues.size !== this.state.queues.length) {
+      this.state.queues = Array.from(uniqueQueues.values());
+    }
 
-    // Validate players dictionary keys match usernames
+    // Validate players dictionary keys match usernames — assign only when a
+    // key was actually remapped (the dict is read by the players computed).
+    let remapped = false;
     const fixedPlayers: Record<string, Player> = {};
     Object.entries(this.state.players).forEach(([key, player]) => {
       if (player.username && player.username !== key) {
         fixedPlayers[player.username] = player;
+        remapped = true;
       } else {
         fixedPlayers[key] = player;
       }
     });
-    this.state.players = fixedPlayers;
+    if (remapped) {
+      this.state.players = fixedPlayers;
+    }
 
     // Garbage-collect tombstones older than 7 days to prevent array bloat
     gcTombstones(this.state, Date.now());
@@ -930,6 +973,7 @@ export class LocalMatchmakingSystem {
 
     if (playersCheckpoint > 0) {
       const keptPlayers: Record<string, Player> = {};
+      let dropped = false;
       for (const [key, player] of Object.entries(this.state.players)) {
         const effectiveTime = Math.max(
           player.createdAt ?? 0,
@@ -939,13 +983,15 @@ export class LocalMatchmakingSystem {
         );
         if (effectiveTime >= playersCheckpoint) {
           keptPlayers[key] = player;
+        } else {
+          dropped = true;
         }
       }
-      this.state.players = keptPlayers;
+      if (dropped) this.state.players = keptPlayers;
     }
 
     if (queuesCheckpoint > 0) {
-      this.state.queues = this.state.queues.filter((q) => {
+      const kept = this.state.queues.filter((q) => {
         const effectiveTime = Math.max(
           q.createdAt ?? 0,
           q.updatedAt ?? 0,
@@ -953,10 +999,11 @@ export class LocalMatchmakingSystem {
         );
         return effectiveTime >= queuesCheckpoint;
       });
+      if (kept.length !== this.state.queues.length) this.state.queues = kept;
     }
 
     if (matchesCheckpoint > 0) {
-      this.state.activeMatches = this.state.activeMatches.filter((m) => {
+      const kept = this.state.activeMatches.filter((m) => {
         const effectiveTime = Math.max(
           m.createdAt ?? 0,
           m.updatedAt ?? 0,
@@ -964,6 +1011,8 @@ export class LocalMatchmakingSystem {
         );
         return effectiveTime >= matchesCheckpoint;
       });
+      if (kept.length !== this.state.activeMatches.length)
+        this.state.activeMatches = kept;
     }
 
     // Purge completed matches older than the completedMatchesResetAt checkpoint.
@@ -974,11 +1023,12 @@ export class LocalMatchmakingSystem {
     const completedCheckpoint = this.state.completedMatchesResetAt ?? 0;
     if (completedCheckpoint > 0) {
       const before = this.state.completedMatches.length;
-      this.state.completedMatches = this.state.completedMatches.filter(
+      const kept = this.state.completedMatches.filter(
         (m) => m.completedAt > completedCheckpoint,
       );
-      const dropped = before - this.state.completedMatches.length;
+      const dropped = before - kept.length;
       if (dropped > 0) {
+        this.state.completedMatches = kept;
         console.warn(
           '[saveState] purged',
           dropped,
@@ -989,8 +1039,7 @@ export class LocalMatchmakingSystem {
     }
 
     this.state.lastModified = Date.now();
-    const clubId = this.state.clubId || undefined;
-    LocalStorage.set(getStorageKey(clubId), this.state);
+    this.schedulePersist();
     if (this.onStateChange) {
       this.onStateChange();
     }
@@ -998,15 +1047,16 @@ export class LocalMatchmakingSystem {
 
   private cleanupOrphanedQueueEntries() {
     const originalLength = this.state.queues.length;
-    this.state.queues = this.state.queues.filter((q) => {
+    const filtered = this.state.queues.filter((q) => {
       // Keep tombstoned entries (they don't need a valid player profile)
       if (q.deletedAt) return true;
       const p = this.state.players[q.username];
       return p !== undefined && !p.deletedAt;
     });
-    if (this.state.queues.length !== originalLength) {
+    if (filtered.length !== originalLength) {
+      this.state.queues = filtered;
       console.log(
-        `[cleanupOrphanedQueueEntries] Removed ${originalLength - this.state.queues.length} orphaned queue entries`,
+        `[cleanupOrphanedQueueEntries] Removed ${originalLength - filtered.length} orphaned queue entries`,
       );
     }
   }
@@ -1024,13 +1074,14 @@ export class LocalMatchmakingSystem {
     // Remove live queue entries for players who are in matches
     // (skip tombstoned entries — they are logically not in queue)
     const originalQueueLength = this.state.queues.length;
-    this.state.queues = this.state.queues.filter(
+    const filtered = this.state.queues.filter(
       (q) => q.deletedAt || !playersInMatches.has(q.username),
     );
 
-    if (this.state.queues.length !== originalQueueLength) {
+    if (filtered.length !== originalQueueLength) {
+      this.state.queues = filtered;
       console.log(
-        `[enforceQueueMatchConstraint] Removed ${originalQueueLength - this.state.queues.length} queue entries for players in matches`,
+        `[enforceQueueMatchConstraint] Removed ${originalQueueLength - filtered.length} queue entries for players in matches`,
       );
     }
   }
@@ -1713,10 +1764,10 @@ export class LocalMatchmakingSystem {
   }
 
   // Save to LocalStorage WITHOUT firing onStateChange (used after a programmatic
-  // merge so we don't recursively trigger another cloud sync).
+  // merge so we don't recursively trigger another cloud sync). Flushes any
+  // pending deferred write so the snapshot lands now.
   public persistSilently() {
-    const clubId = this.state.clubId || undefined;
-    LocalStorage.set(getStorageKey(clubId), this.state);
+    this.flushPersist();
   }
 }
 

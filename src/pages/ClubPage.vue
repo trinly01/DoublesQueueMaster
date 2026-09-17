@@ -1486,6 +1486,7 @@ import ClubLayout from '../components/club/ClubLayout.vue';
 import SettingsDialog from '../components/club/SettingsDialog.vue';
 import QRCode from 'qrcode';
 import { getRatingColor, getRatingCategory } from '../utils/playerHelpers';
+import { computeMatchFilterCounts } from '../utils/matchCounts';
 import { computeWinProbability } from '../services/matchmaking';
 import { useMatchSettings } from '../composables/useMatchSettings';
 import { useDupr } from '../composables/useDupr';
@@ -2603,13 +2604,18 @@ const refreshPlayerRatings = async () => {
     if (!club?.players) return;
 
     let changed = false;
+    // Precompute userId → player once — Object.values().find() per member was
+    // O(members × players) every 60s poll.
+    const localByUserId = new Map(
+      Object.values(MatchmakingApp.state.players)
+        .filter((pl) => pl.userId)
+        .map((pl) => [pl.userId as string, pl]),
+    );
     club.players.forEach((p) => {
       const u = p.directus_users_id;
       if (!u?.id) return;
 
-      const local = Object.values(MatchmakingApp.state.players).find(
-        (pl) => pl.userId === u.id,
-      );
+      const local = localByUserId.get(u.id);
       if (!local) return;
 
       // Update avatar if present
@@ -3255,17 +3261,10 @@ const filteredMatches = computed(() => {
 // Zero-count options are hidden — except 'all' and the currently
 // selected option (so the select never shows a raw value).
 const matchesFilterOptionsWithCounts = computed(() => {
-  const counts: Record<string, number> = {
-    all: matches.value.length,
-    'in-progress': matches.value.filter((m) => m.status === 'in-progress')
-      .length,
-    waiting: matches.value.filter((m) => m.status === 'waiting').length,
-    cancelled: cancelledMatches.value.length,
-    completed: completedMatchViewModels.value.length,
-    edited:
-      matches.value.filter((m) => m.isEdited).length +
-      completedMatchViewModels.value.filter((m) => m.isEdited).length,
-  };
+  // Count raw state instead of reading the cancelled/completed VM computeds —
+  // identical numbers without rebuilding team objects + win probabilities, and
+  // it lets those VMs stay lazy (only evaluated when their filter is selected).
+  const counts = computeMatchFilterCounts(MatchmakingApp.state, matches.value);
   return matchesFilterOptions
     .filter(
       (o) =>
