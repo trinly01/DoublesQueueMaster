@@ -273,7 +273,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, ref, onUnmounted, watch } from 'vue';
+import { computed, inject } from 'vue';
+import { useNowTicker } from '../composables/useNowTicker';
 import {
   getRatingColor,
   getMatchStatusLabel,
@@ -336,7 +337,6 @@ const emit = defineEmits<{
   customAnnounce: [match: Match];
 }>();
 
-const elapsed = ref('');
 let lastTap = 0;
 
 const handleClick = () => {
@@ -348,8 +348,6 @@ const handleClick = () => {
   }
   lastTap = now;
 };
-let timer: ReturnType<typeof setInterval> | null = null;
-
 const toTimestamp = (v: unknown): number => {
   if (!v) return 0;
   if (v instanceof Date) return v.getTime();
@@ -382,45 +380,16 @@ const dateLabel = computed(() => {
   return '';
 });
 
-const updateElapsed = () => {
-  if (!props.match.startedAt) {
-    elapsed.value = '';
-    return;
+// Shared 1s ticker — one interval total across all match cards.
+const tickerNow = useNowTicker();
+const elapsed = computed(() => {
+  if (props.match.status !== 'in-progress' || !props.match.startedAt) {
+    return '';
   }
-  const diff = Date.now() - toTimestamp(props.match.startedAt);
+  const diff = tickerNow.value - toTimestamp(props.match.startedAt);
   const mins = Math.floor(diff / 60000);
   const secs = Math.floor((diff % 60000) / 1000);
-  elapsed.value = `${mins}m ${secs}s`;
-};
-
-const startTimer = () => {
-  if (timer) return;
-  updateElapsed();
-  timer = setInterval(updateElapsed, 1000);
-};
-
-const stopTimer = () => {
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
-  }
-};
-
-watch(
-  () => [props.match.status, toTimestamp(props.match.startedAt)],
-  () => {
-    if (props.match.status === 'in-progress' && props.match.startedAt) {
-      startTimer();
-    } else {
-      stopTimer();
-      elapsed.value = '';
-    }
-  },
-  { immediate: true },
-);
-
-onUnmounted(() => {
-  stopTimer();
+  return `${mins}m ${secs}s`;
 });
 </script>
 

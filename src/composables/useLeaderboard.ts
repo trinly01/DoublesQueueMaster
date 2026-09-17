@@ -2,10 +2,9 @@ import { ref, type Ref } from 'vue';
 import { LocalStorage } from 'quasar';
 import { readItems } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
-import {
-  replayMatchesForRanking,
-  rankClubPlayers,
-} from 'src/utils/ratingReplay';
+import { rankClubPlayers } from 'src/utils/ratingReplay';
+import { matchesFingerprint } from 'src/utils/leaderboardCompute';
+import { runClubRanking } from 'src/utils/runLeaderboard';
 import { resolveAvatarUrl } from 'src/utils/playerHelpers';
 import type { DirectusCompletedMatch } from 'src/services/playerProfile';
 import type { ClubMember } from 'src/composables/useClubMembers';
@@ -42,37 +41,39 @@ export function useLeaderboard(context: UseLeaderboardContext) {
   const getClubLeaderboardCacheKey = () =>
     `club_leaderboard_v2_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
 
-  const loadCachedClubLeaderboard = () => {
+  const loadCachedClubLeaderboard = (): string | null => {
     const raw = LocalStorage.getItem(getClubLeaderboardCacheKey());
-    if (!raw) return false;
+    if (!raw) return null;
     try {
       const cached = raw as {
         data: ClubLeaderboardEntry[];
         timestamp: number;
+        fingerprint?: string;
       };
       if (cached && Array.isArray(cached.data)) {
         clubLeaderboard.value = cached.data;
-        return true;
+        return cached.fingerprint ?? null;
       }
     } catch (e) {
       console.error('Failed to load cached club leaderboard:', e);
     }
-    return false;
+    return null;
   };
 
-  const saveCachedClubLeaderboard = () => {
+  const saveCachedClubLeaderboard = (fingerprint: string) => {
     LocalStorage.set(getClubLeaderboardCacheKey(), {
       data: clubLeaderboard.value,
       timestamp: Date.now(),
+      fingerprint,
     });
   };
 
   const fetchClubLeaderboard = async () => {
     if (!currentClubUUID.value) return;
     if (clubLeaderboardLoading.value) return;
-    const cached = loadCachedClubLeaderboard();
+    const cachedFingerprint = loadCachedClubLeaderboard();
     clubLeaderboardLoading.value =
-      !cached || clubLeaderboard.value.length === 0;
+      !cachedFingerprint || clubLeaderboard.value.length === 0;
     try {
       // Club leaderboard — last 30 days, limit 1000
       const matches = (await likhaClient.request(
@@ -89,45 +90,19 @@ export function useLeaderboard(context: UseLeaderboardContext) {
         }),
       )) as DirectusCompletedMatch[];
 
-      // Filter to competitive matches only (exclude Casual and Social modes),
-      // unless the user has toggled to include non-competitive matches.
-      const competitiveMatches = includeNonCompetitive.value
-        ? matches
-        : matches.filter((m) => {
-            const mode = m.meta?.matchmakingMode;
-            return mode !== 'fair_balance' && mode !== 'variety_first';
-          });
+      // Skip the replay entirely when the fetched data is identical to what
+      // produced the cached leaderboard.
+      const fp = matchesFingerprint(matches);
+      if (cachedFingerprint === fp && clubLeaderboard.value.length > 0) {
+        clubLeaderboardLoading.value = false;
+        return;
+      }
 
-      // Replay matches using the club-ranking path (with correctness fixes:
-      // deterministic sort, tie skip, guest identity key, level-based seeding).
-      const replayed = replayMatchesForRanking(
-        competitiveMatches.map((m) => ({
-          teamAScore: m.team_a_score,
-          teamBScore: m.team_b_score,
-          matchKey: m.match_key,
-          completedAt: m.completed_at,
-          matchmakingMode: m.meta?.matchmakingMode,
-          teamA: (m.team_a || []).map((p) => ({
-            userId: p.userId,
-            username: p.username,
-            name: p.firstName,
-            firstName: p.firstName,
-            lastName: p.lastName,
-            level: p.level,
-            rating: p.rating,
-            avatar: p.avatar,
-          })),
-          teamB: (m.team_b || []).map((p) => ({
-            userId: p.userId,
-            username: p.username,
-            name: p.firstName,
-            firstName: p.firstName,
-            lastName: p.lastName,
-            level: p.level,
-            rating: p.rating,
-            avatar: p.avatar,
-          })),
-        })),
+      // Replay matches off the main thread (Web Worker with inline fallback)
+      // using the club-ranking path (deterministic sort, tie skip, guest
+      // identity key, level-based seeding, iterated convergence).
+      const replayed = await runClubRanking(
+        matches,
         includeNonCompetitive.value,
       );
 
@@ -181,7 +156,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
           };
         });
       clubLeaderboard.value = list.slice(0, 30);
-      saveCachedClubLeaderboard();
+      saveCachedClubLeaderboard(fp);
       console.log(
         '[fetchClubLeaderboard] matches:',
         matches.length,
@@ -192,7 +167,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
       );
     } catch (err) {
       console.error('Failed to fetch club leaderboard:', err);
-      if (!cached || clubLeaderboard.value.length === 0) {
+      if (!cachedFingerprint || clubLeaderboard.value.length === 0) {
         clubLeaderboard.value = [];
       }
     } finally {

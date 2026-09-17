@@ -248,7 +248,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onUnmounted } from 'vue';
+import { computed, ref } from 'vue';
+import { useNowTicker } from '../composables/useNowTicker';
 import type { QInput } from 'quasar';
 import type { MatchMeta } from '../types/matchMeta';
 import type { TeamPlayer } from '../types/player';
@@ -327,48 +328,21 @@ const formatDuration = (startIso: string, endIso: string): string => {
   return `${mins}m ${secs}s`;
 };
 
-// Live elapsed-time chip for in-progress matches in the editable dialog
-const elapsedTime = ref('');
-let elapsedTimer: ReturnType<typeof setInterval> | null = null;
-
-const updateElapsedTime = () => {
-  if (!props.startedAt) {
-    elapsedTime.value = '';
-    return;
+// Live elapsed-time chip for in-progress matches in the editable dialog.
+// Shared 1s ticker — one interval total across all components.
+const tickerNow = useNowTicker();
+const elapsedTime = computed(() => {
+  if (!props.editable || props.status !== 'in-progress' || !props.startedAt) {
+    return '';
   }
-  const diff = Math.max(0, Date.now() - new Date(props.startedAt).getTime());
+  const diff = Math.max(
+    0,
+    tickerNow.value - new Date(props.startedAt).getTime(),
+  );
   const mins = Math.floor(diff / 60000);
   const secs = Math.floor((diff % 60000) / 1000);
-  elapsedTime.value = `${mins}m ${secs}s`;
-};
-
-const startElapsedTimer = () => {
-  if (elapsedTimer) return;
-  updateElapsedTime();
-  elapsedTimer = setInterval(updateElapsedTime, 1000);
-};
-
-const stopElapsedTimer = () => {
-  if (elapsedTimer) {
-    clearInterval(elapsedTimer);
-    elapsedTimer = null;
-  }
-};
-
-watch(
-  () => [props.editable, props.status, props.startedAt],
-  () => {
-    if (props.editable && props.status === 'in-progress' && props.startedAt) {
-      startElapsedTimer();
-    } else {
-      stopElapsedTimer();
-      elapsedTime.value = '';
-    }
-  },
-  { immediate: true },
-);
-
-onUnmounted(() => stopElapsedTimer());
+  return `${mins}m ${secs}s`;
+});
 </script>
 
 <style lang="scss" scoped>

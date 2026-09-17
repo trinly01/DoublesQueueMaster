@@ -11,9 +11,11 @@ import {
   parseLightweightTimestamp,
   shouldSkipClubInfoRefresh,
   mergePlayerFromDB,
+  applyMergedState,
+  jsonEqual,
   type DBUser,
 } from './cloudSyncHelpers';
-import type { Player } from './matchmaking';
+import type { AppState, Player } from './matchmaking';
 
 describe('cloudSyncHelpers — shouldSkipSync', () => {
   it('skips when open play is active', () => {
@@ -367,5 +369,103 @@ describe('cloudSyncHelpers — mergePlayerFromDB avatar/firstName/lastName', () 
     const dbUser: DBUser = { id: 'u1', last_name: 'SameLast' };
     const result = mergePlayerFromDB(player, dbUser, 'https://api.test', 5000);
     expect(result.changed).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyMergedState / jsonEqual
+// ---------------------------------------------------------------------------
+
+const makeState = (over: Partial<AppState> = {}): AppState => ({
+  teamSize: 2,
+  players: {},
+  queues: [],
+  activeMatches: [],
+  completedMatches: [],
+  ...over,
+});
+
+describe('cloudSyncHelpers — applyMergedState', () => {
+  it('preserves collection references when content is identical', () => {
+    const queues = [{ id: 'q1' }] as unknown as AppState['queues'];
+    const target = makeState({ queues });
+    const merged = makeState({ queues: [{ id: 'q1' }] as unknown as AppState['queues'] });
+
+    const changed = applyMergedState(target, merged);
+
+    expect(changed).toBe(false);
+    expect(target.queues).toBe(queues); // same ref — no reactive invalidation
+  });
+
+  it('assigns a collection when content differs', () => {
+    const target = makeState({ queues: [] });
+    const merged = makeState({
+      queues: [{ id: 'q1' }] as unknown as AppState['queues'],
+    });
+
+    const changed = applyMergedState(target, merged);
+
+    expect(changed).toBe(true);
+    expect(target.queues).toHaveLength(1);
+  });
+
+  it('assigns only the changed collection, leaving others untouched', () => {
+    const players = { alice: { username: 'alice' } } as unknown as AppState['players'];
+    const queues = [{ id: 'q1' }] as unknown as AppState['queues'];
+    const target = makeState({ players, queues });
+    const merged = makeState({
+      players: { alice: { username: 'alice' } } as unknown as AppState['players'],
+      queues: [{ id: 'q1' }, { id: 'q2' }] as unknown as AppState['queues'],
+    });
+
+    applyMergedState(target, merged);
+
+    expect(target.players).toBe(players); // identical → same ref
+    expect(target.queues).toHaveLength(2); // changed → replaced
+  });
+
+  it('assigns scalar/meta fields when they differ', () => {
+    const target = makeState({ lastModified: 100, availableCourts: 2 });
+    const merged = makeState({ lastModified: 200, availableCourts: 2 });
+
+    const changed = applyMergedState(target, merged);
+
+    expect(changed).toBe(true);
+    expect(target.lastModified).toBe(200);
+    expect(target.availableCourts).toBe(2);
+  });
+
+  it('assigns keys present in merged but absent on target (e.g. cleared field)', () => {
+    const target = makeState({ settingsFieldTimestamps: { a: 1 } });
+    const merged = makeState(); // no settingsFieldTimestamps key
+
+    applyMergedState(target, merged);
+
+    // Key absent from merged → untouched (Object.assign parity)
+    expect(target.settingsFieldTimestamps).toEqual({ a: 1 });
+  });
+
+  it('handles merged keys whose value is undefined', () => {
+    const target = makeState({ actionLogs: [{ id: 'x' }] as unknown as AppState['actionLogs'] });
+    const merged = makeState({ actionLogs: undefined });
+
+    const changed = applyMergedState(target, merged);
+
+    expect(changed).toBe(true);
+    expect(target.actionLogs).toBeUndefined();
+  });
+});
+
+describe('cloudSyncHelpers — jsonEqual', () => {
+  it('returns true for structurally equal objects', () => {
+    expect(jsonEqual({ a: 1, b: [2, 3] }, { a: 1, b: [2, 3] })).toBe(true);
+  });
+
+  it('returns false for different content', () => {
+    expect(jsonEqual({ a: 1 }, { a: 2 })).toBe(false);
+  });
+
+  it('returns true for both undefined', () => {
+    expect(jsonEqual(undefined, undefined)).toBe(true);
   });
 });

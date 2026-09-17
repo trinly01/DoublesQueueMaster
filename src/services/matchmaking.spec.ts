@@ -3110,3 +3110,118 @@ describe('mergeAppState — offline reset scenario for actionLogsResetAt', () =>
     expect(ids).toContain('b-new');
   });
 });
+
+// ---------------------------------------------------------------------------
+// saveState ref-stability — cleanup passes must not replace collection refs
+// when nothing changed (fresh refs invalidate every dependent computed).
+// ---------------------------------------------------------------------------
+
+describe('saveState — collection ref stability', () => {
+  it('preserves refs when a clean persist() removes nothing', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.players['alice'] = makePlayer(1500, { username: 'alice' });
+    sys.state.queues.push({
+      username: 'alice',
+      queueType: 'GENERAL',
+      enteredAt: 1000,
+    });
+    sys.state.activeMatches.push({
+      matchId: 'm1',
+      queueSource: 'GENERAL',
+      teamA: ['b'],
+      teamB: ['c'],
+      expectedDifference: 0,
+      status: 'waiting',
+      createdAt: 1000,
+    });
+    sys.state.players['b'] = makePlayer(1500, { username: 'b' });
+    sys.state.players['c'] = makePlayer(1500, { username: 'c' });
+    sys.state.completedMatches.push({
+      matchId: 'c1',
+      matchType: 'doubles',
+      teamA: [],
+      teamB: [],
+      teamAScore: 11,
+      teamBScore: 9,
+      completedAt: 2000,
+      updatedAt: 2000,
+      club: 'club',
+    });
+
+    const playersRef = sys.state.players;
+    const queuesRef = sys.state.queues;
+    const matchesRef = sys.state.activeMatches;
+    const completedRef = sys.state.completedMatches;
+
+    sys.persist();
+
+    expect(sys.state.players).toBe(playersRef);
+    expect(sys.state.queues).toBe(queuesRef);
+    expect(sys.state.activeMatches).toBe(matchesRef);
+    expect(sys.state.completedMatches).toBe(completedRef);
+  });
+
+  it('still dedupes duplicate matchIds and replaces the ref', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    const dup = {
+      queueSource: 'GENERAL' as const,
+      expectedDifference: 0,
+      status: 'waiting' as const,
+      createdAt: 1000,
+    };
+    // Distinct teams so enforceOneMatchPerPlayer doesn't fire — pure dedup path
+    sys.state.activeMatches.push(
+      { ...dup, matchId: 'same', teamA: ['a'], teamB: ['b'], updatedAt: 100 },
+      { ...dup, matchId: 'same', teamA: ['c'], teamB: ['d'], updatedAt: 200 },
+    );
+
+    sys.persist();
+
+    expect(sys.state.activeMatches).toHaveLength(1);
+    expect(sys.state.activeMatches[0].updatedAt).toBe(200);
+  });
+
+  it('still remaps mismatched player keys', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.players['wrongKey'] = makePlayer(1500, { username: 'rightKey' });
+
+    sys.persist();
+
+    expect(sys.state.players['rightKey']).toBeDefined();
+    expect(sys.state.players['wrongKey']).toBeUndefined();
+  });
+
+  it('still purges completedMatches older than the reset checkpoint', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.completedMatchesResetAt = 5000;
+    const m = (id: string, completedAt: number): CompletedMatch => ({
+      matchId: id,
+      matchType: 'doubles',
+      teamA: [],
+      teamB: [],
+      teamAScore: 11,
+      teamBScore: 9,
+      completedAt,
+      updatedAt: completedAt,
+      club: 'club',
+    });
+    sys.state.completedMatches = [m('old', 1000), m('new', 9000)];
+
+    sys.persist();
+
+    expect(sys.state.completedMatches.map((x) => x.matchId)).toEqual(['new']);
+  });
+
+  it('gcTombstones keeps refs when no tombstone is expired', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.queues.push({
+      username: 'a',
+      queueType: 'GENERAL',
+      enteredAt: 1000,
+      deletedAt: Date.now(), // fresh tombstone — kept
+    });
+    const ref = sys.state.queues;
+    gcTombstones(sys.state, Date.now());
+    expect(sys.state.queues).toBe(ref);
+  });
+});

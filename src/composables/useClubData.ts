@@ -16,6 +16,8 @@ import { readItems, updateItem, uploadFiles } from '@likha-erp/likha-sdk';
 import {
   mergePlayerFromDB,
   shouldSkipClubInfoRefresh,
+  applyMergedState,
+  jsonEqual,
   type DBUser,
 } from 'src/services/cloudSyncHelpers';
 import type { Router } from 'vue-router';
@@ -736,39 +738,74 @@ export function useClubData(context: UseClubDataContext) {
                     MatchmakingApp.state,
                     serverMatchmaking as AppState,
                   );
-                  Object.assign(MatchmakingApp.state, merged);
+                  applyMergedState(MatchmakingApp.state, merged);
                 } else {
                   // Existing local state: smart-merge with server
                   const merged = mergeAppState(
                     MatchmakingApp.state,
                     serverMatchmaking,
                   );
-                  Object.assign(MatchmakingApp.state, merged);
+                  // Assign only keys whose content actually changed —
+                  // identical merges keep their references and don't
+                  // invalidate the page's computeds.
+                  applyMergedState(MatchmakingApp.state, merged);
                   // Extra safety: ensure no player appears in multiple matches
                   MatchmakingApp.enforceOneMatchPerPlayer();
                 }
               }
             } else {
-              // Non-privileged: server is source of truth — directly overwrite everything, no merge
-              if (serverMatchmaking.players) {
+              // Non-privileged: server is source of truth — directly overwrite everything, no merge.
+              // jsonEqual guards keep identical collections' references so the
+              // Club page computeds aren't invalidated by a no-op overwrite.
+              if (
+                serverMatchmaking.players &&
+                !jsonEqual(
+                  MatchmakingApp.state.players,
+                  serverMatchmaking.players,
+                )
+              ) {
                 MatchmakingApp.state.players = {
                   ...serverMatchmaking.players,
                 };
               }
-              if (serverMatchmaking.queues) {
+              if (
+                serverMatchmaking.queues &&
+                !jsonEqual(
+                  MatchmakingApp.state.queues,
+                  serverMatchmaking.queues,
+                )
+              ) {
                 MatchmakingApp.state.queues = [...serverMatchmaking.queues];
               }
-              if (serverMatchmaking.activeMatches) {
+              if (
+                serverMatchmaking.activeMatches &&
+                !jsonEqual(
+                  MatchmakingApp.state.activeMatches,
+                  serverMatchmaking.activeMatches,
+                )
+              ) {
                 MatchmakingApp.state.activeMatches = [
                   ...serverMatchmaking.activeMatches,
                 ];
               }
-              if (serverMatchmaking.completedMatches) {
+              if (
+                serverMatchmaking.completedMatches &&
+                !jsonEqual(
+                  MatchmakingApp.state.completedMatches,
+                  serverMatchmaking.completedMatches,
+                )
+              ) {
                 MatchmakingApp.state.completedMatches = [
                   ...serverMatchmaking.completedMatches,
                 ];
               }
-              if (serverMatchmaking.actionLogs) {
+              if (
+                serverMatchmaking.actionLogs &&
+                !jsonEqual(
+                  MatchmakingApp.state.actionLogs,
+                  serverMatchmaking.actionLogs,
+                )
+              ) {
                 MatchmakingApp.state.actionLogs = [
                   ...serverMatchmaking.actionLogs,
                 ];
