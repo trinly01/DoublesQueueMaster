@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ref, computed, nextTick } from 'vue';
+import { ref, nextTick } from 'vue';
 import { MatchmakingApp } from 'src/services/matchmaking';
 
 // Mock useNotify
@@ -51,17 +51,12 @@ function makeMatches(): MatchLike[] {
 
 function makeContext(overrides: Record<string, unknown> = {}) {
   const matches = ref<MatchLike[]>(makeMatches());
-  const queuePriorityMode = computed(
-    () => 'gamesPlayed' as 'timestamp' | 'gamesPlayed',
-  );
   return {
     context: {
       matches,
-      queuePriorityMode,
       ...overrides,
     },
     matches,
-    queuePriorityMode,
   };
 }
 

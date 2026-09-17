@@ -1,5 +1,6 @@
 import { reactive } from 'vue';
 import { LocalStorage } from 'quasar';
+import { compareWaitingMatches } from '../utils/matchOrdering';
 import type { MatchMeta } from '../types/matchMeta';
 
 /**
@@ -2427,6 +2428,20 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       }
     }
   }
+
+  // Canonical FIFO order for active matches so every client holds the
+  // identical array: oldest createdAt = next in line, new matches at the
+  // bottom, same-batch ties resolved by the merged queue-priority mode.
+  activeMatchesAfterCleanup.sort((a, b) =>
+    compareWaitingMatches(
+      a,
+      b,
+      mergedSettings.queuePriorityMode as
+        | 'timestamp'
+        | 'gamesPlayed'
+        | undefined,
+    ),
+  );
 
   const mergedState = {
     ...(mergedSettings as Record<string, unknown>),

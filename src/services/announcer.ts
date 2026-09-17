@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import type { ActiveMatch, Player } from './matchmaking';
 import { MatchmakingApp } from './matchmaking';
+import { compareWaitingMatches } from '../utils/matchOrdering';
 import { getDeviceSetting } from 'src/composables/useDeviceSettings';
 import {
   isEdgeTtsAvailable,
@@ -415,7 +416,8 @@ export const buildMatchDescription = (
 // ── Next in Line (waiting status match, no court assigned) ─
 // Finds the next match that is still in 'waiting' status AND has no court assigned.
 // Matches already assigned to a court are queued up and should not be "next in line".
-// Next in line = earliest createdAt (pure FIFO — matches the Matches column order).
+// Next in line = canonical FIFO order (shared comparator — same as the
+// Matches column, merge, and auto-advance on every client).
 // createdAt = when the match was first generated
 // startedAt = when the match began play (only set after status changes to 'in-progress')
 export const getNextInLine = (
@@ -424,17 +426,17 @@ export const getNextInLine = (
     status: string;
     createdAt: Date;
     court?: number;
+    oldestQueueEntryAt?: number;
+    minGamesPlayed?: number;
   }>,
   activeMatches: ActiveMatch[],
 ): ActiveMatch | null => {
   // Filter to only matches waiting for a court (no court assigned yet)
   const waiting = matches
     .filter((m) => m.status === 'waiting' && !m.court)
-    .sort((a, b) => {
-      const diff = a.createdAt.getTime() - b.createdAt.getTime();
-      if (diff !== 0) return diff;
-      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-    });
+    .sort((a, b) =>
+      compareWaitingMatches(a, b, MatchmakingApp.state.queuePriorityMode),
+    );
 
   if (!waiting[0]) return null;
   return activeMatches.find((am) => am.matchId === waiting[0].id) || null;
