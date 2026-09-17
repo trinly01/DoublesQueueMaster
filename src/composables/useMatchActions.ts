@@ -8,6 +8,10 @@ import { useQuasar } from 'quasar';
 import type { QNotifyCreateOptions } from 'quasar';
 import { MatchmakingApp, type Player } from 'src/services/matchmaking';
 import { useNotify } from 'src/composables/useNotify';
+import {
+  compareWaitingMatches,
+  type QueuePriorityMode,
+} from 'src/utils/matchOrdering';
 
 type NotifyFn = (opts: QNotifyCreateOptions) => void;
 
@@ -36,6 +40,8 @@ export interface MatchViewModel {
   teamBScore?: number;
   completedAt?: string;
   updatedAt?: number;
+  oldestQueueEntryAt?: number;
+  minGamesPlayed?: number;
 }
 
 export interface UseMatchActionsContext {
@@ -267,19 +273,22 @@ export function useMatchActions(context: UseMatchActionsContext) {
     // Only auto-advance if the setting is enabled
     if (!autoAdvanceMatches.value) return;
 
-    // Find the next waiting match — pure FIFO: the match displayed at the
-    // top of the waiting list (earliest createdAt) is the one that starts.
+    // Find the next waiting match — canonical FIFO: the match displayed at
+    // the top of the waiting list is the one that starts. Shared comparator
+    // keeps this identical to the Matches column on every client.
     const waitingMatches = matches.value
       .filter(
         (match) =>
           match.status === 'waiting' &&
           (!match.court || match.court === courtNumber),
       )
-      .sort((a, b) => {
-        const diff = a.createdAt.getTime() - b.createdAt.getTime();
-        if (diff !== 0) return diff;
-        return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-      });
+      .sort((a, b) =>
+        compareWaitingMatches(
+          a,
+          b,
+          queuePriorityMode.value as QueuePriorityMode,
+        ),
+      );
 
     const nextMatch = waitingMatches[0];
 

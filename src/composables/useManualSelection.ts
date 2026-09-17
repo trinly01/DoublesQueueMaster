@@ -165,15 +165,28 @@ export function useManualSelection(context: UseManualSelectionContext) {
         (m) => m.court === assignedCourt && m.status === 'in-progress',
       );
 
-    // Map original queue types
+    // Map original queue types + queue-priority metadata — the same fields
+    // the auto-draft stamps, so manual matches order by their players' wait
+    // within same-creation-time FIFO ties instead of sinking to the bottom.
     const originalQueueTypes: Record<string, 'GENERAL' | 'WINNERS' | 'LOSERS'> =
       {};
-    matchPlayers.forEach((p) => {
+    const queueEntries = matchPlayers.map((p) => {
       const queueEntry = MatchmakingApp.state.queues
         .filter((q) => !q.deletedAt)
         .find((q) => q.username === p.username);
       originalQueueTypes[p.username] = queueEntry?.queueType || 'GENERAL';
+      return queueEntry;
     });
+    const enteredAts = queueEntries
+      .map((e) => e?.enteredAt)
+      .filter((v): v is number => v != null);
+    const oldestQueueEntryAt =
+      enteredAts.length > 0 ? Math.min(...enteredAts) : undefined;
+    const minGamesPlayed = Math.min(
+      ...matchPlayers.map(
+        (p) => MatchmakingApp.state.players[p.username]?.matchesPlayed || 0,
+      ),
+    );
 
     MatchmakingApp.state.activeMatches.push({
       matchId: `match-${Date.now()}`,
@@ -197,6 +210,8 @@ export function useManualSelection(context: UseManualSelectionContext) {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       originalQueueTypes,
+      oldestQueueEntryAt,
+      minGamesPlayed,
       generatedBy: currentAdminName.value,
       generationType: 'manual' as const,
     });

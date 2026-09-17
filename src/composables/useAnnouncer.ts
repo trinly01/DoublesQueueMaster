@@ -23,9 +23,6 @@ interface MatchLike {
 
 export interface UseAnnouncerContext {
   matches: ComputedRef<MatchLike[]> | Ref<MatchLike[]>;
-  queuePriorityMode:
-    | ComputedRef<'timestamp' | 'gamesPlayed'>
-    | Ref<'timestamp' | 'gamesPlayed'>;
 }
 
 export function useAnnouncer(context: UseAnnouncerContext) {

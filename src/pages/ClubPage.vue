@@ -1499,6 +1499,7 @@ import {
   rankClubPlayers,
 } from 'src/utils/ratingReplay';
 import { resolveAvatarUrl } from 'src/utils/playerHelpers';
+import { compareWaitingMatches } from 'src/utils/matchOrdering';
 import { PlayerProfile } from 'src/services/playerProfile';
 import type { DirectusCompletedMatch } from 'src/services/playerProfile';
 import { useAnnouncer } from '../composables/useAnnouncer';
@@ -1648,7 +1649,9 @@ const matches = computed(() => {
         status: m.status || 'in-progress',
         court: m.court,
         order: index + 1,
-        createdAt: new Date(m.createdAt || Date.now()),
+        // Deterministic fallback — never Date.now(): every client must sort
+        // timestamp-less matches identically.
+        createdAt: new Date(m.createdAt || m.updatedAt || 0),
         startedAt: m.startedAt ? new Date(m.startedAt) : undefined,
         queueSource: m.queueSource,
         generatedBy: m.generatedBy,
@@ -3004,7 +3007,6 @@ const editPlayerLevel = ref<1 | 2 | 3 | null>(null);
 // Announcer composable — extracted match announcement watcher and handleCustomAnnounce
 const { handleCustomAnnounce: _handleCustomAnnounce } = useAnnouncer({
   matches,
-  queuePriorityMode,
 });
 handleCustomAnnounce = _handleCustomAnnounce;
 
@@ -3122,7 +3124,7 @@ const cancelledMatches = computed(() => {
         status: 'cancelled' as const,
         court: m.court,
         order: index + 1,
-        createdAt: new Date(m.createdAt || Date.now()),
+        createdAt: new Date(m.createdAt || m.updatedAt || 0),
         startedAt: m.startedAt ? new Date(m.startedAt) : undefined,
         queueSource: m.queueSource,
         generatedBy: m.generatedBy,
@@ -3167,7 +3169,7 @@ const completedMatchViewModels = computed(() => {
       completedAt: new Date(m.completedAt).toISOString(),
       court: undefined,
       order: index + 1,
-      createdAt: new Date(m.completedAt || Date.now()),
+      createdAt: new Date(m.completedAt || m.updatedAt || 0),
       startedAt: m.startedAt ? new Date(m.startedAt).toISOString() : undefined,
       queueSource: undefined,
       generatedBy: m.meta?.generatedBy,
@@ -3248,7 +3250,10 @@ const filteredMatches = computed(() => {
     } else if ((a.status as string) === 'in-progress') {
       diff = (time(a.startedAt) ?? aCreated) - (time(b.startedAt) ?? bCreated);
     } else {
-      diff = aCreated - bCreated;
+      // Waiting matches: canonical FIFO — createdAt asc, same-batch ties by
+      // queue-priority fields, id last. Shared with merge/auto-advance so all
+      // clients render the identical next-in-line order.
+      return compareWaitingMatches(a, b, queuePriorityMode.value);
     }
     if (diff !== 0) return diff;
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;

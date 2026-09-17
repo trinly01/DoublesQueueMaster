@@ -2735,6 +2735,157 @@ describe('mergeAppState — lower-value merge gaps', () => {
   });
 });
 
+describe('mergeAppState — canonical active-match order', () => {
+  const waiting = (
+    matchId: string,
+    teamA: string[],
+    teamB: string[],
+    overrides: Partial<ActiveMatch> = {},
+  ) =>
+    makeMatch(matchId, teamA, teamB, {
+      status: 'waiting',
+      ...overrides,
+    });
+
+  it('merged activeMatches are in canonical FIFO order regardless of input order', () => {
+    // Local admin's array order differs from creation order (e.g. it merged
+    // earlier with a different local history). Server holds another match.
+    const a = makeState({
+      activeMatches: [
+        waiting('m3', ['erin'], ['fred'], { createdAt: 300, updatedAt: 300 }),
+        waiting('m1', ['amy'], ['ben'], { createdAt: 100, updatedAt: 100 }),
+      ],
+      lastModified: 400,
+    });
+    const b = makeState({
+      activeMatches: [
+        waiting('m2', ['cory'], ['dana'], { createdAt: 200, updatedAt: 200 }),
+      ],
+      lastModified: 400,
+    });
+    const merged = mergeAppState(a, b);
+    expect(merged.activeMatches.map((m) => m.matchId)).toEqual([
+      'm1',
+      'm2',
+      'm3',
+    ]);
+    assertInvariants(merged);
+  });
+
+  it('newly synced matches land at the bottom, oldest stays next in line', () => {
+    // Local has m1/m2; server additionally has the newer m3.
+    const a = makeState({
+      activeMatches: [
+        waiting('m1', ['amy'], ['ben'], { createdAt: 100, updatedAt: 100 }),
+        waiting('m2', ['cory'], ['dana'], { createdAt: 200, updatedAt: 200 }),
+      ],
+      lastModified: 400,
+    });
+    const b = makeState({
+      activeMatches: [
+        waiting('m1', ['amy'], ['ben'], { createdAt: 100, updatedAt: 100 }),
+        waiting('m2', ['cory'], ['dana'], { createdAt: 200, updatedAt: 200 }),
+        waiting('m3', ['erin'], ['fred'], { createdAt: 300, updatedAt: 300 }),
+      ],
+      lastModified: 400,
+    });
+    const merged = mergeAppState(a, b);
+    const ids = merged.activeMatches.map((m) => m.matchId);
+    expect(ids).toEqual(['m1', 'm2', 'm3']);
+    // The next match to go in-progress is the oldest waiting match.
+    expect(ids[0]).toBe('m1');
+  });
+
+  it('merge order is symmetric — merge(a,b) and merge(b,a) agree', () => {
+    const a = makeState({
+      activeMatches: [
+        waiting('m2', ['cory'], ['dana'], { createdAt: 200, updatedAt: 200 }),
+        waiting('m1', ['amy'], ['ben'], { createdAt: 100, updatedAt: 100 }),
+      ],
+      lastModified: 400,
+    });
+    const b = makeState({
+      activeMatches: [
+        waiting('m3', ['erin'], ['fred'], { createdAt: 300, updatedAt: 300 }),
+      ],
+      lastModified: 400,
+    });
+    const ab = mergeAppState(a, b).activeMatches.map((m) => m.matchId);
+    const ba = mergeAppState(b, a).activeMatches.map((m) => m.matchId);
+    expect(ab).toEqual(ba);
+    expect(ab).toEqual(['m1', 'm2', 'm3']);
+  });
+
+  it('same-createdAt batch ties resolve by queue priority (gamesPlayed mode)', () => {
+    const a = makeState({
+      queuePriorityMode: 'gamesPlayed',
+      activeMatches: [
+        waiting('m-high', ['cory'], ['dana'], {
+          createdAt: 100,
+          updatedAt: 100,
+          minGamesPlayed: 5,
+        }),
+        waiting('m-low', ['amy'], ['ben'], {
+          createdAt: 100,
+          updatedAt: 100,
+          minGamesPlayed: 1,
+        }),
+      ],
+      lastModified: 400,
+    });
+    const b = makeState({
+      queuePriorityMode: 'gamesPlayed',
+      lastModified: 400,
+    });
+    const merged = mergeAppState(a, b);
+    expect(merged.activeMatches.map((m) => m.matchId)).toEqual([
+      'm-low',
+      'm-high',
+    ]);
+  });
+
+  it('same-createdAt batch ties resolve by queue priority (timestamp mode)', () => {
+    const a = makeState({
+      queuePriorityMode: 'timestamp',
+      activeMatches: [
+        waiting('m-new', ['cory'], ['dana'], {
+          createdAt: 100,
+          updatedAt: 100,
+          oldestQueueEntryAt: 900,
+        }),
+        waiting('m-old', ['amy'], ['ben'], {
+          createdAt: 100,
+          updatedAt: 100,
+          oldestQueueEntryAt: 50,
+        }),
+      ],
+      lastModified: 400,
+    });
+    const b = makeState({
+      queuePriorityMode: 'timestamp',
+      lastModified: 400,
+    });
+    const merged = mergeAppState(a, b);
+    expect(merged.activeMatches.map((m) => m.matchId)).toEqual([
+      'm-old',
+      'm-new',
+    ]);
+  });
+
+  it('fully-tied matches fall back to deterministic matchId order', () => {
+    const a = makeState({
+      activeMatches: [
+        waiting('m-b', ['cory'], ['dana'], { createdAt: 100, updatedAt: 100 }),
+        waiting('m-a', ['amy'], ['ben'], { createdAt: 100, updatedAt: 100 }),
+      ],
+      lastModified: 400,
+    });
+    const b = makeState({ lastModified: 400 });
+    const merged = mergeAppState(a, b);
+    expect(merged.activeMatches.map((m) => m.matchId)).toEqual(['m-a', 'm-b']);
+  });
+});
+
 describe('mergeAppState — pure state enforcement helpers', () => {
   it('enforceOneMatchPerCourtOnState keeps newest startedAt and requeues losers', () => {
     const state = makeState({
