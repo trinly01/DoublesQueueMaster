@@ -12,6 +12,7 @@ import {
   type CharacterPalette,
 } from 'src/composables/useRandomPalette';
 import { PlayerProfile } from 'src/services/playerProfile';
+import { serveCourtSign, isRightCourt } from 'src/utils/serveSide';
 
 // Court dimensions (scaled to scene units: 1 unit = 1 meter)
 const COURT_LENGTH = 13.41; // 44ft
@@ -1056,12 +1057,13 @@ export function useGameEngine() {
   }
 
   function resetBall(serveTo: 'player' | 'ai') {
-    // Determine serve side: even score = right, odd = left
+    // Determine serve side: even score = right court, odd = left court.
+    // Right/even is +x on the z>0 half and -x on the z<0 half (each side's
+    // right is mirrored — server faces the net from opposite directions).
     const serverScore =
       serveTo === 'player' ? playerScore.value : aiScore.value;
-    const serveRight = serverScore % 2 === 0;
-    const serverX = serveRight ? 1.5 : -1.5;
-    const receiverX = serveRight ? -1.5 : 1.5; // diagonal
+    const serverX = 1.5 * serveCourtSign(serverScore, serveTo === 'player');
+    const receiverX = -serverX; // diagonal
 
     // Place BOTH players outside the court (behind their baselines) for serve
     const serverZ =
@@ -1179,12 +1181,10 @@ export function useGameEngine() {
       // Serve magnet: bias target toward correct diagonal court based on difficulty
       const cfg = AI_CONFIGS[difficulty.value];
       if (cfg.playerMagnet > 0) {
-        const playerScoreVal = playerScore.value;
-        const serveRight = playerScoreVal % 2 === 0;
-        // Player on right → serve to left (diagonal), and vice versa
-        const correctCourtX = serveRight
-          ? -(COURT_WIDTH / 2 - 1) // serve to left court corner
-          : COURT_WIDTH / 2 - 1; // serve to right court corner
+        // Diagonal target is always the opposite X side from where the
+        // server actually stands — correct regardless of score parity.
+        const correctCourtX =
+          serveFromX > 0 ? -(COURT_WIDTH / 2 - 1) : COURT_WIDTH / 2 - 1;
         targetX = THREE.MathUtils.lerp(
           targetX,
           correctCourtX,
@@ -1208,11 +1208,10 @@ export function useGameEngine() {
       // Serve magnet: bias toward correct diagonal court
       const cfg = AI_CONFIGS[difficulty.value];
       if (cfg.playerMagnet > 0) {
-        const aiScoreVal = aiScore.value;
-        const serveRight = aiScoreVal % 2 === 0;
-        const correctCourtX = serveRight
-          ? -(COURT_WIDTH / 2 - 1)
-          : COURT_WIDTH / 2 - 1;
+        // Diagonal from the guest's actual X — the far half's right court
+        // is -x, so parity math alone would aim at the wrong court.
+        const correctCourtX =
+          serveFromX > 0 ? -(COURT_WIDTH / 2 - 1) : COURT_WIDTH / 2 - 1;
         targetX = THREE.MathUtils.lerp(
           targetX,
           correctCourtX,
@@ -2323,15 +2322,19 @@ export function useGameEngine() {
           return;
         }
         // Serve must land in correct service court (diagonal)
-        // Score determines correct side: even = serve from right, odd = serve from left
-        // Ball must land on opposite (diagonal) side
+        // Score determines correct side: even = right court, odd = left court.
+        // Right/even is +x on the z>0 half ('player' serves) and -x on the
+        // z<0 half ('ai' serves) — each side's right faces the net.
         {
           const score =
             serverSide === 'player' ? playerScore.value : aiScore.value;
           const correctServeRight = score % 2 === 0;
           // Fault if server served from wrong side
-          const servedFromRight = serveFromX > 0;
-          if (correctServeRight !== servedFromRight) {
+          const servedFromRightCourt = isRightCourt(
+            serveFromX,
+            serverSide === 'player',
+          );
+          if (correctServeRight !== servedFromRightCourt) {
             if (hostOwnsFaults) scorePoint(opponentSide, 'Wrong serving side!');
             else
               delayedBounceFault(
@@ -2341,9 +2344,9 @@ export function useGameEngine() {
               );
             return;
           }
-          // Ball must land diagonally (opposite side from server)
-          const landedRight = refs.ballPos.x > 0;
-          if (servedFromRight === landedRight) {
+          // Ball must land diagonally (opposite X side from server)
+          const landedSameXSide = refs.ballPos.x > 0 === serveFromX > 0;
+          if (landedSameXSide) {
             if (hostOwnsFaults) scorePoint(opponentSide, 'Wrong court!');
             else delayedBounceFault(opponentSide, 'Wrong court!', faultOnGuest);
             return;
