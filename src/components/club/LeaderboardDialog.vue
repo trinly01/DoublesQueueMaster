@@ -233,12 +233,13 @@
         <div v-if="activeLoading" class="flex flex-center q-py-md">
           <q-spinner color="accent" size="32px" />
         </div>
-        <q-list
-          separator
+        <q-virtual-scroll
           v-else-if="leaderboardTab !== 'duo' && activeLeaderboard.length"
+          :items="activeLeaderboard"
+          :virtual-scroll-item-size="60"
+          v-slot="{ item: player, index: idx }"
         >
           <q-item
-            v-for="(player, idx) in activeLeaderboard"
             :key="player.username"
             :class="(player.winRate || 0) >= 50 ? 'bg-green-1' : 'bg-red-1'"
           >
@@ -386,16 +387,18 @@
               </div>
             </q-item-section>
           </q-item>
-        </q-list>
+          <q-separator v-if="idx < activeLeaderboard.length - 1" />
+        </q-virtual-scroll>
         <!-- Best Duo tab -->
-        <q-list
-          separator
+        <q-virtual-scroll
           v-else-if="
             leaderboardTab === 'duo' && duoLeaderboard && duoLeaderboard.length
           "
+          :items="duoLeaderboard"
+          :virtual-scroll-item-size="64"
+          v-slot="{ item: duo, index: idx }"
         >
           <q-item
-            v-for="(duo, idx) in duoLeaderboard"
             :key="duo.key"
             :class="duo.winRate >= 50 ? 'bg-green-1' : 'bg-red-1'"
             class="duo-row"
@@ -497,7 +500,8 @@
               </div>
             </q-item-section>
           </q-item>
-        </q-list>
+          <q-separator v-if="idx < duoLeaderboard.length - 1" />
+        </q-virtual-scroll>
         <div v-else class="text-center text-grey q-py-md">
           {{
             leaderboardTab === 'duo'
