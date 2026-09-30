@@ -221,6 +221,7 @@
         />
       </div>
       <q-card-section
+        ref="scrollSection"
         class="leaderboard-scroll q-px-md q-pt-xs q-pb-md"
         style="max-height: 78vh; overflow-y: auto"
       >
@@ -233,8 +234,16 @@
         <div v-if="activeLoading" class="flex flex-center q-py-md">
           <q-spinner color="accent" size="32px" />
         </div>
+        <!--
+          :key forces a remount when the items array is swapped under the
+          scroll — QVirtualScroll does not reset its slice/sizes on items
+          changes, so a stale slice renders blank gaps in the list.
+          includeNonCompetitive is in the key because toggling it also
+          replaces the items array.
+        -->
         <q-virtual-scroll
           v-else-if="leaderboardTab !== 'duo' && activeLeaderboard.length"
+          :key="`${leaderboardTab}:${includeNonCompetitive}`"
           :items="activeLeaderboard"
           :virtual-scroll-item-size="60"
           v-slot="{ item: player, index: idx }"
@@ -389,11 +398,13 @@
           </q-item>
           <q-separator v-if="idx < activeLeaderboard.length - 1" />
         </q-virtual-scroll>
-        <!-- Best Duo tab -->
+        <!-- Best Duo tab — keyed on the include toggle for the same
+             stale-slice reason as the main list -->
         <q-virtual-scroll
           v-else-if="
             leaderboardTab === 'duo' && duoLeaderboard && duoLeaderboard.length
           "
+          :key="`duo:${includeNonCompetitive}`"
           :items="duoLeaderboard"
           :virtual-scroll-item-size="64"
           v-slot="{ item: duo, index: idx }"
@@ -515,7 +526,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import PlayerAvatar from '../PlayerAvatar.vue';
 import PayBanner from '../PayBanner.vue';
 import { getRatingColor } from '../../utils/playerHelpers';
@@ -623,6 +634,14 @@ const emit = defineEmits<{
 const { maskNum, maskText } = useProFeatures();
 
 const leaderboardTab = ref<'club' | 'matches' | 'global' | 'duo'>('club');
+
+// The scroll container keeps its scrollTop across tab switches; each tab is
+// a different ranking, so start every tab at the top (also keeps the
+// virtual-scroll slice aligned to the fresh items).
+const scrollSection = ref<{ $el: HTMLElement } | null>(null);
+watch(leaderboardTab, () => {
+  scrollSection.value?.$el.scrollTo({ top: 0 });
+});
 
 const activeLeaderboard = computed(() => {
   if (leaderboardTab.value === 'global') return props.globalLeaderboard || [];

@@ -2374,12 +2374,13 @@ const initMatchesChart = () => {
 // Defer chart init until the browser is idle so tab-switch paint isn't
 // blocked by synchronous echarts.init + setOption on mobile CPUs.
 const whenIdle = (fn: () => void) => {
-  const ric = (
-    window as Window & {
-      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
-    }
-  ).requestIdleCallback;
-  if (ric) ric(fn, { timeout: 500 });
+  const w = window as Window & {
+    requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+  };
+  // Call with window as receiver — a detached reference can throw
+  // "Illegal invocation" in strict browsers.
+  if (typeof w.requestIdleCallback === 'function')
+    w.requestIdleCallback(fn, { timeout: 500 });
   else setTimeout(fn, 0);
 };
 

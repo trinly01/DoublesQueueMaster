@@ -31,6 +31,8 @@
     <img
       :src="imageUrl"
       :alt="name || username || 'Player'"
+      loading="lazy"
+      decoding="async"
       @error="$emit('imageError')"
     />
     <q-badge
