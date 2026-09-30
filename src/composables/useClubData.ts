@@ -7,6 +7,7 @@ import type { QNotifyCreateOptions } from 'quasar';
 import {
   MatchmakingApp,
   mergeAppState,
+  enforceCompletedCaps,
   ACTION_LOG_CAP,
 } from 'src/services/matchmaking';
 import type { AppState, ActionLog } from 'src/services/matchmaking';
@@ -615,12 +616,18 @@ export function useClubData(context: UseClubDataContext) {
                 serverHasNoMatches &&
                 serverTime > localTime;
 
+              // Bound the incoming history the same way local writes do —
+              // an uncapped blob written by an older client otherwise stays
+              // large forever here.
+              enforceCompletedCaps(serverMatchmaking);
+
               if (isRemoteReset) {
                 // Another privileged user performed a reset — adopt server state (mergeAppState will purge)
                 MatchmakingApp.state.players = {};
                 MatchmakingApp.state.queues = [];
                 MatchmakingApp.state.activeMatches = [];
                 MatchmakingApp.state.completedMatches = [];
+                MatchmakingApp.state.completedMatchIds = [];
                 MatchmakingApp.state.lastModified = serverTime;
                 MatchmakingApp.state.playersResetAt =
                   serverMatchmaking.playersResetAt ?? 0;
@@ -799,6 +806,17 @@ export function useClubData(context: UseClubDataContext) {
               ) {
                 MatchmakingApp.state.completedMatches = [
                   ...serverMatchmaking.completedMatches,
+                ];
+              }
+              if (
+                serverMatchmaking.completedMatchIds &&
+                !collectionEqual(
+                  MatchmakingApp.state.completedMatchIds,
+                  serverMatchmaking.completedMatchIds,
+                )
+              ) {
+                MatchmakingApp.state.completedMatchIds = [
+                  ...serverMatchmaking.completedMatchIds,
                 ];
               }
               if (

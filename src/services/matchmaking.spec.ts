@@ -4,7 +4,10 @@ import {
   mergeAppState,
   gcTombstones,
   enforceOneMatchPerCourtOnState,
+  enforceCompletedCaps,
   CLUB_SETTINGS,
+  COMPLETED_MATCHES_CAP,
+  COMPLETED_MATCH_IDS_CAP,
   LocalMatchmakingSystem,
 } from './matchmaking';
 import type {
@@ -3542,5 +3545,145 @@ describe('mergeAppState — entity ref reuse', () => {
     expect(merged.queues).toContain(q);
     expect(merged.activeMatches).toContain(m);
     expect(merged.completedMatches).toContain(c);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// completedMatches cap — the synced history is bounded at
+// COMPLETED_MATCHES_CAP newest entries; evicted ids live on in
+// completedMatchIds so surviving activeMatches tombstones still classify as
+// completed (not cancelled).
+// ---------------------------------------------------------------------------
+
+describe('completedMatches cap', () => {
+  it('caps completedMatches at the newest entries and records evicted ids', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    const total = COMPLETED_MATCHES_CAP + 10;
+    for (let i = 0; i < total; i++) {
+      sys.state.completedMatches.push(
+        makeCompletedMatch(`m${i}`, {
+          completedAt: 1000 + i,
+          updatedAt: 1000 + i,
+        }),
+      );
+    }
+
+    sys.persist();
+
+    expect(sys.state.completedMatches).toHaveLength(COMPLETED_MATCHES_CAP);
+    // Oldest evicted, newest retained (order preserved).
+    expect(sys.state.completedMatches.some((m) => m.matchId === 'm0')).toBe(
+      false,
+    );
+    expect(
+      sys.state.completedMatches.some((m) => m.matchId === `m${total - 1}`),
+    ).toBe(true);
+    // Evicted ids are remembered.
+    expect(sys.state.completedMatchIds).toContain('m0');
+    expect(sys.state.completedMatchIds).toContain('m9');
+  });
+
+  it('is a no-op under the cap (array refs preserved)', () => {
+    const list = [makeCompletedMatch('a'), makeCompletedMatch('b')];
+    const scratch: {
+      completedMatches: CompletedMatch[];
+      completedMatchIds?: string[];
+    } = { completedMatches: list };
+    enforceCompletedCaps(scratch);
+    expect(scratch.completedMatches).toBe(list);
+    expect(scratch.completedMatchIds).toBeUndefined();
+  });
+
+  it('bounds completedMatchIds at COMPLETED_MATCH_IDS_CAP', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.completedMatchIds = Array.from(
+      { length: COMPLETED_MATCH_IDS_CAP + 50 },
+      (_, i) => `id${i}`,
+    );
+    enforceCompletedCaps(sys.state);
+    expect(sys.state.completedMatchIds).toHaveLength(COMPLETED_MATCH_IDS_CAP);
+    expect(sys.state.completedMatchIds).toContain(
+      `id${COMPLETED_MATCH_IDS_CAP + 49}`,
+    );
+  });
+
+  it('merge caps the union and unions completedMatchIds from both sides', () => {
+    const old = Array.from({ length: COMPLETED_MATCHES_CAP + 5 }, (_, i) =>
+      makeCompletedMatch(`old${i}`, {
+        completedAt: 1000 + i,
+        updatedAt: 1000 + i,
+      }),
+    );
+    const local = makeState({
+      completedMatches: old,
+      completedMatchIds: ['legacy-a'],
+      lastModified: 100,
+    });
+    const server = makeState({
+      completedMatches: [makeCompletedMatch('s-new', { completedAt: 9999 })],
+      completedMatchIds: ['legacy-b'],
+      lastModified: 100,
+    });
+
+    const merged = mergeAppState(local, server);
+
+    expect(merged.completedMatches).toHaveLength(COMPLETED_MATCHES_CAP);
+    expect(merged.completedMatchIds).toEqual(
+      expect.arrayContaining(['legacy-a', 'legacy-b', 'old0']),
+    );
+    expect(merged.completedMatches.some((m) => m.matchId === 's-new')).toBe(
+      true,
+    );
+  });
+
+  it('merge tombstones a live active match whose id survives only in completedMatchIds', () => {
+    const live = makeMatch('stale-live', ['a'], ['b']);
+    const local = makeState({
+      activeMatches: [live],
+      completedMatchIds: ['stale-live'],
+      lastModified: 100,
+    });
+    const server = makeState({ lastModified: 50 });
+
+    const merged = mergeAppState(local, server);
+
+    expect(
+      merged.activeMatches.find((m) => m.matchId === 'stale-live')?.deletedAt,
+    ).toBeTruthy();
+  });
+
+  it('checkpoint purge in saveState keeps dropped ids', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.completedMatchesResetAt = 5000;
+    sys.state.completedMatches = [
+      makeCompletedMatch('old', { completedAt: 1000, updatedAt: 1000 }),
+      makeCompletedMatch('new', { completedAt: 9000, updatedAt: 9000 }),
+    ];
+
+    sys.persist();
+
+    expect(sys.state.completedMatches.map((x) => x.matchId)).toEqual(['new']);
+    expect(sys.state.completedMatchIds).toContain('old');
+  });
+
+  it('clearCompletedMatches preserves ids for surviving tombstones', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.completedMatches = [
+      makeCompletedMatch('c1', { completedAt: 1000, updatedAt: 1000 }),
+    ];
+
+    sys.clearCompletedMatches();
+
+    expect(sys.state.completedMatches).toHaveLength(0);
+    expect(sys.state.completedMatchIds).toContain('c1');
+  });
+
+  it('resetState clears completedMatchIds', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.completedMatchIds = ['c1', 'c2'];
+
+    sys.resetState();
+
+    expect(sys.state.completedMatchIds).toEqual([]);
   });
 });

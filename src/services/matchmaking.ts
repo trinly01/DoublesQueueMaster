@@ -113,7 +113,8 @@ export interface AppState {
   players: Record<string, Player>; // Dictionary of all players ever registered
   queues: QueueEntry[]; // Players currently waiting to play
   activeMatches: ActiveMatch[]; // Matches currently happening on the court
-  completedMatches: CompletedMatch[]; // Persisted completed matches for DUPR export
+  completedMatches: CompletedMatch[]; // Persisted completed matches for DUPR export (capped at COMPLETED_MATCHES_CAP)
+  completedMatchIds?: string[]; // matchIds of recent completions incl. entries trimmed off completedMatches — keeps their activeMatches tombstones out of the "cancelled" list
   actionLogs?: ActionLog[]; // Admin action logs (capped at ACTION_LOG_CAP, synced)
   actionLogsResetAt?: number; // Epoch ms — action logs at/before this are excluded from admin stat counts
 
@@ -185,6 +186,72 @@ export const CLUB_SETTINGS: Record<string, unknown> = {
   lastExportedAt: 0,
   actionLogs: [],
 };
+
+// completedMatches rides inside the synced appState blob — every admin write
+// serializes it and every client parses it per realtime event. Cap it so
+// payload size stays bounded; authoritative history lives in the
+// completed_match table. 500 also matches the fetchCompletedMatchKeys limit
+// that already bounds DUPR export.
+export const COMPLETED_MATCHES_CAP = 500;
+// Ids of completions are ~20 bytes each — a generous cap covers tombstones
+// (GC'd after 7 days) for even very high-volume clubs.
+export const COMPLETED_MATCH_IDS_CAP = 2000;
+
+/**
+ * Copy ids of entries present in `before` but dropped from `kept` into
+ * state.completedMatchIds (deduped). Used when entries are removed for
+ * reasons other than the cap (checkpoint purges) — enforceCompletedCaps
+ * handles cap-evicted ids itself.
+ */
+function rememberCompletedIds(
+  state: { completedMatchIds?: string[] },
+  before: CompletedMatch[],
+  kept: CompletedMatch[],
+) {
+  const keptIds = new Set(kept.map((m) => m.matchId));
+  const ids = (state.completedMatchIds ??= []);
+  const seen = new Set(ids);
+  for (const m of before) {
+    if (!keptIds.has(m.matchId) && !seen.has(m.matchId)) {
+      seen.add(m.matchId);
+      ids.push(m.matchId);
+    }
+  }
+}
+
+/**
+ * Enforce the completedMatches cap: keep the newest COMPLETED_MATCHES_CAP
+ * entries by completedAt (array order preserved), record evicted ids in
+ * completedMatchIds, and bound that list too. Mutates state in place;
+ * only reassigns the arrays when something actually changes.
+ */
+export function enforceCompletedCaps(state: {
+  completedMatches: CompletedMatch[];
+  completedMatchIds?: string[];
+}) {
+  const list = state.completedMatches;
+  if (list && list.length > COMPLETED_MATCHES_CAP) {
+    const keepIds = new Set(
+      [...list]
+        .sort((a, b) => b.completedAt - a.completedAt)
+        .slice(0, COMPLETED_MATCHES_CAP)
+        .map((m) => m.matchId),
+    );
+    const ids = (state.completedMatchIds ??= []);
+    const seen = new Set(ids);
+    for (const m of list) {
+      if (!keepIds.has(m.matchId) && !seen.has(m.matchId)) {
+        seen.add(m.matchId);
+        ids.push(m.matchId);
+      }
+    }
+    state.completedMatches = list.filter((m) => keepIds.has(m.matchId));
+  }
+  const ids = state.completedMatchIds;
+  if (ids && ids.length > COMPLETED_MATCH_IDS_CAP) {
+    state.completedMatchIds = ids.slice(-COMPLETED_MATCH_IDS_CAP);
+  }
+}
 
 const STORAGE_KEY = 'matchmaking_state';
 const PER_CLUB_KEY_PREFIX = 'matchmaking_state_';
@@ -1062,6 +1129,7 @@ export class LocalMatchmakingSystem {
       );
       const dropped = before - kept.length;
       if (dropped > 0) {
+        rememberCompletedIds(this.state, this.state.completedMatches, kept);
         this.state.completedMatches = kept;
         console.warn(
           '[saveState] purged',
@@ -1071,6 +1139,9 @@ export class LocalMatchmakingSystem {
         );
       }
     }
+
+    // Bound the synced history — cheap no-op unless the list is over the cap.
+    enforceCompletedCaps(this.state);
 
     this.state.lastModified = Date.now();
     this.schedulePersist();
@@ -1201,6 +1272,7 @@ export class LocalMatchmakingSystem {
     this.state.queues = [];
     this.state.activeMatches = [];
     this.state.completedMatches = [];
+    this.state.completedMatchIds = [];
     this.state.playersResetAt = now;
     this.state.queuesResetAt = now;
     this.state.matchesResetAt = now;
@@ -1219,6 +1291,7 @@ export class LocalMatchmakingSystem {
     this.state.queues = [];
     this.state.activeMatches = [];
     this.state.completedMatches = [];
+    this.state.completedMatchIds = [];
     this.state.actionLogs = [];
     this.state.playersResetAt = now;
     this.state.queuesResetAt = now;
@@ -1261,9 +1334,13 @@ export class LocalMatchmakingSystem {
     // Locally filter; remote side will also filter on sync
     const resetAt = this.state.completedMatchesResetAt;
     const before = this.state.completedMatches.length;
-    this.state.completedMatches = this.state.completedMatches.filter(
+    const keptMatches = this.state.completedMatches.filter(
       (m) => m.completedAt > resetAt,
     );
+    // Remember dropped ids — their activeMatches tombstones may still exist
+    // (7-day GC) and must keep classifying as completed, not cancelled.
+    rememberCompletedIds(this.state, this.state.completedMatches, keptMatches);
+    this.state.completedMatches = keptMatches;
     const dropped = before - this.state.completedMatches.length;
     if (dropped > 0) {
       console.warn(
@@ -1725,6 +1802,11 @@ export class LocalMatchmakingSystem {
       completedMatch,
     );
     this.state.completedMatches.push(completedMatch);
+    // Track the id separately so its activeMatches tombstone isn't
+    // misclassified as "cancelled" once the entry is capped out.
+    const ids = (this.state.completedMatchIds ??= []);
+    if (!ids.includes(completedMatch.matchId)) ids.push(completedMatch.matchId);
+    enforceCompletedCaps(this.state);
 
     let winnerEnteredAt = Date.now();
     let loserEnteredAt = Date.now();
@@ -2287,11 +2369,15 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   let droppedCount = 0;
   let droppedMinCompletedAt = Infinity;
   let droppedMaxCompletedAt = 0;
+  const droppedByResetIds: string[] = [];
   allCompleted.forEach(({ match }) => {
     if (match.completedAt > winningResetAt) {
       mergedCompletedMatches.push(match);
     } else {
       droppedCount++;
+      // Keep the id too — the match's activeMatches tombstone can outlive
+      // the dropped entry and must not be reclassified as cancelled.
+      droppedByResetIds.push(match.matchId);
       droppedMinCompletedAt = Math.min(
         droppedMinCompletedAt,
         match.completedAt,
@@ -2316,14 +2402,45 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     );
   }
 
-  // If a match exists in completedMatches, it must not remain active
-  // (in-progress or waiting). Tombstone stale active copies so the merge
-  // never resurrects a match that has already been reported.
-  const completedMatchIds = new Set(
-    mergedCompletedMatches.map((m) => m.matchId),
-  );
+  // Bound mergedCompletedMatches (the synced blob's largest growing field).
+  // Evicted ids are preserved in completedMatchIds so their tombstones in
+  // activeMatches aren't later misclassified as cancelled.
+  const beforeCapCount = mergedCompletedMatches.length;
+  const capScratch = {
+    completedMatches: mergedCompletedMatches,
+    completedMatchIds: [
+      ...new Set([
+        ...droppedByResetIds,
+        ...(local.completedMatchIds ?? []),
+        ...(server.completedMatchIds ?? []),
+      ]),
+    ],
+  };
+  enforceCompletedCaps(capScratch);
+  const cappedCompletedMatches = capScratch.completedMatches;
+  const mergedCompletedIds =
+    capScratch.completedMatchIds && capScratch.completedMatchIds.length
+      ? capScratch.completedMatchIds
+      : undefined;
+  if (cappedCompletedMatches.length !== beforeCapCount) {
+    console.warn(
+      '[mergeAppState] capped completedMatches',
+      beforeCapCount,
+      '->',
+      cappedCompletedMatches.length,
+    );
+  }
+
+  // If a match exists in completedMatches (or was recently completed per
+  // completedMatchIds), it must not remain active (in-progress or waiting).
+  // Tombstone stale active copies so the merge never resurrects a match that
+  // has already been reported.
+  const completedIdSet = new Set([
+    ...(mergedCompletedIds ?? []),
+    ...cappedCompletedMatches.map((m) => m.matchId),
+  ]);
   mergedMatches.forEach((m) => {
-    if (!m.deletedAt && completedMatchIds.has(m.matchId)) {
+    if (!m.deletedAt && completedIdSet.has(m.matchId)) {
       m.deletedAt = Date.now();
       m.updatedAt = Date.now();
     }
@@ -2493,7 +2610,8 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     players: mergedPlayers,
     queues: filteredQueues,
     activeMatches: activeMatchesAfterCleanup,
-    completedMatches: mergedCompletedMatches,
+    completedMatches: cappedCompletedMatches,
+    completedMatchIds: mergedCompletedIds,
     actionLogs: mergedActionLogs,
     actionLogsResetAt: effectiveActionLogsResetAt,
     lastModified: Math.max(localTime, serverTime),
