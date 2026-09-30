@@ -1,0 +1,1 @@
+import{a$ as s,P as a}from"./vendor-bLtRDV7d.js";import{l as t}from"./index-D9BDYpbc.js";const h=s(async({app:o})=>{if(o.config.globalProperties.$likha=t,a.has("dink-auth")){const e=a.getItem("likha-data");if(!e?.expires_at||e.expires_at<Date.now()+6e4)try{await t.refresh()}catch{console.warn("[Boot] Proactive token refresh failed")}}});export{h as default};
