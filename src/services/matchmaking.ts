@@ -868,20 +868,18 @@ export class LocalMatchmakingSystem {
     // stays off the interaction path. Timeout caps the delay so data still
     // lands promptly; pagehide flushPersist() covers shutdown. Fallback keeps
     // the original setTimeout behavior where requestIdleCallback is missing.
-    const ric =
+    const w =
       typeof window !== 'undefined'
-        ? (
-            window as unknown as {
-              requestIdleCallback?: (
-                cb: () => void,
-                opts?: { timeout: number },
-              ) => number;
-            }
-          ).requestIdleCallback
+        ? (window as unknown as {
+            requestIdleCallback?: (
+              cb: () => void,
+              opts?: { timeout: number },
+            ) => number;
+          })
         : undefined;
-    if (ric) {
+    if (w?.requestIdleCallback) {
       this.pendingPersistIsIdle = true;
-      this.pendingPersistTimer = ric(
+      this.pendingPersistTimer = w.requestIdleCallback(
         () => {
           this.pendingPersistTimer = null;
           this.flushPersist();
