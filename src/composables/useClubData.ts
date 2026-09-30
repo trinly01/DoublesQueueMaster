@@ -17,7 +17,7 @@ import {
   mergePlayerFromDB,
   shouldSkipClubInfoRefresh,
   applyMergedState,
-  jsonEqual,
+  collectionEqual,
   type DBUser,
 } from 'src/services/cloudSyncHelpers';
 import type { Router } from 'vue-router';
@@ -755,11 +755,13 @@ export function useClubData(context: UseClubDataContext) {
               }
             } else {
               // Non-privileged: server is source of truth — directly overwrite everything, no merge.
-              // jsonEqual guards keep identical collections' references so the
-              // Club page computeds aren't invalidated by a no-op overwrite.
+              // collectionEqual guards keep identical collections' references
+              // so the Club page computeds aren't invalidated by a no-op
+              // overwrite; it early-exits at the first differing element
+              // instead of serializing whole collections.
               if (
                 serverMatchmaking.players &&
-                !jsonEqual(
+                !collectionEqual(
                   MatchmakingApp.state.players,
                   serverMatchmaking.players,
                 )
@@ -770,7 +772,7 @@ export function useClubData(context: UseClubDataContext) {
               }
               if (
                 serverMatchmaking.queues &&
-                !jsonEqual(
+                !collectionEqual(
                   MatchmakingApp.state.queues,
                   serverMatchmaking.queues,
                 )
@@ -779,7 +781,7 @@ export function useClubData(context: UseClubDataContext) {
               }
               if (
                 serverMatchmaking.activeMatches &&
-                !jsonEqual(
+                !collectionEqual(
                   MatchmakingApp.state.activeMatches,
                   serverMatchmaking.activeMatches,
                 )
@@ -790,7 +792,7 @@ export function useClubData(context: UseClubDataContext) {
               }
               if (
                 serverMatchmaking.completedMatches &&
-                !jsonEqual(
+                !collectionEqual(
                   MatchmakingApp.state.completedMatches,
                   serverMatchmaking.completedMatches,
                 )
@@ -801,7 +803,7 @@ export function useClubData(context: UseClubDataContext) {
               }
               if (
                 serverMatchmaking.actionLogs &&
-                !jsonEqual(
+                !collectionEqual(
                   MatchmakingApp.state.actionLogs,
                   serverMatchmaking.actionLogs,
                 )
