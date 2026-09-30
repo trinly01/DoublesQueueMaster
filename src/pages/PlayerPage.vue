@@ -597,11 +597,12 @@
               class="chart-container"
               v-if="matchChartData.length"
             ></div>
-            <q-list separator v-if="sortedMatches.length">
-              <template
-                v-for="(match, idx) in sortedMatches"
-                :key="match.match_key"
-              >
+            <q-virtual-scroll
+              v-if="sortedMatches.length"
+              :items="sortedMatches"
+              :virtual-scroll-item-size="80"
+            >
+              <template v-slot="{ item: match, index: idx }">
                 <div
                   v-if="isMatchAtSeasonReset(idx)"
                   class="season-reset-divider row items-center q-my-sm q-px-sm"
@@ -629,8 +630,9 @@
                     />
                   </q-item-section>
                 </q-item>
+                <q-separator v-if="idx < sortedMatches.length - 1" />
               </template>
-            </q-list>
+            </q-virtual-scroll>
             <div v-else class="text-center text-grey q-py-md">
               No completed matches available.
             </div>
@@ -2369,6 +2371,18 @@ const initMatchesChart = () => {
   });
 };
 
+// Defer chart init until the browser is idle so tab-switch paint isn't
+// blocked by synchronous echarts.init + setOption on mobile CPUs.
+const whenIdle = (fn: () => void) => {
+  const ric = (
+    window as Window & {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+    }
+  ).requestIdleCallback;
+  if (ric) ric(fn, { timeout: 500 });
+  else setTimeout(fn, 0);
+};
+
 watch([showHistoryDialog, activeTab], ([dialogOpen, tab]) => {
   console.log(
     '[PlayerPage] Dialog:',
@@ -2382,9 +2396,9 @@ watch([showHistoryDialog, activeTab], ([dialogOpen, tab]) => {
     void fetchPaymentSettings();
   }
   if (dialogOpen && tab === 'history') {
-    nextTick(() => initChart());
+    nextTick(() => whenIdle(initChart));
   } else if (dialogOpen && tab === 'matches') {
-    nextTick(() => initMatchesChart());
+    nextTick(() => whenIdle(initMatchesChart));
   } else {
     if (chartInstance) {
       chartInstance.dispose();
