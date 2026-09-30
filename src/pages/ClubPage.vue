@@ -3099,9 +3099,11 @@ const hasAvailableSlot = computed(() => {
 });
 
 const cancelledMatches = computed(() => {
-  const completedIds = new Set(
-    MatchmakingApp.state.completedMatches.map((m) => m.matchId),
-  );
+  // Include capped-out completions — their tombstones can outlive the entry.
+  const completedIds = new Set([
+    ...(MatchmakingApp.state.completedMatchIds ?? []),
+    ...MatchmakingApp.state.completedMatches.map((m) => m.matchId),
+  ]);
   return MatchmakingApp.state.activeMatches
     .filter((m) => m.deletedAt && !completedIds.has(m.matchId))
     .map((m, index) => {

@@ -8,7 +8,11 @@ import {
 } from 'vue';
 import { readItems, updateItem } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
-import { MatchmakingApp, mergeAppState } from 'src/services/matchmaking';
+import {
+  MatchmakingApp,
+  mergeAppState,
+  enforceCompletedCaps,
+} from 'src/services/matchmaking';
 import type { AppState } from 'src/services/matchmaking';
 import { useNotify } from 'src/composables/useNotify';
 import { useAuth } from 'src/composables/useAuth';
@@ -384,6 +388,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
       return;
     }
 
+    // Bound the incoming history the same way local writes do — an uncapped
+    // blob written by an older client otherwise stays large forever here.
+    enforceCompletedCaps(serverMatchmaking);
+
     const isCurrentUserPrivilegedForSync =
       currentUserId.value &&
       (clubAdminIds.value.has(currentUserId.value) ||
@@ -457,6 +465,17 @@ export function useCloudSync(ctx: CloudSyncContext) {
       ) {
         MatchmakingApp.state.completedMatches = [
           ...serverMatchmaking.completedMatches,
+        ];
+      }
+      if (
+        serverMatchmaking.completedMatchIds &&
+        !collectionEqual(
+          MatchmakingApp.state.completedMatchIds,
+          serverMatchmaking.completedMatchIds,
+        )
+      ) {
+        MatchmakingApp.state.completedMatchIds = [
+          ...serverMatchmaking.completedMatchIds,
         ];
       }
       if (
