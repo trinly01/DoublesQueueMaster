@@ -860,19 +860,54 @@ export class LocalMatchmakingSystem {
   // every call blocked the UI. Writes are coalesced into one macrotask;
   // flushPersist() forces the write immediately (pagehide, persistSilently).
   private pendingPersistTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingPersistIsIdle = false;
 
   private schedulePersist() {
     if (this.pendingPersistTimer) return;
-    this.pendingPersistTimer = setTimeout(() => {
-      this.pendingPersistTimer = null;
-      this.flushPersist();
-    }, 0);
+    // Prefer idle-time write: the whole-state serialization + LocalStorage.set
+    // stays off the interaction path. Timeout caps the delay so data still
+    // lands promptly; pagehide flushPersist() covers shutdown. Fallback keeps
+    // the original setTimeout behavior where requestIdleCallback is missing.
+    const ric =
+      typeof window !== 'undefined'
+        ? (
+            window as unknown as {
+              requestIdleCallback?: (
+                cb: () => void,
+                opts?: { timeout: number },
+              ) => number;
+            }
+          ).requestIdleCallback
+        : undefined;
+    if (ric) {
+      this.pendingPersistIsIdle = true;
+      this.pendingPersistTimer = ric(
+        () => {
+          this.pendingPersistTimer = null;
+          this.flushPersist();
+        },
+        { timeout: 2000 },
+      ) as unknown as ReturnType<typeof setTimeout>;
+    } else {
+      this.pendingPersistIsIdle = false;
+      this.pendingPersistTimer = setTimeout(() => {
+        this.pendingPersistTimer = null;
+        this.flushPersist();
+      }, 0);
+    }
   }
 
   public flushPersist() {
     if (this.pendingPersistTimer) {
-      clearTimeout(this.pendingPersistTimer);
+      if (this.pendingPersistIsIdle && typeof window !== 'undefined') {
+        (
+          window as unknown as { cancelIdleCallback?: (id: number) => void }
+        ).cancelIdleCallback?.(this.pendingPersistTimer as unknown as number);
+      } else {
+        clearTimeout(this.pendingPersistTimer);
+      }
       this.pendingPersistTimer = null;
+      this.pendingPersistIsIdle = false;
     }
     LocalStorage.set(getStorageKey(this.state.clubId || undefined), this.state);
   }
@@ -1928,45 +1963,51 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     // Step 1: pick the base winner by overall updatedAt (or matchesPlayed fallback)
     const lpTime = lp.updatedAt ?? 0;
     const spTime = sp.updatedAt ?? 0;
-    let baseWinner: Player;
+    // winnerIsLp = which side's object provides the merged base content.
+    // Reusing the winning side's object (instead of always copying) keeps
+    // refs stable so applyMergedState can detect "unchanged" by reference
+    // instead of serializing.
+    let winnerIsLp: boolean;
     if (lpTime > 0 || spTime > 0) {
-      baseWinner = lpTime > spTime ? { ...lp } : { ...sp };
+      winnerIsLp = lpTime > spTime;
     } else {
       const lpGames = lp.matchesPlayed ?? 0;
       const spGames = sp.matchesPlayed ?? 0;
-      if (lpGames > spGames) baseWinner = { ...lp };
-      else if (spGames > lpGames) baseWinner = { ...sp };
-      else {
-        // No entity-level timestamps and identical stats.
-        // Prefer server as source of truth. Never use whole-state lastModified
-        // for entity-level conflict resolution — an offline admin's unrelated
-        // local activity (e.g., queue changes) can make localTime newer even
-        // though this specific player was never touched locally.
-        baseWinner = { ...sp };
-      }
+      // No entity-level timestamps and identical stats: prefer server as
+      // source of truth. Never use whole-state lastModified for entity-level
+      // conflict resolution — an offline admin's unrelated local activity
+      // (e.g., queue changes) can make localTime newer even though this
+      // specific player was never touched locally.
+      winnerIsLp = lpGames > spGames;
     }
+    let baseWinner: Player = winnerIsLp ? lp : sp;
 
-    // Step 2: overlay newer stats if the loser has fresher stats.
-    // baseWinner is a copy, so object identity can't be used to find the loser;
-    // use the same timestamp comparison that selected the winner.
+    // Step 2/3: overlay newer stats / rating from the loser if fresher.
+    // baseIsLocal mirrors the timestamp comparison that selected the winner.
     const baseIsLocal = lpTime > spTime;
     const other = baseIsLocal ? sp : lp;
     const baseStatsAt = baseWinner.statsUpdatedAt ?? 0;
     const otherStatsAt = other.statsUpdatedAt ?? 0;
-    if (otherStatsAt > baseStatsAt) {
-      baseWinner.matchesPlayed = other.matchesPlayed;
-      baseWinner.wins = other.wins;
-      baseWinner.losses = other.losses;
-      baseWinner.history = other.history ? { ...other.history } : undefined;
-      baseWinner.statsUpdatedAt = otherStatsAt;
-    }
-
-    // Step 3: overlay newer rating if the loser has a fresher rating
+    const overlayStats = otherStatsAt > baseStatsAt;
     const baseRatingAt = baseWinner.ratingUpdatedAt ?? 0;
     const otherRatingAt = other.ratingUpdatedAt ?? 0;
-    if (otherRatingAt > baseRatingAt) {
-      baseWinner.rating = other.rating;
-      baseWinner.ratingUpdatedAt = otherRatingAt;
+    const overlayRating = otherRatingAt > baseRatingAt;
+
+    // Copy only when an overlay will actually mutate — otherwise the merged
+    // player keeps the winning side's original object reference.
+    if (overlayStats || overlayRating) {
+      baseWinner = { ...baseWinner };
+      if (overlayStats) {
+        baseWinner.matchesPlayed = other.matchesPlayed;
+        baseWinner.wins = other.wins;
+        baseWinner.losses = other.losses;
+        baseWinner.history = other.history ? { ...other.history } : undefined;
+        baseWinner.statsUpdatedAt = otherStatsAt;
+      }
+      if (overlayRating) {
+        baseWinner.rating = other.rating;
+        baseWinner.ratingUpdatedAt = otherRatingAt;
+      }
     }
 
     mergedPlayers[username] = baseWinner;
@@ -2395,12 +2436,17 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   const logNowMs = Date.now();
   const logMap = new Map<string, ActionLog>();
   for (const log of [...localLogs, ...serverLogs]) {
+    // Prefer the first-seen (local) ref for duplicate ids — log records are
+    // immutable per id, so both copies carry identical content; keeping the
+    // local ref lets applyMergedState prove "unchanged" by reference.
+    const src = logMap.get(log.id) ?? log;
     // Clamp future-dated timestamps so a clock-skewed peer cannot displace
-    // real entries from the cap window.
-    logMap.set(log.id, {
-      ...log,
-      timestamp: Math.min(log.timestamp, logNowMs),
-    });
+    // real entries from the cap window. Copy only when clamping actually
+    // changes the value.
+    logMap.set(
+      log.id,
+      src.timestamp <= logNowMs ? src : { ...src, timestamp: logNowMs },
+    );
   }
   const sortedLogs = Array.from(logMap.values()).sort(
     (a, b) => b.timestamp - a.timestamp,

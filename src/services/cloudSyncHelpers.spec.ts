@@ -389,7 +389,9 @@ describe('cloudSyncHelpers — applyMergedState', () => {
   it('preserves collection references when content is identical', () => {
     const queues = [{ id: 'q1' }] as unknown as AppState['queues'];
     const target = makeState({ queues });
-    const merged = makeState({ queues: [{ id: 'q1' }] as unknown as AppState['queues'] });
+    const merged = makeState({
+      queues: [{ id: 'q1' }] as unknown as AppState['queues'],
+    });
 
     const changed = applyMergedState(target, merged);
 
@@ -410,11 +412,15 @@ describe('cloudSyncHelpers — applyMergedState', () => {
   });
 
   it('assigns only the changed collection, leaving others untouched', () => {
-    const players = { alice: { username: 'alice' } } as unknown as AppState['players'];
+    const players = {
+      alice: { username: 'alice' },
+    } as unknown as AppState['players'];
     const queues = [{ id: 'q1' }] as unknown as AppState['queues'];
     const target = makeState({ players, queues });
     const merged = makeState({
-      players: { alice: { username: 'alice' } } as unknown as AppState['players'],
+      players: {
+        alice: { username: 'alice' },
+      } as unknown as AppState['players'],
       queues: [{ id: 'q1' }, { id: 'q2' }] as unknown as AppState['queues'],
     });
 
@@ -446,13 +452,115 @@ describe('cloudSyncHelpers — applyMergedState', () => {
   });
 
   it('handles merged keys whose value is undefined', () => {
-    const target = makeState({ actionLogs: [{ id: 'x' }] as unknown as AppState['actionLogs'] });
+    const target = makeState({
+      actionLogs: [{ id: 'x' }] as unknown as AppState['actionLogs'],
+    });
     const merged = makeState({ actionLogs: undefined });
 
     const changed = applyMergedState(target, merged);
 
     expect(changed).toBe(true);
     expect(target.actionLogs).toBeUndefined();
+  });
+
+  it('skips arrays whose elements are the same object refs (no serialization)', () => {
+    const entry = { id: 'q1', player: 'alice' };
+    const queues = [entry] as unknown as AppState['queues'];
+    const target = makeState({ queues });
+    const merged = makeState({
+      queues: [entry] as unknown as AppState['queues'],
+    });
+
+    const changed = applyMergedState(target, merged);
+
+    expect(changed).toBe(false);
+    expect(target.queues).toBe(queues);
+  });
+
+  it('skips arrays with content-equal elements under new refs', () => {
+    const queues = [
+      { id: 'q1', player: 'alice' },
+    ] as unknown as AppState['queues'];
+    const target = makeState({ queues });
+    const merged = makeState({
+      queues: [{ id: 'q1', player: 'alice' }] as unknown as AppState['queues'],
+    });
+
+    const changed = applyMergedState(target, merged);
+
+    expect(changed).toBe(false);
+    expect(target.queues).toBe(queues);
+  });
+
+  it('assigns arrays when an element differs', () => {
+    const target = makeState({
+      queues: [{ id: 'q1', player: 'alice' }] as unknown as AppState['queues'],
+    });
+    const merged = makeState({
+      queues: [{ id: 'q1', player: 'bob' }] as unknown as AppState['queues'],
+    });
+
+    const changed = applyMergedState(target, merged);
+
+    expect(changed).toBe(true);
+    expect(target.queues[0]).toEqual({ id: 'q1', player: 'bob' });
+  });
+
+  it('skips dicts whose values are the same object refs', () => {
+    const alice = { username: 'alice' } as unknown as Player;
+    const players = { alice } as unknown as AppState['players'];
+    const target = makeState({ players });
+    const merged = makeState({
+      players: { alice } as unknown as AppState['players'],
+    });
+
+    const changed = applyMergedState(target, merged);
+
+    expect(changed).toBe(false);
+    expect(target.players).toBe(players);
+  });
+
+  it('skips dicts with identical content in a different key order', () => {
+    const players = {
+      a: { n: 1 },
+      b: { n: 2 },
+    } as unknown as AppState['players'];
+    const target = makeState({ players });
+    const merged = makeState({
+      players: { b: { n: 2 }, a: { n: 1 } } as unknown as AppState['players'],
+    });
+
+    const changed = applyMergedState(target, merged);
+
+    // JSON.stringify would have treated key order as a difference; the
+    // per-key compare correctly sees identical content.
+    expect(changed).toBe(false);
+    expect(target.players).toBe(players);
+  });
+
+  it('assigns dicts when a value differs or a key is added', () => {
+    const target = makeState({
+      players: {
+        alice: { username: 'alice', wins: 1 },
+      } as unknown as AppState['players'],
+    });
+    const merged = makeState({
+      players: {
+        alice: { username: 'alice', wins: 2 },
+      } as unknown as AppState['players'],
+    });
+
+    expect(applyMergedState(target, merged)).toBe(true);
+    expect(target.players.alice.wins).toBe(2);
+
+    const merged2 = makeState({
+      players: {
+        alice: { username: 'alice', wins: 2 },
+        bob: { username: 'bob' },
+      } as unknown as AppState['players'],
+    });
+    expect(applyMergedState(target, merged2)).toBe(true);
+    expect(Object.keys(target.players)).toEqual(['alice', 'bob']);
   });
 });
 

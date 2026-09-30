@@ -3376,3 +3376,171 @@ describe('saveState — collection ref stability', () => {
     expect(sys.state.queues).toBe(ref);
   });
 });
+
+// ---------------------------------------------------------------------------
+// mergeAppState — entity ref reuse. Merged collections must carry the winning
+// side's original object refs so applyMergedState can detect "unchanged" by
+// pointer instead of serializing every collection on every merge.
+// ---------------------------------------------------------------------------
+
+describe('mergeAppState — entity ref reuse', () => {
+  it('reuses the local player object when local wins and no overlay fires', () => {
+    const lp = makePlayer(1500, { username: 'alice', updatedAt: 200 });
+    const local = makeState({
+      players: { alice: lp },
+      lastModified: 200,
+    });
+    const server = makeState({
+      players: {
+        alice: makePlayer(1400, { username: 'alice', updatedAt: 100 }),
+      },
+      lastModified: 100,
+    });
+
+    const merged = mergeAppState(local, server);
+
+    expect(merged.players.alice).toBe(lp);
+    expect(merged.players.alice.rating).toBe(1500);
+  });
+
+  it('reuses the server player object when server wins and no overlay fires', () => {
+    const sp = makePlayer(1600, { username: 'bob', updatedAt: 300 });
+    const local = makeState({
+      players: { bob: makePlayer(1500, { username: 'bob', updatedAt: 100 }) },
+      lastModified: 100,
+    });
+    const server = makeState({
+      players: { bob: sp },
+      lastModified: 300,
+    });
+
+    const merged = mergeAppState(local, server);
+
+    expect(merged.players.bob).toBe(sp);
+    expect(merged.players.bob.rating).toBe(1600);
+  });
+
+  it('copies the winner when a stats overlay fires — content preserved', () => {
+    const lp = makePlayer(1500, {
+      username: 'alice',
+      updatedAt: 200,
+      statsUpdatedAt: 100,
+      matchesPlayed: 1,
+      wins: 1,
+      losses: 0,
+    });
+    const sp = makePlayer(1400, {
+      username: 'alice',
+      updatedAt: 100,
+      statsUpdatedAt: 500,
+      matchesPlayed: 9,
+      wins: 7,
+      losses: 2,
+    });
+    const local = makeState({ players: { alice: lp }, lastModified: 200 });
+    const server = makeState({ players: { alice: sp }, lastModified: 100 });
+
+    const merged = mergeAppState(local, server);
+    const m = merged.players.alice;
+
+    // Overlay fired → a fresh object, not either input ref.
+    expect(m).not.toBe(lp);
+    expect(m).not.toBe(sp);
+    // Base winner (local) fields + overlaid stats from server.
+    expect(m.rating).toBe(1500);
+    expect(m.matchesPlayed).toBe(9);
+    expect(m.wins).toBe(7);
+    expect(m.losses).toBe(2);
+    expect(m.statsUpdatedAt).toBe(500);
+    // Inputs untouched.
+    expect(lp.matchesPlayed).toBe(1);
+    expect(sp.updatedAt).toBe(100);
+  });
+
+  it('copies the winner when a rating overlay fires', () => {
+    const lp = makePlayer(1500, {
+      username: 'alice',
+      updatedAt: 200,
+      ratingUpdatedAt: 100,
+    });
+    const sp = makePlayer(1400, {
+      username: 'alice',
+      updatedAt: 100,
+      ratingUpdatedAt: 500,
+      rating: 1700,
+    });
+    const local = makeState({ players: { alice: lp }, lastModified: 200 });
+    const server = makeState({ players: { alice: sp }, lastModified: 100 });
+
+    const merged = mergeAppState(local, server);
+
+    expect(merged.players.alice).not.toBe(lp);
+    expect(merged.players.alice.rating).toBe(1700);
+    expect(merged.players.alice.ratingUpdatedAt).toBe(500);
+  });
+
+  it('keeps the local actionLog ref when the server echoes the same entry', () => {
+    const localLog: ActionLog = {
+      id: 'log-1',
+      type: 'test',
+      message: 'm',
+      timestamp: 1000,
+    } as unknown as ActionLog;
+    const serverLog: ActionLog = {
+      id: 'log-1',
+      type: 'test',
+      message: 'm',
+      timestamp: 1000,
+    } as unknown as ActionLog;
+    const local = makeState({ actionLogs: [localLog], lastModified: 100 });
+    const server = makeState({ actionLogs: [serverLog], lastModified: 100 });
+
+    const merged = mergeAppState(local, server);
+
+    expect(merged.actionLogs).toHaveLength(1);
+    expect(merged.actionLogs![0]).toBe(localLog);
+  });
+
+  it('still clamps future-dated log timestamps via copy', () => {
+    const future = Date.now() + 60_000;
+    const localLog = {
+      id: 'log-2',
+      type: 'test',
+      message: 'm',
+      timestamp: future,
+    } as unknown as ActionLog;
+    const local = makeState({ actionLogs: [localLog], lastModified: 100 });
+    const server = makeState({ actionLogs: [], lastModified: 100 });
+
+    const merged = mergeAppState(local, server);
+
+    expect(merged.actionLogs![0]).not.toBe(localLog);
+    expect(merged.actionLogs![0].timestamp).toBeLessThanOrEqual(Date.now());
+    // Original untouched.
+    expect(localLog.timestamp).toBe(future);
+  });
+
+  it('carries queue/match/completed refs through unchanged', () => {
+    const q = makeQueueEntry('queuer');
+    const m = makeMatch('m1', ['a'], ['b']);
+    const c = makeCompletedMatch('c1');
+    const local = makeState({
+      players: {
+        queuer: makePlayer(1500, { username: 'queuer' }),
+        a: makePlayer(1500, { username: 'a' }),
+        b: makePlayer(1500, { username: 'b' }),
+      },
+      queues: [q],
+      activeMatches: [m],
+      completedMatches: [c],
+      lastModified: 100,
+    });
+    const server = makeState({ lastModified: 0 });
+
+    const merged = mergeAppState(local, server);
+
+    expect(merged.queues).toContain(q);
+    expect(merged.activeMatches).toContain(m);
+    expect(merged.completedMatches).toContain(c);
+  });
+});

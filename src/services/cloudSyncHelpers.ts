@@ -4,6 +4,7 @@
  * Used by useCloudSync composable — see Step 2.0/2.1 of the maintainability refactor.
  */
 
+import { toRaw } from 'vue';
 import type { AppState, Player } from './matchmaking';
 
 /**
@@ -275,6 +276,9 @@ export const jsonEqual = (a: unknown, b: unknown): boolean =>
  *
  * Returns true if any key was assigned (i.e. the merge changed something).
  */
+const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
 export const applyMergedState = (
   target: AppState,
   merged: AppState,
@@ -282,7 +286,49 @@ export const applyMergedState = (
   let changed = false;
   for (const key of Object.keys(merged) as Array<keyof AppState>) {
     const incoming = merged[key];
-    if (!jsonEqual(target[key], incoming)) {
+    const current = target[key];
+    if (current === incoming) continue;
+
+    // Ref-aware compares: ref-equal elements/keys cost a pointer check and
+    // skip serialization entirely. mergeAppState reuses entity object refs
+    // for unchanged content, so no-op merges compare by pointer. Only
+    // ref-differing values fall back to JSON equality. toRaw() unwraps Vue
+    // reactive proxies on the target so raw merge refs compare correctly.
+    let equal: boolean;
+    if (Array.isArray(current) && Array.isArray(incoming)) {
+      equal = current.length === incoming.length;
+      if (equal) {
+        for (let i = 0; i < incoming.length; i++) {
+          const a = toRaw(current[i]);
+          const b = incoming[i];
+          if (a !== b && !jsonEqual(a, b)) {
+            equal = false;
+            break;
+          }
+        }
+      }
+    } else if (isPlainObject(current) && isPlainObject(incoming)) {
+      const incKeys = Object.keys(incoming);
+      equal = Object.keys(current).length === incKeys.length;
+      if (equal) {
+        for (const k of incKeys) {
+          if (!(k in current)) {
+            equal = false;
+            break;
+          }
+          const a = toRaw(current[k]);
+          const b = incoming[k];
+          if (a !== b && !jsonEqual(a, b)) {
+            equal = false;
+            break;
+          }
+        }
+      }
+    } else {
+      equal = jsonEqual(current, incoming);
+    }
+
+    if (!equal) {
       (target as unknown as Record<string, unknown>)[key] = incoming;
       changed = true;
     }
