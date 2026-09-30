@@ -17,7 +17,7 @@ import {
   shouldSkipFullRead,
   parseLightweightTimestamp,
   applyMergedState,
-  jsonEqual,
+  collectionEqual,
 } from 'src/services/cloudSyncHelpers';
 import type { Router } from 'vue-router';
 import type { QNotifyCreateOptions } from 'quasar';
@@ -229,7 +229,9 @@ export function useCloudSync(ctx: CloudSyncContext) {
         serverTimestamp !== lastSyncedServerTimestamp.value
       ) {
         const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
-        Object.assign(MatchmakingApp.state, merged);
+        // Assign only keys whose content actually changed — identical merges
+        // keep their references and don't invalidate the page's computeds.
+        applyMergedState(MatchmakingApp.state, merged);
         // Extra safety: ensure no player appears in multiple matches
         MatchmakingApp.enforceOneMatchPerPlayer();
         notify({
@@ -416,23 +418,28 @@ export function useCloudSync(ctx: CloudSyncContext) {
       MatchmakingApp.enforceOneMatchPerCourt();
     } else {
       // Non-privileged: server is source of truth — direct overwrite, no merge.
-      // jsonEqual guards keep identical collections' references so the
-      // Club page computeds aren't invalidated by a no-op overwrite.
+      // collectionEqual guards keep identical collections' references so the
+      // Club page computeds aren't invalidated by a no-op overwrite; it
+      // early-exits at the first differing element instead of serializing
+      // whole collections.
       if (
         serverMatchmaking.players &&
-        !jsonEqual(MatchmakingApp.state.players, serverMatchmaking.players)
+        !collectionEqual(
+          MatchmakingApp.state.players,
+          serverMatchmaking.players,
+        )
       ) {
         MatchmakingApp.state.players = { ...serverMatchmaking.players };
       }
       if (
         serverMatchmaking.queues &&
-        !jsonEqual(MatchmakingApp.state.queues, serverMatchmaking.queues)
+        !collectionEqual(MatchmakingApp.state.queues, serverMatchmaking.queues)
       ) {
         MatchmakingApp.state.queues = [...serverMatchmaking.queues];
       }
       if (
         serverMatchmaking.activeMatches &&
-        !jsonEqual(
+        !collectionEqual(
           MatchmakingApp.state.activeMatches,
           serverMatchmaking.activeMatches,
         )
@@ -443,7 +450,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
       }
       if (
         serverMatchmaking.completedMatches &&
-        !jsonEqual(
+        !collectionEqual(
           MatchmakingApp.state.completedMatches,
           serverMatchmaking.completedMatches,
         )
@@ -454,7 +461,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
       }
       if (
         serverMatchmaking.actionLogs &&
-        !jsonEqual(
+        !collectionEqual(
           MatchmakingApp.state.actionLogs,
           serverMatchmaking.actionLogs,
         )

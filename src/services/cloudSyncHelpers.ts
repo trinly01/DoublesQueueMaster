@@ -279,6 +279,42 @@ export const jsonEqual = (a: unknown, b: unknown): boolean =>
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
+/**
+ * Ref-aware deep equality for top-level collections (arrays and dicts).
+ * Identical element/key refs short-circuit with a pointer check — mergeAppState
+ * reuses entity refs for unchanged content, so this is the common fast path.
+ * Ref-differing values fall back to jsonEqual, and the first real difference
+ * early-exits instead of serializing the rest of the collection.
+ * toRaw() unwraps Vue reactive proxies on the left side so raw refs compare.
+ * Same accept/reject semantics as jsonEqual, except dict key order is ignored
+ * (stringifying treated reordered keys as different — a false negative, not a
+ * correctness feature).
+ */
+export const collectionEqual = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      const av = toRaw(a[i]);
+      const bv = b[i];
+      if (av !== bv && !jsonEqual(av, bv)) return false;
+    }
+    return true;
+  }
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const bKeys = Object.keys(b);
+    if (Object.keys(a).length !== bKeys.length) return false;
+    for (const k of bKeys) {
+      if (!(k in a)) return false;
+      const av = toRaw(a[k]);
+      const bv = b[k];
+      if (av !== bv && !jsonEqual(av, bv)) return false;
+    }
+    return true;
+  }
+  return jsonEqual(a, b);
+};
+
 export const applyMergedState = (
   target: AppState,
   merged: AppState,
@@ -286,49 +322,7 @@ export const applyMergedState = (
   let changed = false;
   for (const key of Object.keys(merged) as Array<keyof AppState>) {
     const incoming = merged[key];
-    const current = target[key];
-    if (current === incoming) continue;
-
-    // Ref-aware compares: ref-equal elements/keys cost a pointer check and
-    // skip serialization entirely. mergeAppState reuses entity object refs
-    // for unchanged content, so no-op merges compare by pointer. Only
-    // ref-differing values fall back to JSON equality. toRaw() unwraps Vue
-    // reactive proxies on the target so raw merge refs compare correctly.
-    let equal: boolean;
-    if (Array.isArray(current) && Array.isArray(incoming)) {
-      equal = current.length === incoming.length;
-      if (equal) {
-        for (let i = 0; i < incoming.length; i++) {
-          const a = toRaw(current[i]);
-          const b = incoming[i];
-          if (a !== b && !jsonEqual(a, b)) {
-            equal = false;
-            break;
-          }
-        }
-      }
-    } else if (isPlainObject(current) && isPlainObject(incoming)) {
-      const incKeys = Object.keys(incoming);
-      equal = Object.keys(current).length === incKeys.length;
-      if (equal) {
-        for (const k of incKeys) {
-          if (!(k in current)) {
-            equal = false;
-            break;
-          }
-          const a = toRaw(current[k]);
-          const b = incoming[k];
-          if (a !== b && !jsonEqual(a, b)) {
-            equal = false;
-            break;
-          }
-        }
-      }
-    } else {
-      equal = jsonEqual(current, incoming);
-    }
-
-    if (!equal) {
+    if (!collectionEqual(target[key], incoming)) {
       (target as unknown as Record<string, unknown>)[key] = incoming;
       changed = true;
     }
