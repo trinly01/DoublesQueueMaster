@@ -1,0 +1,176 @@
+=== EXP-06: PARTNER-ATTRIBUTION DIRECTION ===
+Dataset: 1350 competitive doubles matches from completed_matches_20260824.csv
+Coin-flip logLoss baseline: 0.6931
+
+--- Predictive accuracy ---
+  A: weakPenalty (PROD)    inSample=0.6194 [0.6092-0.6301]  CV=0.6194 +/- 0.0150  brier=0.2140
+  B: weakBoost             inSample=0.6207 [0.6119-0.6299]  CV=0.6207 +/- 0.0150  brier=0.2146
+  C: no partner adj        inSample=0.6202 [0.6107-0.6293]  CV=0.6202 +/- 0.0148  brier=0.2144
+
+--- Top 25 under A: weakPenalty (PROD) ---
+  #   rating  W-L    rated  name
+   1   1833  19-1      20   SHIRWIN DELA CUADRA
+   2   1831  25-6      31   SHIRWIN DELA CUADRA
+   3   1766   9-0       9   John Cezar Bragasin
+   4   1744  57-24     81   Obal Eslabra
+   5   1724   9-2      11   Mac Flores
+   6   1698   5-1       6   Mac Flores
+   7   1678  11-3      14   Gab Saturnino
+   8   1677  34-18     52   Trin BOADO
+   9   1676   6-0       6   Franks Sarmiento
+  10   1668  36-19     55   Trin BOADO
+  11   1662   8-2      10   Art Fernandez
+  12   1661  11-4      15   Jimboy Carlos
+  13   1657  13-5      18   Darell Bati
+  14   1655   8-1       9   carl julius delapena
+  15   1649   8-2      10   Rogelio Cayabyab
+  16   1641   3-2       5   Tristan Soriano
+  17   1639   9-3      12   Peter Macaraeg
+  18   1632  13-7      20   Bentot Catalan
+  19   1632  11-8      19   Mac Flores
+  20   1632   3-0       3   Cara
+  21   1630  42-30     72   Lenz Gachallan
+  22   1630   3-1       4   Jimboy Carlos
+  23   1623  16-8      24   Froi O
+  24   1620   9-4      13   Tristan Soriano
+  25   1617  14-9      23   Cristobal Eslabra
+
+--- Top 25 under B: weakBoost ---
+  #   rating  W-L    rated  name
+   1   1816  25-6      31   SHIRWIN DELA CUADRA
+   2   1811  19-1      20   SHIRWIN DELA CUADRA
+   3   1752   9-0       9   John Cezar Bragasin
+   4   1710   9-2      11   Mac Flores
+   5   1692  57-24     81   Obal Eslabra
+   6   1683   5-1       6   Mac Flores
+   7   1669   6-0       6   Franks Sarmiento
+   8   1665  11-3      14   Gab Saturnino
+   9   1658   8-2      10   Art Fernandez
+  10   1643  13-5      18   Darell Bati
+  11   1643  11-4      15   Jimboy Carlos
+  12   1642   8-1       9   carl julius delapena
+  13   1641  36-19     55   Trin BOADO
+  14   1639  34-18     52   Trin BOADO
+  15   1639   8-2      10   Rogelio Cayabyab
+  16   1632   3-2       5   Tristan Soriano
+  17   1624   9-3      12   Peter Macaraeg
+  18   1621   3-1       4   Jimboy Carlos
+  19   1621   3-0       3   Cara
+  20   1614  11-8      19   Mac Flores
+  21   1613  16-8      24   Froi O
+  22   1613   9-4      13   Tristan Soriano
+  23   1610   8-1       9   Franks
+  24   1606  13-7      20   Bentot Catalan
+  25   1606   3-2       5   Jhem Fabular
+
+--- Top 25 under C: no partner adj ---
+  #   rating  W-L    rated  name
+   1   1817  25-6      31   SHIRWIN DELA CUADRA
+   2   1815  19-1      20   SHIRWIN DELA CUADRA
+   3   1754   9-0       9   John Cezar Bragasin
+   4   1715   9-2      11   Mac Flores
+   5   1705  57-24     81   Obal Eslabra
+   6   1689   5-1       6   Mac Flores
+   7   1674   6-0       6   Franks Sarmiento
+   8   1673  11-3      14   Gab Saturnino
+   9   1659   8-2      10   Art Fernandez
+  10   1654  34-18     52   Trin BOADO
+  11   1653  11-4      15   Jimboy Carlos
+  12   1650  36-19     55   Trin BOADO
+  13   1647  13-5      18   Darell Bati
+  14   1646   8-1       9   carl julius delapena
+  15   1643   8-2      10   Rogelio Cayabyab
+  16   1636   3-2       5   Tristan Soriano
+  17   1629   9-3      12   Peter Macaraeg
+  18   1628   3-0       3   Cara
+  19   1624   3-1       4   Jimboy Carlos
+  20   1620  11-8      19   Mac Flores
+  21   1618  16-8      24   Froi O
+  22   1615  13-7      20   Bentot Catalan
+  23   1614   9-4      13   Tristan Soriano
+  24   1611   8-1       9   Franks
+  25   1609  42-30     72   Lenz Gachallan
+
+--- Biggest movers: weakPenalty -> weakBoost (min 5 rated games) ---
+  DN 93  #171 -> #264  1484 -> 1448  3
+  DN 44  #42 -> #86  1581 -> 1529  1
+  UP 40  #312 -> #272  1430 -> 1445  Osang Catalan
+  DN 39  #100 -> #139  1566 -> 1554  Joven Eslabra
+  DN 39  #100 -> #139  1566 -> 1554  Joven Eslabra
+  DN 29  #99 -> #128  1520 -> 1513  Aira Pastoral
+  UP 29  #328 -> #299  1480 -> 1478  Anton Catalan
+  UP 29  #328 -> #299  1480 -> 1478  Anton Catalan
+  UP 26  #231 -> #205  1466 -> 1475  Reyna Ramos
+  UP 25  #121 -> #96  1515 -> 1520  Cassandra Regatcho
+  UP 25  #188 -> #163  1482 -> 1487  Kim Aquino
+  UP 21  #304 -> #283  1433 -> 1441  Juerine
+  UP 18  #371 -> #353  1383 -> 1408  Mikki Palma
+  UP 17  #339 -> #322  1414 -> 1430  Marienel Gatchalian
+  UP 16  #189 -> #173  1558 -> 1549  Luv Boado
+
+--- Rating deltas per player (A vs B vs C), top 30 by |B-A| ---
+  A=1172  B=1407 (+235)  C=1407  Lucille Regatcho
+  A=1522  B=1752 (+230)  C=1754  John Cezar Bragasin
+  A=1378  B=1529 (+151)  C=1530  Timot Eslabra
+  A=1318  B=1451 (+133)  C=1444  Shane Malapit
+  A=1362  B=1484 (+122)  C=1482  Jayson Hazim
+  A=1486  B=1606 (+120)  C=1608  Jhem Fabular
+  A=1260  B=1376 (+116)  C=1378  Sandro Quinto
+  A=1459  B=1558 (+99)  C=1558  Arvin Cabanlig
+  A=1493  B=1581 (+88)  C=1586  Nieka Bascon
+  A=1491  B=1573 (+82)  C=1576  James Manganaan
+  A=1052  B=1133 (+81)  C=1132  club test club
+  A=1364  B=1444 (+80)  C=1441  Joshua pepito Palaylay
+  A=1415  B=1494 (+79)  C=1492  Josue Munar
+  A=1617  B=1692 (+75)  C=1705  Cristobal Eslabra
+  A=1482  B=1549 (+67)  C=1551  Luv Boado
+  A=1454  B=1520 (+66)  C=1518  Henri Querimit
+  A=1420  B=1478 (+58)  C=1479  Anton Catalan
+  A=1508  B=1561 (+53)  C=1562  Jeyster De Vera
+  A=1744  B=1692 (-52)  C=1705  Obal Eslabra
+  A=1581  B=1529 (-52)  C=1532  1
+  A=1632  B=1683 (+51)  C=1689  Mac Flores
+  A=1463  B=1514 (+51)  C=1515  Ednalyn Pasaoa
+  A=1528  B=1577 (+49)  C=1587  Celine Maquiling
+  A=1470  B=1519 (+49)  C=1518  Abbey Victor Querimit
+  A=1265  B=1314 (+49)  C=1310  Rosalie Eslabra
+  A=1558  B=1601 (+43)  C=1609  Lenz Gachallan
+  A=1499  B=1542 (+43)  C=1546  Dee Cee
+  A=1501  B=1543 (+42)  C=1543  RC TERSOL
+  A=1524  B=1564 (+40)  C=1566  Shem Quiatchon
+  A=1677  B=1641 (-36)  C=1654  Trin BOADO
+
+--- Part C: partnerGapFactor sweep (weakPenalty) ---
+  f=0.00   inSample=0.6202  CV=0.6202 +/- 0.0148
+  f=0.15   inSample=0.6200  CV=0.6200 +/- 0.0149
+  f=0.25   inSample=0.6198  CV=0.6198 +/- 0.0149
+  f=0.35   inSample=0.6197  CV=0.6197 +/- 0.0150
+  f=0.50   inSample=0.6194  CV=0.6194 +/- 0.0150
+  f=0.75   inSample=0.6184  CV=0.6184 +/- 0.0148
+  f=1.00   inSample=0.6171  CV=0.6171 +/- 0.0146
+
+--- Spotlight players across factor values (weakPenalty) ---
+  f=0: Ednalyn Pasaoa: 1515 | Ednalyn Pasaoa: 1464
+  f=.25: Ednalyn Pasaoa: 1517 | Ednalyn Pasaoa: 1464
+  f=.50: Ednalyn Pasaoa: 1517 | Ednalyn Pasaoa: 1463  (production)
+  f=.75: Ednalyn Pasaoa: 1516 | Ednalyn Pasaoa: 1459
+
+  f=0: Lucille Regatcho: 1407 | Lucille Regatcho: 1180
+  f=.25: Lucille Regatcho: 1406 | Lucille Regatcho: 1178
+  f=.50: Lucille Regatcho: 1406 | Lucille Regatcho: 1172  (production)
+  f=.75: Lucille Regatcho: 1406 | Lucille Regatcho: 1159
+
+  f=0: Timot Eslabra: 1530 | Timot Eslabra: 1381
+  f=.25: Timot Eslabra: 1532 | Timot Eslabra: 1378
+  f=.50: Timot Eslabra: 1536 | Timot Eslabra: 1378  (production)
+  f=.75: Timot Eslabra: 1535 | Timot Eslabra: 1372
+
+  f=0: Celine Maquiling: 1587 | Celine Maquiling: 1526
+  f=.25: Celine Maquiling: 1591 | Celine Maquiling: 1526
+  f=.50: Celine Maquiling: 1598 | Celine Maquiling: 1528  (production)
+  f=.75: Celine Maquiling: 1608 | Celine Maquiling: 1535
+
+  f=0: Shane Malapit: 1444 | Shane Malapit: 1339
+  f=.25: Shane Malapit: 1439 | Shane Malapit: 1332
+  f=.50: Shane Malapit: 1432 | Shane Malapit: 1318  (production)
+  f=.75: Shane Malapit: 1422 | Shane Malapit: 1300

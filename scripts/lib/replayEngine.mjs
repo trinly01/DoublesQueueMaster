@@ -21,6 +21,14 @@ export const DEFAULT_PARAMS = {
   provisionalK: null,
   // Recency decay half-life in days: 0 = off
   recencyHalfLifeDays: 0,
+  // Partner split direction when a mismatched pair wins:
+  //   'weakPenalty' (production): the weaker partner's share of the pool is
+  //     reduced by partnerGapFactor * gap — the win is credited more to the
+  //     player who likely carried it.
+  //   'weakBoost' (PickleFriend-style): the weaker partner's share is
+  //     increased by partnerGapFactor * gap — a win with a weaker teammate
+  //     on board is a bigger signal about that player.
+  partnerGapDirection: 'weakPenalty',
 };
 
 export function expected(a, b) {
@@ -175,10 +183,14 @@ export function calculateShift(
     const partner = winners[(i + 1) % winners.length];
     const gap = Math.abs(partner.rating - p.rating);
     const weaker = p.rating < partner.rating;
-    const penalty = weaker
-      ? Math.max(0.1, 1 - (params.partnerGapFactor * gap) / 400)
-      : 1;
-    return base * penalty;
+    let adj = 1;
+    if (weaker) {
+      adj =
+        params.partnerGapDirection === 'weakBoost'
+          ? 1 + (params.partnerGapFactor * gap) / 400
+          : Math.max(0.1, 1 - (params.partnerGapFactor * gap) / 400);
+    }
+    return base * adj;
   });
 
   const lWeights = losers.map((p) => {
