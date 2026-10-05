@@ -315,7 +315,14 @@ function replayRankingPass(
     arr.map((p) => {
       const key = playerIdentityKey(p);
       if (!players[key]) {
-        const initialRating = seedOverrides?.get(key) ?? seedRatingFromPlayer();
+        // rating seeds from the previous pass (iterated convergence), but
+        // initialRating stays at the flat 1450 seed — it is the shrinkage
+        // anchor. Anchoring shrinkage to the previous pass's rating lets
+        // the prior drift with the estimate it exists to restrain,
+        // inflating thin-sample streaks. Verified via exp-07 holdout:
+        // identical predictive accuracy, bounded spread.
+        const seed = seedOverrides?.get(key) ?? seedRatingFromPlayer();
+        const initialRating = seedRatingFromPlayer();
         const { reliability, provisional, gamesToReliable } =
           computeReliability(0);
         players[key] = {
@@ -323,7 +330,7 @@ function replayRankingPass(
           name: p.name || p.firstName || p.username || '',
           firstName: p.firstName || '',
           lastName: p.lastName || '',
-          rating: initialRating,
+          rating: seed,
           initialRating,
           matchesPlayed: 0,
           ratedMatchesPlayed: 0,
