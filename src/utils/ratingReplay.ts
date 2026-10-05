@@ -40,23 +40,29 @@ const NON_COMPETITIVE_MODES = new Set(['variety_first', 'fair_balance']);
 
 const CONFIG = {
   kSingles: 36,
-  kDoubles: 32,
-  marginWeight: 0,
+  // Retuned under flat-1450 seeds via scripts/exp-07-unknowns.mjs: with no
+  // stored-rating warm start, K=32 converges too slowly; CV logLoss improves
+  // monotonically to K≈64–96 and degrades at 128. 64 is the conservative end
+  // of that plateau.
+  kDoubles: 64,
+  // Log margin-of-victory. Rejected under stored-rating seeds but helps under
+  // flat seeds — score margin carries signal while ratings are still forming.
+  // 0.15 is the conservative end of the helpful range (0.15–0.6, exp-07).
+  marginWeight: 0.15,
   partnerGapFactor: 0.5,
   lossUnderdogBlend: 1.0,
   maxPartnerRatio: 2.0,
   ratingFloor: 100,
-  // 538-style autocorrelation correction scale. 0 = off, 2200 = 538's value.
-  // 1000 is a milder correction tuned for pickleball doubles via
-  // scripts/exp-04-comprehensive.mjs — 538's chess-tuned 2200 is too strong.
+  // 538-style autocorrelation correction scale. Near-neutral under flat seeds
+  // (exp-07: ±0.0002 logLoss across 0–2200) but kept — it guards against
+  // favourite-streak inflation at zero cost.
   autocorrScale: 1000,
   // Iterated convergence: number of forward passes for the ranking replay.
-  // 3 passes feeds final ratings back as seeds twice, removing arbitrary seed
-  // bias. With K=32 and no MOV, the rating spread at 3 passes (765) is tighter
-  // than the old single-pass spread (881) — the inflation problem was caused
-  // by K=64 + MOV amplifying the iteration, not by iteration itself.
-  // Tuned via scripts/exp-04-comprehensive.mjs (logLoss 0.6270 → 0.5956).
-  rankingPasses: 3,
+  // Retuned under flat seeds via scripts/exp-07-unknowns.mjs holdout test
+  // (train 80% / predict frozen last 20%): 3→0.6866, 5→0.6850, 8→0.6836,
+  // 12→0.6826. Iteration generalizes — it's not just fitting history.
+  // 8 captures most of the gain without the 12+ spread-inflation risk.
+  rankingPasses: 8,
   // Bayesian shrinkage: pulls low-game players' ratings toward their seed.
   // shrunk = initialRating + (rating - initialRating) * n / (n + C)
   // C=12 means a player needs ~12 games before their earned rating change is
@@ -161,7 +167,9 @@ export function replayMatches(
       const key = p.username || p.name || '';
       if (!key) return null as unknown as ReplayPlayer;
       if (!players[key]) {
-        const initialRating = p.rating ?? 1450;
+        // Flat seed: ratings are recomputed purely from match history,
+        // never from the stored snapshot embedded in the match.
+        const initialRating = 1450;
         players[key] = {
           username: key,
           name: p.name || p.firstName || p.username || '',
@@ -212,8 +220,10 @@ export function replayMatches(
 // ---------------------------------------------------------------------------
 // Club leaderboard ranking path
 //
-// replayMatches() above is preserved unchanged (used by PlayerPage). The
-// functions below add a separate ranking path for the club leaderboard with
+// replayMatches() above is the legacy path used by PlayerPage's "My Matches"
+// tab — it also seeds at flat 1450 so all replayed ratings are computed from
+// match history only, never from the stored ratings embedded in matches.
+// The functions below add a separate ranking path for the club leaderboard with
 // four correctness fixes:
 //   1. Identity key uses userId (not just username/name) so same-named guests
 //      don't merge into one player.
@@ -264,10 +274,10 @@ function playerIdentityKey(p: ReplayPlayerInput): string {
   return `guest:${p.firstName || ''}|${p.lastName || ''}|${p.name || ''}`;
 }
 
-function seedRatingFromPlayer(p: ReplayPlayerInput): number {
-  if (p.rating != null) return p.rating;
-  if (p.level === 3) return 1550;
-  if (p.level === 2) return 1500;
+function seedRatingFromPlayer(): number {
+  // Flat seed: everyone starts at 1450. Stored match-embedded ratings and
+  // self-reported level are intentionally ignored so the leaderboard is a
+  // pure replay of this window's results.
   return 1450;
 }
 
@@ -305,8 +315,7 @@ function replayRankingPass(
     arr.map((p) => {
       const key = playerIdentityKey(p);
       if (!players[key]) {
-        const initialRating =
-          seedOverrides?.get(key) ?? seedRatingFromPlayer(p);
+        const initialRating = seedOverrides?.get(key) ?? seedRatingFromPlayer();
         const { reliability, provisional, gamesToReliable } =
           computeReliability(0);
         players[key] = {

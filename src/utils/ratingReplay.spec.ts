@@ -32,8 +32,9 @@ describe('replayMatches (legacy, unchanged)', () => {
       },
     ];
     const result = replayMatches(matches);
-    expect(result['alice'].rating).toBeGreaterThan(1500);
-    expect(result['bob'].rating).toBeLessThan(1400);
+    // Flat 1450 seed — stored ratings are ignored
+    expect(result['alice'].rating).toBeGreaterThan(1450);
+    expect(result['bob'].rating).toBeLessThan(1450);
     expect(result['alice'].wins).toBe(1);
     expect(result['bob'].losses).toBe(1);
   });
@@ -89,8 +90,8 @@ describe('replayMatchesForRanking — correctness fixes', () => {
         },
       ];
       const result = replayMatchesForRanking(matches);
-      expect(result['alice'].rating).toBe(1500);
-      expect(result['bob'].rating).toBe(1400);
+      expect(result['alice'].rating).toBe(1450);
+      expect(result['bob'].rating).toBe(1450);
       expect(result['alice'].matchesPlayed).toBe(0);
       expect(result['bob'].matchesPlayed).toBe(0);
     });
@@ -172,19 +173,15 @@ describe('replayMatchesForRanking — correctness fixes', () => {
     });
   });
 
-  describe('level-based seeding', () => {
-    it('seeds level 3 higher than level 1 (iterated convergence preserves relative seeding)', () => {
-      // With iterated convergence, initialRating reflects the last pass's
-      // seed (previous final rating), not the original level-based seed.
-      // But the relative ordering from seeding should persist: a level-3
-      // player who wins should end up higher than a no-level player who wins.
+  describe('flat seeding', () => {
+    it('ignores stored ratings and level — everyone starts at 1450', () => {
       const matches: RankedMatchInput[] = [
         {
           teamAScore: 11,
           teamBScore: 5,
           matchKey: 'm1',
           completedAt: '2026-01-01T00:00:00Z',
-          teamA: [{ username: 'alice', level: 3 }],
+          teamA: [{ username: 'alice', rating: 1800, level: 3 }],
           teamB: [{ username: 'opponent1', rating: 1500 }],
         },
         {
@@ -197,9 +194,9 @@ describe('replayMatchesForRanking — correctness fixes', () => {
         },
       ];
       const result = replayMatchesForRanking(matches);
-      // Both won their match, but alice started from a higher seed (1550 vs 1450).
-      // After iterated convergence, alice should still be higher.
-      expect(result['alice'].rating).toBeGreaterThan(result['bob'].rating);
+      // Both won identical matches from the same flat seed — identical ratings.
+      expect(result['alice'].rating).toBe(result['bob'].rating);
+      expect(result['alice'].rating).toBeGreaterThan(1450);
     });
   });
 });
@@ -298,8 +295,8 @@ describe('replayMatchesForRanking — mode filtering', () => {
       },
     ];
     const result = replayMatchesForRanking(matches);
-    expect(result['alice'].rating).toBe(1500);
-    expect(result['bob'].rating).toBe(1400);
+    expect(result['alice'].rating).toBe(1450);
+    expect(result['bob'].rating).toBe(1450);
     expect(result['alice'].wins).toBe(1);
     expect(result['bob'].losses).toBe(1);
     expect(result['alice'].matchesPlayed).toBe(1);
@@ -318,8 +315,8 @@ describe('replayMatchesForRanking — mode filtering', () => {
       },
     ];
     const result = replayMatchesForRanking(matches);
-    expect(result['alice'].rating).toBe(1500);
-    expect(result['bob'].rating).toBe(1400);
+    expect(result['alice'].rating).toBe(1450);
+    expect(result['bob'].rating).toBe(1450);
     expect(result['alice'].wins).toBe(1);
     expect(result['bob'].losses).toBe(1);
   });
@@ -336,8 +333,8 @@ describe('replayMatchesForRanking — mode filtering', () => {
       },
     ];
     const result = replayMatchesForRanking(matches);
-    expect(result['alice'].rating).toBeGreaterThan(1500);
-    expect(result['bob'].rating).toBeLessThan(1400);
+    expect(result['alice'].rating).toBeGreaterThan(1450);
+    expect(result['bob'].rating).toBeLessThan(1450);
   });
 
   it('updates ratings for strict_balance (Pro Pick)', () => {
@@ -353,8 +350,8 @@ describe('replayMatchesForRanking — mode filtering', () => {
       },
     ];
     const result = replayMatchesForRanking(matches);
-    expect(result['alice'].rating).toBeGreaterThan(1500);
-    expect(result['bob'].rating).toBeLessThan(1400);
+    expect(result['alice'].rating).toBeGreaterThan(1450);
+    expect(result['bob'].rating).toBeLessThan(1450);
   });
 
   it('mixes rated and unrated matches correctly', () => {
@@ -382,7 +379,7 @@ describe('replayMatchesForRanking — mode filtering', () => {
     ];
     const result = replayMatchesForRanking(matches);
     // Alice won both, but only the second match moved her rating
-    expect(result['alice'].rating).toBeGreaterThan(1500);
+    expect(result['alice'].rating).toBeGreaterThan(1450);
     expect(result['alice'].wins).toBe(2);
     expect(result['alice'].matchesPlayed).toBe(2);
     // Only 1 rated match — reliability and provisional based on that
@@ -410,7 +407,7 @@ describe('replayMatchesForRanking — mode filtering', () => {
     expect(result['alice'].gamesToReliable).toBe(12);
     expect(result['alice'].reliability).toBe(0);
     // Rating unchanged from seed
-    expect(result['alice'].rating).toBe(1500);
+    expect(result['alice'].rating).toBe(1450);
   });
 });
 
