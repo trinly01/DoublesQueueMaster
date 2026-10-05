@@ -1,0 +1,38 @@
+=== EXP-08: WHOLE-HISTORY MAP BRADLEY-TERRY ===
+Dataset: 2829 competitive doubles matches
+
+--- Holdout (train 80% / predict frozen 20%) ---
+  Iterated Elo x8 : logLoss=0.6649 acc=56.0%
+  BT tau=150 : logLoss=0.6708 acc=55.5%  (converged in 13 iters)
+  BT tau=250 : logLoss=0.6676 acc=56.0%  (converged in 22 iters)
+  BT tau=300 : logLoss=0.6677 acc=55.8%  (converged in 26 iters)
+  BT tau=400 : logLoss=0.6701 acc=56.0%  (converged in 36 iters)
+  BT tau=600 : logLoss=0.6775 acc=56.2%  (converged in 57 iters)
+
+--- Full-data fit (tau=300), top 25 ---
+converged=true iters=26
+   1   2400   73G  59W  SHIRWIN DELA CUADRA
+   2   2267  203G 148W  Obal Eslabra
+   3   2252   11G  11W  John Cezar Bragasin
+   4   2224   20G  19W  SHIRWIN DELA CUADRA
+   5   2138   14G  14W  Franks Sarmiento
+   6   2109   29G  22W  JC Brion
+   7   2075   29G  22W  Mac Flores
+   8   2009   99G  63W  Trin BOADO
+   9   1968   29G  22W  Art Fernandez
+  10   1953  139G  85W  Lenz Gachallan
+  11   1941    8G   7W  Mac Flores
+  12   1927   12G  11W  
+  13   1915   55G  36W  Trin BOADO
+  14   1910   15G  12W  carl julius delapena
+  15   1884   12G  11W  
+  16   1864  133G  73W  Joven Eslabra
+  17   1856   10G   8W  Jeury Romeo
+  18   1848   14G  11W  Gab Saturnino
+  19   1843   45G  27W  jeo zabala
+  20   1839    5G   5W  Ferjel Joy Celes
+  21   1834   16G  12W  Peter Macaraeg
+  22   1828   23G  14W  Cristobal Eslabra
+  23   1825   13G   9W  Rogelio Cayabyab
+  24   1819   15G  11W  Jimboy Carlos
+  25   1817   10G   6W  Tristan Soriano
