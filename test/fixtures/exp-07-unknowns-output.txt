@@ -1,0 +1,41 @@
+=== EXP-07: OPEN QUESTIONS ===
+Dataset: 1350 competitive doubles matches, flat seeds
+Coin-flip logLoss baseline: 0.6931
+
+--- A. Team model: does the weaker partner drive the outcome? ---
+  mean           inSample=0.6865 [0.6828-0.6901]  CV=0.6865 +/- 0.0047
+  min            inSample=0.6884 [0.6843-0.6925]  CV=0.6884 +/- 0.0042
+  weakWeighted   inSample=0.6866 [0.6828-0.6904]  CV=0.6866 +/- 0.0045
+  max            inSample=0.6880 [0.6831-0.6932]  CV=0.6880 +/- 0.0064
+
+--- B. Does the old tuning hold under flat seeds? ---
+  -- autocorrScale --
+  scale=   0  CV=0.6865 +/- 0.0049
+  scale= 500  CV=0.6863 +/- 0.0047
+  scale=1000  CV=0.6865 +/- 0.0047
+  scale=2200  CV=0.6865 +/- 0.0048
+  -- kDoubles --
+  K=16       CV=0.6889 +/- 0.0031
+  K=24       CV=0.6875 +/- 0.0039
+  K=32       CV=0.6865 +/- 0.0047
+  K=48       CV=0.6850 +/- 0.0061
+  K=64       CV=0.6842 +/- 0.0070
+  -- marginWeight (movMode=log) --
+  mw=0.00     CV=0.6865 +/- 0.0047
+  mw=0.05     CV=0.6861 +/- 0.0051
+  mw=0.10     CV=0.6857 +/- 0.0054
+  mw=0.15     CV=0.6855 +/- 0.0057
+
+--- C. Ranking passes vs out-of-sample holdout (train 80% / test 20%) ---
+  passes=1  holdoutLogLoss=0.6898  accuracy=54.1%
+  passes=2  holdoutLogLoss=0.6879  accuracy=53.7%
+  passes=3  holdoutLogLoss=0.6866  accuracy=54.1%
+  passes=5  holdoutLogLoss=0.6850  accuracy=56.3%
+  passes=8  holdoutLogLoss=0.6836  accuracy=55.6%
+
+--- D. Partner diversity: does rotation make ratings more accurate? ---
+  1 partner  players= 81  playerMatches=  88  avgLogLoss=0.7001
+  2-3        players=110  playerMatches= 334  avgLogLoss=0.6895
+  4-6        players= 84  playerMatches= 467  avgLogLoss=0.6954
+  7+         players=142  playerMatches=4511  avgLogLoss=0.6851
+  (lower logLoss = that group's matches were more predictable)

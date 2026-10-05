@@ -29,15 +29,35 @@ export const DEFAULT_PARAMS = {
   //     increased by partnerGapFactor * gap — a win with a weaker teammate
   //     on board is a bigger signal about that player.
   partnerGapDirection: 'weakPenalty',
+  // Team strength model for expected score:
+  //   'mean' (production), 'min' (weakest link), 'max', 'weakWeighted'
+  //   (0.6*min + 0.4*max).
+  teamMode: 'mean',
 };
 
 export function expected(a, b) {
   return 1 / (1 + Math.pow(10, (b - a) / 400));
 }
 
-function teamRating(players) {
+function teamRating(players, params) {
   if (players.length === 0) return 1450;
-  return players.reduce((s, p) => s + (p.rating || 1450), 0) / players.length;
+  const rs = players.map((p) => p.rating || 1450);
+  const mean = rs.reduce((s, r) => s + r, 0) / rs.length;
+  switch (params?.teamMode) {
+    case 'min':
+      // Weakest-link: doubles teams play to their weaker player
+      return Math.min(...rs);
+    case 'max':
+      return Math.max(...rs);
+    case 'weakWeighted':
+      // 60% weaker partner + 40% stronger — the folk hypothesis that
+      // the weaker side of a doubles pair drives the outcome
+      return players.length === 1
+        ? mean
+        : 0.6 * Math.min(...rs) + 0.4 * Math.max(...rs);
+    default:
+      return mean;
+  }
 }
 
 function allocateInteger(total, weights) {
@@ -131,8 +151,8 @@ export function calculateShift(
   matchDate,
   playerGameCounts,
 ) {
-  const ratingW = teamRating(winners);
-  const ratingL = teamRating(losers);
+  const ratingW = teamRating(winners, params);
+  const ratingL = teamRating(losers, params);
   const margin = Math.abs(scoreW - scoreL);
   const baseMultiplier = movMultiplier(
     scoreW,
@@ -297,8 +317,8 @@ export function replay(matches, params = DEFAULT_PARAMS, options = {}) {
     const sL = aWon ? m.teamBScore : m.teamAScore;
 
     // Prequential prediction: use current ratings BEFORE the update
-    const rA = teamRating(tA);
-    const rB = teamRating(tB);
+    const rA = teamRating(tA, params);
+    const rB = teamRating(tB, params);
     const probA = expected(rA, rB);
     predictions.push({
       matchKey: m.matchKey,

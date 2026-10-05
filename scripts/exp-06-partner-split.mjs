@@ -159,7 +159,6 @@ const rankOf = (board) => {
 };
 const rankA = rankOf(boards[0].board);
 const rankB = rankOf(boards[1].board);
-const rankC = rankOf(boards[2].board);
 
 log('--- Biggest movers: weakPenalty -> weakBoost (min 5 rated games) ---');
 const movers = boards[0].board
