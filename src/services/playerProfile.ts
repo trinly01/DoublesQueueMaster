@@ -74,6 +74,12 @@ export interface UserProfile {
 
 const STORAGE_KEY = 'player_profile';
 
+// Seed for registered accounts. Below the established-player median (~1484)
+// because measured first-5-match WR of newcomers is ~47% at a 1450-equivalent
+// seed — new signups skew below median skill, so seed at ~p25 for fairer
+// early pairings. Matchmaking only; leaderboard replay seeds flat 1450.
+export const NEW_ACCOUNT_SEED_RATING = 1400;
+
 export class PlayerProfileService {
   public state: UserProfile;
   public loading = reactive({ value: false });
@@ -87,7 +93,7 @@ export class PlayerProfileService {
       lastName: saved?.lastName || '',
       email: saved?.email || '',
       username: saved?.username || '',
-      rating: saved?.rating ?? 1450,
+      rating: saved?.rating ?? NEW_ACCOUNT_SEED_RATING,
       duprId: saved?.duprId || '',
       avatar: saved?.avatar || '',
       provider: saved?.provider || '',
@@ -147,7 +153,7 @@ export class PlayerProfileService {
       if (user) {
         const userObj = user as Record<string, unknown>;
         const isProvisioned = !!userObj.username;
-        let rating = 1450;
+        let rating = NEW_ACCOUNT_SEED_RATING;
 
         if (typeof userObj.rating === 'number') {
           rating = userObj.rating;
@@ -280,7 +286,7 @@ export class PlayerProfileService {
     this.state.lastName = '';
     this.state.email = '';
     this.state.username = '';
-    this.state.rating = 1450;
+    this.state.rating = NEW_ACCOUNT_SEED_RATING;
     this.state.duprId = '';
     this.state.avatar = '';
     this.state.provider = '';

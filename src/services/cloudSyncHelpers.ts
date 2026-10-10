@@ -5,6 +5,7 @@
  */
 
 import { toRaw } from 'vue';
+import { NEW_ACCOUNT_SEED_RATING } from './playerProfile';
 import type { AppState, Player } from './matchmaking';
 
 /**
@@ -201,7 +202,7 @@ export const mergePlayerFromDB = (
     const userRating =
       typeof dbUser.rating === 'number' ? dbUser.rating : undefined;
     if (userRating !== undefined && userRating !== player.rating) {
-      player.rating = userRating || player.rating || 1450;
+      player.rating = userRating || player.rating || NEW_ACCOUNT_SEED_RATING;
       if (dbTs > 0) player.ratingUpdatedAt = dbTs;
       player.updatedAt = now;
       changed = true;
