@@ -1447,7 +1447,7 @@
 </template>
 
 <script setup lang="ts">
-import { MatchmakingApp } from '../services/matchmaking';
+import { MatchmakingApp, levelSeedRating } from '../services/matchmaking';
 import type { Player } from '../services/matchmaking';
 import { readItems, readMe } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
@@ -3598,8 +3598,7 @@ const savePlayerEdit = () => {
 
     // For non-registered (guest) players, also update the rating based on the new level
     if (!playerState.userId) {
-      const newRating = newLevel === 1 ? 1450 : newLevel === 2 ? 1500 : 1550;
-      playerState.rating = newRating;
+      playerState.rating = levelSeedRating(newLevel);
       playerState.ratingUpdatedAt = Date.now();
     }
   }

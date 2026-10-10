@@ -419,7 +419,7 @@ import { useQuasar, LocalStorage } from 'quasar';
 import { useRouter } from 'vue-router';
 import { useNotify } from 'src/composables/useNotify';
 import { useAuth } from 'src/composables/useAuth';
-import { MatchmakingApp } from 'src/services/matchmaking';
+import { MatchmakingApp, levelSeedRating } from 'src/services/matchmaking';
 import type { Player } from 'src/services/matchmaking';
 import { PlayerProfile } from 'src/services/playerProfile';
 import { likhaClient } from 'src/services/likhaClient';
@@ -699,9 +699,7 @@ const onScanSuccess = async (decodedText: string) => {
 
   if (member) {
     const memberLevel = member.level ?? 2;
-    const memberRating =
-      member.rating ??
-      (memberLevel === 1 ? 1450 : memberLevel === 2 ? 1500 : 1550);
+    const memberRating = member.rating ?? levelSeedRating(memberLevel);
     const result = MatchmakingApp.checkInPlayer(
       member.username || scannedUsername,
       memberLevel as 1 | 2 | 3,
@@ -890,9 +888,7 @@ const addClubMembers = () => {
       member.username || member.email?.split('@')[0] || 'Unknown';
 
     const memberLevel = member.level ?? 2;
-    const memberRating =
-      member.rating ??
-      (memberLevel === 1 ? 1450 : memberLevel === 2 ? 1500 : 1550);
+    const memberRating = member.rating ?? levelSeedRating(memberLevel);
     const result = MatchmakingApp.checkInPlayer(username, memberLevel, {
       firstName: member.firstName,
       avatar: member.avatar,
@@ -942,12 +938,7 @@ const addClubMembers = () => {
 const addNewPlayer = () => {
   if (!newPlayerName.value?.trim() || newPlayerLevel.value === null) return;
   const trimmedName = newPlayerName.value.trim();
-  const initialRating =
-    newPlayerLevel.value === 1
-      ? 1450
-      : newPlayerLevel.value === 2
-        ? 1500
-        : 1550;
+  const initialRating = levelSeedRating(newPlayerLevel.value as 1 | 2 | 3);
   const result = MatchmakingApp.checkInPlayer(
     trimmedName,
     newPlayerLevel.value,
@@ -1004,8 +995,7 @@ const addBulkPlayers = () => {
       continue;
     }
 
-    const initialRating =
-      bulkPlayer.level === 1 ? 1450 : bulkPlayer.level === 2 ? 1500 : 1550;
+    const initialRating = levelSeedRating(bulkPlayer.level as 1 | 2 | 3);
 
     const result = MatchmakingApp.checkInPlayer(
       trimmedName,

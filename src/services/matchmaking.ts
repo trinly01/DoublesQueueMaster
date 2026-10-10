@@ -15,7 +15,7 @@ export interface Player {
   firstName?: string; // First name from Directus
   lastName?: string; // Last name from Directus
   level: 1 | 2 | 3; // Added for manual matchmaking and UI labels
-  rating: number; // Defaults to 1450
+  rating: number; // Defaults to levelSeedRating(level) on check-in
   matchesPlayed: number; // Defaults to 0
   wins: number;
   losses: number;
@@ -674,6 +674,15 @@ export const RatingEngine = {
 };
 
 // Pure Harmonic Mean (heavily weights the weakest player)
+/**
+ * Initial matchmaking seed for a self-declared skill level. Calibrated to the
+ * established-player rating distribution (players >= 12 games): beginners land
+ * ~p25 (1400), intermediates at the median (~1485), advanced ~p75-p90 (1600).
+ * Matchmaking only — leaderboard replay always seeds flat 1450.
+ */
+export const levelSeedRating = (level: 1 | 2 | 3): number =>
+  level === 1 ? 1400 : level === 2 ? 1485 : 1600;
+
 export const computeHarmonicMean = (team: Player[]): number => {
   if (team.length === 0) return 1450;
   const sumReciprocal = team.reduce(
@@ -1400,7 +1409,7 @@ export class LocalMatchmakingSystem {
       this.state.players[normalizedUsername] = {
         username: normalizedUsername,
         level: level,
-        rating: 1450,
+        rating: levelSeedRating(level),
         matchesPlayed: 0,
         wins: 0,
         losses: 0,
