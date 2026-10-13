@@ -338,6 +338,392 @@ describe('Pro Pick sort direction persistence', () => {
   });
 });
 
+describe('setQueueLock (auto-draft exclusion)', () => {
+  const queueUp = (sys: LocalMatchmakingSystem, names: string[]) => {
+    names.forEach((name, i) => {
+      sys.state.players[name] = makePlayer(1500, { username: name });
+      sys.state.queues.push({
+        username: name,
+        queueType: 'GENERAL',
+        enteredAt: 1000 + i,
+        createdAt: 1000,
+        updatedAt: 1000,
+        queuedAt: 1000,
+      });
+    });
+  };
+
+  it('locked player is skipped by draftNextMatches but stays queued', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, ['a', 'b', 'c', 'd', 'e']);
+
+    expect(sys.setQueueLock('e', true)).toBe(true);
+    sys.draftNextMatches('timestamp', 'test');
+
+    const drafted = sys.state.activeMatches.flatMap((m) => [
+      ...m.teamA,
+      ...m.teamB,
+    ]);
+    expect(drafted).toContain('a');
+    expect(drafted).toContain('d');
+    expect(drafted).not.toContain('e');
+    // Locked player keeps their queue entry (spot preserved)
+    const entry = sys.state.queues.find(
+      (q) => q.username === 'e' && !q.deletedAt,
+    );
+    expect(entry?.lockedAt).toBeGreaterThan(0);
+    expect(entry?.enteredAt).toBe(1004);
+  });
+
+  it('no match generated when fewer than teamSize*2 unlocked players remain', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, ['a', 'b', 'c', 'd']);
+    sys.setQueueLock('d', true);
+    sys.draftNextMatches('timestamp', 'test');
+    expect(sys.state.activeMatches.length).toBe(0);
+  });
+
+  it('unlock restores draftability instantly', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, ['a', 'b', 'c', 'd', 'e']);
+    sys.setQueueLock('a', true);
+    sys.setQueueLock('a', false);
+    sys.draftNextMatches('timestamp', 'test');
+    const drafted = sys.state.activeMatches.flatMap((m) => [
+      ...m.teamA,
+      ...m.teamB,
+    ]);
+    expect(drafted).toContain('a');
+  });
+
+  it('mergeAppState resolves lock/unlock across devices by latest write', () => {
+    const entry = (locked: boolean, lockUpdatedAt: number): QueueEntry => ({
+      username: 'a',
+      queueType: 'GENERAL',
+      enteredAt: 1000,
+      createdAt: 1000,
+      queuedAt: 1000,
+      updatedAt: 1000,
+      lockUpdatedAt,
+      ...(locked ? { lockedAt: lockUpdatedAt } : {}),
+    });
+    const base = {
+      players: {},
+      activeMatches: [],
+      completedMatches: [],
+      actionLog: [],
+      settings: {},
+    } as unknown as AppState;
+
+    // Local locked (t2) vs stale unlocked server (t1) → lock wins
+    const mergedLocked = mergeAppState(
+      { ...base, queues: [entry(true, 2000)] },
+      { ...base, queues: [entry(false, 1000)] },
+    );
+    expect(mergedLocked.queues[0].lockedAt).toBe(2000);
+
+    // Server unlocked (t3) vs stale locked local (t2) → unlock wins
+    const mergedUnlocked = mergeAppState(
+      { ...base, queues: [entry(true, 2000)] },
+      { ...base, queues: [entry(false, 3000)] },
+    );
+    expect(mergedUnlocked.queues[0].lockedAt).toBeUndefined();
+  });
+
+  it('lock survives a concurrent unrelated queue-entry edit on another device', () => {
+    // Device A locked the entry (lockUpdatedAt t3); device B changed queueType
+    // to WINNERS (updatedAt t4 — newer whole-entry winner). Both must survive:
+    // the bracket change AND the lock.
+    const local: QueueEntry = {
+      username: 'a',
+      queueType: 'GENERAL',
+      enteredAt: 1000,
+      createdAt: 1000,
+      queuedAt: 1000,
+      updatedAt: 1000,
+      lockedAt: 3000,
+      lockUpdatedAt: 3000,
+    };
+    const server: QueueEntry = {
+      ...local,
+      queueType: 'WINNERS',
+      updatedAt: 4000,
+      lockedAt: undefined,
+      lockUpdatedAt: undefined,
+    };
+    const base = {
+      players: {},
+      activeMatches: [],
+      completedMatches: [],
+      actionLog: [],
+      settings: {},
+    } as unknown as AppState;
+
+    const merged = mergeAppState(
+      { ...base, queues: [local] },
+      { ...base, queues: [server] },
+    );
+    expect(merged.queues[0].queueType).toBe('WINNERS');
+    expect(merged.queues[0].lockedAt).toBe(3000);
+  });
+});
+
+describe('player linking (fixed duo)', () => {
+  const queueUp = (
+    sys: LocalMatchmakingSystem,
+    entries: { name: string; type?: 'GENERAL' | 'WINNERS' | 'LOSERS' }[],
+  ) => {
+    entries.forEach(({ name, type = 'GENERAL' }, i) => {
+      sys.state.players[name] = makePlayer(1500, { username: name });
+      sys.state.queues.push({
+        username: name,
+        queueType: type,
+        enteredAt: 1000 + i,
+        createdAt: 1000,
+        updatedAt: 1000,
+        queuedAt: 1000,
+      });
+    });
+  };
+
+  const draftedUsernames = (sys: LocalMatchmakingSystem) =>
+    sys.state.activeMatches.flatMap((m) => [...m.teamA, ...m.teamB]);
+
+  it('setPlayerLink writes both sides; refuses re-link to a different partner and self-links', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }]);
+
+    expect(sys.setPlayerLink('a', 'b')).toBe(true);
+    expect(sys.state.players.a.linkedTo).toBe('b');
+    expect(sys.state.players.b.linkedTo).toBe('a');
+
+    expect(sys.setPlayerLink('a', 'c')).toBe(false); // a already linked
+    expect(sys.setPlayerLink('c', 'a')).toBe(false); // a already linked
+    expect(sys.setPlayerLink('a', 'a')).toBe(false); // self-link
+
+    expect(sys.unlinkPlayer('a')).toBe(true);
+    expect(sys.setPlayerLink('a', 'c')).toBe(true);
+  });
+
+  it('unlinkPlayer clears both sides', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }]);
+    sys.setPlayerLink('a', 'b');
+    sys.unlinkPlayer('b');
+    expect(sys.state.players.a.linkedTo).toBeUndefined();
+    expect(sys.state.players.b.linkedTo).toBeUndefined();
+    expect(sys.getLinkedPartner('a')).toBeUndefined();
+  });
+
+  it('one-sided links are dormant — both players draft normally', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }]);
+    // Simulate a half-synced link: only a points at b.
+    sys.state.players.a.linkedTo = 'b';
+    sys.draftNextMatches('timestamp', 'test');
+    expect(draftedUsernames(sys)).toContain('a');
+    expect(draftedUsernames(sys)).toContain('b');
+  });
+
+  it('linked pair waits for the later partner position and drafts same team', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [
+      { name: 'a' },
+      { name: 'b' },
+      { name: 'c' },
+      { name: 'd' },
+      { name: 'e' },
+    ]);
+    // a is first in line but linked to e (last) — the pair becomes eligible at
+    // e's position, so the drafted match is {b, c, a, e} and d waits.
+    sys.setPlayerLink('a', 'e');
+    sys.draftNextMatches('timestamp', 'test');
+
+    const match = sys.state.activeMatches[0];
+    expect(sys.state.activeMatches.length).toBe(1);
+    expect([...match.teamA, ...match.teamB].sort()).toEqual([
+      'a',
+      'b',
+      'c',
+      'e',
+    ]);
+    const aTeam = match.teamA.includes('a') ? match.teamA : match.teamB;
+    expect(aTeam).toContain('e');
+    const dEntry = sys.state.queues.find(
+      (q) => q.username === 'd' && !q.deletedAt,
+    );
+    expect(dEntry).toBeTruthy();
+  });
+
+  it('linked player is skipped while partner is absent from the queue', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [
+      { name: 'a' },
+      { name: 'b' },
+      { name: 'c' },
+      { name: 'd' },
+      { name: 'e' },
+    ]);
+    sys.state.players['x'] = makePlayer(1500, { username: 'x' });
+    sys.setPlayerLink('a', 'x'); // x never queued
+
+    sys.draftNextMatches('timestamp', 'test');
+    const drafted = draftedUsernames(sys);
+    expect(drafted).toContain('b');
+    expect(drafted).not.toContain('a');
+    expect(
+      sys.state.queues.some((q) => q.username === 'a' && !q.deletedAt),
+    ).toBe(true);
+  });
+
+  it('linked pair is skipped while partner is locked, eligible again after unlock', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [
+      { name: 'a' },
+      { name: 'b' },
+      { name: 'c' },
+      { name: 'd' },
+      { name: 'e' },
+      { name: 'f' },
+      { name: 'g' },
+      { name: 'h' },
+    ]);
+    sys.setPlayerLink('a', 'b');
+    sys.setQueueLock('b', true);
+
+    sys.draftNextMatches('timestamp', 'test');
+    expect(draftedUsernames(sys)).not.toContain('a');
+    expect(draftedUsernames(sys)).not.toContain('b');
+
+    sys.setQueueLock('b', false);
+    sys.draftNextMatches('timestamp', 'test');
+    const laterMatch = sys.state.activeMatches.find((m) =>
+      [...m.teamA, ...m.teamB].includes('a'),
+    );
+    expect(laterMatch).toBeTruthy();
+    const aTeam = laterMatch!.teamA.includes('a')
+      ? laterMatch!.teamA
+      : laterMatch!.teamB;
+    expect(aTeam).toContain('b');
+  });
+
+  it('cross-bracket pair follows the earlier partner into their bracket', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [
+      { name: 'a', type: 'WINNERS' },
+      { name: 'w2', type: 'WINNERS' },
+      { name: 'w3', type: 'WINNERS' },
+      { name: 'd', type: 'LOSERS' },
+    ]);
+    sys.setPlayerLink('a', 'd');
+
+    sys.draftNextMatches('timestamp', 'test');
+    const match = sys.state.activeMatches[0];
+    expect(match.queueSource).toBe('WINNERS');
+    expect([...match.teamA, ...match.teamB].sort()).toEqual([
+      'a',
+      'd',
+      'w2',
+      'w3',
+    ]);
+    const aTeam = match.teamA.includes('a') ? match.teamA : match.teamB;
+    expect(aTeam).toContain('d');
+  });
+
+  it('link survives match drafting — re-queued players stay linked', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }]);
+    sys.setPlayerLink('a', 'b');
+    sys.draftNextMatches('timestamp', 'test');
+    expect(sys.state.activeMatches.length).toBe(1);
+
+    sys.checkInPlayer('a');
+    sys.checkInPlayer('b');
+    expect(sys.getLinkedPartner('a')).toBe('b');
+    expect(sys.getLinkedPartner('b')).toBe('a');
+  });
+
+  it('singles ignores links', () => {
+    const sys = new LocalMatchmakingSystem(1);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }]);
+    sys.setPlayerLink('a', 'c');
+    sys.draftNextMatches('timestamp', 'test');
+    // Link ignored — normal FIFO draft picks a + b, not the pair.
+    expect(
+      [
+        ...sys.state.activeMatches[0].teamA,
+        ...sys.state.activeMatches[0].teamB,
+      ].sort(),
+    ).toEqual(['a', 'b']);
+  });
+
+  it('mergeAppState resolves link/unlink across devices by latest write', () => {
+    const player = (
+      linkedTo: string | undefined,
+      linkUpdatedAt: number,
+    ): Player =>
+      makePlayer(1500, {
+        username: 'a',
+        updatedAt: 1000,
+        linkUpdatedAt,
+        ...(linkedTo ? { linkedTo, linkedAt: linkUpdatedAt } : {}),
+      });
+    const base = {
+      queues: [],
+      activeMatches: [],
+      completedMatches: [],
+      actionLog: [],
+      settings: {},
+    } as unknown as AppState;
+
+    // Local linked (t2) vs stale server (t1) → link wins
+    const mergedLinked = mergeAppState(
+      { ...base, players: { a: player('b', 2000) } },
+      { ...base, players: { a: player(undefined, 1000) } },
+    );
+    expect(mergedLinked.players.a.linkedTo).toBe('b');
+
+    // Server unlinked (t3) vs stale linked local (t2) → unlink wins
+    const mergedUnlinked = mergeAppState(
+      { ...base, players: { a: player('b', 2000) } },
+      { ...base, players: { a: player(undefined, 3000) } },
+    );
+    expect(mergedUnlinked.players.a.linkedTo).toBeUndefined();
+  });
+
+  it('link survives a concurrent non-stat edit on another device', () => {
+    // Device A linked a↔b (linkUpdatedAt t3); device B changed level
+    // (updatedAt t4 — newer whole-object winner). Both must survive.
+    const local = makePlayer(1500, {
+      username: 'a',
+      level: 1,
+      updatedAt: 1000,
+      linkedTo: 'b',
+      linkedAt: 3000,
+      linkUpdatedAt: 3000,
+    });
+    const server = makePlayer(1500, {
+      username: 'a',
+      level: 3,
+      updatedAt: 4000,
+    });
+    const base = {
+      queues: [],
+      activeMatches: [],
+      completedMatches: [],
+      actionLog: [],
+      settings: {},
+    } as unknown as AppState;
+
+    const merged = mergeAppState(
+      { ...base, players: { a: local } },
+      { ...base, players: { a: server } },
+    );
+    expect(merged.players.a.level).toBe(3);
+    expect(merged.players.a.linkedTo).toBe('b');
+  });
+});
+
 describe('hardResetEverything per-field stamping', () => {
   it('hardResetEverything stamps settingsFieldTimestamps for completedMatchesResetAt', () => {
     const sys = new LocalMatchmakingSystem(2);

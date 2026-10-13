@@ -76,6 +76,33 @@ export const getRatingCategory = (rating: number): string => {
 };
 
 /**
+ * Distinct color per fixed-duo pair — both partners share the same color so
+ * linked players are visually grouped at a glance. Deterministic (hash of the
+ * canonical pair key), so the color is stable across renders and devices.
+ * Dark shades keep white badge icons / chip text readable.
+ */
+export const LINK_PAIR_COLORS = [
+  'teal-7',
+  'purple-6',
+  'indigo-6',
+  'pink-6',
+  'deep-orange-6',
+  'cyan-7',
+  'brown-6',
+  'blue-grey-7',
+];
+
+export const linkPairColor = (username: string, linkedTo?: string): string => {
+  if (!linkedTo) return 'teal-7';
+  const key = [username, linkedTo].sort().join('|');
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  return LINK_PAIR_COLORS[hash % LINK_PAIR_COLORS.length];
+};
+
+/**
  * Get the icon for a player level
  */
 export const getLevelIcon = (level: 1 | 2 | 3): string => {

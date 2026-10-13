@@ -288,7 +288,7 @@
                   "
                   :empty-action="!searchPlayers"
                   @player-edit="openEditPlayerDialog"
-                  @player-avatar-click="openPlayerReportDialog"
+                  @player-avatar-click="onQueueAvatarClick"
                   @player-commend="(p) => openPlayerReportDialog(p, 'commend')"
                   @player-report="(p) => openPlayerReportDialog(p, 'report')"
                   @player-remove="handlePlayerRemove"
@@ -342,13 +342,17 @@
                   :remove-label="'Check out'"
                   :remove-icon="'remove_circle'"
                   :remove-color="'warning'"
+                  :link-source-username="pendingLinkUsername"
                   :empty-icon="'queue'"
                   :empty-title="'Queue is empty'"
                   :empty-subtitle="'Add players to start generating matches'"
-                  @player-avatar-click="openPlayerReportDialog"
+                  @player-avatar-click="onQueueAvatarClick"
                   @player-commend="(p) => openPlayerReportDialog(p, 'commend')"
                   @player-report="(p) => openPlayerReportDialog(p, 'report')"
+                  @player-click="onQueuePlayerClick"
                   @player-remove="removeFromQueue"
+                  @player-lock-toggle="toggleQueueLock"
+                  @player-link-toggle="togglePlayerLink"
                 />
               </div>
             </q-card-section>
@@ -565,8 +569,8 @@
               <!-- Waiting Players Info -->
               <div
                 v-if="
-                  queue.length > 0 &&
-                  queue.length % (matchType === 'singles' ? 2 : 4) !== 0
+                  unlockedQueueCount > 0 &&
+                  unlockedQueueCount % (matchType === 'singles' ? 2 : 4) !== 0
                 "
                 class="q-mt-md"
               >
@@ -834,7 +838,7 @@
                   "
                   :empty-action="!searchPlayers"
                   @player-edit="openEditPlayerDialog"
-                  @player-avatar-click="openPlayerReportDialog"
+                  @player-avatar-click="onQueueAvatarClick"
                   @player-commend="(p) => openPlayerReportDialog(p, 'commend')"
                   @player-report="(p) => openPlayerReportDialog(p, 'report')"
                   @player-remove="handlePlayerRemove"
@@ -885,13 +889,17 @@
                   :remove-label="'Check out'"
                   :remove-icon="'remove_circle'"
                   :remove-color="'warning'"
+                  :link-source-username="pendingLinkUsername"
                   :empty-icon="'queue'"
                   :empty-title="'Queue is empty'"
                   :empty-subtitle="'Add players to start generating matches'"
-                  @player-avatar-click="openPlayerReportDialog"
+                  @player-avatar-click="onQueueAvatarClick"
                   @player-commend="(p) => openPlayerReportDialog(p, 'commend')"
                   @player-report="(p) => openPlayerReportDialog(p, 'report')"
+                  @player-click="onQueuePlayerClick"
                   @player-remove="removeFromQueue"
+                  @player-lock-toggle="toggleQueueLock"
+                  @player-link-toggle="togglePlayerLink"
                 />
               </div>
             </q-card-section>
@@ -1108,8 +1116,8 @@
               <!-- Waiting Players Info -->
               <div
                 v-if="
-                  queue.length > 0 &&
-                  queue.length % (matchType === 'singles' ? 2 : 4) !== 0
+                  unlockedQueueCount > 0 &&
+                  unlockedQueueCount % (matchType === 'singles' ? 2 : 4) !== 0
                 "
                 class="q-mt-md"
               >
@@ -1485,7 +1493,11 @@ import ClubHeader from '../components/club/ClubHeader.vue';
 import ClubLayout from '../components/club/ClubLayout.vue';
 import SettingsDialog from '../components/club/SettingsDialog.vue';
 import QRCode from 'qrcode';
-import { getRatingColor, getRatingCategory } from '../utils/playerHelpers';
+import {
+  getRatingColor,
+  getRatingCategory,
+  LINK_PAIR_COLORS,
+} from '../utils/playerHelpers';
 import { computeMatchFilterCounts } from '../utils/matchCounts';
 import { computeWinProbability } from '../services/matchmaking';
 import { useMatchSettings } from '../composables/useMatchSettings';
@@ -1554,14 +1566,43 @@ const players = computed(() =>
     .map((p) => ({
       ...p,
       name: p.username,
+      linkedPartnerName: p.linkedTo
+        ? MatchmakingApp.state.players[p.linkedTo]?.firstName || p.linkedTo
+        : undefined,
+      linkedPairColor: p.linkedTo
+        ? linkedPairColors.value.colors.get(
+            linkedPairColors.value.pairKey(p.username, p.linkedTo),
+          )
+        : undefined,
     })),
 );
 
 // Player actions composable — extracted removePlayer, removeFromQueue, requeuePlayer, addAllPlayersToQueue
-const { removePlayer, removeFromQueue, requeuePlayer, addAllPlayersToQueue } =
-  usePlayerActions({
-    players,
-  });
+const {
+  removePlayer,
+  removeFromQueue,
+  toggleQueueLock,
+  requeuePlayer,
+  addAllPlayersToQueue,
+  pendingLinkUsername,
+  togglePlayerLink,
+  pickLinkPartner,
+} = usePlayerActions({
+  players,
+});
+
+// Queue-row taps are intercepted while link-mode is armed — pickLinkPartner
+// returns false when inactive so the tap stays a no-op, as before.
+const onQueuePlayerClick = (player: Player) => {
+  pickLinkPartner(player.username);
+};
+
+// Avatar taps also act as partner picks while link-mode is armed;
+// otherwise they open the player report dialog as usual.
+const onQueueAvatarClick = (player: Player) => {
+  if (pickLinkPartner(player.username)) return;
+  openPlayerReportDialog(player);
+};
 
 // In the player list, if a player is in queue, the button acts as
 // "Check out" (remove from queue) instead of deleting the player.
@@ -1576,6 +1617,27 @@ const handlePlayerRemove = (username: string) => {
   }
 };
 
+// Assign a distinct color per linked pair (in link-creation order) so each duo
+// is visually distinguishable at a glance — guaranteed unique for up to
+// LINK_PAIR_COLORS.length simultaneous pairs.
+const linkedPairColors = computed(() => {
+  const pairKey = (a: string, b?: string) => (b ? [a, b].sort().join('|') : '');
+  const pairFirstAt = new Map<string, number>();
+  for (const p of Object.values(MatchmakingApp.state.players)) {
+    if (!p.linkedTo) continue;
+    const key = pairKey(p.username, p.linkedTo);
+    const at = p.linkedAt ?? 0;
+    const existing = pairFirstAt.get(key);
+    if (existing === undefined || at < existing) pairFirstAt.set(key, at);
+  }
+  const ordered = [...pairFirstAt.entries()].sort((x, y) => x[1] - y[1]);
+  const colors = new Map<string, string>();
+  ordered.forEach(([key], i) =>
+    colors.set(key, LINK_PAIR_COLORS[i % LINK_PAIR_COLORS.length]),
+  );
+  return { colors, pairKey };
+});
+
 const queue = computed(() => {
   const mapped = MatchmakingApp.state.queues
     .filter((q) => !q.deletedAt)
@@ -1587,6 +1649,15 @@ const queue = computed(() => {
         username: p.username,
         enteredAt: q.enteredAt,
         queueType: q.queueType,
+        lockedAt: q.lockedAt,
+        linkedPartnerName: p.linkedTo
+          ? MatchmakingApp.state.players[p.linkedTo]?.firstName || p.linkedTo
+          : undefined,
+        linkedPairColor: p.linkedTo
+          ? linkedPairColors.value.colors.get(
+              linkedPairColors.value.pairKey(p.username, p.linkedTo),
+            )
+          : undefined,
         isInMatch: false, // Players in queue are not in matches (enforced by constraint)
       };
     })
@@ -1625,6 +1696,22 @@ const queue = computed(() => {
   }
 
   return mapped;
+});
+// Locked players stay visible in the queue but are skipped by auto-draft —
+// draftability counts must use the unlocked subset only. Linked players also
+// count only while their mutually-linked partner is queued and unlocked.
+const unlockedQueueCount = computed(() => {
+  const liveUnlocked = new Set(
+    queue.value.filter((p) => !p.lockedAt).map((p) => p.username),
+  );
+  return queue.value.filter((p) => {
+    if (p.lockedAt) return false;
+    const mutual = p.linkedTo
+      ? MatchmakingApp.state.players[p.linkedTo]?.linkedTo === p.username
+      : false;
+    const partner = mutual ? p.linkedTo : undefined;
+    return partner === undefined || liveUnlocked.has(partner);
+  }).length;
 });
 const matches = computed(() => {
   return MatchmakingApp.state.activeMatches
@@ -3365,19 +3452,26 @@ watch(
 );
 
 const canGenerateMatches = (): boolean => {
-  const total = queue.value.length;
   const requiredPlayers = matchType.value === 'singles' ? 2 : 4;
 
-  // We can generate matches if we have enough players
-  return total >= requiredPlayers;
+  // We can generate matches if we have enough unlocked players
+  return unlockedQueueCount.value >= requiredPlayers;
 };
 
 const getMatchGenerationHint = (): string => {
-  const total = queue.value.length;
+  const total = unlockedQueueCount.value;
+  const lockedCount = queue.value.filter((p) => p.lockedAt).length;
+  const waitingPartnerCount = queue.value.length - total - lockedCount;
+  const unavailParts = [
+    lockedCount > 0 ? `${lockedCount} locked` : '',
+    waitingPartnerCount > 0 ? `${waitingPartnerCount} waiting for partner` : '',
+  ].filter(Boolean);
+  const lockedSuffix =
+    unavailParts.length > 0 ? ` (${unavailParts.join(', ')})` : '';
   const requiredPlayers = matchType.value === 'singles' ? 2 : 4;
 
   if (total < requiredPlayers) {
-    return `Need ${requiredPlayers - total} more player${requiredPlayers - total > 1 ? 's' : ''} to generate ${matchType.value} matches`;
+    return `Need ${requiredPlayers - total} more player${requiredPlayers - total > 1 ? 's' : ''} to generate ${matchType.value} matches${lockedSuffix}`;
   }
 
   const maxMatches = Math.floor(total / requiredPlayers);
@@ -3400,7 +3494,7 @@ const getMatchGenerationHint = (): string => {
 };
 
 const getWaitingPlayersInfo = (): string => {
-  const total = queue.value.length;
+  const total = unlockedQueueCount.value;
   const requiredPlayers = matchType.value === 'singles' ? 2 : 4;
   const remainingPlayers = total % requiredPlayers;
 
@@ -3575,6 +3669,14 @@ const savePlayerEdit = () => {
 
       const idxB = m.teamB.indexOf(originalName);
       if (idxB !== -1) m.teamB[idxB] = trimmedName;
+    });
+
+    // Update fixed-duo links pointing at the old name
+    Object.values(MatchmakingApp.state.players).forEach((p) => {
+      if (p.linkedTo === originalName) {
+        p.linkedTo = trimmedName;
+        p.updatedAt = Date.now();
+      }
     });
 
     // Update history records for all players

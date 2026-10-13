@@ -65,20 +65,59 @@ export function useManualSelection(context: UseManualSelectionContext) {
     );
     const maxPlayers = matchType.value === 'singles' ? 2 : 4;
 
+    // Fixed duos move as one unit in doubles — singles ignores links.
+    const partnerName =
+      matchType.value === 'doubles'
+        ? MatchmakingApp.getLinkedPartner(player.username)
+        : undefined;
+    const partner = partnerName
+      ? MatchmakingApp.state.players[partnerName]
+      : undefined;
+
     if (index >= 0) {
-      // Remove player
+      // Remove player — a linked partner leaves too.
       selectedPlayers.value.splice(index, 1);
-    } else {
-      // Add player if less than max selected
-      if (selectedPlayers.value.length < maxPlayers) {
-        selectedPlayers.value.push(player);
-      } else {
+      if (partner) {
+        const pIdx = selectedPlayers.value.findIndex(
+          (p) => p.username === partner.username,
+        );
+        if (pIdx >= 0) selectedPlayers.value.splice(pIdx, 1);
+      }
+      return;
+    }
+
+    const slotsNeeded = partner ? 2 : 1;
+    if (selectedPlayers.value.length + slotsNeeded > maxPlayers) {
+      notify({
+        type: 'warning',
+        message: `You can only select ${maxPlayers} players`,
+      });
+      return;
+    }
+
+    if (partner) {
+      // Partner must be selectable too — queued and not in a match.
+      const partnerQueued = MatchmakingApp.state.queues.some(
+        (q) => !q.deletedAt && q.username === partner.username,
+      );
+      const partnerInMatch = MatchmakingApp.state.activeMatches.some(
+        (m) =>
+          !m.deletedAt &&
+          (m.teamA.includes(partner.username) ||
+            m.teamB.includes(partner.username)),
+      );
+      if (!partnerQueued || partnerInMatch) {
         notify({
           type: 'warning',
-          message: `You can only select ${maxPlayers} players`,
+          message: `${player.firstName || player.username} is paired with ${partner.firstName || partner.username}, who isn't available`,
         });
+        return;
       }
+      selectedPlayers.value.push(player, partner);
+      return;
     }
+
+    selectedPlayers.value.push(player);
   };
 
   const isPlayerSelected = (player: Player): boolean => {

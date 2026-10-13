@@ -13,6 +13,7 @@
         :is-selected="isPlayerSelected(player)"
         :is-in-queue="player.isInQueue"
         :is-in-match="player.isInMatch"
+        :link-state="linkStateFor(player)"
         :sort-by="sortBy"
         :remove-label="removeLabel"
         :remove-icon="removeIcon"
@@ -25,6 +26,7 @@
         @edit="$emit('playerEdit', $event)"
         @remove="$emit('playerRemove', $event)"
         @requeue="$emit('playerRequeue', $event)"
+        @link-toggle="$emit('playerLinkToggle', $event)"
       >
         <template v-if="showPosition" #actions="{ player: playerItem }">
           <q-avatar
@@ -37,6 +39,54 @@
           </q-avatar>
           <template v-if="showActions">
             <q-btn
+              v-if="isInQueue && !linkSourceUsername"
+              flat
+              round
+              :color="playerItem.lockedAt ? 'amber-8' : 'grey-6'"
+              @click.stop="$emit('playerLockToggle', playerItem.username)"
+              :icon="playerItem.lockedAt ? 'lock' : 'lock_open'"
+              size="sm"
+            >
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >{{
+                  playerItem.lockedAt
+                    ? 'Unlock — back in auto-draft'
+                    : 'Lock — skip auto-draft'
+                }}</q-tooltip
+              >
+            </q-btn>
+            <q-btn
+              v-if="
+                isInQueue &&
+                !playerItem.linkedTo &&
+                (!linkSourceUsername ||
+                  playerItem.username === linkSourceUsername)
+              "
+              flat
+              round
+              color="grey-6"
+              @click.stop="$emit('playerLinkToggle', playerItem.username)"
+              :icon="
+                playerItem.username === linkSourceUsername ? 'link_off' : 'link'
+              "
+              size="sm"
+            >
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[8, 8]"
+                >{{
+                  playerItem.username === linkSourceUsername
+                    ? 'Cancel pairing'
+                    : 'Pair duo — pick a partner'
+                }}</q-tooltip
+              >
+            </q-btn>
+            <q-btn
+              v-if="!linkSourceUsername"
               flat
               round
               :color="removeColor"
@@ -60,7 +110,7 @@
               >
             </q-btn>
             <q-btn
-              v-if="showRequeueButton"
+              v-if="showRequeueButton && !linkSourceUsername"
               flat
               color="accent"
               @click.stop="$emit('playerRequeue', playerItem.username)"
@@ -124,6 +174,9 @@ import type { Player as BasePlayer } from '../services/matchmaking';
 type Player = BasePlayer & {
   enteredAt?: number;
   queueType?: 'GENERAL' | 'WINNERS' | 'LOSERS';
+  lockedAt?: number;
+  linkedTo?: string;
+  linkedPartnerName?: string;
   isInMatch?: boolean;
   isInQueue?: boolean;
   matchOrder?: number;
@@ -138,6 +191,7 @@ interface Props {
   showPosition?: boolean;
   isInQueue?: boolean;
   isInMatch?: boolean;
+  linkSourceUsername?: string | null;
   showRequeueButton?: boolean;
   showFeedbackButton?: boolean;
   emptyIcon?: string;
@@ -163,6 +217,7 @@ const props = withDefaults(defineProps<Props>(), {
   showPosition: false,
   isInQueue: false,
   isInMatch: false,
+  linkSourceUsername: null,
   showRequeueButton: true,
   removeLabel: 'Remove',
   removeIcon: 'delete',
@@ -187,6 +242,8 @@ defineEmits<{
   playerEdit: [player: Player];
   playerRemove: [username: string];
   playerRequeue: [username: string];
+  playerLockToggle: [username: string];
+  playerLinkToggle: [username: string];
   emptyAction: [];
 }>();
 
@@ -251,6 +308,22 @@ const displayPlayers = computed(() => {
 
 const isPlayerSelected = (player: Player): boolean => {
   return props.selectedPlayers.some((p) => p.username === player.username);
+};
+
+// Link-mode row state: the armed source row is highlighted, eligible partners
+// pulse, everything else dims. Candidates must be queued, unlocked, and
+// unlinked themselves.
+const linkStateFor = (
+  player: Player,
+): 'source' | 'candidate' | 'ineligible' | null => {
+  if (!props.linkSourceUsername) return null;
+  if (player.username === props.linkSourceUsername) return 'source';
+  const eligible =
+    props.isInQueue &&
+    !player.lockedAt &&
+    !player.linkedTo &&
+    !player.isInMatch;
+  return eligible ? 'candidate' : 'ineligible';
 };
 
 // Precompute queue positions once per list change — the per-row filter+findIndex
