@@ -220,7 +220,33 @@ export function useMatchActions(context: UseMatchActionsContext) {
     );
 
     // Generate all possible team combinations
-    const combinations = generateTeamCombinations(sortedPlayers);
+    let combinations = generateTeamCombinations(sortedPlayers);
+
+    // Fixed duos must stay on the same team — keep only combos honoring that
+    const pinnedPairs: string[][] = [];
+    const seenPairs = new Set<string>();
+    for (const p of players) {
+      const partner = MatchmakingApp.getLinkedPartner(p.username);
+      if (partner && !seenPairs.has(p.username) && !seenPairs.has(partner)) {
+        pinnedPairs.push([p.username, partner]);
+        seenPairs.add(p.username);
+        seenPairs.add(partner);
+      }
+    }
+    if (pinnedPairs.length > 0) {
+      const honorsPairs = combinations.filter((combo) =>
+        pinnedPairs.every((pair) => {
+          const in1 = pair.every((u) =>
+            combo.team1.some((p) => p.username === u),
+          );
+          const in2 = pair.every((u) =>
+            combo.team2.some((p) => p.username === u),
+          );
+          return in1 || in2;
+        }),
+      );
+      if (honorsPairs.length > 0) combinations = honorsPairs;
+    }
 
     // Calculate skill differences for all combinations
     const combinationsWithScores = combinations.map((combination) => {

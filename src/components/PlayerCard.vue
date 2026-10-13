@@ -1,35 +1,70 @@
 <template>
   <q-item
     class="player-item"
-    :class="{ 'player-selected': isSelected, [queueBgClass]: true }"
+    :class="{
+      'player-selected': isSelected,
+      'link-source': linkState === 'source',
+      'link-candidate': linkState === 'candidate',
+      'link-ineligible': linkState === 'ineligible',
+      [queueBgClass]: true,
+    }"
     @click="$emit('click', player)"
     clickable
   >
     <q-item-section avatar v-if="showAvatar">
-      <PlayerAvatar
-        v-if="!player.avatar || avatarLoadError"
-        :name="player.firstName"
-        :username="player.username"
-        :color="getRatingColor(player.rating)"
-        :user-id="player.userId"
-        :dupr-id="player.duprId"
-        size="md"
-        class="cursor-pointer"
-        @click.stop="$emit('avatarClick', player)"
-      />
-      <PlayerAvatar
-        v-else
-        :name="player.firstName"
-        :username="player.username"
-        :color="getRatingColor(player.rating)"
-        :user-id="player.userId"
-        :dupr-id="player.duprId"
-        :image-url="player.avatar"
-        size="md"
-        class="cursor-pointer"
-        @click.stop="$emit('avatarClick', player)"
-        @image-error="handleAvatarError"
-      />
+      <div class="relative-position">
+        <PlayerAvatar
+          v-if="!player.avatar || avatarLoadError"
+          :name="player.firstName"
+          :username="player.username"
+          :color="getRatingColor(player.rating)"
+          :user-id="player.userId"
+          :dupr-id="player.duprId"
+          size="md"
+          class="cursor-pointer"
+          @click.stop="$emit('avatarClick', player)"
+        />
+        <PlayerAvatar
+          v-else
+          :name="player.firstName"
+          :username="player.username"
+          :color="getRatingColor(player.rating)"
+          :user-id="player.userId"
+          :dupr-id="player.duprId"
+          :image-url="player.avatar"
+          size="md"
+          class="cursor-pointer"
+          @click.stop="$emit('avatarClick', player)"
+          @image-error="handleAvatarError"
+        />
+        <q-badge
+          v-if="player.lockedAt"
+          floating
+          rounded
+          color="amber-8"
+          class="queue-lock-badge"
+        >
+          <q-icon name="lock" size="10px" color="white" />
+          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+            >Locked — skipped by auto-draft</q-tooltip
+          >
+        </q-badge>
+        <q-badge
+          v-if="player.linkedTo"
+          floating
+          rounded
+          :color="linkColor"
+          class="queue-link-badge"
+          :class="{ 'cursor-pointer': showActions }"
+          @click.stop="showActions && $emit('linkToggle', player.username)"
+        >
+          <q-icon name="link" size="10px" color="white" />
+          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+            >Paired with {{ linkedPartnerName }}
+            {{ showActions ? '— tap to unpair' : '' }}</q-tooltip
+          >
+        </q-badge>
+      </div>
     </q-item-section>
 
     <q-item-section>
@@ -190,11 +225,15 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import PlayerAvatar from './PlayerAvatar.vue';
-import { getRatingColor } from '../utils/playerHelpers';
+import { getRatingColor, linkPairColor } from '../utils/playerHelpers';
 import type { Player as BasePlayer } from '../services/matchmaking';
 type Player = BasePlayer & {
   enteredAt?: number;
   queueType?: 'GENERAL' | 'WINNERS' | 'LOSERS';
+  lockedAt?: number;
+  linkedTo?: string;
+  linkedPartnerName?: string;
+  linkedPairColor?: string;
   userId?: string;
 };
 
@@ -208,6 +247,7 @@ interface Props {
   isSelected?: boolean;
   isInQueue?: boolean;
   isInMatch?: boolean;
+  linkState?: 'source' | 'candidate' | 'ineligible' | null;
   sortBy?: string;
   removeLabel?: string;
   removeIcon?: string;
@@ -224,6 +264,7 @@ const props = withDefaults(defineProps<Props>(), {
   isSelected: false,
   isInQueue: false,
   isInMatch: false,
+  linkState: null,
   removeLabel: 'Remove',
   removeIcon: 'delete',
   removeColor: 'negative',
@@ -238,6 +279,7 @@ defineEmits<{
   edit: [player: Player];
   remove: [username: string];
   requeue: [username: string];
+  linkToggle: [username: string];
 }>();
 
 const isSelf = computed(() => {
@@ -253,6 +295,16 @@ const queueBgClass = computed(() => {
   if (props.player.queueType === 'LOSERS') return 'bg-red-1';
   return '';
 });
+
+const linkedPartnerName = computed(
+  () => props.player.linkedPartnerName || props.player.linkedTo || '',
+);
+
+const linkColor = computed(
+  () =>
+    props.player.linkedPairColor ||
+    linkPairColor(props.player.username, props.player.linkedTo),
+);
 
 const avatarLoadError = ref(false);
 
@@ -286,6 +338,49 @@ const handleAvatarError = () => {
 </script>
 
 <style lang="scss" scoped>
+.queue-lock-badge {
+  padding: 2px 4px;
+}
+
+.queue-link-badge {
+  padding: 2px 4px;
+  top: auto !important;
+  bottom: 0;
+  transform: translate(15%, 15%);
+}
+
+@keyframes link-candidate-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 1px rgba(38, 166, 154, 0.35);
+  }
+  50% {
+    box-shadow: inset 0 0 0 2px rgba(38, 166, 154, 0.9);
+  }
+}
+
+.player-item.link-source {
+  background-color: rgba(38, 166, 154, 0.12);
+  border-left: 4px solid #009688;
+}
+
+.player-item.link-candidate {
+  animation: link-candidate-pulse 1.4s ease-in-out infinite;
+  cursor: pointer;
+}
+
+.player-item.link-ineligible {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-item.link-candidate {
+    animation: none;
+    box-shadow: inset 0 0 0 2px rgba(38, 166, 154, 0.6);
+  }
+}
+
 .player-item {
   transition: background-color 0.2s ease;
 

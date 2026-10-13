@@ -37,6 +37,7 @@ export function useNotify() {
 
     const n = $q.notify(merged);
     activeNotifications.push(n);
+    return n;
   }
 
   return { notify };

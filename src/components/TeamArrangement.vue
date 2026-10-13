@@ -191,6 +191,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 
+import { useNotify } from '../composables/useNotify';
 import { getRatingColor } from '../utils/playerHelpers';
 import {
   computeTeamRating,
@@ -208,6 +209,17 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { notify } = useNotify();
+
+// Mutual partner lookup within this match's players — a linked duo can't be split.
+const pairPartner = (p: Player): Player | null => {
+  if (!p.linkedTo) return null;
+  return (
+    [...props.team1, ...props.team2].find(
+      (x) => x.username === p.linkedTo && x.linkedTo === p.username,
+    ) ?? null
+  );
+};
 
 // Emits
 const emit = defineEmits<{
@@ -284,19 +296,53 @@ const balanceTeams = () => {
 const shuffleTeams = () => {
   const allPlayers = [...props.team1, ...props.team2];
 
-  // Fisher-Yates shuffle
-  for (let i = allPlayers.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [allPlayers[i], allPlayers[j]] = [allPlayers[j], allPlayers[i]];
+  // Linked pairs shuffle as indivisible units.
+  const units: Player[][] = [];
+  const seen = new Set<string>();
+  for (const p of allPlayers) {
+    if (seen.has(p.username)) continue;
+    const partner = pairPartner(p);
+    if (partner) {
+      units.push([p, partner]);
+      seen.add(partner.username);
+    } else {
+      units.push([p]);
+    }
+    seen.add(p.username);
   }
 
-  emit('update:team1', [allPlayers[0], allPlayers[1]]);
-  emit('update:team2', [allPlayers[2], allPlayers[3]]);
+  // Fisher-Yates shuffle of units
+  for (let i = units.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [units[i], units[j]] = [units[j], units[i]];
+  }
+
+  // Pack units into teams, keeping pairs whole
+  const teamSize = props.team1.length;
+  const t1: Player[] = [];
+  const t2: Player[] = [];
+  for (const u of units) {
+    if (t1.length + u.length <= teamSize) {
+      t1.push(...u);
+    } else {
+      t2.push(...u);
+    }
+  }
+
+  emit('update:team1', t1);
+  emit('update:team2', t2);
 };
 
 const selectPlayerForSwap = (player: Player, team: 'team1' | 'team2') => {
   // If no player selected yet, select this one
   if (!selectedForSwap.value) {
+    if (pairPartner(player)) {
+      notify({
+        type: 'warning',
+        message: `${player.firstName || player.username} is in a paired duo — unpair to rearrange`,
+      });
+      return;
+    }
     selectedForSwap.value = player;
     selectedForSwapTeam.value = team;
     return;
@@ -304,6 +350,16 @@ const selectPlayerForSwap = (player: Player, team: 'team1' | 'team2') => {
 
   // If clicking the same player, deselect
   if (selectedForSwap.value.username === player.username) {
+    selectedForSwap.value = null;
+    selectedForSwapTeam.value = null;
+    return;
+  }
+
+  if (pairPartner(player)) {
+    notify({
+      type: 'warning',
+      message: `${player.firstName || player.username} is in a paired duo — unpair to rearrange`,
+    });
     selectedForSwap.value = null;
     selectedForSwapTeam.value = null;
     return;

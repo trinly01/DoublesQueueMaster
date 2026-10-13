@@ -27,6 +27,9 @@ export interface Player {
   updatedAt?: number; // Epoch ms of the last any field change (for per-field LWW)
   createdAt?: number; // Epoch ms when player was first created (for checkpoint purge)
   avatar?: string; // Avatar URL from Directus
+  linkedTo?: string; // Username of the fixed-duo partner (session-scoped). Enforced only when mutual.
+  linkedAt?: number; // Epoch ms when the link was created (display).
+  linkUpdatedAt?: number; // Epoch ms of the last link/unlink write (dedicated LWW token — isolates link state from other player edits)
   deletedAt?: number; // Epoch ms of deletion (tombstone). If present, player is logically deleted.
   addedAt?: number; // Epoch ms when player was last made live (add / re-add). Analogous to QueueEntry.queuedAt; decides resurrection vs tombstone.
   history?: {
@@ -43,6 +46,8 @@ export interface QueueEntry {
   updatedAt?: number; // Epoch ms of last change (for per-field LWW)
   deletedAt?: number; // Epoch ms of deletion (tombstone). If present, entry is logically deleted.
   queuedAt?: number; // Epoch ms when the player was last placed into the queue (add / re-queue).
+  lockedAt?: number; // Epoch ms when locked out of auto-draft. Absent = unlocked.
+  lockUpdatedAt?: number; // Epoch ms of the last lock/unlock write (dedicated LWW token — isolates lock state from other entry changes)
 }
 
 export interface ActiveMatch {
@@ -757,8 +762,25 @@ export const MatchmakerEngine = {
       | 'balanced_variety'
       | 'strict_balance'
       | 'fair_balance' = 'fair_balance',
+    pinnedPairs?: string[][],
   ) => {
-    const allMatchups = MatchmakerEngine.getCombinations(players, teamSize);
+    let allMatchups = MatchmakerEngine.getCombinations(players, teamSize);
+
+    // Fixed-duo constraint: each pinned pair must stay on the same team.
+    if (pinnedPairs?.length) {
+      const onSameTeam = (matchup: { teamA: Player[]; teamB: Player[] }) =>
+        pinnedPairs.every((pair) => {
+          const inA = pair.every((u) =>
+            matchup.teamA.some((p) => p.username === u),
+          );
+          const inB = pair.every((u) =>
+            matchup.teamB.some((p) => p.username === u),
+          );
+          return inA || inB;
+        });
+      const constrained = allMatchups.filter(onSameTeam);
+      if (constrained.length > 0) allMatchups = constrained;
+    }
 
     const evaluated = allMatchups.map((matchup) => {
       const ratingA = computeTeamRating(matchup.teamA);
@@ -1483,6 +1505,129 @@ export class LocalMatchmakingSystem {
     this.saveState();
   }
 
+  /**
+   * Lock/unlock a queued player out of auto-drafting. The entry keeps its
+   * queue position (enteredAt/queuedAt untouched) — lockedAt simply excludes
+   * it from draftNextMatches. updatedAt bumps make the toggle LWW-safe.
+   */
+  public setQueueLock(username: string, locked: boolean): boolean {
+    const now = Date.now();
+    let found = false;
+    this.state.queues.forEach((q) => {
+      if (q.username === username && !q.deletedAt) {
+        if (locked) {
+          q.lockedAt = now;
+        } else {
+          delete q.lockedAt;
+        }
+        // lockUpdatedAt is the dedicated LWW token — updatedAt is intentionally
+        // untouched so a lock toggle can't win whole-entry merge and clobber
+        // a concurrent queueType/enteredAt change on another device.
+        q.lockUpdatedAt = now;
+        found = true;
+      }
+    });
+    if (found) {
+      this.state.lastModified = now;
+      this.saveState();
+    }
+    return found;
+  }
+
+  public isQueueLocked(username: string): boolean {
+    return this.state.queues.some(
+      (q) => q.username === username && !q.deletedAt && !!q.lockedAt,
+    );
+  }
+
+  /**
+   * Link two players as a fixed duo for this session (mutual write).
+   * Refuses when either player is already linked to a different partner —
+   * callers must unlink first. Returns false for self-links or missing players.
+   */
+  public setPlayerLink(usernameA: string, usernameB: string): boolean {
+    const a = this.state.players[usernameA];
+    const b = this.state.players[usernameB];
+    if (!a || !b || a.deletedAt || b.deletedAt || usernameA === usernameB) {
+      return false;
+    }
+    if (
+      (a.linkedTo && a.linkedTo !== usernameB) ||
+      (b.linkedTo && b.linkedTo !== usernameA)
+    ) {
+      return false;
+    }
+    const now = Date.now();
+    // linkUpdatedAt is the dedicated LWW token — updatedAt is intentionally
+    // untouched so a link write can't win whole-object merge and clobber a
+    // concurrent level/avatar/profile edit on another device.
+    a.linkedTo = usernameB;
+    a.linkedAt = now;
+    a.linkUpdatedAt = now;
+    b.linkedTo = usernameA;
+    b.linkedAt = now;
+    b.linkUpdatedAt = now;
+    this.state.lastModified = now;
+    this.saveState();
+    return true;
+  }
+
+  /**
+   * Clear a player's link and the partner's side too. Safe to call when the
+   * partner's record is missing — clears whatever is reachable.
+   */
+  public unlinkPlayer(username: string): boolean {
+    const now = Date.now();
+    let changed = false;
+    const player = this.state.players[username];
+    const partnerName = player?.linkedTo;
+    if (player?.linkedTo || player?.linkedAt || player?.linkUpdatedAt) {
+      delete player.linkedTo;
+      delete player.linkedAt;
+      player.linkUpdatedAt = now;
+      changed = true;
+    }
+    const partner = partnerName ? this.state.players[partnerName] : undefined;
+    if (
+      partner &&
+      (partner.linkedTo || partner.linkedAt || partner.linkUpdatedAt)
+    ) {
+      delete partner.linkedTo;
+      delete partner.linkedAt;
+      partner.linkUpdatedAt = now;
+      changed = true;
+    }
+    if (changed) {
+      this.state.lastModified = now;
+      this.saveState();
+    }
+    return changed;
+  }
+
+  /**
+   * Return the username of the mutually-linked partner, or undefined when the
+   * player is unlinked or the link is only half-written (dormant — a one-sided
+   * linkedTo can appear under sync races and must not block drafting).
+   */
+  public getLinkedPartner(username: string): string | undefined {
+    const player = this.state.players[username];
+    const partner = player?.linkedTo;
+    if (!partner || partner === username) return undefined;
+    return this.state.players[partner]?.linkedTo === username
+      ? partner
+      : undefined;
+  }
+
+  /**
+   * A linked player is draftable only while their partner also holds a live,
+   * unlocked queue entry (liveUsernames = usernames of !deletedAt && !lockedAt
+   * entries). Unlinked or dormant players are always draftable.
+   */
+  private isPairEligible(entry: QueueEntry, liveUsernames: Set<string>) {
+    const partner = this.getLinkedPartner(entry.username);
+    return partner === undefined || liveUsernames.has(partner);
+  }
+
   // 2. Draft the next round of matches from waiting players
   public draftNextMatches(
     priorityMode: string = 'timestamp',
@@ -1517,59 +1662,129 @@ export class LocalMatchmakingSystem {
     };
 
     const prioritizedQueue = this.state.queues
-      .filter((q) => !q.deletedAt)
+      .filter((q) => !q.deletedAt && !q.lockedAt)
       .sort(sortFn);
+
+    // Linked pairs draft as indivisible units. A linked player whose partner
+    // isn't in the eligible pool (not queued / locked / in a match) is skipped
+    // entirely and waits for the partner to return.
+    const liveUsernames = new Set(prioritizedQueue.map((q) => q.username));
+    const eligible = prioritizedQueue.filter((q) =>
+      this.isPairEligible(q, liveUsernames),
+    );
+    const entryByUsername = new Map(eligible.map((q) => [q.username, q]));
+
+    interface DraftUnit {
+      entries: QueueEntry[]; // 1 entry normally; 2 for a linked pair
+      queueType: QueueEntry['queueType']; // earlier partner's bracket — partner follows
+      enteredAt: number; // the unit's FIFO claim = later partner's position
+      minPlayed: number; // fairness claim = lowest matchesPlayed among members
+    }
+
+    const usePairs = this.state.teamSize > 1; // singles ignores links
+    const units: DraftUnit[] = [];
+    const pendingEarlier = new Map<string, QueueEntry>();
+    const makeUnit = (entries: QueueEntry[]): DraftUnit => ({
+      entries,
+      queueType: entries[0].queueType,
+      enteredAt: entries[entries.length - 1].enteredAt,
+      minPlayed: Math.min(
+        ...entries.map(
+          (e) => this.state.players[e.username]?.matchesPlayed || 0,
+        ),
+      ),
+    });
+
+    for (const q of eligible) {
+      const partner = usePairs ? this.getLinkedPartner(q.username) : undefined;
+      const partnerEntry = partner ? entryByUsername.get(partner) : undefined;
+      if (!partner || !partnerEntry) {
+        units.push(makeUnit([q]));
+        continue;
+      }
+      const earlier = pendingEarlier.get(partner);
+      if (earlier) {
+        // Reached the later partner — the pair becomes draftable here.
+        pendingEarlier.delete(partner);
+        units.push(makeUnit([earlier, q]));
+      } else {
+        // Earlier partner — hold until the later position is reached.
+        pendingEarlier.set(q.username, q);
+      }
+    }
+
+    const countPlayers = (list: DraftUnit[]) =>
+      list.reduce((n, u) => n + u.entries.length, 0);
+
+    // Pick a priority-ordered subset of units totalling exactly `needed`
+    // players. Include-first DFS prefers earlier units; units are atomic so a
+    // pair can never be split across a match boundary.
+    const pickUnits = (
+      list: DraftUnit[],
+      needed: number,
+    ): DraftUnit[] | null => {
+      const memo = new Map<number, DraftUnit[] | null>();
+      const dfs = (i: number, sum: number): DraftUnit[] | null => {
+        if (sum === needed) return [];
+        if (i >= list.length || sum > needed) return null;
+        const key = i * 8 + sum;
+        if (memo.has(key)) return memo.get(key)!;
+        const inc = dfs(i + 1, sum + list[i].entries.length);
+        if (inc) {
+          memo.set(key, [list[i], ...inc]);
+          return memo.get(key)!;
+        }
+        const exc = dfs(i + 1, sum);
+        memo.set(key, exc);
+        return exc;
+      };
+      return dfs(0, 0);
+    };
 
     // Alternator flag: when WINNERS and LOSERS brackets are tied on priority,
     // alternate which bracket gets drafted first to prevent losers from being stuck
     let preferWinners = true;
 
-    while (prioritizedQueue.length >= playersNeeded) {
-      let draftedEntries: QueueEntry[] = [];
+    while (countPlayers(units) >= playersNeeded) {
+      let draftedUnits: DraftUnit[] | null = null;
 
       if (isStrictBalance) {
         // Strict balance: pool all players regardless of queue group and draft
         // the closest-rated N from the top of the rating-sorted queue.
-        draftedEntries = prioritizedQueue.slice(0, playersNeeded);
+        draftedUnits = pickUnits(units, playersNeeded);
       } else {
         // Non-strict modes: respect bracket priority sequence.
         // 1. GENERAL-only match (if enough to form one)
         // 2. Overflow GENERAL + LOSERS (leftover GENERAL absorb into lower bracket)
         // 3. WINNERS vs WINNERS or LOSERS vs LOSERS (priority-aware alternation)
         // 4. Fallback: mix from top of overall sorted queue
-        const general = prioritizedQueue.filter(
-          (q) => q.queueType === 'GENERAL',
-        );
-        const winners = prioritizedQueue.filter(
-          (q) => q.queueType === 'WINNERS',
-        );
-        const losers = prioritizedQueue.filter((q) => q.queueType === 'LOSERS');
+        const general = units.filter((u) => u.queueType === 'GENERAL');
+        const winners = units.filter((u) => u.queueType === 'WINNERS');
+        const losers = units.filter((u) => u.queueType === 'LOSERS');
+        const generalCount = countPlayers(general);
+        const winnersCount = countPlayers(winners);
+        const losersCount = countPlayers(losers);
 
-        if (general.length >= playersNeeded) {
-          draftedEntries = general.slice(0, playersNeeded);
+        if (generalCount >= playersNeeded) {
+          draftedUnits = pickUnits(general, playersNeeded);
         } else if (
-          general.length > 0 &&
-          general.length + losers.length >= playersNeeded
+          generalCount > 0 &&
+          generalCount + losersCount >= playersNeeded
         ) {
           // Leftover GENERAL overflow into LOSERS bracket
-          const neededFromLosers = playersNeeded - general.length;
-          draftedEntries = [...general, ...losers.slice(0, neededFromLosers)];
+          draftedUnits = pickUnits([...general, ...losers], playersNeeded);
         } else if (
-          winners.length >= playersNeeded &&
-          losers.length >= playersNeeded
+          winnersCount >= playersNeeded &&
+          losersCount >= playersNeeded
         ) {
           // Both brackets have enough players — use priority to decide, alternator as tiebreaker
           const bestWinner = winners[0];
           const bestLoser = losers[0];
-          const winnerPlayed =
-            this.state.players[bestWinner.username]?.matchesPlayed ?? 0;
-          const loserPlayed =
-            this.state.players[bestLoser.username]?.matchesPlayed ?? 0;
 
           let draftWinnersFirst: boolean;
-          if (winnerPlayed !== loserPlayed) {
+          if (bestWinner.minPlayed !== bestLoser.minPlayed) {
             // Priority: fewer matches played goes first
-            draftWinnersFirst = winnerPlayed < loserPlayed;
+            draftWinnersFirst = bestWinner.minPlayed < bestLoser.minPlayed;
           } else if (bestWinner.enteredAt !== bestLoser.enteredAt) {
             // Priority: earlier enteredAt goes first
             draftWinnersFirst = bestWinner.enteredAt < bestLoser.enteredAt;
@@ -1579,26 +1794,32 @@ export class LocalMatchmakingSystem {
             preferWinners = !preferWinners;
           }
 
-          if (draftWinnersFirst) {
-            draftedEntries = winners.slice(0, playersNeeded);
-          } else {
-            draftedEntries = losers.slice(0, playersNeeded);
-          }
-        } else if (winners.length >= playersNeeded) {
-          draftedEntries = winners.slice(0, playersNeeded);
-        } else if (losers.length >= playersNeeded) {
-          draftedEntries = losers.slice(0, playersNeeded);
+          draftedUnits = pickUnits(
+            draftWinnersFirst ? winners : losers,
+            playersNeeded,
+          );
+        } else if (winnersCount >= playersNeeded) {
+          draftedUnits = pickUnits(winners, playersNeeded);
+        } else if (losersCount >= playersNeeded) {
+          draftedUnits = pickUnits(losers, playersNeeded);
         } else {
-          draftedEntries = prioritizedQueue.slice(0, playersNeeded);
+          draftedUnits = pickUnits(units, playersNeeded);
         }
       }
 
-      const draftedUsernames = draftedEntries.map((e) => e.username);
+      if (!draftedUnits || draftedUnits.length === 0) break;
 
-      // Remove drafted entries from the temporary priority array for the next iteration
-      for (let i = prioritizedQueue.length - 1; i >= 0; i--) {
-        if (draftedUsernames.includes(prioritizedQueue[i].username)) {
-          prioritizedQueue.splice(i, 1);
+      const draftedEntries = draftedUnits.flatMap((u) => u.entries);
+      const draftedUsernames = draftedEntries.map((e) => e.username);
+      const pinnedPairs = draftedUnits
+        .filter((u) => u.entries.length > 1)
+        .map((u) => u.entries.map((e) => e.username));
+
+      // Remove drafted units from the pool for the next iteration
+      const draftedSet = new Set(draftedUnits);
+      for (let i = units.length - 1; i >= 0; i--) {
+        if (draftedSet.has(units[i])) {
+          units.splice(i, 1);
         }
       }
 
@@ -1621,6 +1842,7 @@ export class LocalMatchmakingSystem {
         playersToBalance,
         this.state.teamSize,
         this.state.matchmakingMode || 'fair_balance',
+        pinnedPairs.length > 0 ? pinnedPairs : undefined,
       );
 
       // Validate no duplicate players in the match
@@ -1975,6 +2197,7 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
         p.updatedAt ?? 0,
         p.deletedAt ?? 0,
         p.statsUpdatedAt ?? 0,
+        p.linkUpdatedAt ?? 0,
       );
       if (effectiveTime >= checkpoint) {
         filtered[key] = p;
@@ -1995,6 +2218,7 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
         q.createdAt ?? 0,
         q.updatedAt ?? 0,
         q.deletedAt ?? 0,
+        q.lockUpdatedAt ?? 0,
       );
       return effectiveTime >= checkpoint;
     });
@@ -2081,10 +2305,15 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     const baseRatingAt = baseWinner.ratingUpdatedAt ?? 0;
     const otherRatingAt = other.ratingUpdatedAt ?? 0;
     const overlayRating = otherRatingAt > baseRatingAt;
+    // Link state has its own LWW token so a concurrent non-stat edit (level,
+    // avatar) on the winning side can't clobber a newer link/unlink.
+    const baseLinkAt = baseWinner.linkUpdatedAt ?? 0;
+    const otherLinkAt = other.linkUpdatedAt ?? 0;
+    const overlayLink = otherLinkAt > baseLinkAt;
 
     // Copy only when an overlay will actually mutate — otherwise the merged
     // player keeps the winning side's original object reference.
-    if (overlayStats || overlayRating) {
+    if (overlayStats || overlayRating || overlayLink) {
       baseWinner = { ...baseWinner };
       if (overlayStats) {
         baseWinner.matchesPlayed = other.matchesPlayed;
@@ -2096,6 +2325,11 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       if (overlayRating) {
         baseWinner.rating = other.rating;
         baseWinner.ratingUpdatedAt = otherRatingAt;
+      }
+      if (overlayLink) {
+        baseWinner.linkedTo = other.linkedTo;
+        baseWinner.linkedAt = other.linkedAt;
+        baseWinner.linkUpdatedAt = otherLinkAt;
       }
     }
 
@@ -2158,6 +2392,13 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       if (loser && loserRatingAt > winnerRatingAt) {
         winner.rating = loser.rating;
         winner.ratingUpdatedAt = loserRatingAt;
+      }
+      const winnerLinkAt = winner.linkUpdatedAt ?? 0;
+      const loserLinkAt = loser?.linkUpdatedAt ?? 0;
+      if (loser && loserLinkAt > winnerLinkAt) {
+        winner.linkedTo = loser.linkedTo;
+        winner.linkedAt = loser.linkedAt;
+        winner.linkUpdatedAt = loserLinkAt;
       }
 
       mergedPlayers[username] = winner;
@@ -2226,7 +2467,22 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       return eTime > bestTime ? e : best;
     }, candidates[0]!);
 
-    latestPerPlayer.set(winner.username, winner);
+    // Overlay the freshest lock write — lockUpdatedAt isolates lock state
+    // from concurrent entry changes (bracket moves, re-queue).
+    let mergedEntry = winner;
+    if (!winner.deletedAt) {
+      for (const e of candidates) {
+        if ((e.lockUpdatedAt ?? 0) > (mergedEntry.lockUpdatedAt ?? 0)) {
+          mergedEntry = {
+            ...mergedEntry,
+            lockedAt: e.lockedAt,
+            lockUpdatedAt: e.lockUpdatedAt,
+          };
+        }
+      }
+    }
+
+    latestPerPlayer.set(winner.username, mergedEntry);
   });
 
   latestPerPlayer.forEach((entry) => mergedQueues.push(entry));
