@@ -1686,12 +1686,7 @@ const queue = computed(() => {
         lockedAt: q.lockedAt,
         avoidSummary: p.avoids
           ? Object.keys(p.avoids)
-              .map(
-                (t) =>
-                  `${MatchmakingApp.state.players[t]?.firstName || t}${
-                    p.avoids![t] === 'match' ? ' (match)' : ''
-                  }`,
-              )
+              .map((t) => MatchmakingApp.state.players[t]?.firstName || t)
               .join(', ')
           : undefined,
         avoidedBy: avoidedByMap.value[p.username]?.join(', '),

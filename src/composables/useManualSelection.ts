@@ -117,13 +117,13 @@ export function useManualSelection(context: UseManualSelectionContext) {
       return;
     }
 
-    // Soft match-scope heads-up — admin may proceed deliberately.
+    // Soft heads-up on any avoid relation — admin may proceed deliberately.
     const conflict = selectedPlayers.value.find(
       (p) =>
-        MatchmakingApp.state.players[player.username]?.avoids?.[p.username] ===
-          'match' ||
-        MatchmakingApp.state.players[p.username]?.avoids?.[player.username] ===
-          'match',
+        MatchmakingApp.state.players[player.username]?.avoids?.[p.username] !==
+          undefined ||
+        MatchmakingApp.state.players[p.username]?.avoids?.[player.username] !==
+          undefined,
     );
     if (conflict) {
       notify({
@@ -212,14 +212,14 @@ export function useManualSelection(context: UseManualSelectionContext) {
       return;
     }
 
-    // Hard partner-scope avoids — block if a pair would share a team.
+    // Hard teammate ban — block if an avoid pair would share a team.
     const teamConflict = (team: Player[]): string | null => {
       const names = new Set(team.map((p) => p.username));
       for (const p of team) {
         const avoids = MatchmakingApp.state.players[p.username]?.avoids;
         if (!avoids) continue;
-        for (const [target, scope] of Object.entries(avoids)) {
-          if (scope === 'partner' && names.has(target)) {
+        for (const target of Object.keys(avoids)) {
+          if (names.has(target)) {
             const a = p.firstName || p.username;
             const b = MatchmakingApp.state.players[target]?.firstName || target;
             return `"${a}" can't be teamed with "${b}"`;

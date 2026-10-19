@@ -222,15 +222,15 @@ const pairPartner = (p: Player): Player | null => {
   );
 };
 
-// Hard partner-scope avoids — two players with a 'partner' avoid must never
+// Hard teammate ban — two players with an avoid between them must never
 // share a team. Returns a description when the team has such a conflict.
 const partnerConflict = (team: Player[]): string | null => {
   const names = new Set(team.map((p) => p.username));
   for (const p of team) {
     const avoids = MatchmakingApp.state.players[p.username]?.avoids;
     if (!avoids) continue;
-    for (const [target, scope] of Object.entries(avoids)) {
-      if (scope === 'partner' && names.has(target)) {
+    for (const target of Object.keys(avoids)) {
+      if (names.has(target)) {
         const a = p.firstName || p.username;
         const b = MatchmakingApp.state.players[target]?.firstName || target;
         return `"${a}" can't be teamed with "${b}"`;
