@@ -69,7 +69,11 @@
           >
         </q-badge>
         <q-badge
-          v-if="player.avoids && Object.keys(player.avoids).length > 0"
+          v-if="
+            showActions &&
+            player.avoids &&
+            Object.keys(player.avoids).length > 0
+          "
           floating
           rounded
           color="deep-orange"
@@ -90,7 +94,7 @@
           >
         </q-badge>
         <q-badge
-          v-if="player.avoidedBy"
+          v-if="showActions && player.avoidedBy"
           floating
           rounded
           color="grey-6"
