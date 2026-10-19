@@ -1,7 +1,10 @@
 import { type ComputedRef, ref } from 'vue';
 import { useQuasar } from 'quasar';
 import type { QNotifyCreateOptions } from 'quasar';
-import { MatchmakingApp } from 'src/services/matchmaking';
+import {
+  MatchmakingApp,
+  MAX_AVOIDS_PER_PLAYER,
+} from 'src/services/matchmaking';
 import type { Player } from 'src/services/matchmaking';
 import { PlayerProfile } from 'src/services/playerProfile';
 import { useNotify } from 'src/composables/useNotify';
@@ -287,10 +290,8 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
       options: {
         type: 'checkbox',
         model: [],
-        items: entries.map(([target, scope]) => ({
-          label: `${displayNameOf(target)} — ${
-            scope === 'partner' ? 'never same team' : 'not same match'
-          }`,
+        items: entries.map(([target]) => ({
+          label: displayNameOf(target),
           value: target,
           color: 'negative',
         })),
@@ -342,6 +343,23 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
     const reverse =
       MatchmakingApp.state.players[targetUsername]?.avoids?.[source];
 
+    // Outgoing cap — a player may only hold MAX_AVOIDS_PER_PLAYER avoids.
+    // Re-selecting the existing target still opens the manage dialog.
+    if (!existing) {
+      const current = Object.keys(MatchmakingApp.getPlayerAvoids(source));
+      if (current.length >= MAX_AVOIDS_PER_PLAYER) {
+        notify({
+          type: 'warning',
+          icon: 'person_off',
+          message:
+            `"${sourceName}" already avoids "${displayNameOf(current[0])}" — ` +
+            `a player can only avoid ${MAX_AVOIDS_PER_PLAYER === 1 ? 'one player' : `${MAX_AVOIDS_PER_PLAYER} players`}. Remove it first.`,
+        });
+        cancelAvoidMode();
+        return true;
+      }
+    }
+
     // Dynamic import keeps the .vue component out of the composable graph —
     // vitest has no vue plugin for import analysis.
     void import('src/components/club/AvoidPlayerDialog.vue').then(
@@ -351,53 +369,48 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
           componentProps: {
             sourceName,
             targetName,
-            existingScope: existing ?? null,
+            existingAvoid: !!existing,
             existingBothWays: !!existing && !!reverse,
           },
         })
-          .onOk(
-            (payload: {
-              scope?: 'partner' | 'match';
-              bothWays?: boolean;
-              remove?: boolean;
-            }) => {
-              if (payload?.remove) {
-                MatchmakingApp.removePlayerAvoid(source, targetUsername);
-                logAction('remove_avoid', {
+          .onOk((payload: { bothWays?: boolean; remove?: boolean }) => {
+            if (payload?.remove) {
+              MatchmakingApp.removePlayerAvoid(source, targetUsername);
+              logAction('remove_avoid', {
+                player: sourceName,
+                target: targetName,
+              });
+              notify({
+                type: 'info',
+                message: `"${sourceName}" no longer avoids "${targetName}"`,
+              });
+            } else {
+              if (
+                MatchmakingApp.setPlayerAvoid(
+                  source,
+                  targetUsername,
+                  payload?.bothWays ?? false,
+                )
+              ) {
+                logAction('set_avoid', {
                   player: sourceName,
                   target: targetName,
+                  bothWays: payload?.bothWays,
                 });
                 notify({
-                  type: 'info',
-                  message: `"${sourceName}" no longer avoids "${targetName}"`,
+                  type: 'positive',
+                  message: `"${sourceName}" prefers to avoid "${targetName}"`,
                 });
-              } else if (payload?.scope) {
-                if (
-                  MatchmakingApp.setPlayerAvoid(
-                    source,
-                    targetUsername,
-                    payload.scope,
-                    payload.bothWays ?? false,
-                  )
-                ) {
-                  logAction('set_avoid', {
-                    player: sourceName,
-                    target: targetName,
-                    scope: payload.scope,
-                    bothWays: payload.bothWays,
-                  });
-                  notify({
-                    type: 'positive',
-                    message:
-                      payload.scope === 'partner'
-                        ? `"${sourceName}" won't be teamed with "${targetName}"`
-                        : `"${sourceName}" prefers to avoid "${targetName}"`,
-                  });
-                }
+              } else {
+                notify({
+                  type: 'warning',
+                  icon: 'person_off',
+                  message: `Couldn't set the avoid — limit reached or "${targetName}" already has too many avoid restrictions`,
+                });
               }
-              cancelAvoidMode();
-            },
-          )
+            }
+            cancelAvoidMode();
+          })
           .onDismiss(cancelAvoidMode);
       },
     );

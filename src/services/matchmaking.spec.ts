@@ -755,57 +755,74 @@ describe('player avoids (session preferences)', () => {
     const sys = new LocalMatchmakingSystem(2);
     queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }]);
 
-    expect(sys.setPlayerAvoid('a', 'b', 'partner')).toBe(true);
-    expect(sys.getPlayerAvoids('a')).toEqual({ b: 'partner' });
-    expect(sys.getPlayerAvoids('b')).toEqual({});
+    expect(sys.setPlayerAvoid('a', 'b', true)).toBe(true);
+    expect(sys.getPlayerAvoids('a')).toEqual({ b: 'match' });
+    expect(sys.getPlayerAvoids('b')).toEqual({ a: 'match' });
 
-    expect(sys.setPlayerAvoid('a', 'c', 'match', true)).toBe(true);
-    expect(sys.getPlayerAvoids('a')).toEqual({ b: 'partner', c: 'match' });
+    expect(sys.setPlayerAvoid('c', 'a')).toBe(true);
     expect(sys.getPlayerAvoids('c')).toEqual({ a: 'match' });
+    expect(sys.getPlayerAvoids('a')).toEqual({ b: 'match' });
   });
 
   it('refuses self-avoids, missing/deleted players, and linked partners', () => {
     const sys = new LocalMatchmakingSystem(2);
     queueUp(sys, [{ name: 'a' }, { name: 'b' }]);
 
-    expect(sys.setPlayerAvoid('a', 'a', 'partner')).toBe(false);
-    expect(sys.setPlayerAvoid('a', 'ghost', 'match')).toBe(false);
+    expect(sys.setPlayerAvoid('a', 'a')).toBe(false);
+    expect(sys.setPlayerAvoid('a', 'ghost')).toBe(false);
 
     sys.setPlayerLink('a', 'b');
-    expect(sys.setPlayerAvoid('a', 'b', 'partner')).toBe(false);
-    expect(sys.setPlayerAvoid('b', 'a', 'match')).toBe(false);
+    expect(sys.setPlayerAvoid('a', 'b')).toBe(false);
+    expect(sys.setPlayerAvoid('b', 'a')).toBe(false);
+  });
+
+  it('outgoing cap: a player may avoid at most MAX_AVOIDS_PER_PLAYER targets', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }]);
+
+    expect(sys.setPlayerAvoid('a', 'b')).toBe(true);
+    expect(sys.setPlayerAvoid('a', 'c')).toBe(false); // cap = 1
+    // Re-writing the same target doesn't consume another slot.
+    expect(sys.setPlayerAvoid('a', 'b')).toBe(true);
+    // Freeing the slot lets a different target be avoided.
+    sys.removePlayerAvoid('a', 'b');
+    expect(sys.setPlayerAvoid('a', 'c')).toBe(true);
+    // bothWays counts against both players' caps — d and c both have a free
+    // slot, so this writes both directions.
+    expect(sys.setPlayerAvoid('d', 'c', true)).toBe(true);
+    expect(sys.getPlayerAvoids('c')).toEqual({ d: 'match' });
+    // Now c is capped too — another outgoing write is refused.
+    expect(sys.setPlayerAvoid('c', 'a')).toBe(false);
+  });
+
+  it('incoming cap: a target cannot be walled off by half the queue', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [
+      { name: 't' },
+      { name: 'a' },
+      { name: 'b' },
+      { name: 'c' },
+      { name: 'd' },
+      { name: 'e' },
+    ]);
+    // 6 live queued → incoming limit = ceil(6 * 0.5) = 3.
+    expect(sys.setPlayerAvoid('a', 't')).toBe(true);
+    expect(sys.setPlayerAvoid('b', 't')).toBe(true);
+    expect(sys.setPlayerAvoid('c', 't')).toBe(true);
+    expect(sys.setPlayerAvoid('d', 't')).toBe(false); // would be the 4th
+    expect(sys.setPlayerAvoid('e', 't')).toBe(false);
   });
 
   it('linking is refused between players who avoid each other', () => {
     const sys = new LocalMatchmakingSystem(2);
     queueUp(sys, [{ name: 'a' }, { name: 'b' }]);
-    sys.setPlayerAvoid('a', 'b', 'partner');
+    sys.setPlayerAvoid('a', 'b');
     expect(sys.setPlayerLink('a', 'b')).toBe(false);
     sys.removePlayerAvoid('a', 'b');
     expect(sys.setPlayerLink('a', 'b')).toBe(true);
   });
 
-  it('partner scope: match drafts normally but avoid pair lands on opposite teams', () => {
-    const sys = new LocalMatchmakingSystem(2);
-    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }]);
-    sys.setPlayerAvoid('a', 'b', 'partner');
-
-    sys.draftNextMatches('timestamp', 'test');
-    const match = sys.state.activeMatches[0];
-    expect(match).toBeTruthy();
-    expect([...match.teamA, ...match.teamB].sort()).toEqual([
-      'a',
-      'b',
-      'c',
-      'd',
-    ]);
-    // a and b must be on different teams
-    expect(match.teamA.includes('a')).not.toBe(match.teamA.includes('b'));
-    expect(sys.lastDraftInfo.blockers).toEqual([]);
-    expect(sys.lastDraftInfo.violations).toEqual([]);
-  });
-
-  it('match scope: honored when a valid combo exists — target stays queued', () => {
+  it('avoid honored when a valid combo exists — target stays queued', () => {
     const sys = new LocalMatchmakingSystem(2);
     queueUp(sys, [
       { name: 'a' },
@@ -814,7 +831,7 @@ describe('player avoids (session preferences)', () => {
       { name: 'd' },
       { name: 'e' },
     ]);
-    sys.setPlayerAvoid('a', 'b', 'match');
+    sys.setPlayerAvoid('a', 'b');
 
     sys.draftNextMatches('timestamp', 'test');
     const drafted = draftedUsernames(sys);
@@ -825,18 +842,27 @@ describe('player avoids (session preferences)', () => {
     expect(sys.lastDraftInfo.violations).toEqual([]);
   });
 
-  it('match scope: soft fallback forms the match with a violation warning', () => {
+  it('soft fallback: forced same match, but avoid pair sits on opposite teams', () => {
     const sys = new LocalMatchmakingSystem(2);
     queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }]);
-    sys.setPlayerAvoid('a', 'b', 'match');
+    sys.setPlayerAvoid('a', 'b');
 
     sys.draftNextMatches('timestamp', 'test');
-    // Only 4 players — no combo without b, so the match forms anyway.
-    expect(draftedUsernames(sys).sort()).toEqual(['a', 'b', 'c', 'd']);
+    const match = sys.state.activeMatches[0];
+    // Only 4 players — no combo without b, so the match forms anyway…
+    expect(match).toBeTruthy();
+    expect([...match.teamA, ...match.teamB].sort()).toEqual([
+      'a',
+      'b',
+      'c',
+      'd',
+    ]);
+    // …but a and b must face each other — never teammates.
+    expect(match.teamA.includes('a')).not.toBe(match.teamA.includes('b'));
     expect(sys.lastDraftInfo.violations).toEqual([{ from: 'a', to: 'b' }]);
   });
 
-  it('multiple avoids: match-scope target skipped, partner-scope pair split', () => {
+  it('multiple avoiders of the same target — target skipped from their matches', () => {
     const sys = new LocalMatchmakingSystem(2);
     queueUp(sys, [
       { name: 'a' },
@@ -845,21 +871,15 @@ describe('player avoids (session preferences)', () => {
       { name: 'd' },
       { name: 'e' },
     ]);
-    sys.setPlayerAvoid('a', 'c', 'match');
-    sys.setPlayerAvoid('a', 'b', 'partner');
+    sys.setPlayerAvoid('a', 'b');
+    sys.setPlayerAvoid('c', 'b'); // b is now avoided by two players
 
     sys.draftNextMatches('timestamp', 'test');
-    const match = sys.state.activeMatches[0];
-    expect([...match.teamA, ...match.teamB].sort()).toEqual([
-      'a',
-      'b',
-      'd',
-      'e',
-    ]);
-    expect(match.teamA.includes('a')).not.toBe(match.teamA.includes('b'));
+    // No combo containing a or c can include b → b skipped.
+    expect(draftedUsernames(sys).sort()).toEqual(['a', 'c', 'd', 'e']);
   });
 
-  it('pair units inherit avoids — a linked unit match-avoids a third player', () => {
+  it('pair units inherit avoids — a linked unit avoids a third player', () => {
     const sys = new LocalMatchmakingSystem(2);
     queueUp(sys, [
       { name: 'a' },
@@ -869,7 +889,7 @@ describe('player avoids (session preferences)', () => {
       { name: 'e' },
     ]);
     sys.setPlayerLink('a', 'b');
-    sys.setPlayerAvoid('a', 'c', 'match');
+    sys.setPlayerAvoid('a', 'c');
 
     sys.draftNextMatches('timestamp', 'test');
     const drafted = draftedUsernames(sys);
@@ -879,11 +899,11 @@ describe('player avoids (session preferences)', () => {
     expect(abTeam).toContain('b');
   });
 
-  it('partner scope + pinned pair makes a combo infeasible → blockers reported', () => {
+  it('pinned pair + avoid makes a combo infeasible → blockers reported', () => {
     const sys = new LocalMatchmakingSystem(2);
     queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }]);
     sys.setPlayerLink('a', 'b'); // {a,b} pinned to one team → {c,d} other team
-    sys.setPlayerAvoid('c', 'd', 'partner'); // but c can't team with d
+    sys.setPlayerAvoid('c', 'd'); // but c can't share a team with d
 
     sys.draftNextMatches('timestamp', 'test');
     // Every split violates either the pin or the avoid → no match formed.
@@ -900,13 +920,13 @@ describe('player avoids (session preferences)', () => {
 
   it('removePlayerAvoid and getPlayerAvoids honor live targets only', () => {
     const sys = new LocalMatchmakingSystem(2);
-    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }]);
-    sys.setPlayerAvoid('a', 'b', 'partner');
-    sys.setPlayerAvoid('a', 'c', 'match');
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }]);
+    sys.setPlayerAvoid('a', 'b');
+    sys.setPlayerAvoid('c', 'd');
 
     // Deleted targets drop out of the live view.
-    sys.state.players.c.deletedAt = Date.now();
-    expect(sys.getPlayerAvoids('a')).toEqual({ b: 'partner' });
+    sys.state.players.d.deletedAt = Date.now();
+    expect(sys.getPlayerAvoids('c')).toEqual({});
 
     expect(sys.removePlayerAvoid('a', 'b')).toBe(true);
     expect(sys.getPlayerAvoids('a')).toEqual({});
@@ -916,8 +936,8 @@ describe('player avoids (session preferences)', () => {
   it('clearPlayerAvoids wipes both directions on check-out', () => {
     const sys = new LocalMatchmakingSystem(2);
     queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }]);
-    sys.setPlayerAvoid('a', 'b', 'partner');
-    sys.setPlayerAvoid('c', 'b', 'match');
+    sys.setPlayerAvoid('a', 'b');
+    sys.setPlayerAvoid('c', 'b');
 
     expect(sys.clearPlayerAvoids('b')).toBe(true);
     expect(sys.state.players.b.avoids).toBeUndefined();

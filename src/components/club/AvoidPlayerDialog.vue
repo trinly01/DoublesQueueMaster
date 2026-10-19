@@ -4,25 +4,21 @@
       <DialogHeader title="Avoid Player" icon="person_off" />
 
       <q-card-section class="q-pt-sm">
-        <div class="text-body2 q-mb-md">
+        <div class="text-body2 q-mb-sm">
           <strong>{{ sourceName }}</strong> avoids
           <strong>{{ targetName }}</strong>
         </div>
-
-        <q-option-group
-          v-model="scope"
-          :options="scopeOptions"
-          color="primary"
-          type="radio"
-          dense
-        />
+        <div class="text-caption text-grey-7 q-mb-md">
+          They'll be drafted into different matches when possible. If forced
+          into the same match, they'll always be on opposite teams — never
+          teammates.
+        </div>
 
         <q-checkbox
           v-model="bothWays"
           label="Apply both ways"
           color="primary"
           dense
-          class="q-mt-sm"
         />
         <div class="text-caption text-grey-6 q-ml-lg">
           Also record that {{ targetName }} avoids {{ sourceName }}
@@ -32,7 +28,7 @@
       <q-separator />
       <q-card-actions align="between" class="q-pa-md">
         <q-btn
-          v-if="existingScope"
+          v-if="existingAvoid"
           flat
           label="Remove"
           color="negative"
@@ -44,7 +40,7 @@
           <q-btn flat label="Cancel" color="grey" @click="onDialogCancel" />
           <q-btn
             unelevated
-            :label="existingScope ? 'Update' : 'Save'"
+            :label="existingAvoid ? 'Update' : 'Save'"
             color="primary"
             @click="onSave"
           />
@@ -64,7 +60,7 @@ defineOptions({ name: 'AvoidPlayerDialog' });
 const props = defineProps<{
   sourceName: string;
   targetName: string;
-  existingScope?: 'partner' | 'match' | null;
+  existingAvoid?: boolean;
   existingBothWays?: boolean;
 }>();
 
@@ -73,24 +69,10 @@ defineEmits([...useDialogPluginComponent.emits]);
 const { dialogRef, onDialogHide, onDialogOK, onDialogCancel } =
   useDialogPluginComponent();
 
-const scope = ref<'partner' | 'match'>(props.existingScope ?? 'partner');
 const bothWays = ref<boolean>(props.existingBothWays ?? false);
 
-const scopeOptions = [
-  {
-    value: 'partner' as const,
-    label: 'Never on the same team',
-    caption: 'They may still face each other as opponents',
-  },
-  {
-    value: 'match' as const,
-    label: 'Prefer not in the same match',
-    caption: 'Honored when possible — never stalls the queue',
-  },
-];
-
 const onSave = () => {
-  onDialogOK({ scope: scope.value, bothWays: bothWays.value });
+  onDialogOK({ bothWays: bothWays.value });
 };
 
 const onRemove = () => {

@@ -30,7 +30,7 @@ export interface Player {
   linkedTo?: string; // Username of the fixed-duo partner (session-scoped). Enforced only when mutual.
   linkedAt?: number; // Epoch ms when the link was created (display).
   linkUpdatedAt?: number; // Epoch ms of the last link/unlink write (dedicated LWW token — isolates link state from other player edits)
-  avoids?: Record<string, 'partner' | 'match'>; // Session-scoped avoid map: target username → scope. 'partner' = never same team (hard), 'match' = prefer not in same match (soft)
+  avoids?: Record<string, 'partner' | 'match'>; // Session-scoped avoid map: target username → 'match' (legacy 'partner' entries are treated the same). Semantics: prefer different matches (soft), and when forced into the same match the pair must sit on opposite teams (hard).
   avoidUpdatedAt?: number; // Epoch ms of the last avoid write (dedicated LWW token — isolates avoid state from other player edits)
   deletedAt?: number; // Epoch ms of deletion (tombstone). If present, player is logically deleted.
   addedAt?: number; // Epoch ms when player was last made live (add / re-add). Analogous to QueueEntry.queuedAt; decides resurrection vs tombstone.
@@ -39,6 +39,19 @@ export interface Player {
     playedAgainst: Record<string, number>;
   };
 }
+
+/**
+ * Max simultaneous avoids per player. 1 = "the one person I won't share a
+ * court with" — keeps avoids a remedy, not a field-shaping tool. Raise to
+ * allow several; the map already supports multiple entries.
+ */
+export const MAX_AVOIDS_PER_PLAYER = 1;
+/**
+ * Max incoming avoids a target can accumulate, as a fraction of the live
+ * queue. Prevents a coordinated soft-ban (half the club refusing to share a
+ * court with one player). 0.5 = at most half the queue may avoid one target.
+ */
+export const MAX_INCOMING_AVOID_RATIO = 0.5;
 
 export interface QueueEntry {
   username: string;
@@ -1660,17 +1673,17 @@ export class LocalMatchmakingSystem {
   }
 
   /**
-   * Record that `username` avoids `target`. scope: 'partner' bans them from
-   * the same team (hard), 'match' prefers them out of the match entirely
-   * (soft — relaxed only when no valid combo exists). `bothWays` writes the
-   * reverse entry too. Refuses self-avoids, missing/deleted players, and
-   * avoiding a currently linked partner (contradiction — unpair first).
-   * Returns false when refused.
+   * Record that `username` avoids `target` — a single "never share a court"
+   * preference: drafting prefers different matches (soft), and if forced
+   * into the same match they must be on opposite teams (hard). `bothWays`
+   * writes the reverse entry too (counted against both players' caps).
+   * Refuses self-avoids, missing/deleted players, linked partners, writes
+   * past MAX_AVOIDS_PER_PLAYER, and targets already avoided by more than
+   * MAX_INCOMING_AVOID_RATIO of the live queue. Returns false when refused.
    */
   public setPlayerAvoid(
     username: string,
     target: string,
-    scope: 'partner' | 'match',
     bothWays = false,
   ): boolean {
     const a = this.state.players[username];
@@ -1685,14 +1698,48 @@ export class LocalMatchmakingSystem {
     ) {
       return false;
     }
+    // Outgoing cap — avoids are a remedy, not a field-shaping tool.
+    // Re-writing an existing target doesn't consume another slot.
+    const outgoingCount = (p: typeof a, exclude: string) =>
+      Object.keys(p?.avoids ?? {}).filter((t) => t !== exclude).length;
+    if (outgoingCount(a, target) >= MAX_AVOIDS_PER_PLAYER) return false;
+    if (bothWays && outgoingCount(b, username) >= MAX_AVOIDS_PER_PLAYER) {
+      return false;
+    }
+    // Incoming cap — can't wall off one player with half the session.
+    const liveQueued = new Set(
+      this.state.queues.filter((q) => !q.deletedAt).map((q) => q.username),
+    ).size;
+    const incomingLimit = Math.max(
+      1,
+      Math.ceil(liveQueued * MAX_INCOMING_AVOID_RATIO),
+    );
+    const incomingCount = (t: string, exclude: string) =>
+      Object.entries(this.state.players).filter(
+        ([name, p]) =>
+          name !== exclude && !p.deletedAt && p.avoids && t in p.avoids,
+      ).length;
+    if (
+      !(target in (a.avoids ?? {})) &&
+      incomingCount(target, username) >= incomingLimit
+    ) {
+      return false;
+    }
+    if (
+      bothWays &&
+      !(username in (b.avoids ?? {})) &&
+      incomingCount(username, target) >= incomingLimit
+    ) {
+      return false;
+    }
     const now = Date.now();
     // avoidUpdatedAt is the dedicated LWW token — updatedAt is intentionally
     // untouched so an avoid write can't win whole-object merge and clobber a
     // concurrent profile edit on another device.
-    (a.avoids ??= {})[target] = scope;
+    (a.avoids ??= {})[target] = 'match';
     a.avoidUpdatedAt = now;
     if (bothWays) {
-      (b.avoids ??= {})[username] = scope;
+      (b.avoids ??= {})[username] = 'match';
       b.avoidUpdatedAt = now;
     }
     this.state.lastModified = now;
@@ -1879,17 +1926,17 @@ export class LocalMatchmakingSystem {
       list.reduce((n, u) => n + u.entries.length, 0);
 
     // --- Avoid constraints ---
-    // 'match' scope is SOFT: prefer conflict-free combos, fall back to the
-    // least-bad combo with a warning (never freeze the queue).
-    // 'partner' scope is HARD: enforced at team-split feasibility — the
-    // balancer will never put them on the same team.
+    // Single "never share a court" semantics: SOFT at match level (prefer
+    // conflict-free combos, fall back to the least-bad combo with a warning
+    // so the queue never freezes) but HARD at team level — when forced into
+    // the same match, avoided pairs must sit on opposite teams.
 
-    // Soft-scope violations committed this draft run (surfaced to the admin).
+    // Soft violations committed this draft run (surfaced to the admin).
     const draftViolations: { from: string; to: string }[] = [];
-    // Hard-scope avoids that made every combo infeasible (draft stalled).
+    // Avoids that made every combo infeasible (draft stalled — admin resolves).
     const draftBlockers: { from: string; to: string }[] = [];
 
-    /** Match-scope conflicts between a candidate unit and already-chosen units (either direction counts). */
+    /** Avoid conflicts between a candidate unit and already-chosen units (either direction counts). */
     const matchConflicts = (
       u: DraftUnit,
       chosen: DraftUnit[],
@@ -1897,7 +1944,6 @@ export class LocalMatchmakingSystem {
       const uNames = new Set(u.entries.map((e) => e.username));
       const out: { from: string; to: string }[] = [];
       for (const ap of u.avoidPairs) {
-        if (ap.scope !== 'match') continue;
         for (const c of chosen) {
           if (c.entries.some((e) => e.username === ap.to)) {
             out.push({ from: ap.from, to: ap.to });
@@ -1906,7 +1952,7 @@ export class LocalMatchmakingSystem {
       }
       for (const c of chosen) {
         for (const ap of c.avoidPairs) {
-          if (ap.scope === 'match' && uNames.has(ap.to)) {
+          if (uNames.has(ap.to)) {
             out.push({ from: ap.from, to: ap.to });
           }
         }
@@ -1916,8 +1962,8 @@ export class LocalMatchmakingSystem {
 
     /**
      * Can the chosen units be split into two teams of `teamSize` with every
-     * multi-entry unit kept together and no partner-scope avoid pair on the
-     * same team? DFS over unit→team assignment.
+     * multi-entry unit kept together and no avoid pair on the same team?
+     * DFS over unit→team assignment.
      */
     const canSplitTeams = (chosen: DraftUnit[]): boolean => {
       const all = new Set(
@@ -1926,7 +1972,7 @@ export class LocalMatchmakingSystem {
       const banned: [string, string][] = [];
       for (const u of chosen) {
         for (const ap of u.avoidPairs) {
-          if (ap.scope === 'partner' && all.has(ap.to)) {
+          if (all.has(ap.to)) {
             banned.push([ap.from, ap.to]);
           }
         }
@@ -1963,8 +2009,8 @@ export class LocalMatchmakingSystem {
     // Pick a priority-ordered subset of units totalling exactly `needed`
     // players. Include-first DFS prefers earlier units; units are atomic so a
     // pair can never be split across a match boundary. Two passes: strict
-    // (honor match-avoids) then relaxed (violate, but report). Partner-avoids
-    // stay hard in both passes via canSplitTeams.
+    // (honor avoids) then relaxed (violate, but report). Opposite-team
+    // separation stays hard in both passes via canSplitTeams.
     let visited = 0;
     const pickUnits = (
       list: DraftUnit[],
@@ -2071,9 +2117,9 @@ export class LocalMatchmakingSystem {
       }
 
       if (!draftedUnits || draftedUnits.length === 0) {
-        // No valid combo despite enough players — hard partner-scope avoids
-        // (or unit indivisibility) made every split infeasible. Report the
-        // offending pairs so the admin can resolve them manually.
+        // No valid combo despite enough players — avoids (or unit
+        // indivisibility) made every split infeasible. Report the offending
+        // pairs so the admin can resolve them manually.
         if (countPlayers(units) >= playersNeeded) {
           const pooled = new Set(
             units.flatMap((u) => u.entries.map((e) => e.username)),
@@ -2081,11 +2127,7 @@ export class LocalMatchmakingSystem {
           const seen = new Set<string>();
           for (const u of units) {
             for (const ap of u.avoidPairs) {
-              if (
-                ap.scope === 'partner' &&
-                pooled.has(ap.to) &&
-                !seen.has(`${ap.from}:${ap.to}`)
-              ) {
+              if (pooled.has(ap.to) && !seen.has(`${ap.from}:${ap.to}`)) {
                 seen.add(`${ap.from}:${ap.to}`);
                 draftBlockers.push({ from: ap.from, to: ap.to });
               }
@@ -2101,12 +2143,12 @@ export class LocalMatchmakingSystem {
       const pinnedPairs = draftedUnits
         .filter((u) => u.entries.length > 1)
         .map((u) => u.entries.map((e) => e.username));
-      // Hard partner-scope avoids among drafted players — balancer must never
-      // place these on the same team.
+      // Hard teammate ban among drafted players — avoided pairs may share a
+      // match under the soft fallback but must never share a team.
       const avoidTeammates: [string, string][] = [];
       for (const u of draftedUnits) {
         for (const ap of u.avoidPairs) {
-          if (ap.scope === 'partner' && draftedUsernameSet.has(ap.to)) {
+          if (draftedUsernameSet.has(ap.to)) {
             avoidTeammates.push([ap.from, ap.to]);
           }
         }

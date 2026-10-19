@@ -248,13 +248,13 @@ export function useMatchActions(context: UseMatchActionsContext) {
       if (honorsPairs.length > 0) combinations = honorsPairs;
     }
 
-    // Hard partner-scope avoids — never place the pair on the same team.
+    // Hard teammate ban — avoid pairs must never share a team.
     const avoidPairs: [string, string][] = [];
     for (const p of players) {
       const avoids = MatchmakingApp.state.players[p.username]?.avoids;
       if (!avoids) continue;
-      for (const [target, scope] of Object.entries(avoids)) {
-        if (scope === 'partner' && players.some((x) => x.username === target)) {
+      for (const target of Object.keys(avoids)) {
+        if (players.some((x) => x.username === target)) {
           avoidPairs.push([p.username, target]);
         }
       }
