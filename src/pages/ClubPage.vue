@@ -663,6 +663,7 @@
                             createdAt: match.createdAt,
                             updatedAt: match.updatedAt,
                             duprStatus: getDuprStatus(match.id),
+                            duprError: getDuprError(match.id),
                           }"
                         />
                       </q-item-section>
@@ -678,6 +679,7 @@
                           <q-menu auto-close>
                             <q-list style="min-width: 180px">
                               <q-item
+                                v-if="getDuprStatus(match.id) !== 'submitted'"
                                 clickable
                                 @click="handleSubmitSingleDupr(match.id)"
                                 :disable="
@@ -689,9 +691,11 @@
                                 <q-item-section avatar>
                                   <DuprLogo :size="20" />
                                 </q-item-section>
-                                <q-item-section style="white-space: nowrap"
-                                  >Submit to DUPR</q-item-section
-                                >
+                                <q-item-section style="white-space: nowrap">{{
+                                  getDuprStatus(match.id)
+                                    ? 'Retry DUPR submission'
+                                    : 'Submit to DUPR'
+                                }}</q-item-section>
                                 <q-item-section
                                   v-if="!isMatchDuprReady(match)"
                                   side
@@ -1203,6 +1207,7 @@
                             createdAt: match.createdAt,
                             updatedAt: match.updatedAt,
                             duprStatus: getDuprStatus(match.id),
+                            duprError: getDuprError(match.id),
                           }"
                         />
                       </q-item-section>
@@ -1218,6 +1223,7 @@
                           <q-menu auto-close>
                             <q-list style="min-width: 180px">
                               <q-item
+                                v-if="getDuprStatus(match.id) !== 'submitted'"
                                 clickable
                                 @click="handleSubmitSingleDupr(match.id)"
                                 :disable="
@@ -1229,9 +1235,11 @@
                                 <q-item-section avatar>
                                   <DuprLogo :size="20" />
                                 </q-item-section>
-                                <q-item-section style="white-space: nowrap"
-                                  >Submit to DUPR</q-item-section
-                                >
+                                <q-item-section style="white-space: nowrap">{{
+                                  getDuprStatus(match.id)
+                                    ? 'Retry DUPR submission'
+                                    : 'Submit to DUPR'
+                                }}</q-item-section>
                                 <q-item-section
                                   v-if="!isMatchDuprReady(match)"
                                   side
@@ -1538,11 +1546,11 @@ const Dupr = useDupr();
 // Map of matchId → match_key for DUPR submission (fetched from completed_match collection)
 const completedMatchKeyMap = ref<Record<string, string>>({});
 
-// DUPR submission status map: match_key → status
+// DUPR submission map: match_key → status + error message
 const duprSubmissionMap = computed(() => {
-  const map: Record<string, string> = {};
+  const map: Record<string, { status: string; error: string | null }> = {};
   for (const s of Dupr.state.submissions) {
-    map[s.match_key] = s.status;
+    map[s.match_key] = { status: s.status, error: s.error_message };
   }
   return map;
 });
@@ -1819,7 +1827,16 @@ function isMatchDuprReady(match: {
 function getDuprStatus(matchId: string): string | null {
   const key = getMatchKey(matchId);
   if (!key) return null;
-  return duprSubmissionMap.value[key] || null;
+  return duprSubmissionMap.value[key]?.status || null;
+}
+
+/**
+ * Get DUPR submission error for a completed match by its matchId.
+ */
+function getDuprError(matchId: string): string | null {
+  const key = getMatchKey(matchId);
+  if (!key) return null;
+  return duprSubmissionMap.value[key]?.error || null;
 }
 
 /**
@@ -1891,24 +1908,53 @@ async function handleSubmitAllDupr() {
   }
 
   const matchKeys: string[] = [];
+  let skippedNotReady = 0;
+  let skippedSubmitted = 0;
   for (const m of exportable) {
     const key = getMatchKey(m.matchId);
-    if (key) matchKeys.push(key);
+    if (!key) continue;
+    const status = duprSubmissionMap.value[key]?.status;
+    if (status === 'submitted') {
+      skippedSubmitted++;
+      continue;
+    }
+    if (!isMatchDuprReady(m)) {
+      skippedNotReady++;
+      continue;
+    }
+    matchKeys.push(key);
   }
 
   if (matchKeys.length === 0) {
+    const parts: string[] = [];
+    if (skippedSubmitted) parts.push(`${skippedSubmitted} already submitted`);
+    if (skippedNotReady)
+      parts.push(`${skippedNotReady} missing DUPR-connected players`);
     notify({
-      color: 'negative',
-      message: 'No synced matches available for DUPR submission',
+      color: 'info',
+      message:
+        'Nothing to submit' +
+        (parts.length ? ` (${parts.join(', ')})` : ' — no synced matches'),
     });
     return;
   }
+
+  const skippedNote =
+    skippedNotReady || skippedSubmitted
+      ? `<br><br>${[
+          skippedSubmitted ? `${skippedSubmitted} already submitted` : '',
+          skippedNotReady ? `${skippedNotReady} missing DUPR players` : '',
+        ]
+          .filter(Boolean)
+          .join(', ')} will be skipped.`
+      : '';
 
   $q.dialog({
     title: 'Submit to DUPR',
     message:
       `Submit ${matchKeys.length} completed match(es) to DUPR?<br><br>` +
-      'This will send all completed match results to DUPR for rating calculation.',
+      'This will send all completed match results to DUPR for rating calculation.' +
+      skippedNote,
     html: true,
     prompt: {
       model: '',

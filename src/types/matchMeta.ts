@@ -13,4 +13,5 @@ export interface MatchMeta {
   createdAt?: Date | string | number;
   updatedAt?: Date | string | number;
   duprStatus?: string | null;
+  duprError?: string | null;
 }
