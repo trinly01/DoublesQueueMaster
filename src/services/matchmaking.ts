@@ -30,6 +30,8 @@ export interface Player {
   linkedTo?: string; // Username of the fixed-duo partner (session-scoped). Enforced only when mutual.
   linkedAt?: number; // Epoch ms when the link was created (display).
   linkUpdatedAt?: number; // Epoch ms of the last link/unlink write (dedicated LWW token — isolates link state from other player edits)
+  avoids?: Record<string, 'partner' | 'match'>; // Session-scoped avoid map: target username → scope. 'partner' = never same team (hard), 'match' = prefer not in same match (soft)
+  avoidUpdatedAt?: number; // Epoch ms of the last avoid write (dedicated LWW token — isolates avoid state from other player edits)
   deletedAt?: number; // Epoch ms of deletion (tombstone). If present, player is logically deleted.
   addedAt?: number; // Epoch ms when player was last made live (add / re-add). Analogous to QueueEntry.queuedAt; decides resurrection vs tombstone.
   history?: {
@@ -763,6 +765,7 @@ export const MatchmakerEngine = {
       | 'strict_balance'
       | 'fair_balance' = 'fair_balance',
     pinnedPairs?: string[][],
+    avoidTeammates?: [string, string][],
   ) => {
     let allMatchups = MatchmakerEngine.getCombinations(players, teamSize);
 
@@ -780,6 +783,31 @@ export const MatchmakerEngine = {
         });
       const constrained = allMatchups.filter(onSameTeam);
       if (constrained.length > 0) allMatchups = constrained;
+    }
+
+    // Hard avoid constraint (partner scope): these pairs must NEVER share a
+    // team. Unlike pinnedPairs there is no silent fallback — when no matchup
+    // satisfies the constraint the caller is told via the empty-evaluated
+    // guard below, so unit selection can try a different combination.
+    if (avoidTeammates?.length) {
+      const onDifferentTeams = (matchup: {
+        teamA: Player[];
+        teamB: Player[];
+      }) =>
+        avoidTeammates.every(([a, b]) => {
+          const aInA = matchup.teamA.some((p) => p.username === a);
+          const bInA = matchup.teamA.some((p) => p.username === b);
+          return aInA !== bInA;
+        });
+      allMatchups = allMatchups.filter(onDifferentTeams);
+      if (allMatchups.length === 0) {
+        return {
+          teamA: [],
+          teamB: [],
+          expectedDifference: 0,
+          infeasible: true,
+        };
+      }
     }
 
     const evaluated = allMatchups.map((matchup) => {
@@ -903,6 +931,15 @@ export const MatchmakerEngine = {
 export class LocalMatchmakingSystem {
   public state: AppState;
   public onStateChange: (() => void) | null = null;
+  /**
+   * Result of the last draftNextMatches run (transient, not synced):
+   * - violations: soft 'match'-scope avoids that could not be honored
+   * - blockers: hard 'partner'-scope avoids that prevented any valid draft
+   */
+  public lastDraftInfo: {
+    violations: { from: string; to: string }[];
+    blockers: { from: string; to: string }[];
+  } = { violations: [], blockers: [] };
   // When true, settings watchers should NOT emit action-log entries.
   // Set around programmatic merges (mergeAppState, copyServerSettings) so
   // that server-driven settings changes don't produce false "settings_change"
@@ -1557,6 +1594,10 @@ export class LocalMatchmakingSystem {
     ) {
       return false;
     }
+    // Contradiction: can't fixed-pair two players when either avoids the other.
+    if (a.avoids?.[usernameB] || b.avoids?.[usernameA]) {
+      return false;
+    }
     const now = Date.now();
     // linkUpdatedAt is the dedicated LWW token — updatedAt is intentionally
     // untouched so a link write can't win whole-object merge and clobber a
@@ -1619,6 +1660,119 @@ export class LocalMatchmakingSystem {
   }
 
   /**
+   * Record that `username` avoids `target`. scope: 'partner' bans them from
+   * the same team (hard), 'match' prefers them out of the match entirely
+   * (soft — relaxed only when no valid combo exists). `bothWays` writes the
+   * reverse entry too. Refuses self-avoids, missing/deleted players, and
+   * avoiding a currently linked partner (contradiction — unpair first).
+   * Returns false when refused.
+   */
+  public setPlayerAvoid(
+    username: string,
+    target: string,
+    scope: 'partner' | 'match',
+    bothWays = false,
+  ): boolean {
+    const a = this.state.players[username];
+    const b = this.state.players[target];
+    if (!a || !b || a.deletedAt || b.deletedAt || username === target) {
+      return false;
+    }
+    // Can't avoid the player you're fixed-paired with — unlink first.
+    if (
+      this.getLinkedPartner(username) === target ||
+      this.getLinkedPartner(target) === username
+    ) {
+      return false;
+    }
+    const now = Date.now();
+    // avoidUpdatedAt is the dedicated LWW token — updatedAt is intentionally
+    // untouched so an avoid write can't win whole-object merge and clobber a
+    // concurrent profile edit on another device.
+    (a.avoids ??= {})[target] = scope;
+    a.avoidUpdatedAt = now;
+    if (bothWays) {
+      (b.avoids ??= {})[username] = scope;
+      b.avoidUpdatedAt = now;
+    }
+    this.state.lastModified = now;
+    this.saveState();
+    return true;
+  }
+
+  /**
+   * Remove `target` from `username`'s avoid map. `bothWays` also removes the
+   * reverse entry. Returns true when anything changed.
+   */
+  public removePlayerAvoid(
+    username: string,
+    target: string,
+    bothWays = false,
+  ): boolean {
+    const now = Date.now();
+    let changed = false;
+    const apply = (name: string, other: string) => {
+      const p = this.state.players[name];
+      if (p?.avoids && other in p.avoids) {
+        delete p.avoids[other];
+        if (Object.keys(p.avoids).length === 0) delete p.avoids;
+        p.avoidUpdatedAt = now;
+        changed = true;
+      }
+    };
+    apply(username, target);
+    if (bothWays) apply(target, username);
+    if (changed) {
+      this.state.lastModified = now;
+      this.saveState();
+    }
+    return changed;
+  }
+
+  /** Live avoid map for a player (targets that exist and aren't deleted). */
+  public getPlayerAvoids(
+    username: string,
+  ): Record<string, 'partner' | 'match'> {
+    const avoids = this.state.players[username]?.avoids;
+    if (!avoids) return {};
+    const live: Record<string, 'partner' | 'match'> = {};
+    for (const [target, scope] of Object.entries(avoids)) {
+      const t = this.state.players[target];
+      if (t && !t.deletedAt) live[target] = scope;
+    }
+    return live;
+  }
+
+  /**
+   * Clear a player's avoid map AND remove them from everyone else's map.
+   * Called on explicit check-out / player removal — avoids are session-scoped
+   * like links and must not outlive the session participant.
+   */
+  public clearPlayerAvoids(username: string): boolean {
+    const now = Date.now();
+    let changed = false;
+    const player = this.state.players[username];
+    if (player?.avoids || player?.avoidUpdatedAt !== undefined) {
+      delete player?.avoids;
+      if (player) player.avoidUpdatedAt = now;
+      changed = true;
+    }
+    for (const p of Object.values(this.state.players)) {
+      if (p.avoids && username in p.avoids) {
+        delete p.avoids[username];
+        if (Object.keys(p.avoids).length === 0) delete p.avoids;
+        p.avoidUpdatedAt = now;
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.state.lastModified = now;
+      this.saveState();
+    }
+    return changed;
+  }
+
+  /**
    * A linked player is draftable only while their partner also holds a live,
    * unlocked queue entry (liveUsernames = usernames of !deletedAt && !lockedAt
    * entries). Unlinked or dormant players are always draftable.
@@ -1634,6 +1788,7 @@ export class LocalMatchmakingSystem {
     generatedBy?: string,
   ) {
     const playersNeeded = this.state.teamSize * 2;
+    this.lastDraftInfo = { violations: [], blockers: [] };
 
     const isStrictBalance = this.state.matchmakingMode === 'strict_balance';
     const allStarDir = this.state.allStarSortDirection ?? 'desc';
@@ -1679,6 +1834,8 @@ export class LocalMatchmakingSystem {
       queueType: QueueEntry['queueType']; // earlier partner's bracket — partner follows
       enteredAt: number; // the unit's FIFO claim = later partner's position
       maxPlayed: number; // fairness claim = highest matchesPlayed among members
+      /** Union of members' avoid relations — a pair unit carries both members' avoids. */
+      avoidPairs: { from: string; to: string; scope: 'partner' | 'match' }[];
     }
 
     const usePairs = this.state.teamSize > 1; // singles ignores links
@@ -1691,6 +1848,11 @@ export class LocalMatchmakingSystem {
       maxPlayed: Math.max(
         ...entries.map(
           (e) => this.state.players[e.username]?.matchesPlayed || 0,
+        ),
+      ),
+      avoidPairs: entries.flatMap((e) =>
+        Object.entries(this.state.players[e.username]?.avoids ?? {}).map(
+          ([to, scope]) => ({ from: e.username, to, scope }),
         ),
       ),
     });
@@ -1716,29 +1878,130 @@ export class LocalMatchmakingSystem {
     const countPlayers = (list: DraftUnit[]) =>
       list.reduce((n, u) => n + u.entries.length, 0);
 
+    // --- Avoid constraints ---
+    // 'match' scope is SOFT: prefer conflict-free combos, fall back to the
+    // least-bad combo with a warning (never freeze the queue).
+    // 'partner' scope is HARD: enforced at team-split feasibility — the
+    // balancer will never put them on the same team.
+
+    // Soft-scope violations committed this draft run (surfaced to the admin).
+    const draftViolations: { from: string; to: string }[] = [];
+    // Hard-scope avoids that made every combo infeasible (draft stalled).
+    const draftBlockers: { from: string; to: string }[] = [];
+
+    /** Match-scope conflicts between a candidate unit and already-chosen units (either direction counts). */
+    const matchConflicts = (
+      u: DraftUnit,
+      chosen: DraftUnit[],
+    ): { from: string; to: string }[] => {
+      const uNames = new Set(u.entries.map((e) => e.username));
+      const out: { from: string; to: string }[] = [];
+      for (const ap of u.avoidPairs) {
+        if (ap.scope !== 'match') continue;
+        for (const c of chosen) {
+          if (c.entries.some((e) => e.username === ap.to)) {
+            out.push({ from: ap.from, to: ap.to });
+          }
+        }
+      }
+      for (const c of chosen) {
+        for (const ap of c.avoidPairs) {
+          if (ap.scope === 'match' && uNames.has(ap.to)) {
+            out.push({ from: ap.from, to: ap.to });
+          }
+        }
+      }
+      return out;
+    };
+
+    /**
+     * Can the chosen units be split into two teams of `teamSize` with every
+     * multi-entry unit kept together and no partner-scope avoid pair on the
+     * same team? DFS over unit→team assignment.
+     */
+    const canSplitTeams = (chosen: DraftUnit[]): boolean => {
+      const all = new Set(
+        chosen.flatMap((u) => u.entries.map((e) => e.username)),
+      );
+      const banned: [string, string][] = [];
+      for (const u of chosen) {
+        for (const ap of u.avoidPairs) {
+          if (ap.scope === 'partner' && all.has(ap.to)) {
+            banned.push([ap.from, ap.to]);
+          }
+        }
+      }
+      const teamOf = new Map<string, number>();
+      const counts = [0, 0];
+      const dfs = (i: number): boolean => {
+        if (i === chosen.length) return counts[0] === this.state.teamSize;
+        const u = chosen[i];
+        const names = new Set(u.entries.map((e) => e.username));
+        for (const t of [0, 1]) {
+          if (counts[t] + u.entries.length > this.state.teamSize) continue;
+          let ok = true;
+          for (const [a, b] of banned) {
+            const aT = names.has(a) ? t : teamOf.get(a);
+            const bT = names.has(b) ? t : teamOf.get(b);
+            if (aT !== undefined && aT === bT) {
+              ok = false;
+              break;
+            }
+          }
+          if (!ok) continue;
+          u.entries.forEach((e) => teamOf.set(e.username, t));
+          counts[t] += u.entries.length;
+          if (dfs(i + 1)) return true;
+          u.entries.forEach((e) => teamOf.delete(e.username));
+          counts[t] -= u.entries.length;
+        }
+        return false;
+      };
+      return dfs(0);
+    };
+
     // Pick a priority-ordered subset of units totalling exactly `needed`
     // players. Include-first DFS prefers earlier units; units are atomic so a
-    // pair can never be split across a match boundary.
+    // pair can never be split across a match boundary. Two passes: strict
+    // (honor match-avoids) then relaxed (violate, but report). Partner-avoids
+    // stay hard in both passes via canSplitTeams.
+    let visited = 0;
     const pickUnits = (
       list: DraftUnit[],
       needed: number,
     ): DraftUnit[] | null => {
-      const memo = new Map<string, DraftUnit[] | null>();
-      const dfs = (i: number, sum: number): DraftUnit[] | null => {
-        if (sum === needed) return [];
-        if (i >= list.length || sum > needed) return null;
-        const key = `${i}:${sum}`;
-        if (memo.has(key)) return memo.get(key)!;
-        const inc = dfs(i + 1, sum + list[i].entries.length);
-        if (inc) {
-          memo.set(key, [list[i], ...inc]);
-          return memo.get(key)!;
-        }
-        const exc = dfs(i + 1, sum);
-        memo.set(key, exc);
-        return exc;
+      const attempt = (allowMatchConflicts: boolean): DraftUnit[] | null => {
+        const chosen: DraftUnit[] = [];
+        const dfs = (i: number, sum: number): boolean => {
+          if (++visited > 200_000) return false; // pathological-queue safety cap
+          if (sum === needed) {
+            return canSplitTeams(chosen);
+          }
+          if (i >= list.length || sum > needed) return false;
+          if (
+            allowMatchConflicts ||
+            matchConflicts(list[i], chosen).length === 0
+          ) {
+            chosen.push(list[i]);
+            if (dfs(i + 1, sum + list[i].entries.length)) return true;
+            chosen.pop();
+          }
+          return dfs(i + 1, sum);
+        };
+        return dfs(0, 0) ? [...chosen] : null;
       };
-      return dfs(0, 0);
+      const strict = attempt(false);
+      if (strict) return strict;
+      const relaxed = attempt(true);
+      if (relaxed) {
+        // Record soft-scope violations for the admin warning chip.
+        for (let i = 0; i < relaxed.length; i++) {
+          draftViolations.push(
+            ...matchConflicts(relaxed[i], relaxed.slice(0, i)),
+          );
+        }
+      }
+      return relaxed;
     };
 
     // Alternator flag: when WINNERS and LOSERS brackets are tied on priority,
@@ -1807,13 +2070,47 @@ export class LocalMatchmakingSystem {
         }
       }
 
-      if (!draftedUnits || draftedUnits.length === 0) break;
+      if (!draftedUnits || draftedUnits.length === 0) {
+        // No valid combo despite enough players — hard partner-scope avoids
+        // (or unit indivisibility) made every split infeasible. Report the
+        // offending pairs so the admin can resolve them manually.
+        if (countPlayers(units) >= playersNeeded) {
+          const pooled = new Set(
+            units.flatMap((u) => u.entries.map((e) => e.username)),
+          );
+          const seen = new Set<string>();
+          for (const u of units) {
+            for (const ap of u.avoidPairs) {
+              if (
+                ap.scope === 'partner' &&
+                pooled.has(ap.to) &&
+                !seen.has(`${ap.from}:${ap.to}`)
+              ) {
+                seen.add(`${ap.from}:${ap.to}`);
+                draftBlockers.push({ from: ap.from, to: ap.to });
+              }
+            }
+          }
+        }
+        break;
+      }
 
       const draftedEntries = draftedUnits.flatMap((u) => u.entries);
       const draftedUsernames = draftedEntries.map((e) => e.username);
+      const draftedUsernameSet = new Set(draftedUsernames);
       const pinnedPairs = draftedUnits
         .filter((u) => u.entries.length > 1)
         .map((u) => u.entries.map((e) => e.username));
+      // Hard partner-scope avoids among drafted players — balancer must never
+      // place these on the same team.
+      const avoidTeammates: [string, string][] = [];
+      for (const u of draftedUnits) {
+        for (const ap of u.avoidPairs) {
+          if (ap.scope === 'partner' && draftedUsernameSet.has(ap.to)) {
+            avoidTeammates.push([ap.from, ap.to]);
+          }
+        }
+      }
 
       // Remove drafted units from the pool for the next iteration
       const draftedSet = new Set(draftedUnits);
@@ -1828,6 +2125,24 @@ export class LocalMatchmakingSystem {
         (entry) => this.state.players[entry.username],
       );
 
+      // Generate the match
+      const match = MatchmakerEngine.draftBalancedMatch(
+        playersToBalance,
+        this.state.teamSize,
+        this.state.matchmakingMode || 'fair_balance',
+        pinnedPairs.length > 0 ? pinnedPairs : undefined,
+        avoidTeammates.length > 0 ? avoidTeammates : undefined,
+      );
+
+      // Unreachable in practice — pickUnits' canSplitTeams already proved a
+      // valid split exists. Defensive: break instead of tombstoning players
+      // with no match created.
+      if ('infeasible' in match && match.infeasible) {
+        for (const [a, b] of avoidTeammates)
+          draftBlockers.push({ from: a, to: b });
+        break;
+      }
+
       // Tombstone drafted entries so the deletion propagates in cross-admin sync.
       const draftTombstoneAt = Date.now();
       this.state.queues.forEach((q) => {
@@ -1836,14 +2151,6 @@ export class LocalMatchmakingSystem {
           q.updatedAt = draftTombstoneAt;
         }
       });
-
-      // Generate the match
-      const match = MatchmakerEngine.draftBalancedMatch(
-        playersToBalance,
-        this.state.teamSize,
-        this.state.matchmakingMode || 'fair_balance',
-        pinnedPairs.length > 0 ? pinnedPairs : undefined,
-      );
 
       // Validate no duplicate players in the match
       const allMatchPlayers = [...match.teamA, ...match.teamB];
@@ -1901,6 +2208,20 @@ export class LocalMatchmakingSystem {
       });
     }
 
+    // Surface soft violations / hard blockers for the admin warning UI.
+    const dedupe = (list: { from: string; to: string }[]) => {
+      const seen = new Set<string>();
+      return list.filter((v) => {
+        const k = `${v.from}:${v.to}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    };
+    this.lastDraftInfo = {
+      violations: dedupe(draftViolations),
+      blockers: dedupe(draftBlockers),
+    };
     this.saveState();
   }
 
@@ -2198,6 +2519,7 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
         p.deletedAt ?? 0,
         p.statsUpdatedAt ?? 0,
         p.linkUpdatedAt ?? 0,
+        p.avoidUpdatedAt ?? 0,
       );
       if (effectiveTime >= checkpoint) {
         filtered[key] = p;
@@ -2310,10 +2632,14 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     const baseLinkAt = baseWinner.linkUpdatedAt ?? 0;
     const otherLinkAt = other.linkUpdatedAt ?? 0;
     const overlayLink = otherLinkAt > baseLinkAt;
+    // Avoid preferences get the same dedicated-token treatment.
+    const baseAvoidAt = baseWinner.avoidUpdatedAt ?? 0;
+    const otherAvoidAt = other.avoidUpdatedAt ?? 0;
+    const overlayAvoid = otherAvoidAt > baseAvoidAt;
 
     // Copy only when an overlay will actually mutate — otherwise the merged
     // player keeps the winning side's original object reference.
-    if (overlayStats || overlayRating || overlayLink) {
+    if (overlayStats || overlayRating || overlayLink || overlayAvoid) {
       baseWinner = { ...baseWinner };
       if (overlayStats) {
         baseWinner.matchesPlayed = other.matchesPlayed;
@@ -2330,6 +2656,10 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
         baseWinner.linkedTo = other.linkedTo;
         baseWinner.linkedAt = other.linkedAt;
         baseWinner.linkUpdatedAt = otherLinkAt;
+      }
+      if (overlayAvoid) {
+        baseWinner.avoids = other.avoids ? { ...other.avoids } : undefined;
+        baseWinner.avoidUpdatedAt = otherAvoidAt;
       }
     }
 
@@ -2399,6 +2729,12 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
         winner.linkedTo = loser.linkedTo;
         winner.linkedAt = loser.linkedAt;
         winner.linkUpdatedAt = loserLinkAt;
+      }
+      const winnerAvoidAt = winner.avoidUpdatedAt ?? 0;
+      const loserAvoidAt = loser?.avoidUpdatedAt ?? 0;
+      if (loser && loserAvoidAt > winnerAvoidAt) {
+        winner.avoids = loser.avoids ? { ...loser.avoids } : undefined;
+        winner.avoidUpdatedAt = loserAvoidAt;
       }
 
       mergedPlayers[username] = winner;

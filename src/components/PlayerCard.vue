@@ -6,6 +6,10 @@
       'link-source': linkState === 'source',
       'link-candidate': linkState === 'candidate',
       'link-ineligible': linkState === 'ineligible',
+      'avoid-source': avoidState === 'source',
+      'avoid-candidate': avoidState === 'candidate',
+      'avoid-ineligible': avoidState === 'ineligible',
+
       [queueBgClass]: true,
     }"
     @click="$emit('click', player)"
@@ -62,6 +66,39 @@
           <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
             >Paired with {{ linkedPartnerName }}
             {{ showActions ? '— tap to unpair' : '' }}</q-tooltip
+          >
+        </q-badge>
+        <q-badge
+          v-if="player.avoids && Object.keys(player.avoids).length > 0"
+          floating
+          rounded
+          color="deep-orange"
+          class="queue-avoid-badge"
+          :class="{ 'cursor-pointer': showActions }"
+          @click.stop="showActions && $emit('avoidToggle', player.username)"
+        >
+          <q-icon name="person_off" size="10px" color="white" />
+          <span
+            v-if="Object.keys(player.avoids).length > 1"
+            class="text-white"
+            style="font-size: 9px"
+            >{{ Object.keys(player.avoids).length }}</span
+          >
+          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+            >Avoids: {{ player.avoidSummary
+            }}{{ showActions ? ' — tap to manage' : '' }}</q-tooltip
+          >
+        </q-badge>
+        <q-badge
+          v-if="player.avoidedBy"
+          floating
+          rounded
+          color="grey-6"
+          class="queue-avoided-by-badge"
+        >
+          <q-icon name="person_off" size="10px" color="white" />
+          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+            >Avoided by {{ player.avoidedBy }}</q-tooltip
           >
         </q-badge>
       </div>
@@ -232,6 +269,9 @@ type Player = BasePlayer & {
   queueType?: 'GENERAL' | 'WINNERS' | 'LOSERS';
   lockedAt?: number;
   linkedTo?: string;
+  isStalled?: boolean;
+  avoidSummary?: string;
+  avoidedBy?: string;
   linkedPartnerName?: string;
   linkedPairColor?: string;
   userId?: string;
@@ -248,6 +288,7 @@ interface Props {
   isInQueue?: boolean;
   isInMatch?: boolean;
   linkState?: 'source' | 'candidate' | 'ineligible' | null;
+  avoidState?: 'source' | 'candidate' | 'ineligible' | null;
   sortBy?: string;
   removeLabel?: string;
   removeIcon?: string;
@@ -265,6 +306,7 @@ const props = withDefaults(defineProps<Props>(), {
   isInQueue: false,
   isInMatch: false,
   linkState: null,
+  avoidState: null,
   removeLabel: 'Remove',
   removeIcon: 'delete',
   removeColor: 'negative',
@@ -280,6 +322,7 @@ defineEmits<{
   remove: [username: string];
   requeue: [username: string];
   linkToggle: [username: string];
+  avoidToggle: [username: string];
 }>();
 
 const isSelf = computed(() => {
@@ -349,6 +392,25 @@ const handleAvatarError = () => {
   transform: translate(15%, 15%);
 }
 
+/* Avoid badge sits on the opposite corner from the pair badge so neither
+   overlaps the avatar ring or crowds the lock badge (top-right). */
+.queue-avoid-badge {
+  padding: 2px 4px;
+  top: auto !important;
+  bottom: 0;
+  right: auto !important;
+  left: 0;
+  transform: translate(-15%, 15%);
+}
+
+/* Incoming-avoid marker shares the left edge, nudged above the avoid badge. */
+.queue-avoided-by-badge {
+  padding: 2px 4px;
+  right: auto !important;
+  left: 0;
+  transform: translate(-15%, -15%);
+}
+
 @keyframes link-candidate-pulse {
   0%,
   100% {
@@ -374,7 +436,36 @@ const handleAvatarError = () => {
   cursor: not-allowed;
 }
 
+@keyframes avoid-candidate-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 1px rgba(255, 87, 34, 0.35);
+  }
+  50% {
+    box-shadow: inset 0 0 0 2px rgba(255, 87, 34, 0.9);
+  }
+}
+
+.player-item.avoid-source {
+  background-color: rgba(255, 87, 34, 0.12);
+  border-left: 4px solid #ff5722;
+}
+
+.player-item.avoid-candidate {
+  animation: avoid-candidate-pulse 1.4s ease-in-out infinite;
+  cursor: pointer;
+}
+
+.player-item.avoid-ineligible {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .player-item.avoid-candidate {
+    animation: none;
+    box-shadow: inset 0 0 0 2px rgba(255, 87, 34, 0.6);
+  }
   .player-item.link-candidate {
     animation: none;
     box-shadow: inset 0 0 0 2px rgba(38, 166, 154, 0.6);

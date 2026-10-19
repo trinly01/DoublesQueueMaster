@@ -293,6 +293,7 @@
                   @player-report="(p) => openPlayerReportDialog(p, 'report')"
                   @player-remove="handlePlayerRemove"
                   @player-requeue="requeuePlayer"
+                  @player-avoid-manage="managePlayerAvoids"
                   @empty-action="showAddPlayerDialog = true"
                 />
               </div>
@@ -343,6 +344,7 @@
                   :remove-icon="'remove_circle'"
                   :remove-color="'warning'"
                   :link-source-username="pendingLinkUsername"
+                  :avoid-source-username="pendingAvoidUsername"
                   :empty-icon="'queue'"
                   :empty-title="'Queue is empty'"
                   :empty-subtitle="'Add players to start generating matches'"
@@ -353,6 +355,8 @@
                   @player-remove="removeFromQueue"
                   @player-lock-toggle="toggleQueueLock"
                   @player-link-toggle="togglePlayerLink"
+                  @player-avoid-toggle="togglePlayerAvoid"
+                  @player-avoid-manage="managePlayerAvoids"
                 />
               </div>
             </q-card-section>
@@ -847,6 +851,7 @@
                   @player-report="(p) => openPlayerReportDialog(p, 'report')"
                   @player-remove="handlePlayerRemove"
                   @player-requeue="requeuePlayer"
+                  @player-avoid-manage="managePlayerAvoids"
                   @empty-action="showAddPlayerDialog = true"
                 />
               </div>
@@ -894,6 +899,7 @@
                   :remove-icon="'remove_circle'"
                   :remove-color="'warning'"
                   :link-source-username="pendingLinkUsername"
+                  :avoid-source-username="pendingAvoidUsername"
                   :empty-icon="'queue'"
                   :empty-title="'Queue is empty'"
                   :empty-subtitle="'Add players to start generating matches'"
@@ -904,6 +910,8 @@
                   @player-remove="removeFromQueue"
                   @player-lock-toggle="toggleQueueLock"
                   @player-link-toggle="togglePlayerLink"
+                  @player-avoid-toggle="togglePlayerAvoid"
+                  @player-avoid-manage="managePlayerAvoids"
                 />
               </div>
             </q-card-section>
@@ -1595,6 +1603,10 @@ const {
   pendingLinkUsername,
   togglePlayerLink,
   pickLinkPartner,
+  pendingAvoidUsername,
+  togglePlayerAvoid,
+  managePlayerAvoids,
+  pickAvoidTarget,
 } = usePlayerActions({
   players,
 });
@@ -1602,13 +1614,15 @@ const {
 // Queue-row taps are intercepted while link-mode is armed — pickLinkPartner
 // returns false when inactive so the tap stays a no-op, as before.
 const onQueuePlayerClick = (player: Player) => {
-  pickLinkPartner(player.username);
+  if (pickLinkPartner(player.username)) return;
+  pickAvoidTarget(player.username);
 };
 
-// Avatar taps also act as partner picks while link-mode is armed;
+// Avatar taps also act as partner/avoid picks while those modes are armed;
 // otherwise they open the player report dialog as usual.
 const onQueueAvatarClick = (player: Player) => {
   if (pickLinkPartner(player.username)) return;
+  if (pickAvoidTarget(player.username)) return;
   openPlayerReportDialog(player);
 };
 
@@ -1646,6 +1660,18 @@ const linkedPairColors = computed(() => {
   return { colors, pairKey };
 });
 
+// Index: target username → display names of everyone who avoids them.
+const avoidedByMap = computed(() => {
+  const map: Record<string, string[]> = {};
+  for (const p of Object.values(MatchmakingApp.state.players)) {
+    if (!p.avoids || p.deletedAt) continue;
+    for (const t of Object.keys(p.avoids)) {
+      (map[t] ??= []).push(p.firstName || p.username);
+    }
+  }
+  return map;
+});
+
 const queue = computed(() => {
   const mapped = MatchmakingApp.state.queues
     .filter((q) => !q.deletedAt)
@@ -1658,6 +1684,17 @@ const queue = computed(() => {
         enteredAt: q.enteredAt,
         queueType: q.queueType,
         lockedAt: q.lockedAt,
+        avoidSummary: p.avoids
+          ? Object.keys(p.avoids)
+              .map(
+                (t) =>
+                  `${MatchmakingApp.state.players[t]?.firstName || t}${
+                    p.avoids![t] === 'match' ? ' (match)' : ''
+                  }`,
+              )
+              .join(', ')
+          : undefined,
+        avoidedBy: avoidedByMap.value[p.username]?.join(', '),
         linkedPartnerName: p.linkedTo
           ? MatchmakingApp.state.players[p.linkedTo]?.firstName || p.linkedTo
           : undefined,
@@ -1672,35 +1709,80 @@ const queue = computed(() => {
     .filter((item): item is NonNullable<typeof item> => item !== null);
 
   if (autoSortQueue.value) {
-    const sortFn = (
-      a: { matchesPlayed: number; enteredAt: number; queueType: string },
-      b: { matchesPlayed: number; enteredAt: number; queueType: string },
-    ) => {
-      // 1. Group visually by Queue Type (General -> Winners -> Losers)
-      const typeOrder: Record<string, number> = {
-        GENERAL: 0,
-        WINNERS: 1,
-        LOSERS: 2,
-      };
-      const orderA = typeOrder[a.queueType] ?? 2;
-      const orderB = typeOrder[b.queueType] ?? 2;
+    // Mirror the draft pipeline: linked pairs are one unit claiming the later
+    // partner's position (grouped under the earlier partner's bracket), and
+    // undraftable rows (locked / waiting-for-partner) sink to a dimmed group.
+    type QueueRow = (typeof mapped)[number];
+    interface QueueUnit {
+      members: QueueRow[];
+      queueType: string;
+      enteredAt: number;
+      maxPlayed: number;
+      stalled: boolean;
+    }
 
-      if (orderA !== orderB) {
-        return orderA - orderB;
+    const byName = new Map(mapped.map((m) => [m.username, m]));
+    const inMatch = new Set(
+      MatchmakingApp.state.activeMatches
+        .filter((m) => !m.deletedAt)
+        .flatMap((m) => [...m.teamA, ...m.teamB]),
+    );
+    const seen = new Set<string>();
+    const units: QueueUnit[] = [];
+
+    for (const m of mapped) {
+      if (seen.has(m.username)) continue;
+      const partner = m.linkedTo ? byName.get(m.linkedTo) : undefined;
+      const mutual = !!partner && partner.linkedTo === m.username;
+      const pairDraftable =
+        mutual && !partner.lockedAt && !inMatch.has(partner.username);
+
+      if (mutual && pairDraftable && !m.lockedAt) {
+        seen.add(m.username);
+        seen.add(partner.username);
+        const members = [m, partner].sort((x, y) => x.enteredAt - y.enteredAt);
+        units.push({
+          members,
+          queueType: members[0].queueType || 'GENERAL',
+          enteredAt: members[members.length - 1].enteredAt,
+          maxPlayed: Math.max(...members.map((x) => x.matchesPlayed || 0)),
+          stalled: false,
+        });
+      } else {
+        seen.add(m.username);
+        units.push({
+          members: [m],
+          queueType: m.queueType || 'GENERAL',
+          enteredAt: m.enteredAt,
+          maxPlayed: m.matchesPlayed || 0,
+          // Locked, or linked but the pair can't draft (partner absent/locked/
+          // in a match) — sinks to the stalled group at the bottom.
+          stalled: !!m.lockedAt || (!!m.linkedTo && !pairDraftable),
+        });
       }
+    }
 
-      // 2. Sort by Priority Settings
-      if (queuePriorityMode.value === 'gamesPlayed') {
-        if (a.matchesPlayed !== b.matchesPlayed) {
-          return a.matchesPlayed - b.matchesPlayed;
-        }
+    const typeOrder: Record<string, number> = {
+      GENERAL: 0,
+      WINNERS: 1,
+      LOSERS: 2,
+    };
+    const prioByGames = queuePriorityMode.value === 'gamesPlayed';
+    const unitSort = (a: QueueUnit, b: QueueUnit) => {
+      const t = (typeOrder[a.queueType] ?? 2) - (typeOrder[b.queueType] ?? 2);
+      if (t !== 0) return t;
+      if (prioByGames && a.maxPlayed !== b.maxPlayed) {
+        return a.maxPlayed - b.maxPlayed;
       }
-
-      // 3. Fallback to FIFO Timestamp
       return a.enteredAt - b.enteredAt;
     };
 
-    return [...mapped].sort(sortFn);
+    return [
+      // Stalled rows first — locked / waiting-for-partner are the ones the
+      // admin needs to see and act on.
+      ...units.filter((u) => u.stalled).sort(unitSort),
+      ...units.filter((u) => !u.stalled).sort(unitSort),
+    ].flatMap((u) => u.members.map((m) => ({ ...m, isStalled: u.stalled })));
   }
 
   return mapped;
@@ -3722,6 +3804,12 @@ const savePlayerEdit = () => {
       if (p.linkedTo === originalName) {
         p.linkedTo = trimmedName;
         p.updatedAt = Date.now();
+      }
+      // Remap avoid targets pointing at the old name
+      if (p.avoids && originalName in p.avoids) {
+        p.avoids[trimmedName] = p.avoids[originalName];
+        delete p.avoids[originalName];
+        p.avoidUpdatedAt = Date.now();
       }
     });
 
