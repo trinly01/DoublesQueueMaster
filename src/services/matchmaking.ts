@@ -1678,7 +1678,7 @@ export class LocalMatchmakingSystem {
       entries: QueueEntry[]; // 1 entry normally; 2 for a linked pair
       queueType: QueueEntry['queueType']; // earlier partner's bracket — partner follows
       enteredAt: number; // the unit's FIFO claim = later partner's position
-      minPlayed: number; // fairness claim = lowest matchesPlayed among members
+      maxPlayed: number; // fairness claim = highest matchesPlayed among members
     }
 
     const usePairs = this.state.teamSize > 1; // singles ignores links
@@ -1688,7 +1688,7 @@ export class LocalMatchmakingSystem {
       entries,
       queueType: entries[0].queueType,
       enteredAt: entries[entries.length - 1].enteredAt,
-      minPlayed: Math.min(
+      maxPlayed: Math.max(
         ...entries.map(
           (e) => this.state.players[e.username]?.matchesPlayed || 0,
         ),
@@ -1723,11 +1723,11 @@ export class LocalMatchmakingSystem {
       list: DraftUnit[],
       needed: number,
     ): DraftUnit[] | null => {
-      const memo = new Map<number, DraftUnit[] | null>();
+      const memo = new Map<string, DraftUnit[] | null>();
       const dfs = (i: number, sum: number): DraftUnit[] | null => {
         if (sum === needed) return [];
         if (i >= list.length || sum > needed) return null;
-        const key = i * 8 + sum;
+        const key = `${i}:${sum}`;
         if (memo.has(key)) return memo.get(key)!;
         const inc = dfs(i + 1, sum + list[i].entries.length);
         if (inc) {
@@ -1782,9 +1782,9 @@ export class LocalMatchmakingSystem {
           const bestLoser = losers[0];
 
           let draftWinnersFirst: boolean;
-          if (bestWinner.minPlayed !== bestLoser.minPlayed) {
+          if (bestWinner.maxPlayed !== bestLoser.maxPlayed) {
             // Priority: fewer matches played goes first
-            draftWinnersFirst = bestWinner.minPlayed < bestLoser.minPlayed;
+            draftWinnersFirst = bestWinner.maxPlayed < bestLoser.maxPlayed;
           } else if (bestWinner.enteredAt !== bestLoser.enteredAt) {
             // Priority: earlier enteredAt goes first
             draftWinnersFirst = bestWinner.enteredAt < bestLoser.enteredAt;
