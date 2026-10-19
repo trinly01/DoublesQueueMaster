@@ -724,6 +724,255 @@ describe('player linking (fixed duo)', () => {
   });
 });
 
+describe('player avoids (session preferences)', () => {
+  const queueUp = (
+    sys: LocalMatchmakingSystem,
+    entries: { name: string; type?: 'GENERAL' | 'WINNERS' | 'LOSERS' }[],
+  ) => {
+    entries.forEach(({ name, type = 'GENERAL' }, i) => {
+      sys.state.players[name] = makePlayer(1500, { username: name });
+      sys.state.queues.push({
+        username: name,
+        queueType: type,
+        enteredAt: 1000 + i,
+        createdAt: 1000,
+        updatedAt: 1000,
+        queuedAt: 1000,
+      });
+    });
+  };
+
+  const draftedUsernames = (sys: LocalMatchmakingSystem) =>
+    sys.state.activeMatches.flatMap((m) => [...m.teamA, ...m.teamB]);
+
+  const teamOf = (sys: LocalMatchmakingSystem, username: string) => {
+    const m = sys.state.activeMatches[0];
+    if (!m) return undefined;
+    return m.teamA.includes(username) ? m.teamA : m.teamB;
+  };
+
+  it('setPlayerAvoid writes one-way; bothWays writes the reverse entry', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }]);
+
+    expect(sys.setPlayerAvoid('a', 'b', 'partner')).toBe(true);
+    expect(sys.getPlayerAvoids('a')).toEqual({ b: 'partner' });
+    expect(sys.getPlayerAvoids('b')).toEqual({});
+
+    expect(sys.setPlayerAvoid('a', 'c', 'match', true)).toBe(true);
+    expect(sys.getPlayerAvoids('a')).toEqual({ b: 'partner', c: 'match' });
+    expect(sys.getPlayerAvoids('c')).toEqual({ a: 'match' });
+  });
+
+  it('refuses self-avoids, missing/deleted players, and linked partners', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }]);
+
+    expect(sys.setPlayerAvoid('a', 'a', 'partner')).toBe(false);
+    expect(sys.setPlayerAvoid('a', 'ghost', 'match')).toBe(false);
+
+    sys.setPlayerLink('a', 'b');
+    expect(sys.setPlayerAvoid('a', 'b', 'partner')).toBe(false);
+    expect(sys.setPlayerAvoid('b', 'a', 'match')).toBe(false);
+  });
+
+  it('linking is refused between players who avoid each other', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }]);
+    sys.setPlayerAvoid('a', 'b', 'partner');
+    expect(sys.setPlayerLink('a', 'b')).toBe(false);
+    sys.removePlayerAvoid('a', 'b');
+    expect(sys.setPlayerLink('a', 'b')).toBe(true);
+  });
+
+  it('partner scope: match drafts normally but avoid pair lands on opposite teams', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }]);
+    sys.setPlayerAvoid('a', 'b', 'partner');
+
+    sys.draftNextMatches('timestamp', 'test');
+    const match = sys.state.activeMatches[0];
+    expect(match).toBeTruthy();
+    expect([...match.teamA, ...match.teamB].sort()).toEqual([
+      'a',
+      'b',
+      'c',
+      'd',
+    ]);
+    // a and b must be on different teams
+    expect(match.teamA.includes('a')).not.toBe(match.teamA.includes('b'));
+    expect(sys.lastDraftInfo.blockers).toEqual([]);
+    expect(sys.lastDraftInfo.violations).toEqual([]);
+  });
+
+  it('match scope: honored when a valid combo exists — target stays queued', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [
+      { name: 'a' },
+      { name: 'b' },
+      { name: 'c' },
+      { name: 'd' },
+      { name: 'e' },
+    ]);
+    sys.setPlayerAvoid('a', 'b', 'match');
+
+    sys.draftNextMatches('timestamp', 'test');
+    const drafted = draftedUsernames(sys);
+    expect(drafted.sort()).toEqual(['a', 'c', 'd', 'e']); // b skipped
+    expect(
+      sys.state.queues.some((q) => q.username === 'b' && !q.deletedAt),
+    ).toBe(true);
+    expect(sys.lastDraftInfo.violations).toEqual([]);
+  });
+
+  it('match scope: soft fallback forms the match with a violation warning', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }]);
+    sys.setPlayerAvoid('a', 'b', 'match');
+
+    sys.draftNextMatches('timestamp', 'test');
+    // Only 4 players — no combo without b, so the match forms anyway.
+    expect(draftedUsernames(sys).sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(sys.lastDraftInfo.violations).toEqual([{ from: 'a', to: 'b' }]);
+  });
+
+  it('multiple avoids: match-scope target skipped, partner-scope pair split', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [
+      { name: 'a' },
+      { name: 'b' },
+      { name: 'c' },
+      { name: 'd' },
+      { name: 'e' },
+    ]);
+    sys.setPlayerAvoid('a', 'c', 'match');
+    sys.setPlayerAvoid('a', 'b', 'partner');
+
+    sys.draftNextMatches('timestamp', 'test');
+    const match = sys.state.activeMatches[0];
+    expect([...match.teamA, ...match.teamB].sort()).toEqual([
+      'a',
+      'b',
+      'd',
+      'e',
+    ]);
+    expect(match.teamA.includes('a')).not.toBe(match.teamA.includes('b'));
+  });
+
+  it('pair units inherit avoids — a linked unit match-avoids a third player', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [
+      { name: 'a' },
+      { name: 'b' },
+      { name: 'c' },
+      { name: 'd' },
+      { name: 'e' },
+    ]);
+    sys.setPlayerLink('a', 'b');
+    sys.setPlayerAvoid('a', 'c', 'match');
+
+    sys.draftNextMatches('timestamp', 'test');
+    const drafted = draftedUsernames(sys);
+    // Unit {a,b} claims b's position; c is excluded so d+e fill the match.
+    expect(drafted.sort()).toEqual(['a', 'b', 'd', 'e']);
+    const abTeam = teamOf(sys, 'a')!;
+    expect(abTeam).toContain('b');
+  });
+
+  it('partner scope + pinned pair makes a combo infeasible → blockers reported', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }]);
+    sys.setPlayerLink('a', 'b'); // {a,b} pinned to one team → {c,d} other team
+    sys.setPlayerAvoid('c', 'd', 'partner'); // but c can't team with d
+
+    sys.draftNextMatches('timestamp', 'test');
+    // Every split violates either the pin or the avoid → no match formed.
+    expect(sys.state.activeMatches.length).toBe(0);
+    expect(sys.lastDraftInfo.blockers).toEqual([{ from: 'c', to: 'd' }]);
+    // Nobody lost their queue spot.
+    expect(
+      sys.state.queues
+        .filter((q) => !q.deletedAt)
+        .map((q) => q.username)
+        .sort(),
+    ).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('removePlayerAvoid and getPlayerAvoids honor live targets only', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }]);
+    sys.setPlayerAvoid('a', 'b', 'partner');
+    sys.setPlayerAvoid('a', 'c', 'match');
+
+    // Deleted targets drop out of the live view.
+    sys.state.players.c.deletedAt = Date.now();
+    expect(sys.getPlayerAvoids('a')).toEqual({ b: 'partner' });
+
+    expect(sys.removePlayerAvoid('a', 'b')).toBe(true);
+    expect(sys.getPlayerAvoids('a')).toEqual({});
+    expect(sys.removePlayerAvoid('a', 'b')).toBe(false); // nothing left
+  });
+
+  it('clearPlayerAvoids wipes both directions on check-out', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }]);
+    sys.setPlayerAvoid('a', 'b', 'partner');
+    sys.setPlayerAvoid('c', 'b', 'match');
+
+    expect(sys.clearPlayerAvoids('b')).toBe(true);
+    expect(sys.state.players.b.avoids).toBeUndefined();
+    expect(sys.getPlayerAvoids('a')).toEqual({});
+    expect(sys.getPlayerAvoids('c')).toEqual({});
+  });
+
+  it('avoid writes merge by latest avoidUpdatedAt, independent of updatedAt', () => {
+    const base = {
+      queues: [],
+      activeMatches: [],
+      completedMatches: [],
+      actionLog: [],
+      settings: {},
+    } as unknown as AppState;
+
+    const local = makePlayer(1500, {
+      username: 'a',
+      updatedAt: 1000,
+      avoids: { b: 'partner' },
+      avoidUpdatedAt: 3000,
+    });
+    // Server has a newer whole-object timestamp but a stale avoid map.
+    const server = makePlayer(1500, {
+      username: 'a',
+      level: 3,
+      updatedAt: 4000,
+      avoidUpdatedAt: 2000,
+    });
+    const merged = mergeAppState(
+      { ...base, players: { a: local } },
+      { ...base, players: { a: server } },
+    );
+    expect(merged.players.a.level).toBe(3); // newer profile wins
+    expect(merged.players.a.avoids).toEqual({ b: 'partner' }); // newer avoid wins
+
+    // Reverse: server has newer avoid removal.
+    const merged2 = mergeAppState(
+      { ...base, players: { a: local } },
+      {
+        ...base,
+        players: {
+          a: makePlayer(1500, {
+            username: 'a',
+            updatedAt: 1000,
+            avoidUpdatedAt: 5000,
+          }),
+        },
+      },
+    );
+    expect(merged2.players.a.avoids).toBeUndefined();
+    expect(merged2.players.a.avoidUpdatedAt).toBe(5000);
+  });
+});
+
 describe('hardResetEverything per-field stamping', () => {
   it('hardResetEverything stamps settingsFieldTimestamps for completedMatchesResetAt', () => {
     const sys = new LocalMatchmakingSystem(2);

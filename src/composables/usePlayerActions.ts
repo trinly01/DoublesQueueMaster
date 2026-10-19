@@ -41,6 +41,7 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
         player.updatedAt = Date.now();
       }
       MatchmakingApp.unlinkPlayer(username);
+      MatchmakingApp.clearPlayerAvoids(username);
       MatchmakingApp.removeFromQueue(username);
       MatchmakingApp.state.lastModified = Date.now();
       MatchmakingApp.persist();
@@ -60,9 +61,11 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
       ok: { label: 'Remove', color: 'warning', icon: 'remove_circle' },
       persistent: true,
     }).onOk(() => {
-      // Explicit check-out breaks the duo — draft/manual tombstones elsewhere
-      // keep it (the pair stays linked across matches and re-queue).
+      // Explicit check-out breaks the duo and clears avoids — they persist
+      // across matches and auto re-queue within the session, but check-out
+      // ends the player's session participation.
       MatchmakingApp.unlinkPlayer(username);
+      MatchmakingApp.clearPlayerAvoids(username);
       MatchmakingApp.removeFromQueue(username);
       logAction('check_out', { player: username });
       notify({
@@ -119,6 +122,7 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
   };
 
   const armLinkMode = (username: string) => {
+    cancelAvoidMode();
     pendingLinkUsername.value = username;
     linkModeDismiss = notify({
       type: 'info',
@@ -232,6 +236,174 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
     return true;
   };
 
+  // --- Avoid player (tap-mode) ---
+  const pendingAvoidUsername = ref<string | null>(null);
+  let avoidModeDismiss: (() => void) | void | null = null;
+
+  const cancelAvoidMode = () => {
+    pendingAvoidUsername.value = null;
+    avoidModeDismiss?.();
+    avoidModeDismiss = null;
+  };
+
+  const armAvoidMode = (username: string) => {
+    cancelLinkMode();
+    pendingAvoidUsername.value = username;
+    avoidModeDismiss = notify({
+      type: 'info',
+      icon: 'person_off',
+      message: `Tap a player that "${displayNameOf(username)}" should avoid`,
+      timeout: 0,
+      actions: [
+        {
+          label: 'Cancel',
+          color: 'white',
+          handler: cancelAvoidMode,
+        },
+      ],
+    });
+  };
+
+  /** Card action button: arm (or cancel) avoid tap-mode to ADD an avoid. */
+  const togglePlayerAvoid = (username: string) => {
+    if (pendingAvoidUsername.value === username) {
+      cancelAvoidMode();
+      return;
+    }
+    armAvoidMode(username);
+  };
+
+  /** Badge tap: manage this player's existing avoids (checkbox remove list). */
+  const managePlayerAvoids = (username: string) => {
+    const entries = Object.entries(MatchmakingApp.getPlayerAvoids(username));
+    if (entries.length === 0) {
+      armAvoidMode(username);
+      return;
+    }
+
+    $q.dialog({
+      title: `"${displayNameOf(username)}" avoids…`,
+      message: 'Check players to remove the avoid:',
+      options: {
+        type: 'checkbox',
+        model: [],
+        items: entries.map(([target, scope]) => ({
+          label: `${displayNameOf(target)} — ${
+            scope === 'partner' ? 'never same team' : 'not same match'
+          }`,
+          value: target,
+          color: 'negative',
+        })),
+      },
+      cancel: { label: 'Close', color: 'grey', flat: true },
+      ok: { label: 'Remove', color: 'negative', icon: 'delete' },
+      persistent: true,
+    }).onOk((selected: string[]) => {
+      for (const target of selected ?? []) {
+        MatchmakingApp.removePlayerAvoid(username, target);
+        logAction('remove_avoid', {
+          player: displayNameOf(username),
+          target: displayNameOf(target),
+        });
+        notify({
+          type: 'info',
+          message: `"${displayNameOf(username)}" no longer avoids "${displayNameOf(target)}"`,
+        });
+      }
+    });
+  };
+
+  /**
+   * Row-tap handler while avoid-mode is armed. Returns true when the tap was
+   * consumed by avoid-mode (callers should skip their normal click behavior).
+   */
+  const pickAvoidTarget = (targetUsername: string): boolean => {
+    const source = pendingAvoidUsername.value;
+    if (!source) return false;
+
+    if (targetUsername === source) {
+      cancelAvoidMode(); // tapping the source row again cancels
+      return true;
+    }
+
+    const sourceName = displayNameOf(source);
+    const targetName = displayNameOf(targetUsername);
+
+    if (MatchmakingApp.getLinkedPartner(source) === targetUsername) {
+      notify({
+        type: 'warning',
+        message: `"${sourceName}" is paired with "${targetName}" — unpair first`,
+      });
+      return true;
+    }
+
+    const existing =
+      MatchmakingApp.state.players[source]?.avoids?.[targetUsername];
+    const reverse =
+      MatchmakingApp.state.players[targetUsername]?.avoids?.[source];
+
+    // Dynamic import keeps the .vue component out of the composable graph —
+    // vitest has no vue plugin for import analysis.
+    void import('src/components/club/AvoidPlayerDialog.vue').then(
+      ({ default: AvoidPlayerDialog }) => {
+        $q.dialog({
+          component: AvoidPlayerDialog,
+          componentProps: {
+            sourceName,
+            targetName,
+            existingScope: existing ?? null,
+            existingBothWays: !!existing && !!reverse,
+          },
+        })
+          .onOk(
+            (payload: {
+              scope?: 'partner' | 'match';
+              bothWays?: boolean;
+              remove?: boolean;
+            }) => {
+              if (payload?.remove) {
+                MatchmakingApp.removePlayerAvoid(source, targetUsername);
+                logAction('remove_avoid', {
+                  player: sourceName,
+                  target: targetName,
+                });
+                notify({
+                  type: 'info',
+                  message: `"${sourceName}" no longer avoids "${targetName}"`,
+                });
+              } else if (payload?.scope) {
+                if (
+                  MatchmakingApp.setPlayerAvoid(
+                    source,
+                    targetUsername,
+                    payload.scope,
+                    payload.bothWays ?? false,
+                  )
+                ) {
+                  logAction('set_avoid', {
+                    player: sourceName,
+                    target: targetName,
+                    scope: payload.scope,
+                    bothWays: payload.bothWays,
+                  });
+                  notify({
+                    type: 'positive',
+                    message:
+                      payload.scope === 'partner'
+                        ? `"${sourceName}" won't be teamed with "${targetName}"`
+                        : `"${sourceName}" prefers to avoid "${targetName}"`,
+                  });
+                }
+              }
+              cancelAvoidMode();
+            },
+          )
+          .onDismiss(cancelAvoidMode);
+      },
+    );
+    return true;
+  };
+
   const requeuePlayer = (username: string) => {
     const p = players.value.find((p) => p.username === username);
     if (!p) return;
@@ -339,5 +511,10 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
     togglePlayerLink,
     pickLinkPartner,
     cancelLinkMode,
+    pendingAvoidUsername,
+    togglePlayerAvoid,
+    managePlayerAvoids,
+    pickAvoidTarget,
+    cancelAvoidMode,
   };
 }

@@ -117,6 +117,23 @@ export function useManualSelection(context: UseManualSelectionContext) {
       return;
     }
 
+    // Soft match-scope heads-up — admin may proceed deliberately.
+    const conflict = selectedPlayers.value.find(
+      (p) =>
+        MatchmakingApp.state.players[player.username]?.avoids?.[p.username] ===
+          'match' ||
+        MatchmakingApp.state.players[p.username]?.avoids?.[player.username] ===
+          'match',
+    );
+    if (conflict) {
+      notify({
+        type: 'warning',
+        icon: 'person_off',
+        message: `Heads up: "${player.firstName || player.username}" prefers to avoid "${conflict.firstName || conflict.username}"`,
+        timeout: 4000,
+      });
+    }
+
     selectedPlayers.value.push(player);
   };
 
@@ -191,6 +208,35 @@ export function useManualSelection(context: UseManualSelectionContext) {
       notify({
         type: 'negative',
         message: `Cannot create match: ${names} already in another match`,
+      });
+      return;
+    }
+
+    // Hard partner-scope avoids — block if a pair would share a team.
+    const teamConflict = (team: Player[]): string | null => {
+      const names = new Set(team.map((p) => p.username));
+      for (const p of team) {
+        const avoids = MatchmakingApp.state.players[p.username]?.avoids;
+        if (!avoids) continue;
+        for (const [target, scope] of Object.entries(avoids)) {
+          if (scope === 'partner' && names.has(target)) {
+            const a = p.firstName || p.username;
+            const b = MatchmakingApp.state.players[target]?.firstName || target;
+            return `"${a}" can't be teamed with "${b}"`;
+          }
+        }
+      }
+      return null;
+    };
+    const badTeam =
+      matchType.value === 'doubles'
+        ? (teamConflict(manualTeam1.value) ?? teamConflict(manualTeam2.value))
+        : null;
+    if (badTeam) {
+      notify({
+        type: 'negative',
+        icon: 'person_off',
+        message: `Cannot create match — ${badTeam} (avoid)`,
       });
       return;
     }

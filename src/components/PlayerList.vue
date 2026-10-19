@@ -14,6 +14,7 @@
         :is-in-queue="player.isInQueue"
         :is-in-match="player.isInMatch"
         :link-state="linkStateFor(player)"
+        :avoid-state="avoidStateFor(player)"
         :sort-by="sortBy"
         :remove-label="removeLabel"
         :remove-icon="removeIcon"
@@ -27,6 +28,7 @@
         @remove="$emit('playerRemove', $event)"
         @requeue="$emit('playerRequeue', $event)"
         @link-toggle="$emit('playerLinkToggle', $event)"
+        @avoid-toggle="$emit('playerAvoidManage', $event)"
       >
         <template v-if="showPosition" #actions="{ player: playerItem }">
           <q-avatar
@@ -38,109 +40,149 @@
             {{ getPlayerPosition(playerItem) }}
           </q-avatar>
           <template v-if="showActions">
+            <!-- Queue actions collapsed into a kebab menu — same pattern as
+                 MatchCard's options menu; keeps tight mobile rows clean. -->
             <q-btn
-              v-if="isInQueue && !linkSourceUsername"
+              color="grey-7"
+              icon="more_vert"
               flat
               round
-              :color="playerItem.lockedAt ? 'amber-8' : 'grey-6'"
-              @click.stop="$emit('playerLockToggle', playerItem.username)"
-              :icon="playerItem.lockedAt ? 'lock' : 'lock_open'"
               size="sm"
+              @click.stop
             >
               <q-tooltip
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
-                >{{
-                  playerItem.lockedAt
-                    ? 'Unlock — back in auto-draft'
-                    : 'Lock — skip auto-draft'
-                }}</q-tooltip
+                >Options</q-tooltip
               >
-            </q-btn>
-            <q-btn
-              v-if="
-                isInQueue &&
-                !playerItem.linkedTo &&
-                (!linkSourceUsername ||
-                  playerItem.username === linkSourceUsername)
-              "
-              flat
-              round
-              color="grey-6"
-              @click.stop="$emit('playerLinkToggle', playerItem.username)"
-              :icon="
-                playerItem.username === linkSourceUsername ? 'link_off' : 'link'
-              "
-              size="sm"
-            >
-              <q-tooltip
-                anchor="top middle"
-                self="bottom middle"
-                :offset="[8, 8]"
-                >{{
-                  playerItem.username === linkSourceUsername
-                    ? 'Cancel pairing'
-                    : 'Pair duo — pick a partner'
-                }}</q-tooltip
-              >
-            </q-btn>
-            <q-btn
-              v-if="!linkSourceUsername"
-              flat
-              round
-              :color="removeColor"
-              @click.stop="$emit('playerRemove', playerItem.username)"
-              :icon="removeIcon"
-              size="sm"
-              :disable="!canDelete && !isInQueue"
-            >
-              <q-tooltip
-                anchor="top middle"
-                self="bottom middle"
-                :offset="[8, 8]"
-                >{{ removeLabel }}</q-tooltip
-              >
-              <q-tooltip
-                v-if="!canDelete && !isInQueue"
-                anchor="top middle"
-                self="bottom middle"
-                :offset="[8, 8]"
-                >Admin only</q-tooltip
-              >
-            </q-btn>
-            <q-btn
-              v-if="showRequeueButton && !linkSourceUsername"
-              flat
-              color="accent"
-              @click.stop="$emit('playerRequeue', playerItem.username)"
-              icon="input"
-              size="sm"
-              :disable="isInQueue || isInMatch"
-            >
-              <q-tooltip
-                anchor="top middle"
-                self="bottom middle"
-                :offset="[8, 8]"
-                v-if="isInQueue"
-              >
-                Already in queue
-              </q-tooltip>
-              <q-tooltip
-                anchor="top middle"
-                self="bottom middle"
-                :offset="[8, 8]"
-                v-else-if="isInMatch"
-              >
-                In match
-              </q-tooltip>
-              <q-tooltip
-                anchor="top middle"
-                self="bottom middle"
-                :offset="[8, 8]"
-                v-else
-                >Add to queue</q-tooltip
-              >
+              <q-menu auto-close>
+                <q-list style="min-width: 170px">
+                  <q-item
+                    v-if="
+                      linkSourceUsername === playerItem.username ||
+                      avoidSourceUsername === playerItem.username
+                    "
+                    clickable
+                    class="text-warning"
+                    @click="
+                      linkSourceUsername === playerItem.username
+                        ? $emit('playerLinkToggle', playerItem.username)
+                        : $emit('playerAvoidToggle', playerItem.username)
+                    "
+                  >
+                    <q-item-section avatar>
+                      <q-icon name="close" />
+                    </q-item-section>
+                    <q-item-section>
+                      {{
+                        linkSourceUsername === playerItem.username
+                          ? 'Cancel pairing'
+                          : 'Cancel avoid'
+                      }}
+                    </q-item-section>
+                  </q-item>
+
+                  <q-item
+                    v-if="
+                      isInQueue && !linkSourceUsername && !avoidSourceUsername
+                    "
+                    clickable
+                    @click="$emit('playerLockToggle', playerItem.username)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon
+                        :name="playerItem.lockedAt ? 'lock_open' : 'lock'"
+                        :color="playerItem.lockedAt ? 'amber-8' : undefined"
+                      />
+                    </q-item-section>
+                    <q-item-section>{{
+                      playerItem.lockedAt ? 'Unlock player' : 'Lock player'
+                    }}</q-item-section>
+                  </q-item>
+
+                  <q-item
+                    v-if="
+                      isInQueue &&
+                      !playerItem.linkedTo &&
+                      !linkSourceUsername &&
+                      !avoidSourceUsername
+                    "
+                    clickable
+                    @click="$emit('playerLinkToggle', playerItem.username)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon name="link" color="teal" />
+                    </q-item-section>
+                    <q-item-section>Pair duo…</q-item-section>
+                  </q-item>
+
+                  <q-item
+                    v-if="!linkSourceUsername && !avoidSourceUsername"
+                    clickable
+                    @click="$emit('playerAvoidToggle', playerItem.username)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon name="person_off" color="deep-orange" />
+                    </q-item-section>
+                    <q-item-section>Avoid player…</q-item-section>
+                  </q-item>
+
+                  <q-item
+                    v-if="
+                      hasAvoids(playerItem) &&
+                      !linkSourceUsername &&
+                      !avoidSourceUsername
+                    "
+                    clickable
+                    @click="$emit('playerAvoidManage', playerItem.username)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon name="manage_accounts" color="deep-orange" />
+                    </q-item-section>
+                    <q-item-section>Manage avoids</q-item-section>
+                  </q-item>
+
+                  <q-separator
+                    v-if="!linkSourceUsername && !avoidSourceUsername"
+                  />
+
+                  <q-item
+                    v-if="
+                      showRequeueButton &&
+                      !linkSourceUsername &&
+                      !avoidSourceUsername
+                    "
+                    clickable
+                    :disable="isInQueue || isInMatch"
+                    @click="$emit('playerRequeue', playerItem.username)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon name="input" color="accent" />
+                    </q-item-section>
+                    <q-item-section>{{
+                      isInQueue
+                        ? 'Already in queue'
+                        : isInMatch
+                          ? 'In match'
+                          : 'Add to queue'
+                    }}</q-item-section>
+                  </q-item>
+
+                  <q-item
+                    v-if="!linkSourceUsername && !avoidSourceUsername"
+                    clickable
+                    :disable="!canDelete && !isInQueue"
+                    class="text-negative"
+                    @click="$emit('playerRemove', playerItem.username)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon :name="removeIcon" color="negative" />
+                    </q-item-section>
+                    <q-item-section>{{ removeLabel }}</q-item-section>
+                  </q-item>
+                </q-list>
+              </q-menu>
             </q-btn>
           </template>
         </template>
@@ -176,6 +218,12 @@ type Player = BasePlayer & {
   queueType?: 'GENERAL' | 'WINNERS' | 'LOSERS';
   lockedAt?: number;
   linkedTo?: string;
+  /** Undraftable right now (locked / pair waiting) — rendered dimmed at bottom. */
+  isStalled?: boolean;
+  /** Display names of this player's avoid targets, e.g. "Ann (team), Bob" */
+  avoidSummary?: string;
+  /** True when the player is someone's avoid target (incoming). */
+  avoidedBy?: string;
   linkedPartnerName?: string;
   isInMatch?: boolean;
   isInQueue?: boolean;
@@ -192,6 +240,7 @@ interface Props {
   isInQueue?: boolean;
   isInMatch?: boolean;
   linkSourceUsername?: string | null;
+  avoidSourceUsername?: string | null;
   showRequeueButton?: boolean;
   showFeedbackButton?: boolean;
   emptyIcon?: string;
@@ -218,6 +267,7 @@ const props = withDefaults(defineProps<Props>(), {
   isInQueue: false,
   isInMatch: false,
   linkSourceUsername: null,
+  avoidSourceUsername: null,
   showRequeueButton: true,
   removeLabel: 'Remove',
   removeIcon: 'delete',
@@ -244,6 +294,8 @@ defineEmits<{
   playerRequeue: [username: string];
   playerLockToggle: [username: string];
   playerLinkToggle: [username: string];
+  playerAvoidToggle: [username: string];
+  playerAvoidManage: [username: string];
   emptyAction: [];
 }>();
 
@@ -325,6 +377,24 @@ const linkStateFor = (
     !player.isInMatch;
   return eligible ? 'candidate' : 'ineligible';
 };
+
+// Avoid-mode row state: the armed source row is highlighted, every other
+// player is a valid target except the source's linked partner (contradiction).
+const avoidStateFor = (
+  player: Player,
+): 'source' | 'candidate' | 'ineligible' | null => {
+  if (!props.avoidSourceUsername) return null;
+  if (player.username === props.avoidSourceUsername) return 'source';
+  const source = props.players.find(
+    (p) => p.username === props.avoidSourceUsername,
+  );
+  const partner = source?.linkedTo;
+  if (partner && player.username === partner) return 'ineligible';
+  return 'candidate';
+};
+
+const hasAvoids = (player: Player): boolean =>
+  !!player.avoids && Object.keys(player.avoids).length > 0;
 
 // Precompute queue positions once per list change — the per-row filter+findIndex
 // version was O(n²) (queue of 50 = 2,500 iterations per render).

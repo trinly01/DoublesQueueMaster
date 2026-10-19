@@ -248,6 +248,28 @@ export function useMatchActions(context: UseMatchActionsContext) {
       if (honorsPairs.length > 0) combinations = honorsPairs;
     }
 
+    // Hard partner-scope avoids — never place the pair on the same team.
+    const avoidPairs: [string, string][] = [];
+    for (const p of players) {
+      const avoids = MatchmakingApp.state.players[p.username]?.avoids;
+      if (!avoids) continue;
+      for (const [target, scope] of Object.entries(avoids)) {
+        if (scope === 'partner' && players.some((x) => x.username === target)) {
+          avoidPairs.push([p.username, target]);
+        }
+      }
+    }
+    if (avoidPairs.length > 0) {
+      const honorsAvoids = combinations.filter((combo) =>
+        avoidPairs.every(([a, b]) => {
+          const aIn1 = combo.team1.some((p) => p.username === a);
+          const bIn1 = combo.team1.some((p) => p.username === b);
+          return aIn1 !== bIn1;
+        }),
+      );
+      if (honorsAvoids.length > 0) combinations = honorsAvoids;
+    }
+
     // Calculate skill differences for all combinations
     const combinationsWithScores = combinations.map((combination) => {
       const team1 = combination.team1;
@@ -356,6 +378,28 @@ export function useMatchActions(context: UseMatchActionsContext) {
       queuePriorityMode.value,
       currentAdminName.value,
     );
+
+    // Surface avoid-preference outcomes from the draft run.
+    const { violations, blockers } = MatchmakingApp.lastDraftInfo;
+    const nameOf = (u: string) =>
+      MatchmakingApp.state.players[u]?.firstName || u;
+    for (const v of violations) {
+      notify({
+        type: 'warning',
+        icon: 'person_off',
+        message: `Couldn't avoid — "${nameOf(v.from)}" still matched with "${nameOf(v.to)}"`,
+        timeout: 6000,
+      });
+    }
+    for (const b of blockers) {
+      notify({
+        type: 'negative',
+        icon: 'block',
+        message: `Draft blocked — "${nameOf(b.from)}" can't be teamed with "${nameOf(b.to)}". Remove the avoid or check someone out.`,
+        timeout: 0,
+        actions: [{ label: 'Dismiss', color: 'white' }],
+      });
+    }
 
     if (autoAdvanceMatches.value) {
       const courtCount = getCourtCount();

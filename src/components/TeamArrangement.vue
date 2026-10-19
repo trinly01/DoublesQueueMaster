@@ -194,6 +194,7 @@ import { ref } from 'vue';
 import { useNotify } from '../composables/useNotify';
 import { getRatingColor } from '../utils/playerHelpers';
 import {
+  MatchmakingApp,
   computeTeamRating,
   computeWinProbability,
   computeHarmonicMean,
@@ -219,6 +220,24 @@ const pairPartner = (p: Player): Player | null => {
       (x) => x.username === p.linkedTo && x.linkedTo === p.username,
     ) ?? null
   );
+};
+
+// Hard partner-scope avoids — two players with a 'partner' avoid must never
+// share a team. Returns a description when the team has such a conflict.
+const partnerConflict = (team: Player[]): string | null => {
+  const names = new Set(team.map((p) => p.username));
+  for (const p of team) {
+    const avoids = MatchmakingApp.state.players[p.username]?.avoids;
+    if (!avoids) continue;
+    for (const [target, scope] of Object.entries(avoids)) {
+      if (scope === 'partner' && names.has(target)) {
+        const a = p.firstName || p.username;
+        const b = MatchmakingApp.state.players[target]?.firstName || target;
+        return `"${a}" can't be teamed with "${b}"`;
+      }
+    }
+  }
+  return null;
 };
 
 // Emits
@@ -381,6 +400,19 @@ const selectPlayerForSwap = (player: Player, team: 'team1' | 'team2') => {
   // Swap the players at their original indices
   fromTeam[fromIndex] = player;
   toTeam[toIndex] = selectedForSwap.value;
+
+  // Hard partner-scope avoids — a swap that teams an avoid pair is rejected.
+  const conflict = partnerConflict(team1Array) ?? partnerConflict(team2Array);
+  if (conflict) {
+    notify({
+      type: 'warning',
+      icon: 'person_off',
+      message: `Swap blocked — ${conflict} (avoid)`,
+    });
+    selectedForSwap.value = null;
+    selectedForSwapTeam.value = null;
+    return;
+  }
 
   emit('update:team1', team1Array);
   emit('update:team2', team2Array);
