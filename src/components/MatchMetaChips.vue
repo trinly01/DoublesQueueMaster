@@ -136,16 +136,22 @@
       DUPR
     </q-chip>
     <q-chip
-      v-else-if="meta.duprStatus === 'failed'"
+      v-else-if="
+        !!meta.duprStatus &&
+        ['failed', 'update_failed', 'delete_failed'].includes(meta.duprStatus)
+      "
       color="red-2"
       text-color="negative"
       size="xs"
       dense
     >
       <DuprLogo :size="12" class="q-mr-xs" />
-      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
-        >DUPR submission failed</q-tooltip
-      >
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]">
+        <div>DUPR submission failed</div>
+        <div v-if="meta.duprError" class="text-weight-medium">
+          {{ meta.duprError }}
+        </div>
+      </q-tooltip>
       DUPR Failed
     </q-chip>
     <q-chip

@@ -21,6 +21,7 @@ export interface DuprSubmissionStatus {
   club: string;
   status: string;
   dupr_match_code: string | null;
+  error_message: string | null;
   submitted_at: string | null;
   environment: string;
 }
@@ -33,6 +34,8 @@ interface DuprSettings {
   rating_flow_url: string | null;
   connect_flow_url: string | null;
   disconnect_flow_url: string | null;
+  update_flow_url: string | null;
+  delete_flow_url: string | null;
   client_key: string;
   user_api_base_url?: string;
 }
@@ -107,6 +110,8 @@ class DuprService {
             'rating_flow_url',
             'connect_flow_url',
             'disconnect_flow_url',
+            'update_flow_url',
+            'delete_flow_url',
             'client_key',
             'user_api_base_url',
           ],
@@ -175,6 +180,7 @@ class DuprService {
             'club',
             'status',
             'dupr_match_code',
+            'error_message',
             'submitted_at',
             'environment',
           ],
@@ -196,6 +202,59 @@ class DuprService {
    */
   getSubmissionStatus(matchKey: string): DuprSubmissionStatus | null {
     return this.state.submissions.find((s) => s.match_key === matchKey) || null;
+  }
+
+  /**
+   * Update an already-submitted match on DUPR (e.g. score correction).
+   * Pass the current match payload so the flow doesn't depend on
+   * completed_match having synced yet.
+   */
+  async updateMatch(
+    matchKey: string,
+    clubId: string,
+    match: Record<string, unknown>,
+  ): Promise<{ status: string; error: string | null } | null> {
+    const url = this.state.settings?.update_flow_url;
+    if (!url) return null;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        body: JSON.stringify({ matchKey, clubId, match }),
+      });
+      return (await res.json()) as { status: string; error: string | null };
+    } catch (err) {
+      console.warn('[DUPR] updateMatch failed:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Delete a submitted match on DUPR (e.g. the completed match is voided).
+   */
+  async deleteMatch(
+    matchKey: string,
+    clubId: string,
+  ): Promise<{ status: string; error: string | null } | null> {
+    const url = this.state.settings?.delete_flow_url;
+    if (!url) return null;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        body: JSON.stringify({ matchKey, clubId }),
+      });
+      return (await res.json()) as { status: string; error: string | null };
+    } catch (err) {
+      console.warn('[DUPR] deleteMatch failed:', err);
+      return null;
+    }
   }
 
   /**
@@ -341,6 +400,7 @@ class DuprService {
           refreshToken: ssoData.refreshToken,
           duprId: ssoData.duprId,
           userId: ssoData.userId || dinkmatchUserId,
+          stats: ssoData.stats || null,
         }),
       });
 
