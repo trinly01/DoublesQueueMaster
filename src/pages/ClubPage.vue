@@ -1889,13 +1889,30 @@ function getMatchKey(matchId: string): string | null {
 
 /**
  * Check if all players in a completed match have DUPR IDs.
+ * The snapshot duprId is captured at completion time; a player who connected
+ * DUPR afterwards is still ready, so fall back to the live roster.
  */
 function isMatchDuprReady(match: {
-  teamA?: { duprId?: string }[];
-  teamB?: { duprId?: string }[];
+  teamA?: { username?: string; userId?: string; duprId?: string }[];
+  teamB?: { username?: string; userId?: string; duprId?: string }[];
 }): boolean {
   const all = [...(match.teamA || []), ...(match.teamB || [])];
-  return all.length > 0 && all.every((p) => !!p.duprId);
+  return (
+    all.length > 0 &&
+    all.every((p) => {
+      if (p.duprId) return true;
+      const roster = p.username
+        ? MatchmakingApp.state.players[p.username]
+        : undefined;
+      const live =
+        roster && (!p.userId || roster.userId === p.userId)
+          ? roster
+          : Object.values(MatchmakingApp.state.players).find(
+              (r) => p.userId && r.userId === p.userId,
+            );
+      return !!live?.duprId;
+    })
+  );
 }
 
 /**
@@ -1954,11 +1971,13 @@ async function handleSubmitSingleDupr(matchId: string) {
     );
 
     if (result) {
-      const failedCount = result.failed ?? 0;
-      if (failedCount === 0) {
+      const submittedCount = result.submitted ?? 0;
+      const first = result.results?.[0];
+      if (submittedCount > 0) {
         notify({ color: 'positive', message: 'Match submitted to DUPR' });
       } else {
-        const err = result.results[0]?.error || 'Submission failed';
+        const err =
+          first?.error || 'Submission failed — no result returned by DUPR';
         notify({ color: 'warning', message: err });
       }
     } else {
@@ -2053,7 +2072,12 @@ async function handleSubmitAllDupr() {
     if (result) {
       const successCount = result.submitted ?? 0;
       const failedCount = result.failed ?? 0;
-      if (failedCount === 0) {
+      if (successCount === 0 && failedCount === 0) {
+        notify({
+          color: 'warning',
+          message: 'No result returned by DUPR — check submission status',
+        });
+      } else if (failedCount === 0) {
         notify({
           color: 'positive',
           message: `Submitted ${successCount} match(es) to DUPR`,
@@ -2379,10 +2403,53 @@ const isCurrentUserAdmin = computed(() => {
 });
 watch(isCurrentUserAdmin, (val) => setAdminMode(val), { immediate: true });
 
+// match_key rows are written server-side: debounced appState push → club
+// PATCH → "Match" event flow → completed_match row. Fetching right after a
+// completion races that pipeline, so retry until every completed match
+// resolves to a key (or attempts run out — a genuinely failed flow row
+// stops after ~24s instead of spinning forever).
+let matchKeyRetryTimer: ReturnType<typeof setTimeout> | null = null;
+async function fetchKeysUntilMapped(attemptsLeft = 6) {
+  await fetchCompletedMatchKeys();
+  const pending = MatchmakingApp.state.completedMatches.some(
+    (m) => !completedMatchKeyMap.value[m.matchId],
+  );
+  if (pending && attemptsLeft > 0) {
+    if (matchKeyRetryTimer) clearTimeout(matchKeyRetryTimer);
+    matchKeyRetryTimer = setTimeout(
+      () => void fetchKeysUntilMapped(attemptsLeft - 1),
+      4000,
+    );
+  }
+}
+
+// Refresh match_id → match_key map when new completed matches appear —
+// otherwise submit stays disabled for matches finished this session.
+// refreshPlayerRatings rehydrates roster duprId too, so a player who
+// connected DUPR mid-session (on any device) is ready by the next match.
+watch(
+  () => MatchmakingApp.state.completedMatches.length,
+  () => {
+    void fetchKeysUntilMapped();
+    void refreshPlayerRatings();
+  },
+);
+
+// Devices coming back from sleep/offline may have missed realtime events —
+// refetch server-owned DUPR data so every device converges to the same state.
+watch(isOnline, (online, wasOnline) => {
+  if (online && wasOnline === false && currentClubUUID.value) {
+    void fetchKeysUntilMapped();
+    void Dupr.fetchSubmissions(currentClubUUID.value);
+    void Dupr.startSubmissionRealtime(currentClubUUID.value);
+  }
+});
+
 // Clear per-club UI state when switching clubs to prevent data contamination
 watch(currentClubId, () => {
   completedMatchKeyMap.value = {};
   Dupr.state.submissions = [];
+  Dupr.stopSubmissionRealtime();
   clubSettingsSearch.value = '';
   showClubQrDialog.value = false;
   clubQrCodeDataUrl.value = '';
@@ -2988,6 +3055,7 @@ onMounted(async () => {
     void fetchCompletedMatchKeys();
     if (currentClubUUID.value) {
       void Dupr.fetchSubmissions(currentClubUUID.value);
+      void Dupr.startSubmissionRealtime(currentClubUUID.value);
     }
   } else {
     clubLoadingState.value = 'loaded';

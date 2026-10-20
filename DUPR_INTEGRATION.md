@@ -71,7 +71,7 @@ the _paths_ are `/create`/`/batch` — this mismatch caused the original submit 
   "teamA": { "player1": "L8EW8W", "player2": "O8GJV8", "game1": 11 },
   "teamB": { "player1": "A1B2C3", "player2": "D4E5F6", "game1": 7 },
   "format": "SINGLES|DOUBLES",
-  "event": "optional",
+  "event": "Event name", // REQUIRED — string, minLength 1 (verified live 2026-10-20; older spec notes said optional)
   "bracket": "optional",
   "matchType": "SIDEOUT|RALLY",
   "clubId": 7614955351, // omit for PARTNER
@@ -106,18 +106,18 @@ Partner token: ~1 hour. User tokens are **read-only**. Refresh tokens rotate on 
 
 ### `dupr_settings` (singleton)
 
-| Field                          | Value / Purpose                                                                    |
-| ------------------------------ | ---------------------------------------------------------------------------------- |
-| `api_base_url`                 | `https://uat.mydupr.com/api`                                                       |
-| `user_api_base_url`            | `https://api.uat.dupr.gg`                                                          |
-| `environment`                  | `uat`                                                                              |
-| `client_key` / `client_secret` | DUPR partner credentials (server-only)                                             |
-| `submit_flow_url`              | `…/flows/trigger/41606a0f-59c5-45ec-8567-f308b31df55b`                             |
-| `connect_flow_url`             | `…/flows/trigger/6d8a2427-d681-4f93-8e4a-747b9d94c46a`                             |
-| `disconnect_flow_url`          | `…/flows/trigger/b294a945-7e3e-41ed-983f-9636c723b14a`                             |
-| `update_flow_url`              | `…/flows/trigger/bde4206c-b9d7-4eee-8f44-222f34bc9078` _(new)_                     |
-| `delete_flow_url`              | `…/flows/trigger/2e234c53-fba4-4dec-9683-5a84da8265c7` _(new)_                     |
-| `rating_flow_url`              | `…/flows/trigger/7e6e70b0-22c6-4a83-9cf2-4105e5c9e097` (broken — see Known Issues) |
+| Field                          | Value / Purpose                                                  |
+| ------------------------------ | ---------------------------------------------------------------- |
+| `api_base_url`                 | `https://uat.mydupr.com/api`                                     |
+| `user_api_base_url`            | `https://api.uat.dupr.gg`                                        |
+| `environment`                  | `uat`                                                            |
+| `client_key` / `client_secret` | DUPR partner credentials (server-only)                           |
+| `submit_flow_url`              | `…/flows/trigger/41606a0f-59c5-45ec-8567-f308b31df55b`           |
+| `connect_flow_url`             | `…/flows/trigger/6d8a2427-d681-4f93-8e4a-747b9d94c46a`           |
+| `disconnect_flow_url`          | `…/flows/trigger/b294a945-7e3e-41ed-983f-9636c723b14a`           |
+| `update_flow_url`              | `…/flows/trigger/bde4206c-b9d7-4eee-8f44-222f34bc9078` _(new)_   |
+| `delete_flow_url`              | `…/flows/trigger/2e234c53-fba4-4dec-9683-5a84da8265c7` _(new)_   |
+| `rating_flow_url`              | removed 2026-10-20 (broken flow deleted — webhooks supersede it) |
 
 ### `dupr_connection`
 
@@ -157,15 +157,23 @@ Verified DUPR ID on the user record → synced to local `Player.duprId` → capt
 
 ### Submit DUPR Matches — `41606a0f-59c5-45ec-8567-f308b31df55b` (webhook POST)
 
-`read_settings → prepare_matches → read_matches → read_connections → build_payloads → generate_auth_header → get_partner_token → submit_batch → map_results → persist_submissions → safe_response`
+`read_settings → prepare_matches → read_matches → read_connections → build_payloads → generate_auth_header → get_partner_token → submit_batch → map_results → persist_submissions → touch_submissions → safe_response`
 
-- Validates ≤100 keys; `build_payloads` rejects missing duprIds / duplicate players / tied scores (failed entries persisted with `error_message`)
-- Payload: `identifier=match_key`, `matchSource:'PARTNER'`, `matchType:'RALLY'`, `game1` only
+- Validates ≤100 keys; `build_payloads` rejects missing duprIds / **ineligible players (`BASIC_L1` required — enforced 2026-10-20 via each player's connection `eligibility`)** / duplicate players / tied scores (failed entries persisted with `error_message`). Missing snapshot `duprId`s are hydrated from the live `dupr_connection` (`connMap[p.userId].dupr_id`), so players who connect **after** a match completes still submit correctly. Returns `payloadJson` for the batch body — **previously missing, so `submit_batch` sent an empty body (latent bug found + fixed 2026-10-20)**
+- `read_connections` now fetches the `eligibility` field; `safe_response` reads `map_results.resultsJson` (it previously referenced a nonexistent `submit_to_dupr` op and would have thrown on every submit — fixed 2026-10-20). `persist_submissions` had the **same** stale `submit_to_dupr` reference in its SQL bindings → `resultsJson` bound as literal `undefined` → Postgres `22P02` crashed the flow before persisting (fixed 2026-10-20)
+- Payload: `identifier=match_key`, `matchSource:'PARTNER'`, `matchType:'RALLY'`, **`event:'Open Play'` (required by the live spec — `minLength:1`, the doc previously listed it optional and DUPR rejected with `non-nullable creator parameter event`)**, `matchPlayType:'RECREATIONAL'`, `game1` only
 - `submit_batch` _(new)_: single `request` op → `POST /match/v1.0/batch` with the payload array (replaces the broken per-match `fetch` loop — the sandbox has no `fetch`)
 - `map_results` _(new)_: normalizes `BulkMatchResponse` (`matchCodes[].identifier` → `submitted`; `errors[].identifier` → `failed` with message) + pre-validation failures into `resultsJson` for persistence. Receives `submit_batch`'s reject too — a failed DUPR call marks all ready matches `failed`/`unknown` rather than killing the flow
-- `persist_submissions` upserts by `match_key` — **now writes `club`** (was missing → statuses were invisible to the client)
+- `persist_submissions` upserts by `match_key` via raw SQL — **now writes `club`** (was missing → statuses were invisible to the client)
+- `touch_submissions` _(new, 2026-10-21)_: `item-update` op (`emitEvents: true`) that bumps `updated_at` on the just-written rows (`match_key _in` + `club` filter). Raw SQL writes bypass Directus events; this op emits a realtime `update` event per row so subscribed devices get instant push. Item-update applies one uniform payload per query — the heterogeneous per-row upsert stays in SQL; the touch op only exists for event emission
+- **First real end-to-end submissions (2026-10-20):** `1792477993229_itcuaha` → `6341519664`, `1792477703424_match-1792477671707` → `8005452963`, `1792479271940_kdloyrx` → `7457431109` (via UI button). All three confirmed on DUPR's own API: `status:SUCCESS`, `confirmed:true`, `matchScoreAdded:true`, `eventFormat:DOUBLES`, `league:'Open Play'`. Caveat found: the flow's webhook trigger returns **HTTP 200 even on flow failure** — the client must check `result.submitted > 0`, not just `failed === 0` (false-positive toast fixed in `ClubPage.vue`)
 
-### Update DUPR Match — `bde4206c-b9d7-4eee-8f44-222f34bc9078` (webhook POST) — NEW
+### Update DUPR Match — `bde4206c-b9d7-4eee-8f44-222f34bc9078` (webhook POST) — OUT OF SCOPE
+
+**Product decision (2026-10-21): DinkMatch only submits.** Edit/delete of reported
+matches is managed on the DUPR platform itself — no UI in DinkMatch. This flow +
+the Delete flow below are kept dormant as API capability only; do not wire to the
+client.
 
 `read_settings → prepare → read_submission → read_match → gen_auth → get_partner_token → do_update → persist → respond`
 
@@ -173,9 +181,9 @@ Verified DUPR ID on the user record → synced to local `Player.duprId` → capt
 - Returns `not_submitted` (no `dupr_match_code`) / `submitted` / `update_failed`; `not_submitted` does not overwrite an existing status row
 - Sends `matchId: Number(dupr_match_code)` + `identifier: match_key` to `/match/v1.0/update`
 
-### Delete DUPR Match — `2e234c53-fba4-4dec-9683-5a84da8265c7` (webhook POST) — NEW
+### Delete DUPR Match — `2e234c53-fba4-4dec-9683-5a84da8265c7` (webhook POST) — OUT OF SCOPE
 
-Same skeleton → `DELETE /match/v1.0/delete` `{matchCode, identifier}` → marks `dupr_submission.status='deleted'` (or `not_submitted`/`delete_failed`)
+Dormant — see Update note above. Same skeleton → `DELETE /match/v1.0/delete` `{matchCode, identifier}` → marks `dupr_submission.status='deleted'` (or `not_submitted`/`delete_failed`). If a match is edited/deleted on the DUPR platform, our local `dupr_submission` row is not notified — status drift is expected and acceptable while this stays out of scope.
 
 ### Disconnect DUPR — `b294a945-7e3e-41ed-983f-9636c723b14a` (webhook POST)
 
@@ -189,44 +197,57 @@ Registered with DUPR UAT for `RATING` topic (2026-10-16, handshake OK). `parse_w
 
 User-token refresh for other flows. 0 runs.
 
-### Fetch DUPR Rating — `7e6e70b0-22c6-4a83-9cf2-4105e5c9e097` (webhook POST) — KNOWN BROKEN
+### Fetch DUPR Rating — `7e6e70b0-22c6-4a83-9cf2-4105e5c9e097` — DELETED 2026-10-20
 
-Manual rating fetch. Fails 12/12 runs: calls nonexistent `/user/v1.0/details` (should be `/user/v1.0/batch`) and uses `Buffer.from` (unavailable in the Directus exec sandbox — submit flow uses a pure-JS base64 encoder for this reason). Low priority — nothing calls it and webhooks supersede it.
+Was broken (wrong path + `Buffer`), unused, and superseded by webhooks. Removed
+along with the `rating_flow_url` setting to keep the integration surface clean
+for the DUPR review.
 
 ---
 
 ## Frontend
 
-| File                                | Role                                                                                                                                                                              |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/composables/useDupr.ts`        | Service: SSO iframe, connect/disconnect, `submitMatches`, `updateMatch`/`deleteMatch` (new), settings, submissions (now fetches `error_message`, update/delete URLs)              |
-| `src/pages/PlayerPage.vue`          | Profile connect/disconnect UI, ratings display                                                                                                                                    |
-| `src/pages/ClubPage.vue`            | Single + bulk submit (club-name confirm), status→chip mapping incl. `duprError`, submit hidden when `submitted`, "Retry" for failures, bulk skips not-ready/submitted with counts |
-| `src/components/MatchMetaChips.vue` | `submitted`/failed(`update_failed`,`delete_failed`)+error tooltip/pending chips                                                                                                   |
-| `src/types/matchMeta.ts`            | `duprStatus`, `duprError`                                                                                                                                                         |
+| File                                | Role                                                                                                                                                                                                                             |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/composables/useDupr.ts`        | Service: SSO iframe, connect/disconnect, `submitMatches`, `updateMatch`/`deleteMatch`, settings, submissions fetch + **realtime subscription** (`startSubmissionRealtime`/`stopSubmissionRealtime`, self-healing on stream drop) |
+| `src/pages/PlayerPage.vue`          | Profile connect/disconnect UI, ratings display                                                                                                                                                                                   |
+| `src/pages/ClubPage.vue`            | Single + bulk submit (club-name confirm), status→chip mapping, submit hidden when `submitted`, "Retry" for failures, readiness via **live-roster fallback**, key-map + submissions refetch on new completions and on reconnect   |
+| `src/components/MatchMetaChips.vue` | `submitted`/failed(`update_failed`,`delete_failed`)+error tooltip/pending chips                                                                                                                                                  |
+| `src/types/matchMeta.ts`            | `duprStatus`, `duprError`                                                                                                                                                                                                        |
 
 ### SSO → connect → duprId pipeline
 
 1. Player clicks Connect → fullscreen iframe `login-external-app/<base64(clientKey)>` (`allow="payment"`), postMessage validated on DUPR origins
 2. Tokens + `duprId` + `stats` → Connect flow → `dupr_connection` + `directus_users.dupr_id`
 3. Club member sync pulls `dupr_id` → `checkInPlayer` → `Player.duprId` → `CompletedMatchPlayer.duprId`
-4. Submit requires **every** player to have `duprId` (all-or-nothing `isMatchDuprReady`)
+4. Submit requires **every** player to have `duprId` (all-or-nothing `isMatchDuprReady`). Since 2026-10-21 `isMatchDuprReady` falls back to the **live roster** when the frozen match snapshot lacks an ID — players who connect DUPR after a match completes become submittable without editing old snapshots. `build_payloads` mirrors this server-side via `dupr_connection`
+
+### Multi-device sync (2026-10-21)
+
+`dupr_submission` is server-owned relational data — it is **not** mirrored into client-owned `appState` (stale clients would LWW-overwrite server truth). Sync pattern = **push-primary, pull-fallback**, same as `club` appState realtime:
+
+- **Push**: `likhaClient.subscribe('dupr_submission')` filtered by current club, over the same WebSocket as the `club` subscription. Any event → `fetchSubmissions` (pull stays authoritative; events are accelerators, never replayed). Self-heals: on stream end it refetches once + retries the subscription after 10s
+- **Pull**: fetch on club load, on `completedMatches` growth, on `isOnline` false→true reconnect (covers sleep/offline gaps), after local submit
+- **Event emission**: `persist_submissions` is raw SQL → no Directus events; `touch_submissions` emits `update` events per row
+- **Permissions**: Player policy (perm 76) reads `dupr_submission` scoped to club membership (`club.players|admins|moderators.directus_users_id = $CURRENT_USER`) — players get the same push+pull path as admins, fields limited to `id, match_key, club, status, dupr_match_code, submitted_at, environment, error_message`
 
 ---
 
 ## Status metrics
 
-| Metric                  | 2026-10-16 audit                          | 2026-10-17 update                                                                            |
-| ----------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `dupr_connection` rows  | 0 — connect never succeeded               | **1** — first real connect verified                                                          |
-| `dupr_credentials` rows | 0                                         | **1** — tokens stored, UAT expiries correct                                                  |
-| Connect flow            | 5/5 errored                               | **working end-to-end** (4 chained bugs fixed below)                                          |
-| `dupr_submission` rows  | 58 — all `failed` "Players not connected" | unchanged — retest once players connect                                                      |
-| `dupr_submission.club`  | NULL → fixed + 58 backfilled              | ✅                                                                                           |
-| Calls reaching DUPR     | 0 (submit URL was 405)                    | pending first real submission                                                                |
-| RATING webhook          | registered                                | registered; **subscribe verified 200** on 2026-10-19 connect; `RATING_SEED` may arrive async |
-| Entitlement at connect  | ❌ not implemented                        | ✅ `BASIC_L1` → `dupr_connection.eligibility = {…, eligible:true}` (verified live)           |
-| Update/Delete flows     | created + `not_submitted` smoke test      | unchanged — real-match test pending                                                          |
+| Metric                  | 2026-10-16 audit                          | 2026-10-17 update                                                                                                                |
+| ----------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `dupr_connection` rows  | 0 — connect never succeeded               | **1** — first real connect verified                                                                                              |
+| `dupr_credentials` rows | 0                                         | **1** — tokens stored, UAT expiries correct                                                                                      |
+| Connect flow            | 5/5 errored                               | **working end-to-end** (4 chained bugs fixed below)                                                                              |
+| `dupr_submission` rows  | 58 — all `failed` "Players not connected" | unchanged — retest once players connect                                                                                          |
+| `dupr_submission.club`  | NULL → fixed + 58 backfilled              | ✅                                                                                                                               |
+| Calls reaching DUPR     | 0 (submit URL was 405)                    | ✅ 3 verified on DUPR's API 2026-10-20 — `6341519664`, `8005452963`, `7457431109` (all `confirmed:true`, `matchScoreAdded:true`) |
+| RATING webhook          | registered                                | registered; **subscribe verified 200** on 2026-10-19 connect; `RATING_SEED` may arrive async                                     |
+| Entitlement at connect  | ❌ not implemented                        | ✅ `BASIC_L1` → `dupr_connection.eligibility = {…, eligible:true}` (verified live)                                               |
+| Entitlement at submit   | ❌ not enforced                           | ✅ enforced in `build_payloads` 2026-10-20                                                                                       |
+| Stale `dupr_id` rows    | 4 (manual-entry leftovers)                | ✅ **0** — nulled 2026-10-20 (DUPR forbids manual ID entry)                                                                      |
+| Update/Delete flows     | created + `not_submitted` smoke test      | unchanged — real-match test pending                                                                                              |
 
 ### Connect bugs found & fixed 2026-10-17
 
@@ -235,33 +256,33 @@ Manual rating fetch. Fails 12/12 runs: calls nonexistent `/user/v1.0/details` (s
 3. `userId` bound DUPR's numeric id from `body.userId` instead of the Directus UUID from `$accountability`
 4. `dupr_credentials.access_token`/`refresh_token` were `varchar(255)` — DUPR JWTs ~900 chars → widened to `text`
 
-### Stale `dupr_id` rows to clean up
+### Stale `dupr_id` rows — CLEANED 2026-10-20
 
-4 `directus_users` have `dupr_id` set **without** a `dupr_connection` row — leftovers from the pre-SSO manual-entry field (one is a username, not a real DUPR ID). Those users should re-connect via SSO; admins may want to null the invalid ones.
+4 `directus_users` had `dupr_id` set **without** a `dupr_connection` row (pre-SSO manual-entry leftovers — one was a username, not a real DUPR ID). Manual entry violates DUPR's "SSO only" rule, so all 4 were nulled via the API: Trin Pogi (`9PR00K`), Roku (`V26W76`), Cymon (`Seajquin39` — not a real ID), Jocel Bianca (`7K7OXN`). Affected users must re-connect via SSO to submit matches.
 
 ## Compliance checklist vs dupr.gitbook.io/raas
 
-| Requirement                             | Status                                                                                                                                                                     |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SSO iframe + postMessage                | ✅ implemented                                                                                                                                                             |
-| Identity verification + token storage   | ✅ verified live 2026-10-17                                                                                                                                                |
-| Rating displayed + webhook-updated      | ✅ wired (untested end-to-end — needs a connected user)                                                                                                                    |
-| Match create (single + bulk)            | ✅ fixed (was hitting a 405)                                                                                                                                               |
-| Match update + delete                   | ✅ **API capability exists** — flows live + smoke-tested. **No UI by design**: match management stays on the DUPR platform; wire to edit/cancel only if that feature ships |
-| `matchCode` stored for lifecycle        | ✅                                                                                                                                                                         |
-| Only admins submit                      | ✅ (`isCurrentUserAdmin`-gated)                                                                                                                                            |
-| Entitlement gating (`BASIC_L1`)         | ✅ fetched at connect → `dupr_connection.eligibility` (verified live); enforcement at submit still open                                                                    |
-| Premium events (`PREMIUM_L1`)           | ❌ out of scope — we don't run DUPR+ gated events                                                                                                                          |
-| Club `matchSource:"CLUB"` + role verify | ➖ N/A — PARTNER submissions only                                                                                                                                          |
-| Resubmit same identifier                | ✅ guarded — submit hidden on `submitted`; retry allowed on `failed`                                                                                                       |
+| Requirement                             | Status                                                                                                                                                                           |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SSO iframe + postMessage                | ✅ implemented                                                                                                                                                                   |
+| Identity verification + token storage   | ✅ verified live 2026-10-17                                                                                                                                                      |
+| Rating displayed + webhook-updated      | ✅ wired (untested end-to-end — needs a connected user)                                                                                                                          |
+| Match create (single + bulk)            | ✅ fixed (was hitting a 405)                                                                                                                                                     |
+| Match update + delete                   | ➖ **Out of scope by product decision (2026-10-21)** — DinkMatch only submits; edit/delete is managed on the DUPR platform. Flows kept dormant, no UI                            |
+| `matchCode` stored for lifecycle        | ✅                                                                                                                                                                               |
+| Only admins submit                      | ✅ (`isCurrentUserAdmin`-gated)                                                                                                                                                  |
+| Entitlement gating (`BASIC_L1`)         | ✅ fetched at connect → `dupr_connection.eligibility` (verified live); **enforced at submit since 2026-10-20** — ineligible players fail with a named error before reaching DUPR |
+| Premium events (`PREMIUM_L1`)           | ❌ out of scope — we don't run DUPR+ gated events                                                                                                                                |
+| Club `matchSource:"CLUB"` + role verify | ➖ N/A — PARTNER submissions only                                                                                                                                                |
+| Resubmit same identifier                | ✅ guarded — submit hidden on `submitted`; retry allowed on `failed`                                                                                                             |
 
 ## Known issues / not done
 
-- **End-to-end submission untested** — connect verified 2026-10-17; a real create/update/delete cycle against a live match is still pending.
-- **Fetch DUPR Rating flow** — broken (wrong path + `Buffer`), unused; fix or delete.
-- **Eligibility enforcement at submit** — `eligibility` is fetched+stored at connect but `build_payloads` doesn't check it yet. Players without `BASIC_L1` will be rejected by DUPR server-side (surfaced via `error_message`), so this is a UX nicety, not a correctness gap.
+- **Submission verified end-to-end 2026-10-20** — 3 matches confirmed on DUPR's own API (`6341519664`, `8005452963`, `7457431109`). Update/Delete flows are dormant (out of scope — see above).
 - **`dupr_submission` has no `match_code` URL** — `dupr_match_code` isn't surfaced as a link to dupr.com.
 - **Guests can't be submitted** — all-or-nothing readiness; matches with unregistered players can never reach DUPR (per policy this is correct — every player needs BASIC_L1).
+- **Rating webhook e2e verified** — post-submission, real ratings landed in `dupr_connection` (e.g. `R4Q0MM` d:3.24, `2D2JO7` d:4.98, `DDQ0ZM` d:2.02). `QNQRW4` still null — likely an unrated/new DUPR account rather than a webhook gap.
+- **Realtime push untested live** — `touch_submissions` emits per-row `update` events and the client subscription is coded, but instant cross-device propagation hasn't been observed on two real devices yet. Pull fallbacks guarantee convergence regardless.
 
 ## Still relevant: UAT SSO CORS
 
