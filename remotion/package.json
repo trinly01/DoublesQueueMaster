@@ -1,0 +1,47 @@
+{
+  "name": "remotion",
+  "version": "1.0.0",
+  "description": "My Remotion video",
+  "repository": {},
+  "license": "UNLICENSED",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
+  "private": true,
+  "dependencies": {
+    "@remotion/cli": "4.0.537",
+    "@remotion/google-fonts": "4.0.537",
+    "@remotion/tailwind-v4": "4.0.537",
+    "@remotion/transitions": "4.0.537",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.537",
+    "tailwindcss": "4.0.0"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.537",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "10.12.0",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion bundle",
+    "upgrade": "remotion upgrade",
+    "lint": "eslint src && tsc",
+    "gen:sfx": "node scripts/gen-sfx.mjs",
+    "render:all": "node scripts/render-all.mjs",
+    "render:reels": "node scripts/render-all.mjs 9x16",
+    "render:feed": "node scripts/render-all.mjs 1x1",
+    "render:yt": "node scripts/render-all.mjs 16x9",
+    "render:public": "node scripts/render-all.mjs all ../public/ads"
+  },
+  "allowScripts": {
+    "esbuild": false
+  },
+  "sideEffects": [
+    "*.css"
+  ]
+}
