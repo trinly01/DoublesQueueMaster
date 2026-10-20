@@ -5008,7 +5008,7 @@
           "name": "rating",
           "table": "directus_users",
           "data_type": "integer",
-          "default_value": 1450,
+          "default_value": 1400,
           "max_length": null,
           "numeric_precision": 32,
           "numeric_scale": 0,
@@ -6107,7 +6107,7 @@
       {
         "collection": "dupr_credentials",
         "field": "access_token",
-        "type": "string",
+        "type": "text",
         "meta": {
           "collection": "dupr_credentials",
           "conditions": null,
@@ -6134,9 +6134,9 @@
         "schema": {
           "name": "access_token",
           "table": "dupr_credentials",
-          "data_type": "character varying",
+          "data_type": "text",
           "default_value": null,
-          "max_length": 255,
+          "max_length": null,
           "numeric_precision": null,
           "numeric_scale": null,
           "is_nullable": true,
@@ -6153,7 +6153,7 @@
       {
         "collection": "dupr_credentials",
         "field": "refresh_token",
-        "type": "string",
+        "type": "text",
         "meta": {
           "collection": "dupr_credentials",
           "conditions": null,
@@ -6180,9 +6180,9 @@
         "schema": {
           "name": "refresh_token",
           "table": "dupr_credentials",
-          "data_type": "character varying",
+          "data_type": "text",
           "default_value": null,
-          "max_length": 255,
+          "max_length": null,
           "numeric_precision": null,
           "numeric_scale": null,
           "is_nullable": true,
