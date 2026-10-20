@@ -111,8 +111,12 @@ const kick = (x) => {
 };
 const hat = (x) => noise() * env(x, 0.001, 60) * 0.18;
 
-const DUR = 15.2;
-const music = Array.from({ length: Math.round(DUR * RATE) }, (_, i) => {
+// Loop-clean: an integer number of bars, plus a short tail rendered past the
+// end and folded back onto the start so ringing notes wrap the seam seamlessly.
+const BARS = 8;
+const DUR = BARS * 4 * SPB; // ~18.46s at 104 BPM
+const TAIL = 0.6;
+const raw = Array.from({ length: Math.round((DUR + TAIL) * RATE) }, (_, i) => {
   const x = t(i);
   const beat = Math.floor(x / SPB);
   const eighth = Math.floor(x / EIGHTH);
@@ -137,8 +141,11 @@ const music = Array.from({ length: Math.round(DUR * RATE) }, (_, i) => {
   const bassX = x - Math.floor(x / (SPB * 4)) * (SPB * 4);
   if (bassX < 0.9) s += pluck(note(BASS[bar % 4]), bassX) * 0.55;
 
-  // gentle loop fade at tail
-  return s * Math.min(1, (DUR - x) / 1.2);
+  return s;
+});
+const music = new Array(Math.round(DUR * RATE)).fill(0);
+raw.forEach((s, i) => {
+  music[i % music.length] += s;
 });
 
 const MUSIC_OUT = join(OUT, "../music");

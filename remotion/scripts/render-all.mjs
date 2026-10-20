@@ -9,7 +9,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-const ADS = ["WalkingPaddle", "ZeroPolitics", "EveryGameCounts"];
+const ADS = ["WalkingPaddle", "ZeroPolitics", "EveryGameCounts", "QueueGuide"];
 const RATIOS = ["9x16", "1x1", "16x9"];
 
 const filter = process.argv[2];

@@ -35,11 +35,24 @@ const LINES = {
   egc_rating: "Real, partner-weighted ratings.",
   egc_duo: "Best-duo leaderboards.",
   egc_cta: "DUPR sync. Track your rise with DinkMatch. Start free.",
+  // QueueGuide tutorial (scenes at 0 / 60 / 165 / 270 / 375 / 480 / 585)
+  qg_intro: "Playing open play? Here's how it works.",
+  qg_s1: "Step one. Check in with your club admin to join the queue.",
+  qg_s2: "Step two. Watch the live queue and track your spot.",
+  qg_s3: "Step three. The app calls your court when it's your turn.",
+  qg_s4: "Step four. Report the score to your Queue Master.",
+  qg_s5: {
+    text: "Step five. Done for the day? Ask the Queue Master to check you out.",
+    rate: "+0%",
+  },
+  qg_outro: "Organized queue. Fair play. More games. Powered by DinkMatch.",
 };
 
 mkdirSync(OUT, { recursive: true });
-for (const [name, text] of Object.entries(LINES)) {
+for (const [name, line] of Object.entries(LINES)) {
   const file = join(OUT, `${name}.mp3`);
+  const text = typeof line === "string" ? line : line.text;
+  const rate = typeof line === "string" ? RATE : (line.rate ?? RATE);
   execFileSync(
     "python",
     [
@@ -47,7 +60,7 @@ for (const [name, text] of Object.entries(LINES)) {
       "edge_tts",
       "--voice",
       VOICE,
-      `--rate=${RATE}`,
+      `--rate=${rate}`,
       "--text",
       text,
       "--write-media",

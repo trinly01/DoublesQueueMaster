@@ -32,6 +32,7 @@ export const MusicBed: React.FC<{ file?: string }> = ({
       src={staticFile(file)}
       volume={0.13 * fadeIn * fadeOut}
       durationInFrames={durationInFrames}
+      loop
     />
   );
 };
