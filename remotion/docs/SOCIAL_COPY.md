@@ -1,7 +1,8 @@
 # Social Media Post Copy — DinkMatch Ad Suite
 
 Post-ready captions for each ad video in `public/ads/`.
-Render files: `WalkingPaddle-*`, `ZeroPolitics-*`, `EveryGameCounts-*`.
+Render files: `WalkingPaddle-*`, `ZeroPolitics-*`, `EveryGameCounts-*`,
+`QueueGuide-*` (player-onboarding tutorial, not a promo ad).
 
 ---
 
@@ -15,7 +16,7 @@ When someone "walks" their paddle to the front of the rack 😤🏓
 DinkMatch drafts balanced matches automatically — five modes,
 zero politics. The algorithm takes the blame, you just play.
 
-Free → dinkmatch.com
+Free → dinkmatch.club
 
 #pickleball #pickleballlife #openplay #pickleballclub #pickleballaddict
 ```
@@ -30,7 +31,7 @@ DinkMatch replaces the rack entirely: fair FIFO queues + balanced
 matchmaking in one tap. Five modes from Casual to Pro Pick,
 fewest-games-played priority, and a voice that calls the court for you.
 
-Free for players. Clubs set up in minutes → dinkmatch.com
+Free for players. Clubs set up in minutes → dinkmatch.club
 ```
 
 ---
@@ -46,7 +47,7 @@ Running open play = unpaid referee 😅
 🔗 Link a duo that came together
 🚫 Quietly separate two players who clash (staff eyes only)
 
-Let the algorithm take the blame → dinkmatch.com
+Let the algorithm take the blame → dinkmatch.club
 
 #pickleball #openplay #pickleballproblems #clubmanagement #pickleballcommunity
 ```
@@ -62,7 +63,7 @@ DinkMatch gives you three quiet superpowers — Lock a spot, link a Fixed
 Duo, avoid a clash (nobody even sees it). Courts auto-fill as games end.
 You get to actually play.
 
-Run your club free → dinkmatch.com
+Run your club free → dinkmatch.club
 ```
 
 ---
@@ -77,7 +78,7 @@ Your open-play games actually count now 📈🏓
 Real partner-weighted ratings. Clutch wins. Best-duo leaderboards.
 DUPR sync.
 
-Track your rise → dinkmatch.com
+Track your rise → dinkmatch.club
 
 #pickleball #dupr #pickleballrating #pickleballtournament #openplay
 ```
@@ -90,8 +91,65 @@ DinkMatch tracks real partner-weighted ratings — score margin matters,
 so does who you beat. Plus clutch-game badges, best-duo leaderboards,
 rival tracking, and 1-tap DUPR sync.
 
-Every game counts → dinkmatch.com
+Every game counts → dinkmatch.club
 ```
+
+---
+
+## Tutorial — QueueGuide (`QueueGuide-9x16.mp4`)
+
+Player-onboarding video — for clubs to share with members, and for us to
+post as an explainer. Tone is instructional, not promotional.
+
+### TikTok / Reels / Shorts
+
+```text
+How open play works when the queue runs itself 🏓
+
+1️⃣ Check in at the admin table
+2️⃣ Watch the live queue on your phone
+3️⃣ The app calls your court — no shouting
+4️⃣ Report your score
+5️⃣ Check out when you're done
+
+Your club can run this too → dinkmatch.club
+
+#pickleball #openplay #pickleballclub #pickleballlife #queue
+```
+
+### Facebook / IG Feed
+
+```text
+New to our open play? Here's how queueing works now:
+
+1. Check in with the admin when you arrive — you're in the queue
+2. Watch the live queue on your own phone, with your position and wait time
+3. When it's your turn, the app calls your court out loud
+4. After your match, report the score to the Queue Master
+5. Heading out? Ask the Queue Master to check you out
+
+Organized queue. Fair play. More games. 🏓
+Powered by DinkMatch — dinkmatch.club
+```
+
+### Club group chat (Viber / Messenger / WhatsApp)
+
+```text
+📋 HOW OPEN PLAY WORKS NOW
+
+1️⃣ CHECK IN — register with the admin on arrival
+2️⃣ VIEW QUEUE — your position + wait time, live on your phone
+3️⃣ YOUR TURN — the app announces your court
+4️⃣ REPORT SCORE — tell the Queue Master your result
+5️⃣ CHECK OUT — leaving? get checked out so others move up
+
+Fair queue, no confusion. See you on court! 🏓
+```
+
+### YouTube Shorts
+
+- Title: `How Open Play Queueing Works — in 5 steps`
+- Description: `Check in, watch the queue, get called to your court. How clubs run fair open-play rotation with DinkMatch. Free for players → dinkmatch.club`
 
 ---
 
