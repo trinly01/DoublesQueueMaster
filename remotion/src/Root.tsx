@@ -1,37 +1,134 @@
 import { Composition } from "remotion";
 import "./index.css";
-import { AD_DIMS, AD_DURATION, AD_FPS, AdProps, Aspect } from "./theme";
+import { AD_DIMS, AD_DURATION, AD_FPS } from "./theme";
 import { WalkingPaddleAd } from "./ads/WalkingPaddleAd";
 import { ZeroPoliticsAd } from "./ads/ZeroPoliticsAd";
 import { EveryGameCountsAd } from "./ads/EveryGameCountsAd";
+import { QueueGuideAd } from "./ads/QueueGuideAd";
 
-const ADS: { id: string; comp: React.FC<AdProps> }[] = [
-  { id: "WalkingPaddle", comp: WalkingPaddleAd },
-  { id: "ZeroPolitics", comp: ZeroPoliticsAd },
-  { id: "EveryGameCounts", comp: EveryGameCountsAd },
-];
+const GUIDE_DURATION = 735;
 
-const ASPECTS: { key: Aspect; suffix: string }[] = [
-  { key: "9:16", suffix: "9x16" },
-  { key: "1:1", suffix: "1x1" },
-  { key: "16:9", suffix: "16x9" },
-];
+/** Remotion's loose component signature — AdProps has required keys. */
+type AdComp = React.FC<Record<string, unknown>>;
+const WalkingPaddle = WalkingPaddleAd as unknown as AdComp;
+const ZeroPolitics = ZeroPoliticsAd as unknown as AdComp;
+const EveryGameCounts = EveryGameCountsAd as unknown as AdComp;
+const QueueGuide = QueueGuideAd as unknown as AdComp;
 
+/**
+ * Compositions are registered literally (not in a loop) so Remotion Studio can
+ * statically analyze each `id` + `defaultProps` and save prop edits back to
+ * this file — see remotion.dev/docs/troubleshooting/cannot-save-default-props.
+ */
 export const RemotionRoot: React.FC = () => (
   <>
-    {ADS.flatMap(({ id, comp }) =>
-      ASPECTS.map(({ key, suffix }) => (
-        <Composition
-          key={`${id}-${suffix}`}
-          id={`${id}-${suffix}`}
-          component={comp as unknown as React.FC<Record<string, unknown>>}
-          durationInFrames={AD_DURATION}
-          fps={AD_FPS}
-          width={AD_DIMS[key].width}
-          height={AD_DIMS[key].height}
-          defaultProps={{ aspect: key } satisfies AdProps}
-        />
-      )),
-    )}
+    <Composition
+      id="WalkingPaddle-9x16"
+      component={WalkingPaddle}
+      durationInFrames={AD_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["9:16"].width}
+      height={AD_DIMS["9:16"].height}
+      defaultProps={{ aspect: "9:16" }}
+    />
+    <Composition
+      id="WalkingPaddle-1x1"
+      component={WalkingPaddle}
+      durationInFrames={AD_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["1:1"].width}
+      height={AD_DIMS["1:1"].height}
+      defaultProps={{ aspect: "1:1" }}
+    />
+    <Composition
+      id="WalkingPaddle-16x9"
+      component={WalkingPaddle}
+      durationInFrames={AD_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["16:9"].width}
+      height={AD_DIMS["16:9"].height}
+      defaultProps={{ aspect: "16:9" }}
+    />
+    <Composition
+      id="ZeroPolitics-9x16"
+      component={ZeroPolitics}
+      durationInFrames={AD_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["9:16"].width}
+      height={AD_DIMS["9:16"].height}
+      defaultProps={{ aspect: "9:16" }}
+    />
+    <Composition
+      id="ZeroPolitics-1x1"
+      component={ZeroPolitics}
+      durationInFrames={AD_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["1:1"].width}
+      height={AD_DIMS["1:1"].height}
+      defaultProps={{ aspect: "1:1" }}
+    />
+    <Composition
+      id="ZeroPolitics-16x9"
+      component={ZeroPolitics}
+      durationInFrames={AD_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["16:9"].width}
+      height={AD_DIMS["16:9"].height}
+      defaultProps={{ aspect: "16:9" }}
+    />
+    <Composition
+      id="EveryGameCounts-9x16"
+      component={EveryGameCounts}
+      durationInFrames={AD_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["9:16"].width}
+      height={AD_DIMS["9:16"].height}
+      defaultProps={{ aspect: "9:16" }}
+    />
+    <Composition
+      id="EveryGameCounts-1x1"
+      component={EveryGameCounts}
+      durationInFrames={AD_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["1:1"].width}
+      height={AD_DIMS["1:1"].height}
+      defaultProps={{ aspect: "1:1" }}
+    />
+    <Composition
+      id="EveryGameCounts-16x9"
+      component={EveryGameCounts}
+      durationInFrames={AD_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["16:9"].width}
+      height={AD_DIMS["16:9"].height}
+      defaultProps={{ aspect: "16:9" }}
+    />
+    <Composition
+      id="QueueGuide-9x16"
+      component={QueueGuide}
+      durationInFrames={GUIDE_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["9:16"].width}
+      height={AD_DIMS["9:16"].height}
+      defaultProps={{ aspect: "9:16" }}
+    />
+    <Composition
+      id="QueueGuide-1x1"
+      component={QueueGuide}
+      durationInFrames={GUIDE_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["1:1"].width}
+      height={AD_DIMS["1:1"].height}
+      defaultProps={{ aspect: "1:1" }}
+    />
+    <Composition
+      id="QueueGuide-16x9"
+      component={QueueGuide}
+      durationInFrames={GUIDE_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["16:9"].width}
+      height={AD_DIMS["16:9"].height}
+      defaultProps={{ aspect: "16:9" }}
+    />
   </>
 );
