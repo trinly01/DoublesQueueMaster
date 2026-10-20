@@ -130,7 +130,7 @@
         "position_x": 37,
         "position_y": 1,
         "options": {
-          "code": "module.exports = async function(data) {\n    const { origin, role } = data.$accountability;\n    const { clubId, playerId } = data.$trigger.body;\n    \n    const id = clubId || playerId;\n    if (!role || !origin || !id) throw new Error('Unauthorized');\n    \n    const isClub = !!clubId;\n    const amount = isClub ? 499 : 169;\n    const itemName = isClub ? 'Club Activation' : 'Player Subscription';\n    const itemCategory = isClub ? 'Club Activation' : 'Player Subscription';\n    const redirectPath = isClub ? `/club/${id}` : `/profile`;\n    \n    function encodeBase64(str) {\n        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n        let b64 = '';\n        let i = 0;\n        while (i < str.length) {\n            let c1 = str.charCodeAt(i++) || 0;\n            let c2 = str.charCodeAt(i++) || 0;\n            let c3 = str.charCodeAt(i++) || 0;\n\n            let e1 = c1 >> 2;\n            let e2 = ((c1 & 3) << 4) | (c2 >> 4);\n            let e3 = ((c2 & 15) << 2) | (c3 >> 6);\n            let e4 = c3 & 63;\n\n            if (isNaN(str.charCodeAt(i - 2))) { e3 = e4 = 64; }\n            else if (isNaN(str.charCodeAt(i - 1))) { e4 = 64; }\n\n            b64 += chars.charAt(e1) + chars.charAt(e2) + \n                   (e3 === 64 ? '=' : chars.charAt(e3)) + \n                   (e4 === 64 ? '=' : chars.charAt(e4));\n        }\n        return b64;\n    }\n    \n    const apiKey = data.read_payment_settings[0].api_key;\n    const stringToEncode = apiKey + \":\";\n    const base64Token = encodeBase64(stringToEncode);\n    const authHeader = `Basic ${base64Token}`;\n    \n    const requestBody = {\n        external_id: id,\n        amount,\n        description: `Invoice for ${itemName}`,\n        invoice_duration: 86400,\n        customer_notification_preference: {\n            invoice_created: [\"whatsapp\", \"email\", \"viber\"],\n            invoice_reminder: [\"whatsapp\", \"email\", \"viber\"],\n            invoice_paid: [\"whatsapp\", \"email\", \"viber\"]\n        },\n        success_redirect_url: `${origin}/#${redirectPath}`,\n        failure_redirect_url: `${origin}/#${redirectPath}`,\n        currency: \"PHP\",\n        items: [\n            {\n                name: itemName,\n                quantity: 1,\n                price: amount,\n                category: itemCategory,\n            }\n        ],\n    };\n    \n    return { authHeader, body: requestBody };\n}"
+          "code": "module.exports = async function(data) {\n    const { origin, role } = data.$accountability;\n    const { clubId, playerId } = data.$trigger.body;\n    \n    const id = clubId || playerId;\n    if (!role || !origin || !id) throw new Error('Unauthorized');\n    \n    const isClub = !!clubId;\n    const amount = isClub ? 169 : 49;\n    const itemName = isClub ? 'Club Activation' : 'Player Subscription';\n    const itemCategory = isClub ? 'Club Activation' : 'Player Subscription';\n    const redirectPath = isClub ? `/club/${id}` : `/profile`;\n    \n    function encodeBase64(str) {\n        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n        let b64 = '';\n        let i = 0;\n        while (i < str.length) {\n            let c1 = str.charCodeAt(i++) || 0;\n            let c2 = str.charCodeAt(i++) || 0;\n            let c3 = str.charCodeAt(i++) || 0;\n\n            let e1 = c1 >> 2;\n            let e2 = ((c1 & 3) << 4) | (c2 >> 4);\n            let e3 = ((c2 & 15) << 2) | (c3 >> 6);\n            let e4 = c3 & 63;\n\n            if (isNaN(str.charCodeAt(i - 2))) { e3 = e4 = 64; }\n            else if (isNaN(str.charCodeAt(i - 1))) { e4 = 64; }\n\n            b64 += chars.charAt(e1) + chars.charAt(e2) + \n                   (e3 === 64 ? '=' : chars.charAt(e3)) + \n                   (e4 === 64 ? '=' : chars.charAt(e4));\n        }\n        return b64;\n    }\n    \n    const apiKey = data.read_payment_settings[0].api_key;\n    const stringToEncode = apiKey + \":\";\n    const base64Token = encodeBase64(stringToEncode);\n    const authHeader = `Basic ${base64Token}`;\n    \n    const requestBody = {\n        external_id: id,\n        amount,\n        description: `Invoice for ${itemName}`,\n        invoice_duration: 86400,\n        customer_notification_preference: {\n            invoice_created: [\"whatsapp\", \"email\", \"viber\"],\n            invoice_reminder: [\"whatsapp\", \"email\", \"viber\"],\n            invoice_paid: [\"whatsapp\", \"email\", \"viber\"]\n        },\n        success_redirect_url: `${origin}/#${redirectPath}`,\n        failure_redirect_url: `${origin}/#${redirectPath}`,\n        currency: \"PHP\",\n        items: [\n            {\n                name: itemName,\n                quantity: 1,\n                price: amount,\n                category: itemCategory,\n            }\n        ],\n    };\n    \n    return { authHeader, body: requestBody };\n}"
         },
         "resolve": "cbd27aed-743e-4892-8ffd-564b28ffdc54",
         "reject": "b4a49d6b-ca0c-4cbd-ae99-4efacb34ee84"
@@ -199,6 +199,162 @@
           ]
         },
         "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+    "name": "Delete DUPR Match",
+    "icon": "bolt",
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "method": "POST"
+    },
+    "operation": "39de68b3-4766-4a23-9790-957c8db6653f",
+    "operations": [
+      {
+        "id": "1c6ec07d-0def-43fa-8237-a5993e223852",
+        "name": "Get partner token",
+        "key": "get_partner_token",
+        "type": "request",
+        "position_x": 19,
+        "position_y": 250,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_settings[0].api_base_url }}/auth/v1.0/token",
+          "headers": [
+            {
+              "header": "x-authorization",
+              "value": "{{ gen_auth.authHeader }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "resolve": "c55a95b9-0a55-40f4-ac15-f5749528e4f2",
+        "reject": null
+      },
+      {
+        "id": "39de68b3-4766-4a23-9790-957c8db6653f",
+        "name": "Read DUPR settings",
+        "key": "read_settings",
+        "type": "item-read",
+        "position_x": 19,
+        "position_y": 0,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "dupr_settings"
+        },
+        "resolve": "6ce05da8-ea09-4c65-923e-a5b77e688bfe",
+        "reject": null
+      },
+      {
+        "id": "3d197ea9-d2a9-49c9-a6ff-bcfc1fd29b4b",
+        "name": "Generate auth header",
+        "key": "gen_auth",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 200,
+        "options": {
+          "code": "module.exports = async function(data) {\n  \nfunction b64enc(str) {\n  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n  var out = '';\n  for (var i = 0; i < str.length; i += 3) {\n    var a = str.charCodeAt(i) & 0xff;\n    var b = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN;\n    var c = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN;\n    var t = (a << 16) | ((b || 0) << 8) | (c || 0);\n    out += chars[(t >> 18) & 63] + chars[(t >> 12) & 63] + (isNaN(b) ? '=' : chars[(t >> 6) & 63]) + (isNaN(c) ? '=' : chars[t & 63]);\n  }\n  return out;\n}\n  var settings = data.read_settings[0];\n  return { authHeader: b64enc(settings.client_key + ':' + settings.client_secret) };\n}"
+        },
+        "resolve": "1c6ec07d-0def-43fa-8237-a5993e223852",
+        "reject": null
+      },
+      {
+        "id": "454ff751-4716-4b8d-a083-bbfe8a88c4e3",
+        "name": "Persist status",
+        "key": "persist",
+        "type": "likha_sql",
+        "position_x": 19,
+        "position_y": 350,
+        "options": {
+          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ? AND ? != 'not_submitted';",
+          "binding": [
+            "{{ do_delete.status }}",
+            "{{ do_delete.error }}",
+            "{{ do_delete.now }}",
+            "{{ prepare.matchKey }}",
+            "{{ do_delete.status }}"
+          ]
+        },
+        "resolve": "b5ae95a1-e63b-4997-b7c1-197f72973e34",
+        "reject": null
+      },
+      {
+        "id": "6ce05da8-ea09-4c65-923e-a5b77e688bfe",
+        "name": "Prepare request",
+        "key": "prepare",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 50,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const body = data.$trigger.body || {};\n  const matchKey = body.matchKey;\n  const clubId = body.clubId;\n  if (!matchKey || !clubId) {\n    throw new Error('Missing required fields: matchKey, clubId');\n  }\n  return {\n    matchKey,\n    clubId,\n    apiBaseUrl: data.read_settings[0].api_base_url,\n    environment: data.read_settings[0].environment || 'uat',\n    // Optional client-supplied overrides (avoids completed_match sync race)\n    override: body.match || null\n  };\n}"
+        },
+        "resolve": "a3750a76-2e06-4b8c-acf6-835c168d0f7c",
+        "reject": null
+      },
+      {
+        "id": "a3750a76-2e06-4b8c-acf6-835c168d0f7c",
+        "name": "Read submission",
+        "key": "read_submission",
+        "type": "item-read",
+        "position_x": 19,
+        "position_y": 100,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "dupr_submission",
+          "query": {
+            "filter": {
+              "match_key": {
+                "_eq": "{{ prepare.matchKey }}"
+              }
+            },
+            "fields": [
+              "id",
+              "match_key",
+              "status",
+              "dupr_match_code"
+            ],
+            "limit": 1
+          }
+        },
+        "resolve": "3d197ea9-d2a9-49c9-a6ff-bcfc1fd29b4b",
+        "reject": null
+      },
+      {
+        "id": "b5ae95a1-e63b-4997-b7c1-197f72973e34",
+        "name": "Response",
+        "key": "respond",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 400,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.do_update || data.do_delete;\n  return {\n    matchKey: step.matchKey,\n    status: step.status,\n    error: step.error || null\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "c55a95b9-0a55-40f4-ac15-f5749528e4f2",
+        "name": "Delete DUPR match",
+        "key": "do_delete",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 300,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const sub = (data.read_submission || [])[0];\n  const token = data.get_partner_token;\n  const partnerToken = token?.result?.token || token?.data?.result?.token || token?.token;\n  if (!partnerToken) throw new Error('Failed to get partner access token');\n\n  // Never reached DUPR — nothing to delete\n  if (!sub || !sub.dupr_match_code) {\n    return { status: 'not_submitted', matchKey: data.prepare.matchKey, now: new Date().toISOString() };\n  }\n\n  const res = await fetch(data.prepare.apiBaseUrl + '/match/v1.0/delete', {\n    method: 'DELETE',\n    headers: { 'Authorization': 'Bearer ' + partnerToken, 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      matchCode: String(sub.dupr_match_code),\n      identifier: data.prepare.matchKey\n    })\n  });\n  const json = await res.json().catch(() => ({}));\n\n  return {\n    status: json.status === 'SUCCESS' ? 'deleted' : 'delete_failed',\n    matchKey: data.prepare.matchKey,\n    error: json.status === 'SUCCESS' ? null : (json.message || 'DUPR delete failed'),\n    now: new Date().toISOString()\n  };\n}"
+        },
+        "resolve": "454ff751-4716-4b8d-a083-bbfe8a88c4e3",
         "reject": null
       }
     ],
@@ -345,12 +501,60 @@
               "user",
               "dupr_id",
               "singles_rating",
-              "doubles_rating"
+              "doubles_rating",
+              "eligibility"
             ]
           },
           "collection": "dupr_connection"
         },
         "resolve": "b024dc9a-8bb8-439c-9127-1ee8d350f8a6",
+        "reject": null
+      },
+      {
+        "id": "0cff3dcc-4ac3-4b77-bfb5-83448a2b530a",
+        "name": "Touch Submissions",
+        "key": "touch_submissions",
+        "type": "item-update",
+        "position_x": 19,
+        "position_y": 17,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": true,
+          "collection": "dupr_submission",
+          "query": {
+            "filter": {
+              "_and": [
+                {
+                  "match_key": {
+                    "_in": "{{ prepare_matches.matchKeys }}"
+                  }
+                },
+                {
+                  "club": {
+                    "_eq": "{{ prepare_matches.clubId }}"
+                  }
+                }
+              ]
+            }
+          },
+          "payload": {
+            "updated_at": "{{ map_results.now }}"
+          }
+        },
+        "resolve": "898faca3-904c-4529-9de7-93e7e0f432e5",
+        "reject": null
+      },
+      {
+        "id": "44c959f9-11d5-422c-86f7-2f2af6588f6c",
+        "name": "Map DUPR batch results",
+        "key": "map_results",
+        "type": "exec",
+        "position_x": 37,
+        "position_y": 37,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const ready = data.build_payloads?.ready || [];\n  const failed = data.build_payloads?.failed || [];\n  const env = data.build_payloads?.env;\n  const userId = data.prepare_matches?.userId;\n  const now = new Date().toISOString();\n\n  const resp = data.submit_batch;\n  const body = resp?.data ?? resp;\n  const res = body?.result ?? {};\n  const matchCodes = Array.isArray(res.matchCodes) ? res.matchCodes : [];\n  const errors = Array.isArray(res.errors) ? res.errors : [];\n  const okMap = {};\n  for (const mc of matchCodes) okMap[mc.identifier] = mc;\n  const errMap = {};\n  for (const e of errors) if (e.identifier) errMap[e.identifier] = e.error || 'DUPR rejected this match';\n\n  const allResults = [];\n  for (const f of failed) allResults.push({ matchKey: f.matchKey, status: 'failed', error: f.error });\n  for (const m of ready) {\n    const id = m.matchKey;\n    if (okMap[id]) {\n      allResults.push({ matchKey: id, status: 'submitted', duprMatchCode: okMap[id].matchCode, duprHashedMatchCode: okMap[id].hashedMatchCode });\n    } else if (errMap[id]) {\n      allResults.push({ matchKey: id, status: 'failed', error: errMap[id] });\n    } else if (body?.status === 'FAILURE' || resp?.status >= 400 || resp instanceof Error) {\n      allResults.push({ matchKey: id, status: 'failed', error: body?.message || resp?.message || 'DUPR request failed' });\n    } else {\n      allResults.push({ matchKey: id, status: 'unknown', error: 'No result returned by DUPR' });\n    }\n  }\n  return { resultsJson: JSON.stringify(allResults), userId, env, now, submitted: allResults.filter(r=>r.status==='submitted').length, failedCount: allResults.filter(r=>r.status==='failed').length, unknown: allResults.filter(r=>r.status==='unknown').length, total: allResults.length };\n}"
+        },
+        "resolve": "c7ea6923-667e-4dce-b69e-070401f1b9cd",
         "reject": null
       },
       {
@@ -416,21 +620,33 @@
             }
           ]
         },
-        "resolve": "748991f4-1406-4150-9c41-620aa9e01707",
+        "resolve": "7e91128e-29fa-4720-8340-1824b3b9077b",
         "reject": null
       },
       {
-        "id": "748991f4-1406-4150-9c41-620aa9e01707",
-        "name": "Submit to DUPR",
-        "key": "submit_to_dupr",
-        "type": "exec",
-        "position_x": 40,
-        "position_y": 37,
+        "id": "7e91128e-29fa-4720-8340-1824b3b9077b",
+        "name": "Submit batch to DUPR",
+        "key": "submit_batch",
+        "type": "request",
+        "position_x": 37,
+        "position_y": 28,
         "options": {
-          "code": "module.exports = async function(data) {\n  const ready = data.build_payloads.ready;\n  const failed = data.build_payloads.failed;\n  const token = data.get_partner_token;\n  const apiBase = data.prepare_matches.apiBaseUrl;\n  const userId = data.prepare_matches.userId;\n  const env = data.build_payloads.env;\n  \n  const partnerToken = token?.data?.result?.token || token?.result?.token || token?.accessToken || token?.access_token || token?.token;\n  if (!partnerToken) {\n    throw new Error('Failed to get partner access token');\n  }\n  \n  const allResults = [];\n  \n  for (const f of failed) {\n    allResults.push({ matchKey: f.matchKey, status: 'failed', error: f.error });\n  }\n  \n  for (const match of ready) {\n    try {\n      const response = await fetch(apiBase + '/match/v1.0/saveMatch', {\n        method: 'POST',\n        headers: {\n          'Authorization': 'Bearer ' + partnerToken,\n          'Content-Type': 'application/json'\n        },\n        body: JSON.stringify(match.payload)\n      });\n      \n      const result = await response.json();\n      \n      if (result.status === 'SUCCESS' && result.result) {\n        allResults.push({\n          matchKey: match.matchKey,\n          status: 'submitted',\n          duprMatchCode: result.result.matchCode,\n          duprHashedMatchCode: result.result.hashedMatchCode\n        });\n      } else {\n        allResults.push({\n          matchKey: match.matchKey,\n          status: 'failed',\n          error: result.message || result.error || 'Unknown DUPR error'\n        });\n      }\n    } catch (err) {\n      allResults.push({\n        matchKey: match.matchKey,\n        status: 'unknown',\n        error: err.message\n      });\n    }\n  }\n  \n  return {\n    results: allResults,\n    resultsJson: JSON.stringify(allResults),\n    userId,\n    env,\n    now: new Date().toISOString()\n  };\n}"
+          "method": "POST",
+          "url": "{{ read_settings[0].api_base_url }}/match/v1.0/batch",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "Bearer {{ get_partner_token.data.result.token }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{{ build_payloads.payloadJson }}"
         },
-        "resolve": "c7ea6923-667e-4dce-b69e-070401f1b9cd",
-        "reject": null
+        "resolve": "44c959f9-11d5-422c-86f7-2f2af6588f6c",
+        "reject": "44c959f9-11d5-422c-86f7-2f2af6588f6c"
       },
       {
         "id": "898faca3-904c-4529-9de7-93e7e0f432e5",
@@ -440,7 +656,7 @@
         "position_x": 22,
         "position_y": 54,
         "options": {
-          "code": "module.exports = async function(data) {\n  const results = data.submit_to_dupr.results;\n  \n  return {\n    results: results.map(function(r) {\n      return {\n        matchKey: r.matchKey,\n        status: r.status,\n        duprMatchCode: r.duprMatchCode || null,\n        error: r.error || null\n      };\n    }),\n    submitted: results.filter(function(r) { return r.status === 'submitted'; }).length,\n    failed: results.filter(function(r) { return r.status === 'failed'; }).length,\n    unknown: results.filter(function(r) { return r.status === 'unknown'; }).length,\n    total: results.length\n  };\n}"
+          "code": "module.exports = async function(data) {\n  const mr = data.map_results || {};\n  const results = JSON.parse(mr.resultsJson || '[]');\n  return {\n    results: results.map(function(r) {\n      return {\n        matchKey: r.matchKey,\n        status: r.status,\n        duprMatchCode: r.duprMatchCode || null,\n        error: r.error || null\n      };\n    }),\n    submitted: mr.submitted || 0,\n    failed: mr.failedCount || 0,\n    unknown: mr.unknown || 0,\n    total: mr.total || results.length\n  };\n}"
         },
         "resolve": null,
         "reject": null
@@ -481,7 +697,7 @@
         "position_x": 40,
         "position_y": 20,
         "options": {
-          "code": "module.exports = async function(data) {\n  const matches = data.read_matches || [];\n  const connections = data.read_connections || [];\n  const env = data.prepare_matches.environment;\n  \n  const connMap = {};\n  for (const c of connections) {\n    connMap[c.user] = c;\n  }\n  \n  const results = [];\n  \n  for (const m of matches) {\n    const teamA = m.team_a || [];\n    const teamB = m.team_b || [];\n    \n    const allPlayers = [...teamA, ...teamB];\n    const duprIds = [];\n    const missingDupr = [];\n    \n    for (const p of allPlayers) {\n      if (p.duprId) {\n        duprIds.push(p.duprId);\n      } else {\n        missingDupr.push(p.username || p.name || 'unknown');\n      }\n    }\n    \n    if (missingDupr.length > 0) {\n      results.push({\n        matchKey: m.match_key,\n        status: 'failed',\n        error: 'Players not connected to DUPR: ' + missingDupr.join(', ')\n      });\n      continue;\n    }\n    \n    const uniqueIds = [...new Set(duprIds)];\n    if (uniqueIds.length !== duprIds.length) {\n      results.push({\n        matchKey: m.match_key,\n        status: 'failed',\n        error: 'Duplicate player in match'\n      });\n      continue;\n    }\n    \n    if (m.team_a_score === m.team_b_score) {\n      results.push({\n        matchKey: m.match_key,\n        status: 'failed',\n        error: 'Tied scores are not allowed'\n      });\n      continue;\n    }\n    \n    const dateStr = new Date(m.completed_at).toISOString().split('T')[0];\n    const format = m.match_type === 'singles' ? 'SINGLES' : 'DOUBLES';\n    \n    const payload = {\n      identifier: m.match_key,\n      matchDate: dateStr,\n      teamA: {\n        player1: teamA[0]?.duprId || '',\n        player2: teamA[1]?.duprId || '',\n        game1: m.team_a_score,\n        game2: 0,\n        game3: 0,\n        game4: 0,\n        game5: 0\n      },\n      teamB: {\n        player1: teamB[0]?.duprId || '',\n        player2: teamB[1]?.duprId || '',\n        game1: m.team_b_score,\n        game2: 0,\n        game3: 0,\n        game4: 0,\n        game5: 0\n      },\n      format: format,\n      matchType: 'RALLY',\n      matchSource: 'PARTNER'\n    };\n    \n    if (format === 'SINGLES') {\n      delete payload.teamA.player2;\n      delete payload.teamB.player2;\n    }\n    \n    results.push({\n      matchKey: m.match_key,\n      matchId: m.match_id,\n      club: m.club,\n      status: 'ready',\n      payload\n    });\n  }\n  \n  const ready = results.filter(r => r.status === 'ready');\n  const failed = results.filter(r => r.status === 'failed');\n  \n  return { results, ready, failed, env };\n}"
+          "code": "module.exports = async function(data) {\n  const matches = data.read_matches || [];\n  const connections = data.read_connections || [];\n  const env = data.prepare_matches.environment;\n\n  const connMap = {};\n  for (const c of connections) {\n    connMap[c.user] = c;\n  }\n\n  const results = [];\n\n  for (const m of matches) {\n    const teamA = m.team_a || [];\n    const teamB = m.team_b || [];\n    const allPlayers = [...teamA, ...teamB];\n\n    const duprIds = [];\n    const missingDupr = [];\n\n    for (const p of allPlayers) {\n      // Fall back to the live dupr_connection — the completed-match snapshot\n      // may predate the player's SSO connect.\n      const live = p.userId ? connMap[p.userId] : null;\n      const effective = p.duprId || (live && live.dupr_id);\n      if (effective) {\n        p.duprId = effective; // normalize so payload uses it\n        duprIds.push(effective);\n      } else {\n        missingDupr.push(p.username || p.name || 'unknown');\n      }\n    }\n\n    if (missingDupr.length > 0) {\n      results.push({\n        matchKey: m.match_key,\n        status: 'failed',\n        error: 'Players not connected to DUPR: ' + missingDupr.join(', ')\n      });\n      continue;\n    }\n\n    // User gating (DUPR compliance): every player must hold BASIC_L1.\n    // Checked via the connection's stored eligibility — requires the\n    // player to have (re)connected via SSO since entitlements were added.\n    const ineligible = [];\n    for (const p of allPlayers) {\n      const conn = p.userId ? connMap[p.userId] : null;\n      const eligible = conn && conn.eligibility && conn.eligibility.eligible === true;\n      if (!eligible) {\n        ineligible.push(p.firstName || p.username || p.name || 'unknown');\n      }\n    }\n    if (ineligible.length > 0) {\n      results.push({\n        matchKey: m.match_key,\n        status: 'failed',\n        error: 'Players missing DUPR entitlement (BASIC_L1): ' + ineligible.join(', ') + ' — they must reconnect DUPR'\n      });\n      continue;\n    }\n\n    const uniqueIds = [...new Set(duprIds)];\n    if (uniqueIds.length !== duprIds.length) {\n      results.push({\n        matchKey: m.match_key,\n        status: 'failed',\n        error: 'Duplicate player in match'\n      });\n      continue;\n    }\n\n    if (m.team_a_score === m.team_b_score) {\n      results.push({\n        matchKey: m.match_key,\n        status: 'failed',\n        error: 'Tied scores are not allowed'\n      });\n      continue;\n    }\n\n    const dateStr = new Date(m.completed_at).toISOString().split('T')[0];\n    const format = m.match_type === 'singles' ? 'SINGLES' : 'DOUBLES';\n\n    const payload = {\n      identifier: m.match_key,\n      matchDate: dateStr,\n      teamA: {\n        player1: teamA[0]?.duprId || '',\n        player2: teamA[1]?.duprId || '',\n        game1: m.team_a_score,\n        game2: 0,\n        game3: 0,\n        game4: 0,\n        game5: 0\n      },\n      teamB: {\n        player1: teamB[0]?.duprId || '',\n        player2: teamB[1]?.duprId || '',\n        game1: m.team_b_score,\n        game2: 0,\n        game3: 0,\n        game4: 0,\n        game5: 0\n      },\n      format: format,\n      event: 'Open Play',\n      matchType: 'RALLY',\n      matchSource: 'PARTNER',\n      matchPlayType: 'RECREATIONAL'\n    };\n\n    if (format === 'SINGLES') {\n      delete payload.teamA.player2;\n      delete payload.teamB.player2;\n    }\n\n    results.push({\n      matchKey: m.match_key,\n      matchId: m.match_id,\n      club: m.club,\n      status: 'ready',\n      payload\n    });\n  }\n\n  const ready = results.filter(r => r.status === 'ready');\n  const failed = results.filter(r => r.status === 'failed');\n\n  return {\n    results,\n    ready,\n    failed,\n    env,\n    payloadJson: JSON.stringify(ready.map(r => r.payload))\n  };\n}"
         },
         "resolve": "b5f93ebd-faee-4c53-810b-a90176191899",
         "reject": null
@@ -507,15 +723,16 @@
         "position_x": 4,
         "position_y": 54,
         "options": {
-          "sql": "WITH submissions AS (\n  SELECT * FROM jsonb_array_elements(?::jsonb) AS s(val)\n),\nvals AS (\n  SELECT\n    s.val->>'matchKey' AS match_key,\n    s.val->>'status' AS status,\n    (s.val->>'duprMatchCode') AS dupr_code,\n    (s.val->>'duprHashedMatchCode') AS dupr_hashed,\n    (s.val->>'error') AS error_msg,\n    ?::uuid AS submitted_by,\n    ? AS env,\n    ?::timestamptz AS ts\n  FROM submissions s\n)\nINSERT INTO dupr_submission (id, match_key, status, dupr_match_code, dupr_hashed_match_code, error_message, submitted_by, submitted_at, environment, created_at, updated_at)\nSELECT gen_random_uuid(), match_key, status, dupr_code, dupr_hashed, error_msg, submitted_by,\n  CASE WHEN status = 'submitted' THEN ts ELSE NULL END,\n  env, ts, ts\nFROM vals\nON CONFLICT (match_key)\nDO UPDATE SET\n  status = EXCLUDED.status,\n  dupr_match_code = EXCLUDED.dupr_match_code,\n  dupr_hashed_match_code = EXCLUDED.dupr_hashed_match_code,\n  error_message = EXCLUDED.error_message,\n  submitted_by = EXCLUDED.submitted_by,\n  submitted_at = EXCLUDED.submitted_at,\n  updated_at = EXCLUDED.updated_at;",
+          "sql": "WITH submissions AS (\n  SELECT * FROM jsonb_array_elements(?::jsonb) AS s(val)\n),\nvals AS (\n  SELECT\n    s.val->>'matchKey' AS match_key,\n    s.val->>'status' AS status,\n    (s.val->>'duprMatchCode') AS dupr_code,\n    (s.val->>'duprHashedMatchCode') AS dupr_hashed,\n    (s.val->>'error') AS error_msg,\n    ?::uuid AS submitted_by,\n    ? AS env,\n    ?::timestamptz AS ts,\n    ?::uuid AS club_id\n  FROM submissions s\n)\nINSERT INTO dupr_submission (id, match_key, status, club, dupr_match_code, dupr_hashed_match_code, error_message, submitted_by, submitted_at, environment, created_at, updated_at)\nSELECT gen_random_uuid(), match_key, status, club_id, dupr_code, dupr_hashed, error_msg, submitted_by,\n  CASE WHEN status = 'submitted' THEN ts ELSE NULL END,\n  env, ts, ts\nFROM vals\nON CONFLICT (match_key)\nDO UPDATE SET\n  status = EXCLUDED.status,\n  club = EXCLUDED.club,\n  dupr_match_code = EXCLUDED.dupr_match_code,\n  dupr_hashed_match_code = EXCLUDED.dupr_hashed_match_code,\n  error_message = EXCLUDED.error_message,\n  submitted_by = EXCLUDED.submitted_by,\n  submitted_at = EXCLUDED.submitted_at,\n  updated_at = EXCLUDED.updated_at;",
           "binding": [
-            "{{ submit_to_dupr.resultsJson }}",
-            "{{ submit_to_dupr.userId }}",
-            "{{ submit_to_dupr.env }}",
-            "{{ submit_to_dupr.now }}"
+            "{{ map_results.resultsJson }}",
+            "{{ map_results.userId }}",
+            "{{ map_results.env }}",
+            "{{ map_results.now }}",
+            "{{ prepare_matches.clubId }}"
           ]
         },
-        "resolve": "898faca3-904c-4529-9de7-93e7e0f432e5",
+        "resolve": "0cff3dcc-4ac3-4b77-bfb5-83448a2b530a",
         "reject": null
       }
     ],
@@ -650,7 +867,7 @@
         "position_x": 19,
         "position_y": 1,
         "options": {
-          "code": "module.exports = async function(data) {\n  const body = data.$trigger.body;\n  \n  // DUPR webhook envelope: { clientId, event, message }\n  const event = body.event;\n  const message = body.message;\n  \n  if (!event || !message) {\n    throw new Error('Invalid webhook payload — missing event or message');\n  }\n  \n  // Accept both RATING and RATING_SEED events\n  if (event !== 'RATING' && event !== 'RATING_SEED') {\n    return { skipped: true, reason: 'Ignored event: ' + event };\n  }\n  \n  const duprId = message.duprId;\n  const rating = message.rating;\n  const metrics = message.metrics;\n  const timestamp = message.timestamp || new Date().toISOString();\n  \n  if (!duprId) {\n    throw new Error('No duprId in webhook message');\n  }\n  \n  // rating and metrics can be null for unrated players\n  const singlesRating = rating?.singles ?? null;\n  const doublesRating = rating?.doubles ?? null;\n  \n  return {\n    skipped: false,\n    event,\n    duprId,\n    singlesRating,\n    doublesRating,\n    metrics: metrics ? JSON.stringify(metrics) : null,\n    timestamp\n  };\n}"
+          "code": "module.exports = async function(data) {\n  const body = data.$trigger.body || {};\n  const event = body.event;\n  const message = body.message || {};\n\n  // Registration handshake / unrelated events: acknowledge, don't error\n  if (event !== 'RATING' && event !== 'RATING_SEED') {\n    return { skipped: true, reason: 'Ignored event: ' + (event || 'none/handshake') };\n  }\n\n  const duprId = message.duprId;\n  const rating = message.rating;\n  const metrics = message.metrics;\n  const timestamp = message.timestamp || new Date().toISOString();\n\n  if (!duprId) {\n    return { skipped: true, reason: 'No duprId in webhook message' };\n  }\n\n  // rating and metrics can be null for unrated players\n  const singlesRating = rating?.singles ?? null;\n  const doublesRating = rating?.doubles ?? null;\n\n  return {\n    skipped: false,\n    event,\n    duprId,\n    singlesRating,\n    doublesRating,\n    metrics: metrics ? JSON.stringify(metrics) : null,\n    timestamp\n  };\n}"
         },
         "resolve": "df21b586-c08b-4ef5-95d3-993e45595cd3",
         "reject": null
@@ -724,7 +941,7 @@
             }
           ]
         },
-        "resolve": "6b801e4b-615c-4a90-bdb7-c3975f179cb9",
+        "resolve": "d9a8ac07-aff8-4e57-9733-b9d4b9198c42",
         "reject": null
       },
       {
@@ -748,18 +965,45 @@
         "position_x": 23,
         "position_y": 20,
         "options": {
-          "sql": "WITH vals AS (\n  SELECT ? AS user_id, ? AS dupr_id, ? AS env, ? AS s_rating, ? AS d_rating, ? AS ts\n)\nINSERT INTO dupr_connection (id, user, dupr_id, environment, status, singles_rating, doubles_rating, rating_updated_at, connected_at, disconnected_at)\nSELECT gen_random_uuid(), user_id, dupr_id, env, 'connected', s_rating, d_rating, ts, ts, NULL\nFROM vals\nON CONFLICT (user)\nDO UPDATE SET\n  dupr_id = EXCLUDED.dupr_id,\n  status = 'connected',\n  singles_rating = EXCLUDED.singles_rating,\n  doubles_rating = EXCLUDED.doubles_rating,\n  rating_updated_at = EXCLUDED.rating_updated_at,\n  connected_at = EXCLUDED.connected_at,\n  disconnected_at = NULL;",
+          "sql": "WITH vals AS (\n  SELECT ?::uuid AS user_id, ? AS dupr_id, ? AS env, NULLIF(?, '')::numeric AS s_rating, NULLIF(?, '')::numeric AS d_rating, ?::timestamptz AS ts, NULLIF(?, '')::json AS elig, NULLIF(?, '')::timestamptz AS elig_ts\n)\nINSERT INTO dupr_connection (id, \"user\", dupr_id, environment, status, singles_rating, doubles_rating, rating_updated_at, connected_at, disconnected_at, eligibility, eligibility_checked_at)\nSELECT gen_random_uuid(), user_id, dupr_id, env, 'connected', s_rating, d_rating, ts, ts, NULL, elig, elig_ts\nFROM vals\nON CONFLICT (\"user\")\nDO UPDATE SET\n  dupr_id = EXCLUDED.dupr_id,\n  status = 'connected',\n  singles_rating = EXCLUDED.singles_rating,\n  doubles_rating = EXCLUDED.doubles_rating,\n  rating_updated_at = EXCLUDED.rating_updated_at,\n  connected_at = EXCLUDED.connected_at,\n  disconnected_at = NULL,\n  eligibility = COALESCE(EXCLUDED.eligibility, dupr_connection.eligibility),\n  eligibility_checked_at = COALESCE(EXCLUDED.eligibility_checked_at, dupr_connection.eligibility_checked_at);",
           "binding": [
             "{{ prepare_data.userId }}",
             "{{ prepare_data.duprId }}",
             "{{ prepare_data.environment }}",
             "{{ prepare_data.singlesRating }}",
             "{{ prepare_data.doublesRating }}",
-            "{{ prepare_data.now }}"
+            "{{ prepare_data.now }}",
+            "{{ prepare_data.eligibility }}",
+            "{{ prepare_data.eligibilityCheckedAt }}"
           ]
         },
         "resolve": "d340472f-3b5f-4ae1-aac7-126ec19303cb",
         "reject": null
+      },
+      {
+        "id": "50eaad38-4a88-4e0d-89c4-268688a94f87",
+        "name": "Subscribe to RATING webhook",
+        "key": "subscribe_rating_req",
+        "type": "request",
+        "position_x": 19,
+        "position_y": 64,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_settings[0].api_base_url }}/user/v1.0/subscribe/webhook-event",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "Bearer {{ get_partner_token.data.result.token }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\"duprIds\":[\"{{ prepare_data.duprId }}\"],\"topic\":\"RATING\"}"
+        },
+        "resolve": "30b96304-d5c8-41f7-888b-5910f50a2506",
+        "reject": "30b96304-d5c8-41f7-888b-5910f50a2506"
       },
       {
         "id": "6b801e4b-615c-4a90-bdb7-c3975f179cb9",
@@ -769,10 +1013,34 @@
         "position_x": 5,
         "position_y": 20,
         "options": {
-          "code": "module.exports = async function(data) {\n  const verified = data.verify_identity;\n  const body = data.$trigger.body;\n  \n  if (!verified || verified.status !== 'SUCCESS' || !verified.results || !verified.results[0]) {\n    throw new Error('DUPR identity verification failed');\n  }\n  \n  const userInfo = verified.results[0];\n  const now = new Date().toISOString();\n  const accessExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();\n  const refreshExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();\n  \n  return {\n    duprId: userInfo.duprId,\n    userId: body.userId || data.$trigger.accountability?.user,\n    accessToken: body.accessToken,\n    refreshToken: body.refreshToken,\n    singlesRating: null,\n    doublesRating: null,\n    environment: data.read_settings[0].environment || 'uat',\n    now,\n    accessExpires,\n    refreshExpires\n  };\n}"
+          "code": "module.exports = async function(data) {\n  const envelope = data.verify_identity;\n  const body = data.$trigger.body;\n\n  const verified = envelope?.data ?? envelope;\n  const userInfo = verified?.result || (Array.isArray(verified?.results) ? verified.results[0] : null);\n  if (!verified || verified.status !== 'SUCCESS' || !userInfo || !userInfo.duprId) {\n    throw new Error('DUPR identity verification failed: ' + JSON.stringify(verified).slice(0, 300));\n  }\n\n  const now = new Date().toISOString();\n  const env = data.read_settings[0].environment || 'uat';\n  const accessDays = env === 'production' ? 30 : 7;\n  const refreshDays = env === 'production' ? 90 : 30;\n  const accessExpires = new Date(Date.now() + accessDays * 24 * 60 * 60 * 1000).toISOString();\n  const refreshExpires = new Date(Date.now() + refreshDays * 24 * 60 * 60 * 1000).toISOString();\n\n  const pick = (v) => {\n    if (v == null) return null;\n    if (typeof v === 'number') return v;\n    if (typeof v === 'object') return v.rating ?? v.value ?? null;\n    return null;\n  };\n  const stats = body.stats || {};\n  const singlesRating = pick(userInfo.singlesRating) ?? pick(userInfo.singles) ?? pick(userInfo.ratings?.singles) ?? pick(stats.singlesRating) ?? pick(stats.singles) ?? null;\n  const doublesRating = pick(userInfo.doublesRating) ?? pick(userInfo.doubles) ?? pick(userInfo.ratings?.doubles) ?? pick(stats.doublesRating) ?? pick(stats.doubles) ?? null;\n\n  const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);\n  const userId = data.$accountability?.user || (isUuid(body.userId) ? body.userId : null);\n  if (!userId) throw new Error('Cannot resolve Directus user for DUPR connection');\n\n  // Entitlements from fetch_entitlements request op (POST /subscription/active).\n  // Non-fatal: op may have rejected - eligibility stays null.\n  let eligibility = null;\n  let eligibilityCheckedAt = null;\n  try {\n    const ej = data.fetch_entitlements?.data ?? data.fetch_entitlements;\n    const subs = Array.isArray(ej?.subscriptions) ? ej.subscriptions : [];\n    const ent = {};\n    for (const s of subs) {\n      const e = s?.entitlements || {};\n      for (const k of Object.keys(e)) ent[k] = Array.from(new Set([...(ent[k] || []), ...(e[k] || [])]));\n    }\n    if (subs.length > 0 || Object.keys(ent).length > 0) {\n      eligibility = { entitlements: ent, eligible: (ent.tournaments || []).includes('BASIC_L1') };\n      eligibilityCheckedAt = now;\n    }\n  } catch (e) { /* non-fatal */ }\n\n  return {\n    duprId: userInfo.duprId,\n    userId,\n    accessToken: body.accessToken,\n    refreshToken: body.refreshToken,\n    singlesRating,\n    doublesRating,\n    eligibility: eligibility ? JSON.stringify(eligibility) : null,\n    eligibilityCheckedAt,\n    environment: env,\n    now,\n    accessExpires,\n    refreshExpires\n  };\n}"
         },
         "resolve": "3a81188d-b9ef-4c8a-b698-8c6a719d2fc4",
         "reject": null
+      },
+      {
+        "id": "7320e2d8-ec3c-4d8c-9443-35da099bed88",
+        "name": "Get partner token",
+        "key": "get_partner_token",
+        "type": "request",
+        "position_x": 19,
+        "position_y": 55,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_settings[0].api_base_url }}/auth/v1.0/token",
+          "headers": [
+            {
+              "header": "x-authorization",
+              "value": "{{ gen_auth.authHeader }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "resolve": "50eaad38-4a88-4e0d-89c4-268688a94f87",
+        "reject": "50eaad38-4a88-4e0d-89c4-268688a94f87"
       },
       {
         "id": "a54e4df7-f831-4b95-b0c2-81b5e6c363be",
@@ -782,7 +1050,7 @@
         "position_x": 5,
         "position_y": 37,
         "options": {
-          "sql": "WITH vals AS (\n  SELECT ? AS user_id, ? AS env, ? AS access_token, ? AS refresh_token, ? AS access_exp, ? AS refresh_exp, ? AS ts\n)\nINSERT INTO dupr_credentials (id, connection, access_token, refresh_token, access_expires_at, refresh_expires_at, created_at, updated_at)\nSELECT gen_random_uuid(),\n  (SELECT id FROM dupr_connection WHERE user = vals.user_id),\n  vals.access_token, vals.refresh_token, vals.access_exp, vals.refresh_exp, vals.ts, vals.ts\nFROM vals\nON CONFLICT (connection)\nDO UPDATE SET\n  access_token = EXCLUDED.access_token,\n  refresh_token = EXCLUDED.refresh_token,\n  access_expires_at = EXCLUDED.access_expires_at,\n  refresh_expires_at = EXCLUDED.refresh_expires_at,\n  updated_at = EXCLUDED.updated_at;",
+          "sql": "WITH vals AS (\n  SELECT ?::uuid AS user_id, ? AS env, ? AS access_token, ? AS refresh_token, ?::timestamptz AS access_exp, ?::timestamptz AS refresh_exp, ?::timestamptz AS ts\n)\nINSERT INTO dupr_credentials (id, connection, access_token, refresh_token, access_expires_at, refresh_expires_at, created_at, updated_at)\nSELECT gen_random_uuid(),\n  (SELECT id FROM dupr_connection WHERE \"user\" = vals.user_id),\n  vals.access_token, vals.refresh_token, vals.access_exp, vals.refresh_exp, vals.ts, vals.ts\nFROM vals\nON CONFLICT (connection)\nDO UPDATE SET\n  access_token = EXCLUDED.access_token,\n  refresh_token = EXCLUDED.refresh_token,\n  access_expires_at = EXCLUDED.access_expires_at,\n  refresh_expires_at = EXCLUDED.refresh_expires_at,\n  updated_at = EXCLUDED.updated_at;",
           "binding": [
             "{{ prepare_data.userId }}",
             "{{ prepare_data.environment }}",
@@ -793,8 +1061,21 @@
             "{{ prepare_data.now }}"
           ]
         },
-        "resolve": "30b96304-d5c8-41f7-888b-5910f50a2506",
+        "resolve": "c840c989-8dfd-46aa-af05-938c812812b6",
         "reject": null
+      },
+      {
+        "id": "c840c989-8dfd-46aa-af05-938c812812b6",
+        "name": "Generate auth header",
+        "key": "gen_auth",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 46,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const settings = data.read_settings[0];\n  const str = settings.client_key + ':' + settings.client_secret;\n  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n  let output = '';\n  for (let i = 0; i < str.length; i += 3) {\n    const a = str.charCodeAt(i) & 0xff;\n    const b = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN;\n    const c = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN;\n    const triplet = (a << 16) | ((b || 0) << 8) | (c || 0);\n    output += chars[(triplet >> 18) & 63];\n    output += chars[(triplet >> 12) & 63];\n    output += isNaN(b) ? '=' : chars[(triplet >> 6) & 63];\n    output += isNaN(c) ? '=' : chars[triplet & 63];\n  }\n  return { authHeader: output };\n}"
+        },
+        "resolve": "7320e2d8-ec3c-4d8c-9443-35da099bed88",
+        "reject": "7320e2d8-ec3c-4d8c-9443-35da099bed88"
       },
       {
         "id": "d340472f-3b5f-4ae1-aac7-126ec19303cb",
@@ -804,7 +1085,7 @@
         "position_x": 41,
         "position_y": 20,
         "options": {
-          "sql": "UPDATE directus_users SET dupr_id = ? WHERE id = ?;",
+          "sql": "UPDATE directus_users SET dupr_id = ? WHERE id = ?::uuid;",
           "binding": [
             "{{ prepare_data.duprId }}",
             "{{ prepare_data.userId }}"
@@ -812,6 +1093,31 @@
         },
         "resolve": "a54e4df7-f831-4b95-b0c2-81b5e6c363be",
         "reject": null
+      },
+      {
+        "id": "d9a8ac07-aff8-4e57-9733-b9d4b9198c42",
+        "name": "Fetch entitlements",
+        "key": "fetch_entitlements",
+        "type": "request",
+        "position_x": 21,
+        "position_y": 10,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_settings[0].user_api_base_url }}/subscription/active",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "Bearer {{ $trigger.body.accessToken }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{}"
+        },
+        "resolve": "6b801e4b-615c-4a90-bdb7-c3975f179cb9",
+        "reject": "6b801e4b-615c-4a90-bdb7-c3975f179cb9"
       },
       {
         "id": "e2ba2777-9f3a-4b1d-811c-f60014664daa",
@@ -826,99 +1132,6 @@
           "collection": "dupr_settings"
         },
         "resolve": "29a88b25-75ca-49ef-b13a-72b04891f875",
-        "reject": null
-      }
-    ],
-    "flow_manager_category": null,
-    "accountability": "all"
-  },
-  {
-    "id": "7e6e70b0-22c6-4a83-9cf2-4105e5c9e097",
-    "name": "Fetch DUPR Rating",
-    "icon": "bolt",
-    "color": null,
-    "description": null,
-    "trigger": "webhook",
-    "options": {
-      "method": "POST"
-    },
-    "operation": "93664c50-1e2a-4ab4-b36c-782846519b9e",
-    "operations": [
-      {
-        "id": "84323acd-7ce4-4d67-abba-0556f2f02fe1",
-        "name": "script",
-        "key": "script",
-        "type": "exec",
-        "position_x": 42,
-        "position_y": 1,
-        "options": {
-          "code": "module.exports = async function(data) {\n\t// Do something...\n\tconst settings = data.read_dupr_settings[0]; // or however Directus passes the previous step\n    const authHeader = Buffer.from(`${settings.client_key}:${settings.client_secret}`).toString('base64');\n    return { authHeader, api_base_url: settings.api_base_url };\n}"
-        },
-        "resolve": "f0c67cbf-a108-444c-8628-e483eb930ffe",
-        "reject": null
-      },
-      {
-        "id": "93664c50-1e2a-4ab4-b36c-782846519b9e",
-        "name": "read dupr settings",
-        "key": "read_dupr_settings",
-        "type": "item-read",
-        "position_x": 19,
-        "position_y": 1,
-        "options": {
-          "permissions": "$full",
-          "emitEvents": false,
-          "collection": "dupr_settings"
-        },
-        "resolve": "84323acd-7ce4-4d67-abba-0556f2f02fe1",
-        "reject": null
-      },
-      {
-        "id": "d1ca92f6-02c1-4af0-bbcf-ca969d9208cc",
-        "name": "Get User Details",
-        "key": "get_user_details",
-        "type": "request",
-        "position_x": 47,
-        "position_y": 22,
-        "options": {
-          "method": "POST",
-          "url": "{{ read_dupr_settings[0].api_base_url }}/user/v1.0/details",
-          "headers": [
-            {
-              "header": "Authorization",
-              "value": "Bearer {{ generate_partner_access_token.partnerToken }}"
-            },
-            {
-              "header": "Content-Type",
-              "value": "application/json"
-            }
-          ],
-          "body": "{\n  \"duprIds\": [\"{{ $trigger.body.duprId }}\"]\n}"
-        },
-        "resolve": null,
-        "reject": null
-      },
-      {
-        "id": "f0c67cbf-a108-444c-8628-e483eb930ffe",
-        "name": "Generate Partner Access Token",
-        "key": "generate_partner_access_token",
-        "type": "request",
-        "position_x": 10,
-        "position_y": 23,
-        "options": {
-          "method": "POST",
-          "url": "{{ read_dupr_settings[0].api_base_url }}/auth/v1.0/token",
-          "headers": [
-            {
-              "header": "x-authorization",
-              "value": "{{ script.authHeader }}"
-            },
-            {
-              "header": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "resolve": "d1ca92f6-02c1-4af0-bbcf-ca969d9208cc",
         "reject": null
       }
     ],
@@ -1408,6 +1621,203 @@
           "code": "module.exports = async function(data) {\n  const body = data.$trigger.body;\n  const auth = data.$trigger.accountability;\n  const userId = body.userId || (auth && auth.user);\n  if (!userId) throw new Error('User not authenticated');\n  return { userId };\n}"
         },
         "resolve": "fa776e57-ed24-41ff-9fac-21a3b6825fc1",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+    "name": "Update DUPR Match",
+    "icon": "bolt",
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "method": "POST"
+    },
+    "operation": "706a7141-5021-4cde-9874-19b51d88b490",
+    "operations": [
+      {
+        "id": "675964b1-d991-473e-98fc-440106ded576",
+        "name": "Response",
+        "key": "respond",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 400,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.do_update || data.do_delete;\n  return {\n    matchKey: step.matchKey,\n    status: step.status,\n    error: step.error || null\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "706a7141-5021-4cde-9874-19b51d88b490",
+        "name": "Read DUPR settings",
+        "key": "read_settings",
+        "type": "item-read",
+        "position_x": 19,
+        "position_y": 0,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "dupr_settings"
+        },
+        "resolve": "bf1b26c6-4052-476a-a40f-7e1e40fa5c84",
+        "reject": null
+      },
+      {
+        "id": "8d602497-7f91-4d05-816b-13fedd3e57cf",
+        "name": "Persist status",
+        "key": "persist",
+        "type": "likha_sql",
+        "position_x": 19,
+        "position_y": 350,
+        "options": {
+          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ? AND ? != 'not_submitted';",
+          "binding": [
+            "{{ do_update.status }}",
+            "{{ do_update.error }}",
+            "{{ do_update.now }}",
+            "{{ prepare.matchKey }}",
+            "{{ do_update.status }}"
+          ]
+        },
+        "resolve": "675964b1-d991-473e-98fc-440106ded576",
+        "reject": null
+      },
+      {
+        "id": "91280b5b-c69a-4925-9e6e-bee1296a98dc",
+        "name": "Read match",
+        "key": "read_match",
+        "type": "item-read",
+        "position_x": 19,
+        "position_y": 150,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "completed_match",
+          "query": {
+            "filter": {
+              "_and": [
+                {
+                  "match_key": {
+                    "_eq": "{{ prepare.matchKey }}"
+                  }
+                },
+                {
+                  "club": {
+                    "_eq": "{{ prepare.clubId }}"
+                  }
+                }
+              ]
+            },
+            "fields": [
+              "match_key",
+              "match_type",
+              "team_a",
+              "team_b",
+              "team_a_score",
+              "team_b_score",
+              "completed_at"
+            ],
+            "limit": 1
+          }
+        },
+        "resolve": "eeea791b-bb0a-48a1-907d-808b3eaa50a4",
+        "reject": null
+      },
+      {
+        "id": "9fd03f0a-d080-4761-af1b-df0516fa9aec",
+        "name": "Get partner token",
+        "key": "get_partner_token",
+        "type": "request",
+        "position_x": 19,
+        "position_y": 250,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_settings[0].api_base_url }}/auth/v1.0/token",
+          "headers": [
+            {
+              "header": "x-authorization",
+              "value": "{{ gen_auth.authHeader }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "resolve": "a4ea2bbe-ef8d-46f3-bffb-b360578f9be3",
+        "reject": null
+      },
+      {
+        "id": "a4ea2bbe-ef8d-46f3-bffb-b360578f9be3",
+        "name": "Update DUPR match",
+        "key": "do_update",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 300,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const match = (data.read_match || [])[0];\n  const sub = (data.read_submission || [])[0];\n  const o = data.prepare.override || {};\n  const token = data.get_partner_token;\n  const partnerToken = token?.result?.token || token?.data?.result?.token || token?.token;\n  if (!partnerToken) throw new Error('Failed to get partner access token');\n\n  // Nothing at DUPR to update — not an error\n  if (!sub || !sub.dupr_match_code) {\n    return { status: 'not_submitted', matchKey: data.prepare.matchKey, now: new Date().toISOString() };\n  }\n\n  const src = match || {};\n  const teamA = o.teamA || src.team_a || [];\n  const teamB = o.teamB || src.team_b || [];\n  const scoreA = o.teamAScore ?? src.team_a_score;\n  const scoreB = o.teamBScore ?? src.team_b_score;\n  const completedAt = o.completedAt || src.completed_at;\n  const matchType = o.matchType || src.match_type || 'doubles';\n\n  const all = [...teamA, ...teamB];\n  const missing = all.filter(p => !p.duprId).map(p => p.username || p.name || 'unknown');\n  if (missing.length) {\n    return { status: 'failed', matchKey: data.prepare.matchKey, error: 'Players not connected to DUPR: ' + missing.join(', '), now: new Date().toISOString() };\n  }\n  const ids = all.map(p => p.duprId);\n  if (new Set(ids).size !== ids.length) {\n    return { status: 'failed', matchKey: data.prepare.matchKey, error: 'Duplicate player in match', now: new Date().toISOString() };\n  }\n  if (scoreA === scoreB) {\n    return { status: 'failed', matchKey: data.prepare.matchKey, error: 'Tied scores are not allowed', now: new Date().toISOString() };\n  }\n\n  const format = matchType === 'singles' ? 'SINGLES' : 'DOUBLES';\n  const dateStr = new Date(completedAt).toISOString().split('T')[0];\n  const payload = {\n    matchId: Number(sub.dupr_match_code),\n    identifier: data.prepare.matchKey,\n    matchDate: dateStr,\n    teamA: { player1: teamA[0].duprId, game1: scoreA },\n    teamB: { player1: teamB[0].duprId, game1: scoreB },\n    format,\n    matchType: 'RALLY',\n    matchSource: 'PARTNER'\n  };\n  if (format === 'DOUBLES') {\n    payload.teamA.player2 = teamA[1].duprId;\n    payload.teamB.player2 = teamB[1].duprId;\n  }\n\n  const res = await fetch(data.prepare.apiBaseUrl + '/match/v1.0/update', {\n    method: 'POST',\n    headers: { 'Authorization': 'Bearer ' + partnerToken, 'Content-Type': 'application/json' },\n    body: JSON.stringify(payload)\n  });\n  const json = await res.json().catch(() => ({}));\n\n  return {\n    status: json.status === 'SUCCESS' ? 'submitted' : 'update_failed',\n    matchKey: data.prepare.matchKey,\n    error: json.status === 'SUCCESS' ? null : (json.message || 'DUPR update failed'),\n    now: new Date().toISOString()\n  };\n}"
+        },
+        "resolve": "8d602497-7f91-4d05-816b-13fedd3e57cf",
+        "reject": null
+      },
+      {
+        "id": "bf1b26c6-4052-476a-a40f-7e1e40fa5c84",
+        "name": "Prepare request",
+        "key": "prepare",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 50,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const body = data.$trigger.body || {};\n  const matchKey = body.matchKey;\n  const clubId = body.clubId;\n  if (!matchKey || !clubId) {\n    throw new Error('Missing required fields: matchKey, clubId');\n  }\n  return {\n    matchKey,\n    clubId,\n    apiBaseUrl: data.read_settings[0].api_base_url,\n    environment: data.read_settings[0].environment || 'uat',\n    // Optional client-supplied overrides (avoids completed_match sync race)\n    override: body.match || null\n  };\n}"
+        },
+        "resolve": "d7ee7252-c489-42fa-ad45-e8a7cc688fee",
+        "reject": null
+      },
+      {
+        "id": "d7ee7252-c489-42fa-ad45-e8a7cc688fee",
+        "name": "Read submission",
+        "key": "read_submission",
+        "type": "item-read",
+        "position_x": 19,
+        "position_y": 100,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "dupr_submission",
+          "query": {
+            "filter": {
+              "match_key": {
+                "_eq": "{{ prepare.matchKey }}"
+              }
+            },
+            "fields": [
+              "id",
+              "match_key",
+              "status",
+              "dupr_match_code"
+            ],
+            "limit": 1
+          }
+        },
+        "resolve": "91280b5b-c69a-4925-9e6e-bee1296a98dc",
+        "reject": null
+      },
+      {
+        "id": "eeea791b-bb0a-48a1-907d-808b3eaa50a4",
+        "name": "Generate auth header",
+        "key": "gen_auth",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 200,
+        "options": {
+          "code": "module.exports = async function(data) {\n  \nfunction b64enc(str) {\n  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n  var out = '';\n  for (var i = 0; i < str.length; i += 3) {\n    var a = str.charCodeAt(i) & 0xff;\n    var b = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN;\n    var c = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN;\n    var t = (a << 16) | ((b || 0) << 8) | (c || 0);\n    out += chars[(t >> 18) & 63] + chars[(t >> 12) & 63] + (isNaN(b) ? '=' : chars[(t >> 6) & 63]) + (isNaN(c) ? '=' : chars[t & 63]);\n  }\n  return out;\n}\n  var settings = data.read_settings[0];\n  return { authHeader: b64enc(settings.client_key + ':' + settings.client_secret) };\n}"
+        },
+        "resolve": "9fd03f0a-d080-4761-af1b-df0516fa9aec",
         "reject": null
       }
     ],
