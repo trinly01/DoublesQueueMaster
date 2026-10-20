@@ -486,12 +486,18 @@
         "options": {
           "permissions": "$full",
           "emitEvents": false,
+          "collection": "dupr_connection",
           "query": {
             "filter": {
               "_and": [
                 {
                   "status": {
                     "_eq": "connected"
+                  }
+                },
+                {
+                  "environment": {
+                    "_eq": "{{ prepare_matches.environment }}"
                   }
                 }
               ]
@@ -504,8 +510,7 @@
               "doubles_rating",
               "eligibility"
             ]
-          },
-          "collection": "dupr_connection"
+          }
         },
         "resolve": "b024dc9a-8bb8-439c-9127-1ee8d350f8a6",
         "reject": null
