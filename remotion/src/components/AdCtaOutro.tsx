@@ -87,7 +87,7 @@ export const AdCtaOutro: React.FC<{
           fontWeight: 600,
         }}
       >
-        📱 Scan the QR — in the game in seconds · dinkmatch.com
+        📱 Scan the QR — in the game in seconds · dinkmatch.club
       </div>
     </div>
   );

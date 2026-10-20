@@ -551,7 +551,7 @@ export const QueueGuideAd: React.FC<AdProps> = ({ aspect, voiceoverFile }) => (
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
         <AdCtaOutro
           tagline="Organized queue. Fair play. More games."
-          cta="dinkmatch.com"
+          cta="dinkmatch.club"
           scale={layoutFor(aspect).fontScale}
         />
       </AbsoluteFill>
