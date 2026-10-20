@@ -7,3 +7,4 @@
 /quasar.config.*.temporary.compiled*
 /docs
 /android-twa
+/remotion

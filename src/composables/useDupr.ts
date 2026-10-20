@@ -204,6 +204,65 @@ class DuprService {
     return this.state.submissions.find((s) => s.match_key === matchKey) || null;
   }
 
+  private submissionUnsub: (() => void) | null = null;
+  private submissionClubId: string | null = null;
+
+  /**
+   * Realtime push for dupr_submission — other devices' submissions surface
+   * instantly. On any event we re-pull (events never replay missed writes,
+   * so the pull stays authoritative — same pattern as appState sync).
+   */
+  async startSubmissionRealtime(clubId: string): Promise<void> {
+    if (this.submissionUnsub || !clubId) return;
+    this.submissionClubId = clubId;
+    try {
+      await likhaClient.connect();
+      const { subscription, unsubscribe } = await likhaClient.subscribe(
+        'dupr_submission',
+        {
+          query: {
+            filter: { club: { _eq: clubId } },
+            fields: ['id', 'match_key', 'club', 'status', 'dupr_match_code'],
+          },
+        },
+      );
+      this.submissionUnsub = unsubscribe;
+      void (async () => {
+        try {
+          for await (const message of subscription) {
+            const msg = message as { type?: string };
+            if (msg.type && msg.type !== 'subscription') continue;
+            await this.fetchSubmissions(clubId);
+          }
+        } catch (err) {
+          console.warn('[DUPR] Submission stream ended:', err);
+        } finally {
+          // Stream dropped (sleep/offline) — refetch once to cover missed
+          // events, then self-heal the subscription after a delay.
+          this.submissionUnsub = null;
+          if (this.submissionClubId) {
+            await this.fetchSubmissions(this.submissionClubId).catch(() => {});
+            const clubId = this.submissionClubId;
+            setTimeout(() => {
+              if (this.submissionClubId === clubId && !this.submissionUnsub) {
+                void this.startSubmissionRealtime(clubId);
+              }
+            }, 10000);
+          }
+        }
+      })();
+    } catch (err) {
+      console.warn('[DUPR] Submission realtime failed (non-fatal):', err);
+      this.submissionUnsub = null;
+    }
+  }
+
+  stopSubmissionRealtime(): void {
+    this.submissionClubId = null;
+    this.submissionUnsub?.();
+    this.submissionUnsub = null;
+  }
+
   /**
    * Update an already-submitted match on DUPR (e.g. score correction).
    * Pass the current match payload so the flow doesn't depend on
