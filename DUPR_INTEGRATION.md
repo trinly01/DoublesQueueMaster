@@ -290,8 +290,42 @@ DUPR's UAT SSO iframe had a CORS issue calling `login-read-only-token` from insi
 
 ## Production cutover checklist
 
-1. `dupr_settings.environment` → `production`, `api_base_url` → `https://prod.mydupr.com/api`, `user_api_base_url` → `https://api.dupr.gg`
-2. Swap prod `client_key`/`client_secret`
-3. Re-register the webhook URL against prod
-4. SSO iframe already switches by `environment`
-5. Email `tech@mydupr.com` for integration review (platform link, test accounts, compliance summary)
+The `dupr_settings` singleton is the central switch — everything keys off it.
+
+**Step 0 — prerequisite:** prod `client_key`/`client_secret` from the DUPR account manager + a deployed client build containing the env-filtered `fetchSubmissions` (2026-10-21).
+
+**Step 1 — settings** (`dupr_settings` singleton, Directus admin or API PATCH):
+
+- `environment` → `production`
+- `api_base_url` → `https://prod.mydupr.com/api`
+- `user_api_base_url` → `https://api.dupr.gg`
+- `client_key` / `client_secret` → prod values
+- Flow URLs (`submit_flow_url`, `connect_flow_url`, …) → **unchanged** — they point to our own Directus
+
+No client changes needed: the SSO iframe already switches by `environment` (`uat.dupr.gg` → `dashboard.dupr.com/login-external-app`), and `read_connections` + `fetchSubmissions` now filter by env (2026-10-21) so UAT connections/submissions become invisible automatically — players simply re-connect via SSO on prod (their prod DUPR IDs differ from UAT test IDs).
+
+**Step 2 — webhook re-registration** (one call, prod partner token):
+
+```bash
+# 1. prod partner token
+TOKEN=$(curl -s -X POST https://prod.mydupr.com/api/auth/v1.0/token \
+  -H "x-authorization: $(echo -n "$PROD_KEY:$PROD_SECRET" | base64)" \
+  | python -c "import sys,json;print(json.load(sys.stdin)['result']['token'])")
+
+# 2. register our Directus webhook for RATING events
+#    body shape = same as the 2026-10-16 UAT registration (see partner docs);
+#    if the body schema changed, ask the account manager to register it instead
+curl -X POST https://prod.mydupr.com/api/v1.0/webhook \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"url":"https://api.dinkmatch.club/flows/trigger/664e9ba0-589e-4a38-a757-cf73a7307a70","topics":["RATING"]}'
+```
+
+Per-user `RATING` subscriptions happen automatically — Connect DUPR flow already calls `user/v1.0/subscribe/webhook-event` on every connect.
+
+**Step 3 — prod smoke test:**
+
+1. One real player connects DUPR (prod SSO) → `dupr_connection` row with `environment='production'`
+2. Submit one completed match → verify `dupr_match_code` in `dupr_submission` + `GET {api}/match/v1.0/{matchCode}` returns `status:SUCCESS`
+3. Watch `dupr_connection` ratings for webhook backfill (may lag until matches process)
+
+**Step 4 — DUPR review:** email `tech@mydupr.com` — platform link, test accounts, compliance summary (checklist table above).

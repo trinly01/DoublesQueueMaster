@@ -35,6 +35,11 @@ const LINES = {
   egc_rating: "Real, partner-weighted ratings.",
   egc_duo: "Best-duo leaderboards.",
   egc_cta: "DUPR sync. Track your rise with DinkMatch. Start free.",
+  // DuprOfficial announcement (scenes at 0 / 90 / 210 / 330)
+  du_hook: "Big news — DinkMatch is officially connected to DUPR.",
+  du_connect: "Link your DUPR account once.",
+  du_submit: "Play open play. Your Queue Master submits in one tap.",
+  du_cta: "Your DUPR rating updates automatically. Every game counts.",
   // QueueGuide tutorial (scenes at 0 / 60 / 165 / 270 / 375 / 480 / 585)
   qg_intro: "Playing open play? Here's how it works.",
   qg_s1: "Step one. Check in with your club admin to join the queue.",

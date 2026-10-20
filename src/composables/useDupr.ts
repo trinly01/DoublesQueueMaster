@@ -173,7 +173,20 @@ class DuprService {
     try {
       const result = await likhaClient.request(
         readItems('dupr_submission', {
-          filter: { club: { _eq: clubId } },
+          filter: {
+            _and: [
+              { club: { _eq: clubId } },
+              // Only show statuses for the active environment — UAT rows
+              // must not read as "submitted" after the prod cutover.
+              ...(this.state.settings?.environment
+                ? [
+                    {
+                      environment: { _eq: this.state.settings.environment },
+                    },
+                  ]
+                : []),
+            ],
+          },
           fields: [
             'id',
             'match_key',
