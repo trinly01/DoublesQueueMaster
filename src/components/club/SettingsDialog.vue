@@ -217,7 +217,7 @@
           <q-separator />
 
           <div>
-            <div class="text-subtitle2 q-mb-sm">DUPR Export Settings</div>
+            <div class="text-subtitle2 q-mb-sm">DUPR Settings</div>
             <div class="row q-col-gutter-sm items-center">
               <div class="col">
                 <q-select
@@ -244,6 +244,16 @@
                     </q-item>
                   </template>
                 </q-select>
+              </div>
+              <div class="col-12">
+                <q-toggle
+                  v-model="duprPlusOnly"
+                  label="DUPR+ event — queue requires DUPR+ membership"
+                  color="accent"
+                />
+                <div class="text-caption text-grey-6 q-ml-xl">
+                  Only players whose DUPR account has DUPR+ can join the queue.
+                </div>
               </div>
               <div class="col-auto">
                 <q-btn
@@ -1057,6 +1067,7 @@ defineEmits<{
   'update:availableCourts': [value: number];
   'update:autoAdvanceMatches': [value: boolean];
   'update:ttsEnabled': [value: boolean];
+  'update:duprPlusOnly': [value: boolean];
   'update:scoreType': [value: string];
   'update:editClubName': [value: string];
   'update:editClubId': [value: string];
@@ -1114,6 +1125,9 @@ const autoAdvanceMatches = defineModel<boolean>('autoAdvanceMatches', {
   required: true,
 });
 const ttsEnabled = defineModel<boolean>('ttsEnabled', { required: true });
+const duprPlusOnly = defineModel<boolean>('duprPlusOnly', {
+  required: true,
+});
 const scoreType = defineModel<string>('scoreType', { required: true });
 const editClubName = defineModel<string>('editClubName', { required: true });
 const editClubId = defineModel<string>('editClubId', { required: true });

@@ -419,7 +419,11 @@ import { useQuasar, LocalStorage } from 'quasar';
 import { useRouter } from 'vue-router';
 import { useNotify } from 'src/composables/useNotify';
 import { useAuth } from 'src/composables/useAuth';
-import { MatchmakingApp, levelSeedRating } from 'src/services/matchmaking';
+import {
+  MatchmakingApp,
+  levelSeedRating,
+  hasPremiumL1,
+} from 'src/services/matchmaking';
 import type { Player } from 'src/services/matchmaking';
 import { PlayerProfile } from 'src/services/playerProfile';
 import { likhaClient } from 'src/services/likhaClient';
@@ -447,6 +451,7 @@ interface ClubMember {
   isAdmin?: boolean;
   avatar?: string;
   duprId?: string;
+  duprPlus?: boolean;
   playerJunctionId?: string;
   adminJunctionId?: string;
 }
@@ -708,9 +713,17 @@ const onScanSuccess = async (decodedText: string) => {
         avatar: member.avatar,
         userId: member.id,
         duprId: member.duprId,
+        duprPlus: member.duprPlus,
         rating: memberRating,
       },
     );
+    if (result === 'dupr_plus_required') {
+      notify({
+        type: 'warning',
+        message: `"${member.firstName || member.username}" can't join — this session requires DUPR+`,
+        timeout: 5000,
+      });
+    }
     if (result === 'added') {
       logCheckIn(member.firstName || member.username || scannedUsername, 'qr');
       notify({
@@ -731,7 +744,15 @@ const onScanSuccess = async (decodedText: string) => {
     const users = await likhaClient.request(
       readUsers({
         filter: { username: { _eq: scannedUsername } },
-        fields: ['id', 'first_name', 'username', 'rating', 'avatar', 'dupr_id'],
+        fields: [
+          'id',
+          'first_name',
+          'username',
+          'rating',
+          'avatar',
+          'dupr_id',
+          'dupr_entitlements',
+        ],
         limit: 1,
       }),
     );
@@ -785,11 +806,18 @@ const onScanSuccess = async (decodedText: string) => {
         avatar: avatarUrl,
         userId,
         duprId: userDuprId,
+        duprPlus: hasPremiumL1(user.dupr_entitlements),
         rating: memberRating,
       },
     );
 
-    if (checkInResult === 'added') {
+    if (checkInResult === 'dupr_plus_required') {
+      notify({
+        type: 'warning',
+        message: `"${firstName || scannedUsername}" can't join — this session requires DUPR+`,
+        timeout: 5000,
+      });
+    } else if (checkInResult === 'added') {
       logCheckIn(firstName || scannedUsername, 'qr');
       notify({
         type: 'positive',
@@ -879,6 +907,7 @@ const addClubMembers = () => {
   const added: string[] = [];
   const alreadyInQueue: string[] = [];
   const alreadyInMatch: string[] = [];
+  const duprPlusBlocked: string[] = [];
 
   selectedClubMembers.value.forEach((memberId) => {
     const member = clubMembers.value.find((m) => m.id === memberId);
@@ -894,6 +923,7 @@ const addClubMembers = () => {
       avatar: member.avatar,
       userId: member.id,
       duprId: member.duprId,
+      duprPlus: member.duprPlus,
       rating: memberRating,
     });
 
@@ -904,6 +934,8 @@ const addClubMembers = () => {
       alreadyInQueue.push(username);
     } else if (result === 'already_in_match') {
       alreadyInMatch.push(username);
+    } else if (result === 'dupr_plus_required') {
+      duprPlusBlocked.push(username);
     }
   });
 
@@ -928,6 +960,13 @@ const addClubMembers = () => {
       timeout: 3000,
     });
   }
+  if (duprPlusBlocked.length > 0) {
+    notify({
+      type: 'warning',
+      message: `Skipped ${duprPlusBlocked.length} — session requires DUPR+: ${duprPlusBlocked.join(', ')}`,
+      timeout: 5000,
+    });
+  }
 
   addPlayerMode.value = 'single';
   selectedClubMembers.value = [];
@@ -944,6 +983,15 @@ const addNewPlayer = () => {
     newPlayerLevel.value,
     { rating: initialRating },
   );
+
+  if (result === 'dupr_plus_required') {
+    notify({
+      type: 'warning',
+      message: `"${trimmedName}" can't join — this session requires DUPR+`,
+      timeout: 5000,
+    });
+    return;
+  }
 
   if (result === 'already_in_match') {
     notify({
@@ -977,6 +1025,7 @@ const addBulkPlayers = () => {
   const invalidNames: string[] = [];
   const alreadyInQueue: string[] = [];
   const alreadyInMatch: string[] = [];
+  const duprPlusBlocked: string[] = [];
 
   for (const bulkPlayer of bulkPlayers.value) {
     const trimmedName = bulkPlayer.username.trim();
@@ -1008,6 +1057,8 @@ const addBulkPlayers = () => {
       alreadyInQueue.push(trimmedName);
     } else if (result === 'already_in_match') {
       alreadyInMatch.push(trimmedName);
+    } else if (result === 'dupr_plus_required') {
+      duprPlusBlocked.push(trimmedName);
     }
   }
 
@@ -1046,6 +1097,14 @@ const addBulkPlayers = () => {
     notify({
       type: 'warning',
       message: `Skipped ${alreadyInMatch.length} player${alreadyInMatch.length > 1 ? 's' : ''} already in match: ${alreadyInMatch.join(', ')}`,
+      timeout: 5000,
+    });
+  }
+
+  if (duprPlusBlocked.length > 0) {
+    notify({
+      type: 'warning',
+      message: `Skipped ${duprPlusBlocked.length} — session requires DUPR+: ${duprPlusBlocked.join(', ')}`,
       timeout: 5000,
     });
   }

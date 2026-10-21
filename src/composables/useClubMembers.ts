@@ -3,7 +3,7 @@ import { useQuasar } from 'quasar';
 import type { QNotifyCreateOptions } from 'quasar';
 import { readItems, updateItem } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
-import { MatchmakingApp } from 'src/services/matchmaking';
+import { MatchmakingApp, hasPremiumL1 } from 'src/services/matchmaking';
 import { useNotify } from 'src/composables/useNotify';
 
 type NotifyFn = (opts: QNotifyCreateOptions) => void;
@@ -26,6 +26,7 @@ export interface ClubMember {
   isModerator?: boolean;
   avatar?: string;
   duprId?: string;
+  duprPlus?: boolean;
   playerJunctionId?: string;
   adminJunctionId?: string;
   moderatorJunctionId?: string;
@@ -458,6 +459,7 @@ export function useClubMembers(context: UseClubMembersContext) {
             'players.directus_users_id.email',
             'players.directus_users_id.rating',
             'players.directus_users_id.dupr_id',
+            'players.directus_users_id.dupr_entitlements',
             'players.directus_users_id.avatar',
             'admins.id',
             'admins.directus_users_id.id',
@@ -525,6 +527,8 @@ export function useClubMembers(context: UseClubMembersContext) {
                 typeof u?.last_name === 'string' ? u.last_name : undefined,
               email: typeof u?.email === 'string' ? u.email : undefined,
               rating: typeof u?.rating === 'number' ? u.rating : undefined,
+              duprId: typeof u?.dupr_id === 'string' ? u.dupr_id : undefined,
+              duprPlus: hasPremiumL1(u?.dupr_entitlements),
               isAdmin: clubAdminIds.value.has(userId),
               isModerator: moderatorIdSet.has(userId),
               avatar: avatarId

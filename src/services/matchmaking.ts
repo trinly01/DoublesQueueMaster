@@ -9,6 +9,20 @@ import type { MatchMeta } from '../types/matchMeta';
  * ==========================================
  */
 
+/**
+ * True when a stored DUPR entitlements snapshot includes PREMIUM_L1.
+ * Snapshot shape written by the Connect flow onto directus_users /
+ * dupr_connection: { entitlements: { <category>: string[] }, eligible }.
+ */
+export function hasPremiumL1(entitlements: unknown): boolean {
+  const ent = (entitlements as { entitlements?: Record<string, unknown[]> })
+    ?.entitlements;
+  if (!ent || typeof ent !== 'object') return false;
+  return Object.values(ent).some(
+    (arr) => Array.isArray(arr) && arr.includes('PREMIUM_L1'),
+  );
+}
+
 export interface Player {
   username: string; // Unique identifier
   name?: string; // Optional alias for UI compatibility
@@ -22,6 +36,7 @@ export interface Player {
   priority?: string;
   userId?: string; // Directus user ID — present only for registered club members
   duprId?: string; // DUPR player ID for CSV export
+  duprPlus?: boolean; // Hydrated from directus_users.dupr_entitlements — holds PREMIUM_L1
   ratingUpdatedAt?: number; // Epoch ms of the last rating change (LWW token vs directus_users.rating_updated_at)
   statsUpdatedAt?: number; // Epoch ms of the last matchesPlayed/wins/losses/history change
   updatedAt?: number; // Epoch ms of the last any field change (for per-field LWW)
@@ -168,6 +183,7 @@ export interface AppState {
     | 'completed'
     | 'edited';
   scoreType?: 'RALLY' | 'SIDEOUT'; // For DUPR CSV export
+  duprPlusOnly?: boolean; // DUPR+ session — queue check-in requires PREMIUM_L1 entitlement
   ttsEnabled?: boolean; // Text-to-speech announcements
   qrContinueScan?: boolean; // Continue QR scanning after each successful add
   completedMatchesResetAt?: number; // Epoch ms — drops completedMatches older than this
@@ -199,6 +215,7 @@ export const CLUB_SETTINGS: Record<string, unknown> = {
   allStarSortDirection: 'desc',
   matchesFilterBy: 'all',
   scoreType: 'SIDEOUT',
+  duprPlusOnly: false,
   ttsEnabled: true,
   qrContinueScan: true,
   teamSize: 2,
@@ -1473,7 +1490,7 @@ export class LocalMatchmakingSystem {
     username: string,
     level: 1 | 2 | 3 = 1,
     extra?: Partial<Player>,
-  ): 'added' | 'already_in_queue' | 'already_in_match' {
+  ): 'added' | 'already_in_queue' | 'already_in_match' | 'dupr_plus_required' {
     const normalizedUsername = username.trim();
 
     // Create player profile if they don't exist in the local database
@@ -1529,6 +1546,16 @@ export class LocalMatchmakingSystem {
 
     if (inQueue) {
       return 'already_in_queue';
+    }
+
+    // DUPR+ session gate — the player is still rostered above, they just
+    // can't join the queue without the PREMIUM_L1 entitlement.
+    if (this.state.duprPlusOnly) {
+      const p = this.state.players[normalizedUsername];
+      if (!p?.duprPlus) {
+        this.saveState();
+        return 'dupr_plus_required';
+      }
     }
 
     this.state.queues.push({
