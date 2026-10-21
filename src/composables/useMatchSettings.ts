@@ -229,6 +229,17 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
     },
   });
 
+  // DUPR+ session gate — club-synced so every device/admin applies the same
+  // queue restriction. Players without PREMIUM_L1 are blocked at check-in.
+  const duprPlusOnly = computed<boolean>({
+    get: () => MatchmakingApp.state.duprPlusOnly ?? false,
+    set: (val) => {
+      MatchmakingApp.state.duprPlusOnly = val;
+      MatchmakingApp.stampSetting('duprPlusOnly');
+      MatchmakingApp.persist();
+    },
+  });
+
   const scoreType = computed<'RALLY' | 'SIDEOUT'>({
     get: () => MatchmakingApp.state.scoreType || 'SIDEOUT',
     set: (val) => {
@@ -383,6 +394,7 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
     matchmakingMode,
     allStarSortDirection,
     autoSortQueue,
+    duprPlusOnly,
     scoreType,
     sortBy,
     matchesFilterBy,

@@ -7,7 +7,7 @@ DinkMatch integrates with DUPR (Dynamic Universal Pickleball Rating) as a **PART
 **Integration type:** PARTNER-only (no CLUB integration — `matchSource: "PARTNER"`, no `clubId` in match payloads)
 **Backend approach:** Directus Flows only (no custom backend service)
 **Environment:** UAT (`https://uat.mydupr.com/api`)
-**Scope:** Get `duprId` via SSO connect + report matches. Match management happens on the DUPR platform; update/delete API capability exists server-side for compliance and future wiring.
+**Scope:** Get `duprId` via SSO connect + report matches + own the full lifecycle of matches DinkMatch submits (score corrections and deletions go through our Update/Delete flows — DUPR audits that edits originate from the submitting platform). DUPR+ events are supported via a session-level `PREMIUM_L1` gate.
 **Constraint:** DUPR flows must NEVER write `directus_users.rating` — that is the internal DinkMatch rating. DUPR data only lives in `dupr_*` collections.
 
 > Last audited: 2026-10-16 against the live UAT OpenAPI spec (`GET /api/v3/api-docs`)
@@ -135,6 +135,12 @@ Per-match status: `match_key` (unique), `club` (m2o), `status` (`submitted`/`fai
 
 Verified DUPR ID on the user record → synced to local `Player.duprId` → captured into `completed_match.team_a/team_b` JSON snapshots.
 
+### `directus_users.dupr_entitlements`
+
+JSON summary written by the Connect flow (same payload as `dupr_connection.eligibility`: `{entitlements: {<category>: [...]}, eligible}`); cleared by Disconnect. Readable by club members via the existing `["*"]` player read policy — this is what lets **other people's** entitlements gate check-in (a client can't read another user's `dupr_connection` row). Hydrated to `Player.duprPlus` / `ClubMember.duprPlus` via `hasPremiumL1()`.
+
+**Staleness caveat:** entitlements are only refreshed at SSO connect. A player whose DUPR+ lapses keeps `duprPlus: true` until they disconnect/reconnect. Acceptable for the review; a periodic entitlement-refresh op (stored user tokens in `dupr_credentials`) would close it.
+
 ---
 
 ## Directus Flows (current)
@@ -146,6 +152,7 @@ Verified DUPR ID on the user record → synced to local `Player.duprId` → capt
 - `verify_identity`: `GET {user_api_base_url}/public/user/info` with the user's SSO token
 - `fetch_entitlements` _(new)_: `POST {user_api_base_url}/subscription/active` with the user token → DUPR entitlements. **Non-fatal** — reject also advances to `prepare_data`
 - `prepare_data`: unwraps the request-op HTTP envelope (`{status:200, data:{…}}`); accepts `result` OR `results[]` shapes; merges `subscriptions[].entitlements` into `dupr_connection.eligibility` (`{entitlements, eligible}` where `eligible` = `tournaments` contains `BASIC_L1`); extracts ratings from profile with SSO `stats` fallback; env-aware token lifetimes; resolves `userId` from `$accountability.user` — **the client's `body.userId` carries DUPR's numeric id (JWT `jti`), NOT a Directus UUID**
+- `update_user_dupr_id`: writes `dupr_id` **and `dupr_entitlements`** (the `{entitlements, eligible}` summary) onto `directus_users` — powers the DUPR+ gate
 - `upsert_connection` / `upsert_credentials`: raw SQL with `"user"` quoted (Postgres reserved word) and `::uuid`/`::numeric`/`::timestamptz`/`::json` casts on bindings
 - `gen_auth` + `get_partner_token` + `subscribe_rating_req` _(new)_: partner token → `POST {api_base_url}/user/v1.0/subscribe/webhook-event` `{duprIds:[duprId], topic:'RATING'}`. Linear fallthrough — rejects advance to `safe_response` (non-fatal)
 - Body from client: `{accessToken, refreshToken, duprId, userId, stats}`
@@ -168,26 +175,26 @@ Verified DUPR ID on the user record → synced to local `Player.duprId` → capt
 - `touch_submissions` _(new, 2026-10-21)_: `item-update` op (`emitEvents: true`) that bumps `updated_at` on the just-written rows (`match_key _in` + `club` filter). Raw SQL writes bypass Directus events; this op emits a realtime `update` event per row so subscribed devices get instant push. Item-update applies one uniform payload per query — the heterogeneous per-row upsert stays in SQL; the touch op only exists for event emission
 - **First real end-to-end submissions (2026-10-20):** `1792477993229_itcuaha` → `6341519664`, `1792477703424_match-1792477671707` → `8005452963`, `1792479271940_kdloyrx` → `7457431109` (via UI button). All three confirmed on DUPR's own API: `status:SUCCESS`, `confirmed:true`, `matchScoreAdded:true`, `eventFormat:DOUBLES`, `league:'Open Play'`. Caveat found: the flow's webhook trigger returns **HTTP 200 even on flow failure** — the client must check `result.submitted > 0`, not just `failed === 0` (false-positive toast fixed in `ClubPage.vue`)
 
-### Update DUPR Match — `bde4206c-b9d7-4eee-8f44-222f34bc9078` (webhook POST) — OUT OF SCOPE
+### Update DUPR Match — `bde4206c-b9d7-4eee-8f44-222f34bc9078` (webhook POST)
 
-**Product decision (2026-10-21): DinkMatch only submits.** Edit/delete of reported
-matches is managed on the DUPR platform itself — no UI in DinkMatch. This flow +
-the Delete flow below are kept dormant as API capability only; do not wire to the
-client.
+**Required by DUPR review (Haresh, 2026-10-22):** match updates must originate from the platform that submitted them — DUPR audits this. Users must NOT edit scores of DinkMatch-submitted matches directly on DUPR. Rebuilt 2026-10-22: the original `fetch()`-in-`exec` version silently no-oped (sandbox has no network in `exec`); the flow is now request-op based like Submit.
 
-`read_settings → prepare → read_submission → read_match → gen_auth → get_partner_token → do_update → persist → respond`
+`read_settings → prepare → read_submission → read_match → gen_auth → get_partner_token → do_update → gate → dupr_update_req → map_result → persist → respond`
 
-- Body: `{matchKey, clubId, match?}` — optional `match` overrides avoid the `completed_match` sync race
-- Returns `not_submitted` (no `dupr_match_code`) / `submitted` / `update_failed`; `not_submitted` does not overwrite an existing status row
-- Sends `matchId: Number(dupr_match_code)` + `identifier: match_key` to `/match/v1.0/update`
+- `do_update` is a pure-JS transform emitting a request descriptor (URL, method, JSON body); `dupr_update_req` is the `request` op that actually calls `POST {api}/match/v1.0/update`; `map_result` maps the response → `submitted` / `update_failed` / `not_submitted`
+- Body: `{matchKey, clubId, match?}` — optional `match` overrides avoid the `completed_match` sync race (client sends the corrected payload immediately)
+- Sends `matchId: Number(dupr_match_code)` + `identifier: match_key`
+- Returns `not_submitted` (no `dupr_match_code` — doesn't overwrite the status row) / `submitted` / `update_failed`
+- **Verified live 2026-10-22:** real UAT submission → `{status:'submitted', dupr_match_code:'6771455258'}`; bogus key → `not_submitted`
+- Client: `useDupr.updateMatch()`; UI = admin-only "Correct score on DUPR" on submitted completed matches (edits the local `completedMatches` score AND pushes the update — one atomic correction path)
 
-### Delete DUPR Match — `2e234c53-fba4-4dec-9683-5a84da8265c7` (webhook POST) — OUT OF SCOPE
+### Delete DUPR Match — `2e234c53-fba4-4dec-9683-5a84da8265c7` (webhook POST)
 
-Dormant — see Update note above. Same skeleton → `DELETE /match/v1.0/delete` `{matchCode, identifier}` → marks `dupr_submission.status='deleted'` (or `not_submitted`/`delete_failed`). If a match is edited/deleted on the DUPR platform, our local `dupr_submission` row is not notified — status drift is expected and acceptable while this stays out of scope.
+Same review requirement — deletions of DinkMatch-submitted matches must come from DinkMatch. Same rebuilt skeleton → `DELETE {api}/match/v1.0/delete` with `{matchCode: Number(dupr_match_code), identifier: match_key}` (**numeric** matchCode — string is rejected) → marks `dupr_submission.status='deleted'` (or `not_submitted`/`delete_failed`). Client: `useDupr.deleteMatch()`; UI = admin-only "Remove from DUPR" (confirm dialog) on submitted matches.
 
 ### Disconnect DUPR — `b294a945-7e3e-41ed-983f-9636c723b14a` (webhook POST)
 
-Clears connection, deletes credentials, nulls `directus_users.dupr_id`. Untested live.
+Clears connection, deletes credentials, nulls `directus_users.dupr_id` **and `dupr_entitlements`** (so a disconnected user immediately fails the DUPR+ gate).
 
 ### Receive DUPR Rating — `664e9ba0-589e-4a38-a757-cf73a7307a70` (webhook POST)
 
@@ -207,13 +214,26 @@ for the DUPR review.
 
 ## Frontend
 
-| File                                | Role                                                                                                                                                                                                                             |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/composables/useDupr.ts`        | Service: SSO iframe, connect/disconnect, `submitMatches`, `updateMatch`/`deleteMatch`, settings, submissions fetch + **realtime subscription** (`startSubmissionRealtime`/`stopSubmissionRealtime`, self-healing on stream drop) |
-| `src/pages/PlayerPage.vue`          | Profile connect/disconnect UI, ratings display                                                                                                                                                                                   |
-| `src/pages/ClubPage.vue`            | Single + bulk submit (club-name confirm), status→chip mapping, submit hidden when `submitted`, "Retry" for failures, readiness via **live-roster fallback**, key-map + submissions refetch on new completions and on reconnect   |
-| `src/components/MatchMetaChips.vue` | `submitted`/failed(`update_failed`,`delete_failed`)+error tooltip/pending chips                                                                                                                                                  |
-| `src/types/matchMeta.ts`            | `duprStatus`, `duprError`                                                                                                                                                                                                        |
+| File                                      | Role                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/composables/useDupr.ts`              | Service: SSO iframe, connect/disconnect, `submitMatches`, `updateMatch`/`deleteMatch`, settings, submissions fetch + **realtime subscription** (`startSubmissionRealtime`/`stopSubmissionRealtime`, self-healing on stream drop)                                                                                                                                                                                                |
+| `src/pages/PlayerPage.vue`                | Profile connect/disconnect UI, ratings display                                                                                                                                                                                                                                                                                                                                                                                  |
+| `src/pages/ClubPage.vue`                  | Single + bulk submit (club-name confirm), status→chip mapping, submit hidden when `submitted`, "Retry" for failures, readiness via **live-roster fallback**, key-map + submissions refetch on new completions and on reconnect; admin-only **"Correct score on DUPR"** dialog (updates local record + `updateMatch` in one path) and **"Remove from DUPR"** on submitted matches; `duprPlusOnly` session flag bound to Settings |
+| `src/components/club/SettingsDialog.vue`  | "DUPR+ event" session toggle (`duprPlusOnly`) — synced club setting                                                                                                                                                                                                                                                                                                                                                             |
+| `src/components/club/AddPlayerDialog.vue` | Every `checkInPlayer` path passes `duprPlus` and surfaces `dupr_plus_required` ("session requires DUPR+")                                                                                                                                                                                                                                                                                                                       |
+| `src/composables/usePlayerActions.ts`     | Requeue + add-all handle `dupr_plus_required`                                                                                                                                                                                                                                                                                                                                                                                   |
+| `src/components/MatchMetaChips.vue`       | `submitted`/failed(`update_failed`,`delete_failed`)+error tooltip/pending chips                                                                                                                                                                                                                                                                                                                                                 |
+| `src/types/matchMeta.ts`                  | `duprStatus`, `duprError`                                                                                                                                                                                                                                                                                                                                                                                                       |
+
+### DUPR+ event gate (`PREMIUM_L1`)
+
+DUPR review requirement: the platform must be able to offer events restricted to DUPR+ members. Implemented as a **session-level** gate (safest interpretation — one toggle for the club's active session, not per-match):
+
+- Settings → "DUPR+ event — queue requires DUPR+ membership" sets `MatchmakingApp.state.duprPlusOnly` — a `CLUB_SETTINGS` descriptor field, so it seeds, resets, and merges per-field-LWW like every other synced setting (all devices agree).
+- `checkInPlayer` returns `'dupr_plus_required'` when the flag is on and the player's roster record lacks `duprPlus` (i.e. no `PREMIUM_L1` in `directus_users.dupr_entitlements`). The player is still rostered — only queue entry is refused.
+- Every check-in path handles the code with a "session requires DUPR+" notice: QR/member scan, username scan+join, multi-member add, manual new player, bulk import, requeue, add-all.
+- `duprPlus` is hydrated by `refreshPlayerRatings`/`refreshClubMembers` from `dupr_entitlements` (written by Connect, cleared by Disconnect).
+- Admin bypass is intentionally **not** implemented — an override would defeat the audit trail.
 
 ### SSO → connect → duprId pipeline
 
@@ -247,7 +267,8 @@ for the DUPR review.
 | Entitlement at connect  | ❌ not implemented                        | ✅ `BASIC_L1` → `dupr_connection.eligibility = {…, eligible:true}` (verified live)                                               |
 | Entitlement at submit   | ❌ not enforced                           | ✅ enforced in `build_payloads` 2026-10-20                                                                                       |
 | Stale `dupr_id` rows    | 4 (manual-entry leftovers)                | ✅ **0** — nulled 2026-10-20 (DUPR forbids manual ID entry)                                                                      |
-| Update/Delete flows     | created + `not_submitted` smoke test      | unchanged — real-match test pending                                                                                              |
+| Update/Delete flows     | created + `not_submitted` smoke test      | ✅ rebuilt request-op based + **verified live 2026-10-22** (`submitted`, code `6771455258`); admin UI wired                      |
+| `dupr_entitlements`     | —                                         | ✅ field created; written by Connect, cleared by Disconnect; feeds `duprPlusOnly` DUPR+ session gate                             |
 
 ### Connect bugs found & fixed 2026-10-17
 
@@ -268,11 +289,11 @@ for the DUPR review.
 | Identity verification + token storage   | ✅ verified live 2026-10-17                                                                                                                                                      |
 | Rating displayed + webhook-updated      | ✅ wired (untested end-to-end — needs a connected user)                                                                                                                          |
 | Match create (single + bulk)            | ✅ fixed (was hitting a 405)                                                                                                                                                     |
-| Match update + delete                   | ➖ **Out of scope by product decision (2026-10-21)** — DinkMatch only submits; edit/delete is managed on the DUPR platform. Flows kept dormant, no UI                            |
+| Match update + delete                   | ✅ **Required by review** (updates/deletions must originate from DinkMatch — audited). Flows rebuilt request-op based + verified live 2026-10-22; admin UI on submitted matches  |
 | `matchCode` stored for lifecycle        | ✅                                                                                                                                                                               |
 | Only admins submit                      | ✅ (`isCurrentUserAdmin`-gated)                                                                                                                                                  |
 | Entitlement gating (`BASIC_L1`)         | ✅ fetched at connect → `dupr_connection.eligibility` (verified live); **enforced at submit since 2026-10-20** — ineligible players fail with a named error before reaching DUPR |
-| Premium events (`PREMIUM_L1`)           | ❌ out of scope — we don't run DUPR+ gated events                                                                                                                                |
+| Premium events (`PREMIUM_L1`)           | ✅ **Required by review** — `duprPlusOnly` session toggle gates queue check-in on `PREMIUM_L1` (see "DUPR+ event gate")                                                          |
 | Club `matchSource:"CLUB"` + role verify | ➖ N/A — PARTNER submissions only                                                                                                                                                |
 | Resubmit same identifier                | ✅ guarded — submit hidden on `submitted`; retry allowed on `failed`                                                                                                             |
 

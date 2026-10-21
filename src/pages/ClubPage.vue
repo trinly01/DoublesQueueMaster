@@ -178,6 +178,70 @@
         </q-card>
       </q-dialog>
 
+      <!-- DUPR Score Correction Dialog -->
+      <q-dialog v-model="showDuprCorrectDialog" persistent>
+        <q-card style="min-width: 320px; max-width: 92vw">
+          <q-card-section>
+            <div class="text-h6">Correct score on DUPR</div>
+            <div class="text-caption text-grey-7 q-mt-xs">
+              Sends the corrected score to DUPR. This update is audited — use
+              for genuine corrections only.
+            </div>
+          </q-card-section>
+          <q-card-section class="q-pt-none">
+            <div class="row q-col-gutter-md items-center">
+              <div class="col">
+                <div class="text-caption text-grey-7 ellipsis">
+                  {{ duprCorrectNames.a }}
+                </div>
+                <q-input
+                  v-model.number="duprCorrectA"
+                  type="number"
+                  outlined
+                  dense
+                  min="0"
+                  input-style="font-size: 1.4rem; text-align: center"
+                />
+              </div>
+              <div class="col-auto text-h6 text-grey-5">–</div>
+              <div class="col">
+                <div class="text-caption text-grey-7 ellipsis">
+                  {{ duprCorrectNames.b }}
+                </div>
+                <q-input
+                  v-model.number="duprCorrectB"
+                  type="number"
+                  outlined
+                  dense
+                  min="0"
+                  input-style="font-size: 1.4rem; text-align: center"
+                />
+              </div>
+            </div>
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn
+              flat
+              label="Cancel"
+              color="grey"
+              @click="showDuprCorrectDialog = false"
+            />
+            <q-btn
+              color="primary"
+              label="Update on DUPR"
+              icon="cloud_upload"
+              :loading="duprCorrectLoading"
+              :disable="
+                duprCorrectA === duprCorrectB ||
+                duprCorrectA == null ||
+                duprCorrectB == null
+              "
+              @click="handleCorrectDuprScore"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+
       <ClubLayout
         v-model="activeMobileTab"
         :players-count="players.length"
@@ -711,6 +775,36 @@
                                   <q-icon name="lock" color="grey" size="xs" />
                                 </q-item-section>
                               </q-item>
+                              <template
+                                v-if="getDuprStatus(match.id) === 'submitted'"
+                              >
+                                <q-item
+                                  clickable
+                                  @click="openDuprCorrect(match)"
+                                >
+                                  <q-item-section avatar>
+                                    <q-icon name="edit" size="xs" />
+                                  </q-item-section>
+                                  <q-item-section style="white-space: nowrap"
+                                    >Correct score on DUPR</q-item-section
+                                  >
+                                </q-item>
+                                <q-item
+                                  clickable
+                                  @click="handleDeleteDupr(match.id)"
+                                >
+                                  <q-item-section avatar>
+                                    <q-icon
+                                      name="delete"
+                                      size="xs"
+                                      color="negative"
+                                    />
+                                  </q-item-section>
+                                  <q-item-section style="white-space: nowrap"
+                                    >Remove from DUPR</q-item-section
+                                  >
+                                </q-item>
+                              </template>
                             </q-list>
                           </q-menu>
                         </q-btn>
@@ -1259,6 +1353,36 @@
                                   <q-icon name="lock" color="grey" size="xs" />
                                 </q-item-section>
                               </q-item>
+                              <template
+                                v-if="getDuprStatus(match.id) === 'submitted'"
+                              >
+                                <q-item
+                                  clickable
+                                  @click="openDuprCorrect(match)"
+                                >
+                                  <q-item-section avatar>
+                                    <q-icon name="edit" size="xs" />
+                                  </q-item-section>
+                                  <q-item-section style="white-space: nowrap"
+                                    >Correct score on DUPR</q-item-section
+                                  >
+                                </q-item>
+                                <q-item
+                                  clickable
+                                  @click="handleDeleteDupr(match.id)"
+                                >
+                                  <q-item-section avatar>
+                                    <q-icon
+                                      name="delete"
+                                      size="xs"
+                                      color="negative"
+                                    />
+                                  </q-item-section>
+                                  <q-item-section style="white-space: nowrap"
+                                    >Remove from DUPR</q-item-section
+                                  >
+                                </q-item>
+                              </template>
                             </q-list>
                           </q-menu>
                         </q-btn>
@@ -1348,6 +1472,7 @@
         v-model:availableCourts="availableCourts"
         v-model:autoAdvanceMatches="autoAdvanceMatches"
         v-model:ttsEnabled="ttsEnabled"
+        v-model:duprPlusOnly="duprPlusOnly"
         v-model:scoreType="scoreType"
         v-model:editClubName="editClubName"
         v-model:editClubId="editClubId"
@@ -1471,7 +1596,11 @@
 </template>
 
 <script setup lang="ts">
-import { MatchmakingApp, levelSeedRating } from '../services/matchmaking';
+import {
+  MatchmakingApp,
+  levelSeedRating,
+  hasPremiumL1,
+} from '../services/matchmaking';
 import type { Player } from '../services/matchmaking';
 import { readItems, readMe } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
@@ -1990,6 +2119,131 @@ async function handleSubmitSingleDupr(matchId: string) {
 }
 
 /**
+ * Correct a submitted match's score on DUPR.
+ * The corrected score is pushed via the update flow and the local completed
+ * match record is updated so display and DUPR stay in sync.
+ */
+const showDuprCorrectDialog = ref(false);
+const duprCorrectLoading = ref(false);
+const duprCorrectMatchId = ref<string | null>(null);
+const duprCorrectNames = ref({ a: 'Team A', b: 'Team B' });
+const duprCorrectA = ref<number | null>(null);
+const duprCorrectB = ref<number | null>(null);
+
+function openDuprCorrect(match: {
+  id: string;
+  teamA?: { firstName?: string; username?: string }[];
+  teamB?: { firstName?: string; username?: string }[];
+  teamAScore?: number;
+  teamBScore?: number;
+}) {
+  const teamName = (t?: { firstName?: string; username?: string }[]) =>
+    (t || []).map((p) => p.firstName || p.username).join(' & ') || 'Team';
+  duprCorrectMatchId.value = match.id;
+  duprCorrectNames.value = {
+    a: teamName(match.teamA),
+    b: teamName(match.teamB),
+  };
+  duprCorrectA.value = match.teamAScore ?? 0;
+  duprCorrectB.value = match.teamBScore ?? 0;
+  showDuprCorrectDialog.value = true;
+}
+
+async function handleCorrectDuprScore() {
+  const matchId = duprCorrectMatchId.value;
+  if (!matchId) return;
+  const scoreA = Number(duprCorrectA.value);
+  const scoreB = Number(duprCorrectB.value);
+  if (scoreA === scoreB) {
+    notify({ color: 'warning', message: 'Tied scores are not allowed' });
+    return;
+  }
+  const matchKey = getMatchKey(matchId);
+  if (!matchKey || !currentClubUUID.value) {
+    notify({ color: 'negative', message: 'Match not synced to server yet' });
+    return;
+  }
+
+  duprCorrectLoading.value = true;
+  try {
+    // Pass the corrected match as an override so the flow doesn't depend on
+    // the completed_match row having synced yet.
+    const cm = MatchmakingApp.state.completedMatches.find(
+      (m) => m.matchId === matchId,
+    );
+    const override = cm
+      ? {
+          teamA: cm.teamA,
+          teamB: cm.teamB,
+          teamAScore: scoreA,
+          teamBScore: scoreB,
+          completedAt: cm.completedAt,
+          matchType: cm.matchType,
+        }
+      : { teamAScore: scoreA, teamBScore: scoreB };
+
+    const res = await Dupr.updateMatch(
+      matchKey,
+      currentClubUUID.value!,
+      override,
+    );
+
+    if (res && res.status === 'submitted') {
+      if (cm) {
+        cm.teamAScore = scoreA;
+        cm.teamBScore = scoreB;
+        cm.updatedAt = Date.now();
+        MatchmakingApp.persist();
+      }
+      notify({ color: 'positive', message: 'Corrected score sent to DUPR' });
+      showDuprCorrectDialog.value = false;
+    } else {
+      notify({
+        color: 'negative',
+        message: res?.error || 'DUPR update failed — please try again',
+      });
+    }
+    await Dupr.fetchSubmissions(currentClubUUID.value);
+  } finally {
+    duprCorrectLoading.value = false;
+  }
+}
+
+/**
+ * Remove a submitted match from DUPR (e.g. the match was voided).
+ */
+async function handleDeleteDupr(matchId: string) {
+  const matchKey = getMatchKey(matchId);
+  if (!matchKey || !currentClubUUID.value) {
+    notify({ color: 'negative', message: 'Match not synced to server yet' });
+    return;
+  }
+
+  $q.dialog({
+    title: 'Remove from DUPR',
+    message:
+      'Delete this match from DUPR? The submitted result and its rating ' +
+      'impact will be removed. This cannot be undone.',
+    cancel: { label: 'Cancel', color: 'grey', flat: true },
+    ok: { label: 'Remove from DUPR', color: 'negative', icon: 'delete' },
+    persistent: true,
+  }).onOk(async () => {
+    const res = await Dupr.deleteMatch(matchKey, currentClubUUID.value!);
+    if (res && res.status === 'deleted') {
+      notify({ color: 'positive', message: 'Match removed from DUPR' });
+    } else if (res && res.status === 'not_submitted') {
+      notify({ color: 'info', message: 'Match was never submitted to DUPR' });
+    } else {
+      notify({
+        color: 'negative',
+        message: res?.error || 'DUPR delete failed — please try again',
+      });
+    }
+    await Dupr.fetchSubmissions(currentClubUUID.value!);
+  });
+}
+
+/**
  * Submit all completed matches to DUPR in bulk.
  */
 async function handleSubmitAllDupr() {
@@ -2151,6 +2405,7 @@ const {
   matchmakingMode,
   allStarSortDirection,
   autoSortQueue,
+  duprPlusOnly,
   scoreType,
   sortBy,
   matchesFilterBy,
@@ -2855,6 +3110,7 @@ const refreshPlayerRatings = async () => {
           'players.directus_users_id.rating',
           'players.directus_users_id.rating_updated_at',
           'players.directus_users_id.dupr_id',
+          'players.directus_users_id.dupr_entitlements',
           'players.directus_users_id.avatar',
           'players.directus_users_id.first_name',
           'players.directus_users_id.last_name',
@@ -2877,6 +3133,7 @@ const refreshPlayerRatings = async () => {
               last_name?: string;
               email?: string;
               dupr_id?: string;
+              dupr_entitlements?: Record<string, unknown> | null;
             };
           }>;
         }
@@ -2930,6 +3187,16 @@ const refreshPlayerRatings = async () => {
       if (typeof u.dupr_id === 'string') {
         if (local.duprId !== u.dupr_id) {
           local.duprId = u.dupr_id;
+          local.updatedAt = Date.now();
+          changed = true;
+        }
+      }
+
+      // Update DUPR+ entitlement flag if present
+      if (u.dupr_entitlements !== undefined) {
+        const plus = hasPremiumL1(u.dupr_entitlements);
+        if (local.duprPlus !== plus) {
+          local.duprPlus = plus;
           local.updatedAt = Date.now();
           changed = true;
         }
