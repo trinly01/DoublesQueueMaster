@@ -218,6 +218,61 @@
     "operation": "39de68b3-4766-4a23-9790-957c8db6653f",
     "operations": [
       {
+        "id": "0f60ef2f-abe7-4126-b744-7c08d8480ae0",
+        "name": "DUPR request",
+        "key": "dupr_delete_req",
+        "type": "request",
+        "position_x": 39,
+        "position_y": 3,
+        "options": {
+          "method": "DELETE",
+          "url": "{{ do_delete.url }}",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "{{ do_delete.authHeader }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{{ do_delete.body }}"
+        },
+        "resolve": "4cc4282f-2f60-4f7a-a9f7-c139229d5f5e",
+        "reject": "178e1bca-30ce-45dc-a6b6-971ab7ea59f1",
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-21T22:55:25.410Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "178e1bca-30ce-45dc-a6b6-971ab7ea59f1",
+        "name": "Verify DUPR match state",
+        "key": "del_verify_req",
+        "type": "request",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "method": "GET",
+          "url": "{{ prepare.apiBaseUrl }}/match/v1.0/{{ read_submission[0].dupr_match_code }}",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "{{ do_delete.authHeader }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "resolve": "3e7f20e8-75c3-4b74-b144-1b86bced639f",
+        "reject": "91c3230b-e576-47d8-9c79-7c182f6f4098",
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-22T01:41:51.084Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
         "id": "1c6ec07d-0def-43fa-8237-a5993e223852",
         "name": "Get partner token",
         "key": "get_partner_token",
@@ -239,7 +294,26 @@
           ]
         },
         "resolve": "c55a95b9-0a55-40f4-ac15-f5749528e4f2",
-        "reject": null
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-17T02:12:17.361Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "37114fd3-8eb4-4e0c-bc55-135ec58c94a3",
+        "name": "Respond (request failed)",
+        "key": "respond_fail",
+        "type": "exec",
+        "position_x": 39,
+        "position_y": 9,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.del_req_failed || {};\n  return {\n    matchKey: step.matchKey || null,\n    status: step.status || 'failed',\n    error: step.error || null\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-21T22:55:26.111Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       },
       {
         "id": "39de68b3-4766-4a23-9790-957c8db6653f",
@@ -254,7 +328,10 @@
           "collection": "dupr_settings"
         },
         "resolve": "6ce05da8-ea09-4c65-923e-a5b77e688bfe",
-        "reject": null
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-17T02:12:15.933Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       },
       {
         "id": "3d197ea9-d2a9-49c9-a6ff-bcfc1fd29b4b",
@@ -267,7 +344,26 @@
           "code": "module.exports = async function(data) {\n  \nfunction b64enc(str) {\n  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n  var out = '';\n  for (var i = 0; i < str.length; i += 3) {\n    var a = str.charCodeAt(i) & 0xff;\n    var b = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN;\n    var c = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN;\n    var t = (a << 16) | ((b || 0) << 8) | (c || 0);\n    out += chars[(t >> 18) & 63] + chars[(t >> 12) & 63] + (isNaN(b) ? '=' : chars[(t >> 6) & 63]) + (isNaN(c) ? '=' : chars[t & 63]);\n  }\n  return out;\n}\n  var settings = data.read_settings[0];\n  return { authHeader: b64enc(settings.client_key + ':' + settings.client_secret) };\n}"
         },
         "resolve": "1c6ec07d-0def-43fa-8237-a5993e223852",
-        "reject": null
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-17T02:12:17.007Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "3e7f20e8-75c3-4b74-b144-1b86bced639f",
+        "name": "Map delete verify (alive)",
+        "key": "map_del_alive",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  return {\n    status: 'delete_failed',\n    matchKey: data.prepare.matchKey,\n    error: 'DUPR delete request failed and the match still exists on DUPR',\n    now: new Date().toISOString()\n  };\n}"
+        },
+        "resolve": "5b5b0fa5-8c0d-43c3-a4f5-d2fdf7b9767e",
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-22T01:41:51.423Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       },
       {
         "id": "454ff751-4716-4b8d-a083-bbfe8a88c4e3",
@@ -279,15 +375,126 @@
         "options": {
           "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ? AND ? != 'not_submitted';",
           "binding": [
-            "{{ do_delete.status }}",
-            "{{ do_delete.error }}",
-            "{{ do_delete.now }}",
+            "{{ map_delete.status }}",
+            "{{ map_delete.error }}",
+            "{{ map_delete.now }}",
             "{{ prepare.matchKey }}",
-            "{{ do_delete.status }}"
+            "{{ map_delete.status }}"
           ]
         },
         "resolve": "b5ae95a1-e63b-4997-b7c1-197f72973e34",
-        "reject": null
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-17T02:12:18.101Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "4cc4282f-2f60-4f7a-a9f7-c139229d5f5e",
+        "name": "Map result",
+        "key": "map_delete",
+        "type": "exec",
+        "position_x": 39,
+        "position_y": 5,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const req = data.dupr_delete_req || {};\n  const json = req.data || {};\n  const ok = json.status === 'SUCCESS';\n  return {\n    status: ok ? 'deleted' : 'delete_failed',\n    matchKey: data.prepare.matchKey,\n    error: ok ? null : (json.message || ('DUPR delete failed (HTTP ' + (req.status || '?') + ')')),\n    now: data.do_delete.now\n  };\n}"
+        },
+        "resolve": "454ff751-4716-4b8d-a083-bbfe8a88c4e3",
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-21T22:55:25.563Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "55f1623b-05fa-4653-8a47-96aa80ce893d",
+        "name": "Persist delete verify gone",
+        "key": "persist_gone",
+        "type": "likha_sql",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ?;",
+          "binding": [
+            "{{ map_del_gone.status }}",
+            "{{ map_del_gone.error }}",
+            "{{ map_del_gone.now }}",
+            "{{ prepare.matchKey }}"
+          ]
+        },
+        "resolve": "61ea5813-083d-4ba7-a5ed-38cbac856d9b",
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-22T01:41:51.577Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "5b5b0fa5-8c0d-43c3-a4f5-d2fdf7b9767e",
+        "name": "Persist delete verify alive",
+        "key": "persist_alive",
+        "type": "likha_sql",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ?;",
+          "binding": [
+            "{{ map_del_alive.status }}",
+            "{{ map_del_alive.error }}",
+            "{{ map_del_alive.now }}",
+            "{{ prepare.matchKey }}"
+          ]
+        },
+        "resolve": "66210410-0ea2-4f2f-baa9-257c05d71512",
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-22T01:41:51.711Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "60398838-3a43-4b2e-8c27-6b0a7ccbc5ae",
+        "name": "Request failed",
+        "key": "del_req_failed",
+        "type": "exec",
+        "position_x": 25,
+        "position_y": 5,
+        "options": {
+          "code": "module.exports = async function(data) {\n  return {\n    status: 'delete_failed',\n    matchKey: data.prepare && data.prepare.matchKey,\n    error: 'DUPR delete request failed',\n    now: new Date().toISOString()\n  };\n}"
+        },
+        "resolve": "37114fd3-8eb4-4e0c-bc55-135ec58c94a3",
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-21T22:55:25.697Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "61ea5813-083d-4ba7-a5ed-38cbac856d9b",
+        "name": "Respond delete verify gone",
+        "key": "respond_gone",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.map_del_gone || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-22T01:41:51.877Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "66210410-0ea2-4f2f-baa9-257c05d71512",
+        "name": "Respond delete verify alive",
+        "key": "respond_alive",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.map_del_alive || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-22T01:41:52.032Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       },
       {
         "id": "6ce05da8-ea09-4c65-923e-a5b77e688bfe",
@@ -300,7 +507,49 @@
           "code": "module.exports = async function(data) {\n  const body = data.$trigger.body || {};\n  const matchKey = body.matchKey;\n  const clubId = body.clubId;\n  if (!matchKey || !clubId) {\n    throw new Error('Missing required fields: matchKey, clubId');\n  }\n  return {\n    matchKey,\n    clubId,\n    apiBaseUrl: data.read_settings[0].api_base_url,\n    environment: data.read_settings[0].environment || 'uat',\n    // Optional client-supplied overrides (avoids completed_match sync race)\n    override: body.match || null\n  };\n}"
         },
         "resolve": "a3750a76-2e06-4b8c-acf6-835c168d0f7c",
-        "reject": null
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-17T02:12:16.284Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "88ac9372-fd49-4322-a8e8-ed94ba0c835f",
+        "name": "Persist (skipped request)",
+        "key": "persist_skip",
+        "type": "likha_sql",
+        "position_x": 25,
+        "position_y": 3,
+        "options": {
+          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ? AND ? != 'not_submitted';",
+          "binding": [
+            "{{ do_delete.status }}",
+            "{{ do_delete.error }}",
+            "{{ do_delete.now }}",
+            "{{ prepare.matchKey }}",
+            "{{ do_delete.status }}"
+          ]
+        },
+        "resolve": "fc72b60c-cc9a-4c3e-9f7d-0c6743c3834a",
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-21T22:55:25.839Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "91c3230b-e576-47d8-9c79-7c182f6f4098",
+        "name": "Map delete verify (gone)",
+        "key": "map_del_gone",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const err = data.del_verify_req || {};\n  const st = err.status || (err.response && err.response.status) || 0;\n  const msg = String(err.message || (err.data && err.data.message) || '');\n  const gone = st === 410 || st === 404 || st === 400 || /deleted|not found|does not exist/i.test(msg);\n  return {\n    status: gone ? 'deleted' : 'delete_failed',\n    matchKey: data.prepare.matchKey,\n    error: gone ? null : 'DUPR delete failed: ' + (msg || ('HTTP ' + st)),\n    now: new Date().toISOString()\n  };\n}"
+        },
+        "resolve": "55f1623b-05fa-4653-8a47-96aa80ce893d",
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-22T01:41:51.241Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       },
       {
         "id": "a3750a76-2e06-4b8c-acf6-835c168d0f7c",
@@ -329,7 +578,32 @@
           }
         },
         "resolve": "3d197ea9-d2a9-49c9-a6ff-bcfc1fd29b4b",
-        "reject": null
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-17T02:12:16.638Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "abacc8a7-715b-4926-a3bd-832e64d17ed9",
+        "name": "Has request?",
+        "key": "proceed_do_delete",
+        "type": "condition",
+        "position_x": 39,
+        "position_y": 1,
+        "options": {
+          "filter": {
+            "$last": {
+              "proceed": {
+                "_eq": true
+              }
+            }
+          }
+        },
+        "resolve": "0f60ef2f-abe7-4126-b744-7c08d8480ae0",
+        "reject": "88ac9372-fd49-4322-a8e8-ed94ba0c835f",
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-21T22:55:25.271Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       },
       {
         "id": "b5ae95a1-e63b-4997-b7c1-197f72973e34",
@@ -339,10 +613,13 @@
         "position_x": 19,
         "position_y": 400,
         "options": {
-          "code": "module.exports = async function(data) {\n  const step = data.do_update || data.do_delete;\n  return {\n    matchKey: step.matchKey,\n    status: step.status,\n    error: step.error || null\n  };\n}"
+          "code": "module.exports = async function(data) {\n  const step = data.map_delete || {};\n  return {\n    matchKey: step.matchKey || null,\n    status: step.status || 'failed',\n    error: step.error || null\n  };\n}"
         },
         "resolve": null,
-        "reject": null
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-17T02:12:18.458Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       },
       {
         "id": "c55a95b9-0a55-40f4-ac15-f5749528e4f2",
@@ -352,10 +629,29 @@
         "position_x": 19,
         "position_y": 300,
         "options": {
-          "code": "module.exports = async function(data) {\n  const sub = (data.read_submission || [])[0];\n  const token = data.get_partner_token;\n  const partnerToken = token?.result?.token || token?.data?.result?.token || token?.token;\n  if (!partnerToken) throw new Error('Failed to get partner access token');\n\n  // Never reached DUPR — nothing to delete\n  if (!sub || !sub.dupr_match_code) {\n    return { status: 'not_submitted', matchKey: data.prepare.matchKey, now: new Date().toISOString() };\n  }\n\n  const res = await fetch(data.prepare.apiBaseUrl + '/match/v1.0/delete', {\n    method: 'DELETE',\n    headers: { 'Authorization': 'Bearer ' + partnerToken, 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      matchCode: String(sub.dupr_match_code),\n      identifier: data.prepare.matchKey\n    })\n  });\n  const json = await res.json().catch(() => ({}));\n\n  return {\n    status: json.status === 'SUCCESS' ? 'deleted' : 'delete_failed',\n    matchKey: data.prepare.matchKey,\n    error: json.status === 'SUCCESS' ? null : (json.message || 'DUPR delete failed'),\n    now: new Date().toISOString()\n  };\n}"
+          "code": "module.exports = async function(data) {\n  const sub = (data.read_submission || [])[0];\n  const token = data.get_partner_token;\n  const partnerToken = (token && token.result && token.result.token) || (token && token.data && token.data.result && token.data.result.token) || (token && token.token);\n  const now = new Date().toISOString();\n  const matchKey = data.prepare.matchKey;\n  if (!partnerToken) throw new Error('Failed to get partner access token');\n\n  if (!sub || !sub.dupr_match_code) {\n    return { proceed: false, status: 'not_submitted', matchKey: matchKey, error: null, now: now };\n  }\n  return {\n    proceed: true,\n    matchKey: matchKey,\n    now: now,\n    url: data.prepare.apiBaseUrl + '/match/v1.0/delete',\n    authHeader: 'Bearer ' + partnerToken,\n    body: JSON.stringify({ matchCode: Number(sub.dupr_match_code), identifier: matchKey })\n  };\n}"
         },
-        "resolve": "454ff751-4716-4b8d-a083-bbfe8a88c4e3",
-        "reject": null
+        "resolve": "abacc8a7-715b-4926-a3bd-832e64d17ed9",
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-17T02:12:17.713Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "fc72b60c-cc9a-4c3e-9f7d-0c6743c3834a",
+        "name": "Respond (skipped)",
+        "key": "respond_skip",
+        "type": "exec",
+        "position_x": 25,
+        "position_y": 5,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.do_delete || {};\n  return {\n    matchKey: step.matchKey || null,\n    status: step.status || 'failed',\n    error: step.error || null\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
+        "date_created": "2026-10-21T22:55:25.975Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       }
     ],
     "flow_manager_category": null,

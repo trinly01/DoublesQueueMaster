@@ -192,6 +192,12 @@ JSON summary written by the Connect flow (same payload as `dupr_connection.eligi
 
 Same review requirement — deletions of DinkMatch-submitted matches must come from DinkMatch. Same rebuilt skeleton → `DELETE {api}/match/v1.0/delete` with `{matchCode: Number(dupr_match_code), identifier: match_key}` (**numeric** matchCode — string is rejected) → marks `dupr_submission.status='deleted'` (or `not_submitted`/`delete_failed`). Client: `useDupr.deleteMatch()`; UI = admin-only "Remove from DUPR" (confirm dialog) on submitted matches.
 
+**DUPR delete semantics discovered 2026-10-22 (live-verified):**
+
+- Successful delete returns `200 {"status":"SUCCESS","result":{}}`; deleting an already-deleted match returns `400 "match ... was not found"`. The `dupr_delete_req` request op can reject even when DUPR processed the delete (response-format quirk observed on a real delete) — so a **verify step follows any delete-request reject**: `GET {api}/match/v1.0/{matchCode}` → `410 "Match has been deleted"` or other 4xx ⇒ mark `deleted`; 200 (match alive) ⇒ `delete_failed`. Verified: re-running delete on a deleted match now returns `{status:'deleted'}` and persists it.
+- **Deleted identifiers stay claimed** — resubmitting the same `match_key` after delete fails with "already exists". DUPR's recovery paths: the **Reactivate Match endpoint** (per the 410 message) or a new identifier. We keep `dupr_match_code` on `deleted` rows so reactivation stays possible.
+- `map_results` (Submit flow) self-heals rows missing `dupr_match_code`: an "already exists (DUPR Match ID: N)" error now extracts N, marks the row `submitted`, and stores the code — orphaned submissions relink on retry instead of dead-ending.
+
 ### Disconnect DUPR — `b294a945-7e3e-41ed-983f-9636c723b14a` (webhook POST)
 
 Clears connection, deletes credentials, nulls `directus_users.dupr_id` **and `dupr_entitlements`** (so a disconnected user immediately fails the DUPR+ gate).
