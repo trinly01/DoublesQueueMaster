@@ -1941,20 +1941,99 @@
     "operation": "706a7141-5021-4cde-9874-19b51d88b490",
     "operations": [
       {
-        "id": "675964b1-d991-473e-98fc-440106ded576",
-        "name": "Response",
-        "key": "respond",
-        "type": "exec",
-        "position_x": 19,
-        "position_y": 400,
+        "id": "08ad1e51-3397-4d9e-b833-a0cfaa8286c3",
+        "name": "Persist update verify alive",
+        "key": "upd_persist_alive",
+        "type": "likha_sql",
+        "position_x": 0,
+        "position_y": 0,
         "options": {
-          "code": "module.exports = async function(data) {\n  const step = data.do_update || data.do_delete;\n  return {\n    matchKey: step.matchKey,\n    status: step.status,\n    error: step.error || null\n  };\n}"
+          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ?;",
+          "binding": [
+            "{{ map_upd_alive.status }}",
+            "{{ map_upd_alive.error }}",
+            "{{ map_upd_alive.now }}",
+            "{{ prepare.matchKey }}"
+          ]
         },
-        "resolve": null,
-        "reject": null
+        "resolve": "4b4ebe11-3e11-43a7-9ca4-3f87e5012798",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-22T02:10:10.075Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       },
       {
-        "id": "706a7141-5021-4cde-9874-19b51d88b490",
+        "id": "1bba8283-0466-446b-ad19-b99e8a5f193a",
+        "name": "Map update verify (gone)",
+        "key": "map_upd_gone",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const err = data.upd_verify_req || {};\n  const st = err.status || (err.response && err.response.status) || 0;\n  const msg = String(err.message || (err.data && err.data.message) || '');\n  const gone = st === 410 || st === 404 || st === 400 || /deleted|not found|does not exist/i.test(msg);\n  return {\n    status: gone ? 'deleted' : 'update_failed',\n    matchKey: data.prepare.matchKey,\n    error: gone ? 'Match was deleted on DUPR — cannot update' : 'DUPR update failed: ' + (msg || ('HTTP ' + st)),\n    now: new Date().toISOString()\n  };\n}"
+        },
+        "resolve": "e975df25-7674-452d-98d6-c6827d878867",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-22T02:10:09.407Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "273dd40c-ed79-4263-a74e-ab3a46618d89",
+        "name": "Respond (skipped)",
+        "key": "respond_skip",
+        "type": "exec",
+        "position_x": 25,
+        "position_y": 5,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.do_update || {};\n  return {\n    matchKey: step.matchKey || null,\n    status: step.status || 'failed',\n    error: step.error || null\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:55:21.588Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "2aea6553-c5ce-4dfc-8926-91f727ec324b",
+        "name": "Has request?",
+        "key": "proceed_do_update",
+        "type": "condition",
+        "position_x": 39,
+        "position_y": 1,
+        "options": {
+          "filter": {
+            "$last": {
+              "proceed": {
+                "_eq": true
+              }
+            }
+          }
+        },
+        "resolve": "e4d970a5-ed2d-46c6-a003-ffd24a19ba35",
+        "reject": "5646a6d7-dcae-427d-a328-41b064bf2b10",
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:53:59.648Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "30fa7e50-17c5-40a0-8aa8-77fc953c6171",
+        "name": "Respond (request failed)",
+        "key": "respond_fail",
+        "type": "exec",
+        "position_x": 39,
+        "position_y": 9,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.upd_req_failed || {};\n  return {\n    matchKey: step.matchKey || null,\n    status: step.status || 'failed',\n    error: step.error || null\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:55:21.750Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "399ba70b-bc39-45b8-876d-c1c9a2067db1",
         "name": "Read DUPR settings",
         "key": "read_settings",
         "type": "item-read",
@@ -1965,16 +2044,83 @@
           "emitEvents": false,
           "collection": "dupr_settings"
         },
-        "resolve": "bf1b26c6-4052-476a-a40f-7e1e40fa5c84",
-        "reject": null
+        "resolve": "6422994f-46b8-4476-80e3-c6cba6a50894",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:54:41.889Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       },
       {
-        "id": "8d602497-7f91-4d05-816b-13fedd3e57cf",
-        "name": "Persist status",
-        "key": "persist",
-        "type": "likha_sql",
+        "id": "40b23ed4-45d4-44b1-9974-8ff846d3cb6b",
+        "name": "Response",
+        "key": "respond",
+        "type": "exec",
         "position_x": 19,
-        "position_y": 350,
+        "position_y": 400,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.map_update || {};\n  return {\n    matchKey: step.matchKey || null,\n    status: step.status || 'failed',\n    error: step.error || null\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:54:43.223Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "475c5ccc-1d6a-454b-a218-4d65887d665d",
+        "name": "Update DUPR match",
+        "key": "do_update",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 300,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const match = (data.read_match || [])[0];\n  const sub = (data.read_submission || [])[0];\n  const o = data.prepare.override || {};\n  const token = data.get_partner_token;\n  const partnerToken = (token && token.result && token.result.token) || (token && token.data && token.data.result && token.data.result.token) || (token && token.token);\n  const now = new Date().toISOString();\n  const matchKey = data.prepare.matchKey;\n  if (!partnerToken) throw new Error('Failed to get partner access token');\n\n  if (!sub || !sub.dupr_match_code) {\n    return { proceed: false, status: 'not_submitted', matchKey: matchKey, error: null, now: now };\n  }\n\n  // Deleted on DUPR — nothing to update (identifier stays claimed; needs Reactivate)\n  if (sub.status === 'deleted') {\n    return { proceed: false, status: 'deleted', matchKey: matchKey, error: 'Match was deleted on DUPR — cannot update', now: now };\n  }\n\n  const src = match || {};\n  const teamA = o.teamA || src.team_a || [];\n  const teamB = o.teamB || src.team_b || [];\n  const scoreA = o.teamAScore !== undefined ? o.teamAScore : src.team_a_score;\n  const scoreB = o.teamBScore !== undefined ? o.teamBScore : src.team_b_score;\n  const completedAt = o.completedAt || src.completed_at;\n  const matchType = o.matchType || src.match_type || 'doubles';\n\n  const format = matchType === 'singles' ? 'SINGLES' : 'DOUBLES';\n  const need = format === 'DOUBLES' ? 2 : 1;\n  if (teamA.length < need || teamB.length < need || scoreA === undefined || scoreB === undefined || !completedAt) {\n    return { proceed: false, status: 'failed', matchKey: matchKey, error: 'Incomplete match data — pass full match override', now: now };\n  }\n\n  const all = [...teamA, ...teamB];\n  const missing = all.filter(p => !p.duprId).map(p => p.username || p.name || 'unknown');\n  if (missing.length) {\n    return { proceed: false, status: 'failed', matchKey: matchKey, error: 'Players not connected to DUPR: ' + missing.join(', '), now: now };\n  }\n  const ids = all.map(p => p.duprId);\n  if (new Set(ids).size !== ids.length) {\n    return { proceed: false, status: 'failed', matchKey: matchKey, error: 'Duplicate player in match', now: now };\n  }\n  if (scoreA === scoreB) {\n    return { proceed: false, status: 'failed', matchKey: matchKey, error: 'Tied scores are not allowed', now: now };\n  }\n\n  const dateStr = new Date(completedAt).toISOString().split('T')[0];\n  const payload = {\n    matchId: Number(sub.dupr_match_code),\n    identifier: matchKey,\n    matchDate: dateStr,\n    teamA: { player1: teamA[0].duprId, game1: scoreA },\n    teamB: { player1: teamB[0].duprId, game1: scoreB },\n    format: format,\n    matchType: 'RALLY',\n    matchSource: 'PARTNER',\n    event: 'Open Play'\n  };\n  if (format === 'DOUBLES') {\n    payload.teamA.player2 = teamA[1].duprId;\n    payload.teamB.player2 = teamB[1].duprId;\n  }\n\n  return {\n    proceed: true,\n    matchKey: matchKey,\n    now: now,\n    url: data.prepare.apiBaseUrl + '/match/v1.0/update',\n    authHeader: 'Bearer ' + partnerToken,\n    body: JSON.stringify(payload)\n  };\n}"
+        },
+        "resolve": "2aea6553-c5ce-4dfc-8926-91f727ec324b",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:54:43.390Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "4886bd5e-a2e9-4c14-9d46-84f51457fc46",
+        "name": "Request failed",
+        "key": "upd_req_failed",
+        "type": "exec",
+        "position_x": 25,
+        "position_y": 5,
+        "options": {
+          "code": "module.exports = async function(data) {\n  return {\n    status: 'update_failed',\n    matchKey: data.prepare && data.prepare.matchKey,\n    error: 'DUPR update request failed',\n    now: new Date().toISOString()\n  };\n}"
+        },
+        "resolve": "30fa7e50-17c5-40a0-8aa8-77fc953c6171",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:53:59.665Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "4b4ebe11-3e11-43a7-9ca4-3f87e5012798",
+        "name": "Respond update verify alive",
+        "key": "upd_respond_alive",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.map_upd_alive || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-22T02:10:10.402Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "5646a6d7-dcae-427d-a328-41b064bf2b10",
+        "name": "Persist (skipped request)",
+        "key": "persist_skip",
+        "type": "likha_sql",
+        "position_x": 25,
+        "position_y": 3,
         "options": {
           "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ? AND ? != 'not_submitted';",
           "binding": [
@@ -1985,11 +2131,101 @@
             "{{ do_update.status }}"
           ]
         },
-        "resolve": "675964b1-d991-473e-98fc-440106ded576",
-        "reject": null
+        "resolve": "273dd40c-ed79-4263-a74e-ab3a46618d89",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:55:21.424Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       },
       {
-        "id": "91280b5b-c69a-4925-9e6e-bee1296a98dc",
+        "id": "61406972-550e-41b9-9078-b2c6d74ec73d",
+        "name": "Read submission",
+        "key": "read_submission",
+        "type": "item-read",
+        "position_x": 19,
+        "position_y": 100,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "dupr_submission",
+          "query": {
+            "filter": {
+              "match_key": {
+                "_eq": "{{ prepare.matchKey }}"
+              }
+            },
+            "fields": [
+              "id",
+              "match_key",
+              "status",
+              "dupr_match_code"
+            ],
+            "limit": 1
+          }
+        },
+        "resolve": "a1c2639b-d70e-478e-83dd-e759cfa795cd",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:54:42.322Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "6422994f-46b8-4476-80e3-c6cba6a50894",
+        "name": "Prepare request",
+        "key": "prepare",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 50,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const body = data.$trigger.body || {};\n  const matchKey = body.matchKey;\n  const clubId = body.clubId;\n  if (!matchKey || !clubId) {\n    throw new Error('Missing required fields: matchKey, clubId');\n  }\n  return {\n    matchKey,\n    clubId,\n    apiBaseUrl: data.read_settings[0].api_base_url,\n    environment: data.read_settings[0].environment || 'uat',\n    // Optional client-supplied overrides (avoids completed_match sync race)\n    override: body.match || null\n  };\n}"
+        },
+        "resolve": "61406972-550e-41b9-9078-b2c6d74ec73d",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:54:42.074Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "6c5e75d0-fdea-4c3f-b71a-7ef7c6a3da10",
+        "name": "Persist status",
+        "key": "persist",
+        "type": "likha_sql",
+        "position_x": 19,
+        "position_y": 350,
+        "options": {
+          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ? AND ? != 'not_submitted';",
+          "binding": [
+            "{{ map_update.status }}",
+            "{{ map_update.error }}",
+            "{{ map_update.now }}",
+            "{{ prepare.matchKey }}",
+            "{{ map_update.status }}"
+          ]
+        },
+        "resolve": "40b23ed4-45d4-44b1-9974-8ff846d3cb6b",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:54:43.050Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "7dedb231-f318-43c8-8209-73112a4b10a8",
+        "name": "Respond update verify gone",
+        "key": "upd_respond_gone",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.map_upd_gone || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-22T02:10:10.270Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "a1c2639b-d70e-478e-83dd-e759cfa795cd",
         "name": "Read match",
         "key": "read_match",
         "type": "item-read",
@@ -2026,11 +2262,139 @@
             "limit": 1
           }
         },
-        "resolve": "eeea791b-bb0a-48a1-907d-808b3eaa50a4",
-        "reject": null
+        "resolve": "bd940a1c-54ce-495b-83b5-5e75023da9f0",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:54:42.521Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       },
       {
-        "id": "9fd03f0a-d080-4761-af1b-df0516fa9aec",
+        "id": "a6cbdaa5-8529-496f-b8cc-acb0bf8ee606",
+        "name": "Verify DUPR match state (update)",
+        "key": "upd_verify_req",
+        "type": "request",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "method": "GET",
+          "url": "{{ prepare.apiBaseUrl }}/match/v1.0/{{ read_submission[0].dupr_match_code }}",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "{{ do_update.authHeader }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "resolve": "b89e5082-33a3-45b5-90ae-bbd9aea5fa7d",
+        "reject": "1bba8283-0466-446b-ad19-b99e8a5f193a",
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-22T02:10:09.224Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "b15fb198-698c-4c44-ba07-c44e7c25a798",
+        "name": "Map result",
+        "key": "map_update",
+        "type": "exec",
+        "position_x": 39,
+        "position_y": 5,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const req = data.dupr_update_req || {};\n  const json = req.data || {};\n  const ok = json.status === 'SUCCESS';\n  return {\n    status: ok ? 'submitted' : 'update_failed',\n    matchKey: data.prepare.matchKey,\n    error: ok ? null : (json.message || ('DUPR update failed (HTTP ' + (req.status || '?') + ')')),\n    now: data.do_update.now\n  };\n}"
+        },
+        "resolve": "6c5e75d0-fdea-4c3f-b71a-7ef7c6a3da10",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:53:59.661Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "b89e5082-33a3-45b5-90ae-bbd9aea5fa7d",
+        "name": "Map update verify (alive)",
+        "key": "map_upd_alive",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  return {\n    status: 'update_failed',\n    matchKey: data.prepare.matchKey,\n    error: 'DUPR update request failed and the match still exists on DUPR',\n    now: new Date().toISOString()\n  };\n}"
+        },
+        "resolve": "08ad1e51-3397-4d9e-b833-a0cfaa8286c3",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-22T02:10:09.564Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "bd940a1c-54ce-495b-83b5-5e75023da9f0",
+        "name": "Generate auth header",
+        "key": "gen_auth",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 200,
+        "options": {
+          "code": "module.exports = async function(data) {\n  \nfunction b64enc(str) {\n  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n  var out = '';\n  for (var i = 0; i < str.length; i += 3) {\n    var a = str.charCodeAt(i) & 0xff;\n    var b = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN;\n    var c = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN;\n    var t = (a << 16) | ((b || 0) << 8) | (c || 0);\n    out += chars[(t >> 18) & 63] + chars[(t >> 12) & 63] + (isNaN(b) ? '=' : chars[(t >> 6) & 63]) + (isNaN(c) ? '=' : chars[t & 63]);\n  }\n  return out;\n}\n  var settings = data.read_settings[0];\n  return { authHeader: b64enc(settings.client_key + ':' + settings.client_secret) };\n}"
+        },
+        "resolve": "f023eaed-6d15-4dfd-907c-a16643f74f05",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:54:42.703Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "e4d970a5-ed2d-46c6-a003-ffd24a19ba35",
+        "name": "DUPR request",
+        "key": "dupr_update_req",
+        "type": "request",
+        "position_x": 39,
+        "position_y": 3,
+        "options": {
+          "method": "POST",
+          "url": "{{ do_update.url }}",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "{{ do_update.authHeader }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{{ do_update.body }}"
+        },
+        "resolve": "b15fb198-698c-4c44-ba07-c44e7c25a798",
+        "reject": "a6cbdaa5-8529-496f-b8cc-acb0bf8ee606",
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:53:59.656Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "e975df25-7674-452d-98d6-c6827d878867",
+        "name": "Persist update verify gone",
+        "key": "upd_persist_gone",
+        "type": "likha_sql",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ?;",
+          "binding": [
+            "{{ map_upd_gone.status }}",
+            "{{ map_upd_gone.error }}",
+            "{{ map_upd_gone.now }}",
+            "{{ prepare.matchKey }}"
+          ]
+        },
+        "resolve": "7dedb231-f318-43c8-8209-73112a4b10a8",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-22T02:10:09.850Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "f023eaed-6d15-4dfd-907c-a16643f74f05",
         "name": "Get partner token",
         "key": "get_partner_token",
         "type": "request",
@@ -2050,76 +2414,11 @@
             }
           ]
         },
-        "resolve": "a4ea2bbe-ef8d-46f3-bffb-b360578f9be3",
-        "reject": null
-      },
-      {
-        "id": "a4ea2bbe-ef8d-46f3-bffb-b360578f9be3",
-        "name": "Update DUPR match",
-        "key": "do_update",
-        "type": "exec",
-        "position_x": 19,
-        "position_y": 300,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const match = (data.read_match || [])[0];\n  const sub = (data.read_submission || [])[0];\n  const o = data.prepare.override || {};\n  const token = data.get_partner_token;\n  const partnerToken = token?.result?.token || token?.data?.result?.token || token?.token;\n  if (!partnerToken) throw new Error('Failed to get partner access token');\n\n  // Nothing at DUPR to update — not an error\n  if (!sub || !sub.dupr_match_code) {\n    return { status: 'not_submitted', matchKey: data.prepare.matchKey, now: new Date().toISOString() };\n  }\n\n  const src = match || {};\n  const teamA = o.teamA || src.team_a || [];\n  const teamB = o.teamB || src.team_b || [];\n  const scoreA = o.teamAScore ?? src.team_a_score;\n  const scoreB = o.teamBScore ?? src.team_b_score;\n  const completedAt = o.completedAt || src.completed_at;\n  const matchType = o.matchType || src.match_type || 'doubles';\n\n  const all = [...teamA, ...teamB];\n  const missing = all.filter(p => !p.duprId).map(p => p.username || p.name || 'unknown');\n  if (missing.length) {\n    return { status: 'failed', matchKey: data.prepare.matchKey, error: 'Players not connected to DUPR: ' + missing.join(', '), now: new Date().toISOString() };\n  }\n  const ids = all.map(p => p.duprId);\n  if (new Set(ids).size !== ids.length) {\n    return { status: 'failed', matchKey: data.prepare.matchKey, error: 'Duplicate player in match', now: new Date().toISOString() };\n  }\n  if (scoreA === scoreB) {\n    return { status: 'failed', matchKey: data.prepare.matchKey, error: 'Tied scores are not allowed', now: new Date().toISOString() };\n  }\n\n  const format = matchType === 'singles' ? 'SINGLES' : 'DOUBLES';\n  const dateStr = new Date(completedAt).toISOString().split('T')[0];\n  const payload = {\n    matchId: Number(sub.dupr_match_code),\n    identifier: data.prepare.matchKey,\n    matchDate: dateStr,\n    teamA: { player1: teamA[0].duprId, game1: scoreA },\n    teamB: { player1: teamB[0].duprId, game1: scoreB },\n    format,\n    matchType: 'RALLY',\n    matchSource: 'PARTNER'\n  };\n  if (format === 'DOUBLES') {\n    payload.teamA.player2 = teamA[1].duprId;\n    payload.teamB.player2 = teamB[1].duprId;\n  }\n\n  const res = await fetch(data.prepare.apiBaseUrl + '/match/v1.0/update', {\n    method: 'POST',\n    headers: { 'Authorization': 'Bearer ' + partnerToken, 'Content-Type': 'application/json' },\n    body: JSON.stringify(payload)\n  });\n  const json = await res.json().catch(() => ({}));\n\n  return {\n    status: json.status === 'SUCCESS' ? 'submitted' : 'update_failed',\n    matchKey: data.prepare.matchKey,\n    error: json.status === 'SUCCESS' ? null : (json.message || 'DUPR update failed'),\n    now: new Date().toISOString()\n  };\n}"
-        },
-        "resolve": "8d602497-7f91-4d05-816b-13fedd3e57cf",
-        "reject": null
-      },
-      {
-        "id": "bf1b26c6-4052-476a-a40f-7e1e40fa5c84",
-        "name": "Prepare request",
-        "key": "prepare",
-        "type": "exec",
-        "position_x": 19,
-        "position_y": 50,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const body = data.$trigger.body || {};\n  const matchKey = body.matchKey;\n  const clubId = body.clubId;\n  if (!matchKey || !clubId) {\n    throw new Error('Missing required fields: matchKey, clubId');\n  }\n  return {\n    matchKey,\n    clubId,\n    apiBaseUrl: data.read_settings[0].api_base_url,\n    environment: data.read_settings[0].environment || 'uat',\n    // Optional client-supplied overrides (avoids completed_match sync race)\n    override: body.match || null\n  };\n}"
-        },
-        "resolve": "d7ee7252-c489-42fa-ad45-e8a7cc688fee",
-        "reject": null
-      },
-      {
-        "id": "d7ee7252-c489-42fa-ad45-e8a7cc688fee",
-        "name": "Read submission",
-        "key": "read_submission",
-        "type": "item-read",
-        "position_x": 19,
-        "position_y": 100,
-        "options": {
-          "permissions": "$full",
-          "emitEvents": false,
-          "collection": "dupr_submission",
-          "query": {
-            "filter": {
-              "match_key": {
-                "_eq": "{{ prepare.matchKey }}"
-              }
-            },
-            "fields": [
-              "id",
-              "match_key",
-              "status",
-              "dupr_match_code"
-            ],
-            "limit": 1
-          }
-        },
-        "resolve": "91280b5b-c69a-4925-9e6e-bee1296a98dc",
-        "reject": null
-      },
-      {
-        "id": "eeea791b-bb0a-48a1-907d-808b3eaa50a4",
-        "name": "Generate auth header",
-        "key": "gen_auth",
-        "type": "exec",
-        "position_x": 19,
-        "position_y": 200,
-        "options": {
-          "code": "module.exports = async function(data) {\n  \nfunction b64enc(str) {\n  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n  var out = '';\n  for (var i = 0; i < str.length; i += 3) {\n    var a = str.charCodeAt(i) & 0xff;\n    var b = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN;\n    var c = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN;\n    var t = (a << 16) | ((b || 0) << 8) | (c || 0);\n    out += chars[(t >> 18) & 63] + chars[(t >> 12) & 63] + (isNaN(b) ? '=' : chars[(t >> 6) & 63]) + (isNaN(c) ? '=' : chars[t & 63]);\n  }\n  return out;\n}\n  var settings = data.read_settings[0];\n  return { authHeader: b64enc(settings.client_key + ':' + settings.client_secret) };\n}"
-        },
-        "resolve": "9fd03f0a-d080-4761-af1b-df0516fa9aec",
-        "reject": null
+        "resolve": "475c5ccc-1d6a-454b-a218-4d65887d665d",
+        "reject": null,
+        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
+        "date_created": "2026-10-21T22:54:42.881Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
       }
     ],
     "flow_manager_category": null,

@@ -182,9 +182,11 @@ JSON summary written by the Connect flow (same payload as `dupr_connection.eligi
 `read_settings → prepare → read_submission → read_match → gen_auth → get_partner_token → do_update → gate → dupr_update_req → map_result → persist → respond`
 
 - `do_update` is a pure-JS transform emitting a request descriptor (URL, method, JSON body); `dupr_update_req` is the `request` op that actually calls `POST {api}/match/v1.0/update`; `map_result` maps the response → `submitted` / `update_failed` / `not_submitted`
-- Body: `{matchKey, clubId, match?}` — optional `match` overrides avoid the `completed_match` sync race (client sends the corrected payload immediately)
+- Body: `{matchKey, clubId, match?}` — optional `match` overrides avoid the `completed_match` sync race (client sends the corrected payload immediately). **Scores alone aren't enough** — without `teamA`/`teamB`/`completedAt` the override falls back to `completed_match`, and if that row is missing/empty `do_update` returns `failed: 'Incomplete match data'` (previously it threw a TypeError and the whole flow died with `{}`)
 - Sends `matchId: Number(dupr_match_code)` + `identifier: match_key`
-- Returns `not_submitted` (no `dupr_match_code` — doesn't overwrite the status row) / `submitted` / `update_failed`
+- `do_update` short-circuits `status:'deleted'` rows before calling DUPR
+- Returns `not_submitted` (no `dupr_match_code` — doesn't overwrite the status row) / `submitted` / `update_failed` / `deleted`
+- On `dupr_update_req` reject, `upd_verify_req` does `GET /match/v1.0/{code}` — 410/404 ⇒ status `deleted` (match gone — row self-corrects); alive ⇒ `update_failed`. Verified live: update attempt on a deleted match returns `{status:'deleted', error:'Match was deleted on DUPR — cannot update'}`
 - **Verified live 2026-10-22:** real UAT submission → `{status:'submitted', dupr_match_code:'6771455258'}`; bogus key → `not_submitted`
 - Client: `useDupr.updateMatch()`; UI = admin-only "Correct score on DUPR" on submitted completed matches (edits the local `completedMatches` score AND pushes the update — one atomic correction path)
 
