@@ -36,6 +36,7 @@ interface DuprSettings {
   disconnect_flow_url: string | null;
   update_flow_url: string | null;
   delete_flow_url: string | null;
+  reactivate_flow_url: string | null;
   client_key: string;
   user_api_base_url?: string;
 }
@@ -112,6 +113,7 @@ class DuprService {
             'disconnect_flow_url',
             'update_flow_url',
             'delete_flow_url',
+            'reactivate_flow_url',
             'client_key',
             'user_api_base_url',
           ],
@@ -325,6 +327,32 @@ class DuprService {
       return (await res.json()) as { status: string; error: string | null };
     } catch (err) {
       console.warn('[DUPR] deleteMatch failed:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Reactivate a match that was deleted on DUPR. Requires the DUPR reactivate
+   * authority grant on the partner key — until granted, returns the 403 error.
+   */
+  async reactivateMatch(
+    matchKey: string,
+    clubId: string,
+  ): Promise<{ status: string; error: string | null } | null> {
+    const url = this.state.settings?.reactivate_flow_url;
+    if (!url) return null;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        body: JSON.stringify({ matchKey, clubId }),
+      });
+      return (await res.json()) as { status: string; error: string | null };
+    } catch (err) {
+      console.warn('[DUPR] reactivateMatch failed:', err);
       return null;
     }
   }

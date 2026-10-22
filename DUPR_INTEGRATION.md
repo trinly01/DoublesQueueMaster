@@ -197,7 +197,13 @@ Same review requirement — deletions of DinkMatch-submitted matches must come f
 **DUPR delete semantics discovered 2026-10-22 (live-verified):**
 
 - Successful delete returns `200 {"status":"SUCCESS","result":{}}`; deleting an already-deleted match returns `400 "match ... was not found"`. The `dupr_delete_req` request op can reject even when DUPR processed the delete (response-format quirk observed on a real delete) — so a **verify step follows any delete-request reject**: `GET {api}/match/v1.0/{matchCode}` → `410 "Match has been deleted"` or other 4xx ⇒ mark `deleted`; 200 (match alive) ⇒ `delete_failed`. Verified: re-running delete on a deleted match now returns `{status:'deleted'}` and persists it.
-- **Deleted identifiers stay claimed** — resubmitting the same `match_key` after delete fails with "already exists". DUPR's recovery paths: the **Reactivate Match endpoint** (per the 410 message) or a new identifier. We keep `dupr_match_code` on `deleted` rows so reactivation stays possible.
+- **Deleted identifiers stay claimed** — resubmitting the same `match_key` after delete fails with "already exists". Recovery = the **Reactivate Match endpoint** (`POST /match/v1.0/reactivate`, body `{matchIdentifiers:[{matchCode,identifier}]}` — discovered live; not in the OpenAPI spec). We keep `dupr_match_code` on `deleted` rows so reactivation stays possible.
+- **Reactivate permission gap:** the endpoint answers `403 "do not have the required permissions ... authority grants"` on our UAT key — DUPR must grant reactivate authority on the partner key (raised in review email).
+
+### Reactivate DUPR Match — `82b54d6b-c7ce-44a7-8e83-4482b76090de` (webhook POST)
+
+Restores a `deleted` match on DUPR. Same request-op skeleton: `read_settings → prepare → read_submission → gen_auth → get_partner_token → do_reactivate → proceed_reactivate → dupr_reactivate_req → map_reactivate → persist → respond`. Guards: row must be `deleted`; failure keeps `deleted` status with the DUPR error in `error_message`; success → `submitted` (match live again). Verified live: correct schema + correct 403 propagation. Setting: `reactivate_flow_url`. Client: `useDupr.reactivateMatch()`; UI = admin-only "Restore on DUPR" on `deleted` matches.
+
 - `map_results` (Submit flow) self-heals rows missing `dupr_match_code`: an "already exists (DUPR Match ID: N)" error now extracts N, marks the row `submitted`, and stores the code — orphaned submissions relink on retry instead of dead-ending.
 
 ### Disconnect DUPR — `b294a945-7e3e-41ed-983f-9636c723b14a` (webhook POST)
