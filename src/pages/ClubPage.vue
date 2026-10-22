@@ -747,7 +747,10 @@
                           <q-menu auto-close>
                             <q-list style="min-width: 180px">
                               <q-item
-                                v-if="getDuprStatus(match.id) !== 'submitted'"
+                                v-if="
+                                  getDuprStatus(match.id) !== 'submitted' &&
+                                  getDuprStatus(match.id) !== 'deleted'
+                                "
                                 clickable
                                 @click="handleSubmitSingleDupr(match.id)"
                                 :disable="
@@ -773,6 +776,34 @@
                                     DUPR</q-tooltip
                                   >
                                   <q-icon name="lock" color="grey" size="xs" />
+                                </q-item-section>
+                              </q-item>
+                              <q-item
+                                v-if="getDuprStatus(match.id) === 'deleted'"
+                                clickable
+                                @click="handleReactivateDupr(match.id)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="restore"
+                                    size="xs"
+                                    color="primary"
+                                  />
+                                </q-item-section>
+                                <q-item-section style="white-space: nowrap"
+                                  >Restore on DUPR</q-item-section
+                                >
+                                <q-item-section side>
+                                  <q-tooltip
+                                    >Reactivate the deleted match on DUPR —
+                                    deleted identifiers can't be
+                                    resubmitted</q-tooltip
+                                  >
+                                  <q-icon
+                                    name="info_outline"
+                                    color="grey"
+                                    size="xs"
+                                  />
                                 </q-item-section>
                               </q-item>
                               <template
@@ -1325,7 +1356,10 @@
                           <q-menu auto-close>
                             <q-list style="min-width: 180px">
                               <q-item
-                                v-if="getDuprStatus(match.id) !== 'submitted'"
+                                v-if="
+                                  getDuprStatus(match.id) !== 'submitted' &&
+                                  getDuprStatus(match.id) !== 'deleted'
+                                "
                                 clickable
                                 @click="handleSubmitSingleDupr(match.id)"
                                 :disable="
@@ -1351,6 +1385,34 @@
                                     DUPR</q-tooltip
                                   >
                                   <q-icon name="lock" color="grey" size="xs" />
+                                </q-item-section>
+                              </q-item>
+                              <q-item
+                                v-if="getDuprStatus(match.id) === 'deleted'"
+                                clickable
+                                @click="handleReactivateDupr(match.id)"
+                              >
+                                <q-item-section avatar>
+                                  <q-icon
+                                    name="restore"
+                                    size="xs"
+                                    color="primary"
+                                  />
+                                </q-item-section>
+                                <q-item-section style="white-space: nowrap"
+                                  >Restore on DUPR</q-item-section
+                                >
+                                <q-item-section side>
+                                  <q-tooltip
+                                    >Reactivate the deleted match on DUPR —
+                                    deleted identifiers can't be
+                                    resubmitted</q-tooltip
+                                  >
+                                  <q-icon
+                                    name="info_outline"
+                                    color="grey"
+                                    size="xs"
+                                  />
                                 </q-item-section>
                               </q-item>
                               <template
@@ -2244,6 +2306,39 @@ async function handleDeleteDupr(matchId: string) {
 }
 
 /**
+ * Reactivate a match that was deleted on DUPR (restores it — deleted
+ * identifiers can't be resubmitted, they must be reactivated).
+ */
+async function handleReactivateDupr(matchId: string) {
+  const matchKey = getMatchKey(matchId);
+  if (!matchKey || !currentClubUUID.value) {
+    notify({ color: 'negative', message: 'Match not synced to server yet' });
+    return;
+  }
+
+  $q.dialog({
+    title: 'Restore on DUPR',
+    message:
+      'Reactivate this match on DUPR? The previously deleted match will be ' +
+      'restored along with its rating impact.',
+    cancel: { label: 'Cancel', color: 'grey', flat: true },
+    ok: { label: 'Restore', color: 'primary', icon: 'restore' },
+    persistent: true,
+  }).onOk(async () => {
+    const res = await Dupr.reactivateMatch(matchKey, currentClubUUID.value!);
+    if (res && res.status === 'submitted') {
+      notify({ color: 'positive', message: 'Match restored on DUPR' });
+    } else {
+      notify({
+        color: 'negative',
+        message: res?.error || 'DUPR reactivate failed — please try again',
+      });
+    }
+    await Dupr.fetchSubmissions(currentClubUUID.value!);
+  });
+}
+
+/**
  * Submit all completed matches to DUPR in bulk.
  */
 async function handleSubmitAllDupr() {
@@ -2264,7 +2359,7 @@ async function handleSubmitAllDupr() {
     const key = getMatchKey(m.matchId);
     if (!key) continue;
     const status = duprSubmissionMap.value[key]?.status;
-    if (status === 'submitted') {
+    if (status === 'submitted' || status === 'deleted') {
       skippedSubmitted++;
       continue;
     }

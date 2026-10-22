@@ -155,6 +155,22 @@
       DUPR Failed
     </q-chip>
     <q-chip
+      v-else-if="meta.duprStatus === 'deleted'"
+      color="grey-3"
+      text-color="grey-8"
+      size="xs"
+      dense
+    >
+      <DuprLogo :size="12" class="q-mr-xs" />
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]">
+        <div>Deleted on DUPR</div>
+        <div v-if="meta.duprError" class="text-weight-medium">
+          {{ meta.duprError }}
+        </div>
+      </q-tooltip>
+      DUPR Deleted
+    </q-chip>
+    <q-chip
       v-else-if="meta.duprStatus === 'pending'"
       color="orange-2"
       text-color="orange-9"
