@@ -156,8 +156,8 @@
     </q-chip>
     <q-chip
       v-else-if="meta.duprStatus === 'deleted'"
-      color="grey-3"
-      text-color="grey-8"
+      color="red-1"
+      text-color="red-9"
       size="xs"
       dense
     >
