@@ -76,7 +76,13 @@
         />
       </div>
       <div v-else class="insight-text">
-        <span v-html="formatted"></span
+        <div
+          v-if="staleShown"
+          class="text-caption text-grey-5 row items-center q-mb-xs"
+        >
+          <q-spinner-dots size="14px" class="q-mr-xs" /> Updating…
+        </div>
+        <span v-html="formatted" :class="{ 'insight-stale': staleShown }"></span
         ><span v-if="status === 'generating' && isCpuMode" class="text-grey-5">
           (CPU mode — ~1 min)</span
         >
@@ -103,6 +109,7 @@ const {
   progressText,
   progressPct,
   output,
+  staleOutput,
   error,
   isCpuMode,
   generateInsight,
@@ -114,8 +121,16 @@ const busy = computed(() =>
 
 // Small models leak markdown no matter what the prompt says. Escape HTML
 // first, then render the common bits: **bold**, *em*, headings, bullets.
+// Show the previous insight upfront while a fresh one generates —
+// new tokens replace it as they stream in.
+const staleShown = computed(
+  () => !output.value && !!staleOutput.value && busy.value,
+);
+
+const displayText = computed(() => output.value || staleOutput.value);
+
 const formatted = computed(() => {
-  const esc = output.value
+  const esc = displayText.value
     .replace(/<think>[\s\S]*?<\/think>/gi, '')
     .replace(/<\/?think>/gi, '')
     .replace(/&/g, '&amp;')
@@ -149,6 +164,9 @@ watch(
   border-radius: 10px;
   background: #fafaff;
   margin-bottom: 8px;
+}
+.insight-stale {
+  opacity: 0.55;
 }
 .insight-text {
   font-size: 12.5px;
