@@ -192,6 +192,9 @@
             >
               On-device AI needs a WebGPU-capable browser (Chrome on Android,
               Safari 18+ on recent iPhones).
+              <div v-if="insightError" class="text-grey-5 q-mt-xs">
+                {{ insightError }}
+              </div>
             </div>
             <div
               v-else-if="insightStatus === 'error'"
