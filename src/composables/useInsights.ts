@@ -73,6 +73,7 @@ function describeErr(err: unknown): string {
 
 function writeInsightCache(hash: string, text: string) {
   try {
+    LocalStorage.set(INSIGHT_USED_KEY, true);
     const all = readInsightCache();
     all[hash] = { text, ts: Date.now() };
     const keys = Object.keys(all);
@@ -111,6 +112,11 @@ const sharedIsCpuMode = ref(false);
 let sharedWorker: Worker | null = null;
 // Serializes concurrent generateInsight calls from multiple cards.
 let engineBusy = false;
+// Single in-flight init shared by warm-up and card requests.
+let enginePromise: Promise<void> | null = null;
+
+const INSIGHT_USED_KEY = 'dm_insight_used';
+let warmStarted = false;
 
 export function useInsights() {
   const status = ref<InsightStatus>('idle');
@@ -181,6 +187,18 @@ export function useInsights() {
 
   async function ensureEngine() {
     if (engine.value) return;
+    // Share one in-flight init: a warm-up running while a card requests
+    // must not trigger a second worker reload.
+    if (enginePromise) return enginePromise;
+    enginePromise = doEnsureEngine();
+    try {
+      await enginePromise;
+    } finally {
+      enginePromise = null;
+    }
+  }
+
+  async function doEnsureEngine() {
     status.value = 'checking';
     const candidate = await pickModel();
     if (!candidate) {
@@ -285,12 +303,13 @@ export function useInsights() {
     try {
       output.value = '';
       error.value = '';
-      if (!wasmEngine.value) await ensureEngine();
-      if (!engine.value && !wasmEngine.value) {
+      if (!engine.value && !wasmEngine.value) await ensureEngine();
+      if (!engine.value) {
+        // No GPU model: the CPU path generates via its own engine,
+        // loading weights first only when not already in memory.
         await runCpuFallback(contextLabel, stats);
         return;
       }
-      if (!engine.value) return;
       status.value = 'generating';
       try {
         const stream = await engine.value.chat.completions.create({
@@ -353,6 +372,24 @@ export function useInsights() {
     modelId,
     isCpuMode,
     generateInsight,
+    ensureEngine,
     unload,
   };
+}
+
+/**
+ * Pre-load the GPU model while the app is idle. Only runs for users who
+ * have generated an insight before — their next session opens with the
+ * engine already warm, so the card skips the ~10s model init.
+ */
+export function warmInsights() {
+  if (warmStarted || sharedEngine.value || sharedWasmEngine.value) return;
+  if (!LocalStorage.getItem(INSIGHT_USED_KEY)) return;
+  warmStarted = true;
+  // Hidden instance: its status/progress refs are never rendered.
+  useInsights()
+    .ensureEngine()
+    .catch((err) => {
+      console.warn('[insights] warm-up failed', err);
+    });
 }
