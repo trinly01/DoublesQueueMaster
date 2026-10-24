@@ -182,8 +182,10 @@
                 v-if="insightStatus === 'downloading'"
                 class="text-caption text-grey-5"
               >
-                One-time model download (~1 GB). Cached afterwards — works
-                offline.
+                One-time model download. Cached afterwards — works offline.
+                <template v-if="insightCpu"
+                  >CPU mode — slower but works on this device.</template
+                >
               </div>
             </template>
             <div
@@ -202,7 +204,15 @@
             >
               {{ insightError }}
             </div>
-            <div v-else class="insight-text">{{ insightOutput }}</div>
+            <div v-else class="insight-text">
+              {{ insightOutput
+              }}<span
+                v-if="insightStatus === 'generating' && insightCpu"
+                class="text-grey-5"
+              >
+                (CPU mode — ~1 min)</span
+              >
+            </div>
           </q-card-section>
         </q-card>
       </q-card-section>
@@ -715,6 +725,7 @@ const {
   progressPct: insightPct,
   output: insightOutput,
   error: insightError,
+  isCpuMode: insightCpu,
   generateInsight,
 } = useInsights();
 
