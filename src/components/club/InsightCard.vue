@@ -59,8 +59,8 @@
         v-else-if="status === 'unsupported'"
         class="text-caption text-grey-7"
       >
-        On-device AI needs a WebGPU-capable browser (Chrome on Android,
-        Safari 18+ on recent iPhones).
+        On-device AI needs a WebGPU-capable browser (Chrome on Android, Safari
+        18+ on recent iPhones).
         <div v-if="error" class="text-grey-5 q-mt-xs">{{ error }}</div>
       </div>
       <div v-else-if="status === 'error'" class="text-caption text-negative">
@@ -68,10 +68,7 @@
       </div>
       <div v-else class="insight-text">
         <span v-html="formatted"></span
-        ><span
-          v-if="status === 'generating' && isCpuMode"
-          class="text-grey-5"
-        >
+        ><span v-if="status === 'generating' && isCpuMode" class="text-grey-5">
           (CPU mode — ~1 min)</span
         >
       </div>
@@ -92,8 +89,15 @@ const props = defineProps<{
 
 defineEmits<{ close: [] }>();
 
-const { status, progressText, progressPct, output, error, isCpuMode, generateInsight } =
-  useInsights();
+const {
+  status,
+  progressText,
+  progressPct,
+  output,
+  error,
+  isCpuMode,
+  generateInsight,
+} = useInsights();
 
 const busy = computed(() =>
   ['checking', 'downloading', 'loading', 'generating'].includes(status.value),
@@ -103,6 +107,8 @@ const busy = computed(() =>
 // first, then render the common bits: **bold**, *em*, headings, bullets.
 const formatted = computed(() => {
   const esc = output.value
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<\/?think>/gi, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
@@ -133,6 +139,7 @@ watch(
 .insight-card {
   border-radius: 10px;
   background: #fafaff;
+  margin-bottom: 8px;
 }
 .insight-text {
   font-size: 12.5px;
