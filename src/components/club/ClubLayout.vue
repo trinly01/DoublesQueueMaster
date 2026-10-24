@@ -99,7 +99,8 @@
         >
           <q-tooltip>
             {{ busyPlayers.playing }} playing · {{ busyPlayers.queued }} in
-            queue · {{ playersCount }} checked in
+            queue · {{ playersCount - busyPlayers.busy }} checked out ·
+            {{ playersCount }} checked in
           </q-tooltip>
         </q-tab>
         <q-tab
