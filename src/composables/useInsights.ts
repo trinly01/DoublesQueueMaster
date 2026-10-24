@@ -25,6 +25,43 @@ const MODEL_LOW = 'Qwen3.5-0.8B-q4f16_1-MLC';
 const WASM_GGUF_URL =
   'https://huggingface.co/unsloth/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf';
 
+const INSIGHT_CACHE_KEY = 'dm_insight_cache_v1';
+const INSIGHT_CACHE_MAX = 30;
+
+// Payload hash drives caching: unchanged stats -> instant cached insight,
+// new match data -> new hash -> regenerate.
+function payloadHash(contextLabel: string, stats: unknown): string {
+  const s = contextLabel + '|' + JSON.stringify(stats);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = (h * 33) ^ s.charCodeAt(i);
+  return (h >>> 0).toString(36);
+}
+
+function readInsightCache(): Record<string, { text: string; ts: number }> {
+  try {
+    return JSON.parse(localStorage.getItem(INSIGHT_CACHE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function writeInsightCache(hash: string, text: string) {
+  try {
+    const all = readInsightCache();
+    all[hash] = { text, ts: Date.now() };
+    const keys = Object.keys(all);
+    if (keys.length > INSIGHT_CACHE_MAX) {
+      keys
+        .sort((a, b) => all[a].ts - all[b].ts)
+        .slice(0, keys.length - INSIGHT_CACHE_MAX)
+        .forEach((k) => delete all[k]);
+    }
+    localStorage.setItem(INSIGHT_CACHE_KEY, JSON.stringify(all));
+  } catch {
+    /* storage full or unavailable — caching is best-effort */
+  }
+}
+
 const SYSTEM_PROMPT =
   'You are a pickleball sports analyst doing live TV commentary. Given JSON ' +
   'stats plus precomputed storylines, deliver one punchy broadcast-style ' +
@@ -178,6 +215,8 @@ export function useInsights() {
       for await (const chunk of chunks) {
         output.value += chunk.choices?.[0]?.delta?.content || '';
       }
+      if (output.value)
+        writeInsightCache(payloadHash(contextLabel, stats), output.value);
       status.value = 'done';
     } catch (err) {
       status.value = 'unsupported';
@@ -191,7 +230,20 @@ export function useInsights() {
    * Weights are cached by the browser (Cache API/OPFS) after the first
    * download, so this works fully offline once loaded.
    */
-  async function generateInsight(contextLabel: string, stats: unknown) {
+  async function generateInsight(
+    contextLabel: string,
+    stats: unknown,
+    force = false,
+  ) {
+    const hash = payloadHash(contextLabel, stats);
+    if (!force) {
+      const hit = readInsightCache()[hash];
+      if (hit) {
+        output.value = hit.text;
+        status.value = 'done';
+        return;
+      }
+    }
     output.value = '';
     error.value = '';
     if (!wasmEngine.value) await ensureEngine();
@@ -220,6 +272,7 @@ export function useInsights() {
       for await (const chunk of stream) {
         output.value += chunk.choices[0]?.delta?.content || '';
       }
+      if (output.value) writeInsightCache(hash, output.value);
       status.value = 'done';
     } catch (err) {
       status.value = 'error';
