@@ -51,6 +51,15 @@ function readInsightCache(): Record<string, { text: string; ts: number }> {
   }
 }
 
+// Some models emit <think>…</think> blocks even with thinking disabled —
+// strip them before display or caching.
+function stripThink(text: string): string {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<\/?think>/gi, '')
+    .trim();
+}
+
 function writeInsightCache(hash: string, text: string) {
   try {
     const all = readInsightCache();
@@ -230,6 +239,7 @@ export function useInsights() {
       for await (const chunk of chunks) {
         output.value += chunk.choices?.[0]?.delta?.content || '';
       }
+      output.value = stripThink(output.value);
       if (output.value)
         writeInsightCache(payloadHash(contextLabel, stats), output.value);
       status.value = 'done';
@@ -290,6 +300,7 @@ export function useInsights() {
       for await (const chunk of stream) {
         output.value += chunk.choices[0]?.delta?.content || '';
       }
+      output.value = stripThink(output.value);
       if (output.value) writeInsightCache(hash, output.value);
       status.value = 'done';
     } catch (err) {

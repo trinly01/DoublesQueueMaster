@@ -720,7 +720,13 @@ const insightPayload = computed(() => {
       },
     };
   }
-  const rows = activeLeaderboard.value.slice(0, 12).map((p, i) => ({
+  // My Matches is Pro-gated: rows 0-4 are masked (names/avatars) and stats
+  // blurred for non-Pro — the model must only see what is actually rendered.
+  const visibleRows =
+    leaderboardTab.value === 'matches' && props.isPaymentExpired
+      ? activeLeaderboard.value.slice(5)
+      : activeLeaderboard.value;
+  const rows = visibleRows.slice(0, 12).map((p, i) => ({
     rank: p.provisional ? 'provisional' : i + 1,
     name: p.firstName || p.username,
     score: p.score,
