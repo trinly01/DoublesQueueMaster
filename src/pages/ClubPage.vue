@@ -268,8 +268,7 @@
                   <q-tooltip>
                     {{ busyPlayers.playing }} playing ·
                     {{ busyPlayers.queued }} in queue ·
-                    {{ players.length - busyPlayersCount }} checked out ·
-                    {{ players.length }} checked in
+                    {{ players.length - busyPlayersCount }} checked out
                   </q-tooltip>
                 </q-toolbar-title>
                 <q-select
