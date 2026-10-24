@@ -1,4 +1,5 @@
 import { ref, shallowRef } from 'vue';
+import { LocalStorage } from 'quasar';
 
 export type InsightStatus =
   | 'idle'
@@ -39,7 +40,12 @@ function payloadHash(contextLabel: string, stats: unknown): string {
 
 function readInsightCache(): Record<string, { text: string; ts: number }> {
   try {
-    return JSON.parse(localStorage.getItem(INSIGHT_CACHE_KEY) || '{}');
+    return (
+      (LocalStorage.getItem(INSIGHT_CACHE_KEY) as Record<
+        string,
+        { text: string; ts: number }
+      > | null) ?? {}
+    );
   } catch {
     return {};
   }
@@ -56,7 +62,7 @@ function writeInsightCache(hash: string, text: string) {
         .slice(0, keys.length - INSIGHT_CACHE_MAX)
         .forEach((k) => delete all[k]);
     }
-    localStorage.setItem(INSIGHT_CACHE_KEY, JSON.stringify(all));
+    LocalStorage.set(INSIGHT_CACHE_KEY, all);
   } catch {
     /* storage full or unavailable — caching is best-effort */
   }
