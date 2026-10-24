@@ -41,10 +41,17 @@ export function useInsights() {
       };
       deviceMemory?: number;
     };
-    if (!nav.gpu) return null;
+    if (!nav.gpu) {
+      error.value = 'WebGPU API not exposed by this browser.';
+      return null;
+    }
     try {
       const adapter = await nav.gpu.requestAdapter();
-      if (!adapter) return null;
+      if (!adapter) {
+        error.value =
+          'WebGPU adapter rejected — this GPU is likely blocklisted or too old.';
+        return null;
+      }
       const lim = adapter.limits;
       const storageBuf = lim.maxStorageBufferBindingSize;
       const mem = nav.deviceMemory ?? 0;
@@ -54,7 +61,8 @@ export function useInsights() {
       if (!mobileUA && (mem === 0 || mem >= 8)) return MODEL_HIGH;
       if (mem > 0 && mem < 4) return MODEL_LOW;
       return MODEL_STD;
-    } catch {
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : String(err);
       return null;
     }
   }
@@ -84,7 +92,8 @@ export function useInsights() {
     const candidate = await pickModel();
     if (!candidate) {
       status.value = 'unsupported';
-      error.value = 'This device/browser does not support WebGPU inference.';
+      if (!error.value)
+        error.value = 'This device/browser does not support WebGPU inference.';
       return;
     }
     const ladder = [candidate, MODEL_STD, MODEL_LOW];
@@ -98,6 +107,7 @@ export function useInsights() {
         return;
       } catch (err) {
         lastErr = err;
+        console.warn(`[insights] model ${id} failed to init`, err);
       }
     }
     status.value = 'error';
