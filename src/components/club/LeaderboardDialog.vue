@@ -129,7 +129,79 @@
           </q-popup-proxy>
         </q-btn>
         <q-space />
+        <q-btn
+          icon="auto_awesome"
+          flat
+          round
+          dense
+          size="sm"
+          text-color="accent"
+          @click="toggleInsight"
+        >
+          <q-tooltip>AI insights — runs offline on your device</q-tooltip>
+        </q-btn>
         <q-btn icon="close" flat round dense v-close-popup />
+      </q-card-section>
+      <q-card-section v-if="showInsight" class="q-py-xs">
+        <q-card flat bordered class="insight-card">
+          <q-card-section class="q-py-sm">
+            <div class="row items-center no-wrap q-mb-xs">
+              <q-icon name="auto_awesome" color="accent" size="16px" />
+              <span class="text-caption text-weight-bold q-ml-xs"
+                >On-device AI insight</span
+              >
+              <q-space />
+              <q-btn
+                v-if="
+                  insightStatus === 'generating' || insightStatus === 'done'
+                "
+                icon="close"
+                flat
+                round
+                dense
+                size="xs"
+                @click="showInsight = false"
+              />
+            </div>
+            <template
+              v-if="
+                insightStatus === 'downloading' ||
+                insightStatus === 'loading' ||
+                insightStatus === 'checking'
+              "
+            >
+              <q-linear-progress
+                :value="insightPct / 100"
+                color="accent"
+                class="q-mb-xs"
+              />
+              <div class="text-caption text-grey-7">
+                {{ insightProgress || 'Preparing on-device model…' }}
+              </div>
+              <div
+                v-if="insightStatus === 'downloading'"
+                class="text-caption text-grey-5"
+              >
+                One-time model download (~1 GB). Cached afterwards — works
+                offline.
+              </div>
+            </template>
+            <div
+              v-else-if="insightStatus === 'unsupported'"
+              class="text-caption text-grey-7"
+            >
+              On-device AI needs a WebGPU-capable browser (Chrome on Android,
+              Safari 18+ on recent iPhones).
+            </div>
+            <div
+              v-else-if="insightStatus === 'error'"
+              class="text-caption text-negative"
+            >
+              {{ insightError }}
+            </div>
+            <div v-else class="insight-text">{{ insightOutput }}</div>
+          </q-card-section>
+        </q-card>
       </q-card-section>
       <div class="row q-gutter-xs q-px-md q-pb-xs justify-center">
         <q-chip dense color="grey-6" text-color="white" size="xs">
@@ -531,6 +603,7 @@ import PlayerAvatar from '../PlayerAvatar.vue';
 import PayBanner from '../PayBanner.vue';
 import { getRatingColor } from '../../utils/playerHelpers';
 import { useProFeatures } from '../../composables/useProFeatures';
+import { useInsights } from '../../composables/useInsights';
 
 defineOptions({ name: 'LeaderboardDialog' });
 
@@ -633,6 +706,17 @@ const emit = defineEmits<{
 
 const { maskNum, maskText } = useProFeatures();
 
+const {
+  status: insightStatus,
+  progressText: insightProgress,
+  progressPct: insightPct,
+  output: insightOutput,
+  error: insightError,
+  generateInsight,
+} = useInsights();
+
+const showInsight = ref(false);
+
 const leaderboardTab = ref<'club' | 'matches' | 'global' | 'duo'>('club');
 
 // The scroll container keeps its scrollTop across tab switches; each tab is
@@ -657,9 +741,60 @@ const activeLoading = computed(() => {
   if (leaderboardTab.value === 'duo') return props.duoLoading || false;
   return props.loading;
 });
+
+// Compact stats payload — small models narrate numbers far better than they
+// aggregate them, so all math stays in the app and the LLM only writes prose.
+const insightPayload = computed(() => {
+  if (leaderboardTab.value === 'duo') {
+    return (props.duoLeaderboard || []).slice(0, 8).map((d, i) => ({
+      rank: i + 1,
+      players: `${d.player1.firstName} & ${d.player2.firstName}`,
+      games: d.games,
+      wins: d.wins,
+      losses: d.losses,
+      winRatePct: d.winRate,
+      synergyPct: d.synergy,
+      recentFormPct: d.recentForm,
+      duoRating: Math.round(d.duoScore),
+    }));
+  }
+  return activeLeaderboard.value.slice(0, 12).map((p, i) => ({
+    rank: p.provisional ? 'provisional' : i + 1,
+    name: p.firstName || p.username,
+    score: p.score,
+    games: p.games,
+    wins: p.wins,
+    losses: p.losses,
+    winRatePct: p.winRate,
+  }));
+});
+
+const insightLabels: Record<string, string> = {
+  club: 'Club leaderboard (last 30 days)',
+  matches: 'My matches leaderboard (last 30 days)',
+  global: 'Global leaderboard (last 30 days)',
+  duo: 'Best duo partnerships (last 30 days)',
+};
+
+function toggleInsight() {
+  showInsight.value = !showInsight.value;
+  if (showInsight.value && insightStatus.value === 'idle') {
+    generateInsight(insightLabels[leaderboardTab.value], insightPayload.value);
+  }
+}
 </script>
 
 <style scoped>
+.insight-card {
+  border-radius: 10px;
+  background: #fafaff;
+}
+.insight-text {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #444;
+  white-space: pre-wrap;
+}
 .duo-row {
   padding: 4px 6px;
   min-height: auto;
