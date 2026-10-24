@@ -17,11 +17,9 @@
   "dependencies": {
     "@kingdanx/edge-tts-browser": "^1.0.0",
     "@likha-erp/likha-sdk": "^1.0.7",
-    "@mlc-ai/web-llm": "^0.2.86",
     "@quasar/extras": "^1.16.4",
     "@tresjs/core": "^5.8.3",
     "@trystero-p2p/nostr": "^0.25.3",
-    "@wllama/wllama": "^3.8.1",
     "echarts": "^6.1.0",
     "html5-qrcode": "^2.3.8",
     "qrcode": "^1.5.4",
