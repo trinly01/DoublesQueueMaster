@@ -219,8 +219,8 @@
               {{ insightError }}
             </div>
             <div v-else class="insight-text">
-              {{ insightOutput
-              }}<span
+              <span v-html="formattedInsight"></span
+              ><span
                 v-if="insightStatus === 'generating' && insightCpu"
                 class="text-grey-5"
               >
@@ -859,6 +859,23 @@ const insightBusy = computed(() =>
     insightStatus.value,
   ),
 );
+
+// Small models leak markdown no matter what the prompt says. Escape HTML
+// first, then render the common bits: **bold**, *em*, headings, bullets.
+const formattedInsight = computed(() => {
+  const esc = insightOutput.value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return esc
+    .replace(/^#{1,4}\s*(.+)$/gm, '<strong>$1</strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(?<!\w)\*([^*\n]+)\*(?!\w)/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^\s*[-*•]\s+/gm, '• ')
+    .replace(/\n{2,}/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+});
 
 function requestInsight(force = false) {
   generateInsight(
