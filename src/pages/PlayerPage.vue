@@ -1016,6 +1016,17 @@
               </q-popup-proxy>
             </q-btn>
             <q-space />
+            <q-btn
+              icon="auto_awesome"
+              flat
+              round
+              dense
+              size="sm"
+              text-color="accent"
+              @click="showLbInsight = !showLbInsight"
+            >
+              <q-tooltip>AI insights — runs offline on your device</q-tooltip>
+            </q-btn>
             <q-btn icon="close" flat round dense v-close-popup>
               <q-tooltip
                 anchor="top middle"
@@ -1024,6 +1035,13 @@
                 >Close</q-tooltip
               >
             </q-btn>
+          </q-card-section>
+          <q-card-section v-if="showLbInsight" class="q-py-xs">
+            <InsightCard
+              :context-label="lbInsightLabels[leaderboardTab]"
+              :stats="lbInsightPayload"
+              @close="showLbInsight = false"
+            />
           </q-card-section>
 
           <div class="row q-gutter-xs q-px-md q-pb-xs justify-center">
@@ -2264,6 +2282,54 @@ const playerInsightPayload = computed(() => {
             winRatePct: Math.round(clutchStats.value.winRate),
           }
         : null,
+  };
+});
+
+const showLbInsight = ref(false);
+
+const lbInsightLabels: Record<string, string> = {
+  global: 'Global leaderboard (last 30 days)',
+  matches: 'My Matches leaderboard — players this player faced (last 30 days)',
+};
+
+// Same shape as the club leaderboard insight: top rows plus precomputed
+// storylines. My Matches is Pro-gated — masked rows never reach the model.
+const lbInsightPayload = computed(() => {
+  const visibleRows =
+    leaderboardTab.value === 'matches' && isPaymentExpired.value
+      ? leaderboardData.value.slice(5)
+      : leaderboardData.value;
+  const rows = visibleRows.slice(0, 12).map((p, i) => ({
+    rank: i + 1,
+    name: p.firstName || p.username,
+    score: p.score ?? p.rating,
+    games: p.games,
+    wins: p.wins,
+    losses: p.losses,
+    winRatePct: p.winRate,
+  }));
+  const first = rows[0];
+  const second = rows[1];
+  const gap = first && second ? (first.score ?? 0) - (second.score ?? 0) : null;
+  const topRace =
+    gap !== null && gap <= 30
+      ? `${first.name} vs ${second.name} (${gap} pts apart)`
+      : null;
+  return {
+    table: rows,
+    storylines: {
+      leader: first?.name,
+      leadGap: gap,
+      tightRaceAtTop: topRace,
+      mostExperienced: rows.reduce(
+        (a, b) => ((b.games ?? 0) > (a?.games ?? -1) ? b : a),
+        rows[0],
+      )?.name,
+      highestWinRate: rows.reduce(
+        (a, b) => ((b.winRatePct ?? 0) > (a?.winRatePct ?? -1) ? b : a),
+        rows[0],
+      )?.name,
+    },
   };
 });
 
