@@ -435,19 +435,6 @@
               </q-popup-proxy>
             </q-btn>
             <q-space />
-            <q-btn
-              icon="auto_awesome"
-              flat
-              round
-              dense
-              size="sm"
-              text-color="accent"
-              @click="showInsight = !showInsight"
-            >
-              <q-tooltip
-                >AI scouting report — runs offline on your device</q-tooltip
-              >
-            </q-btn>
             <q-btn icon="close" flat round dense v-close-popup>
               <q-tooltip
                 anchor="top middle"
@@ -457,14 +444,6 @@
               >
             </q-btn>
           </q-card-section>
-
-          <div v-if="showInsight" class="q-px-md q-pt-xs">
-            <InsightCard
-              :context-label="`Player scouting report for ${PlayerProfile.state.firstName || PlayerProfile.state.username}`"
-              :stats="playerInsightPayload"
-              @close="showInsight = false"
-            />
-          </div>
 
           <div :class="$q.screen.lt.md ? 'q-px-sm q-pt-sm' : 'q-px-md q-pt-md'">
             <q-btn-group dense spread>
@@ -1016,17 +995,6 @@
               </q-popup-proxy>
             </q-btn>
             <q-space />
-            <q-btn
-              icon="auto_awesome"
-              flat
-              round
-              dense
-              size="sm"
-              text-color="accent"
-              @click="showLbInsight = !showLbInsight"
-            >
-              <q-tooltip>AI insights — runs offline on your device</q-tooltip>
-            </q-btn>
             <q-btn icon="close" flat round dense v-close-popup>
               <q-tooltip
                 anchor="top middle"
@@ -1035,13 +1003,6 @@
                 >Close</q-tooltip
               >
             </q-btn>
-          </q-card-section>
-          <q-card-section v-if="showLbInsight" class="q-py-xs">
-            <InsightCard
-              :context-label="lbInsightLabels[leaderboardTab]"
-              :stats="lbInsightPayload"
-              @close="showLbInsight = false"
-            />
           </q-card-section>
 
           <div class="row q-gutter-xs q-px-md q-pb-xs justify-center">
@@ -1491,7 +1452,6 @@ import { usePayment } from 'src/composables/usePayment';
 import { useProFeatures } from 'src/composables/useProFeatures';
 import MatchResult from 'src/components/MatchResult.vue';
 import PlayerAvatar from 'src/components/PlayerAvatar.vue';
-import InsightCard from 'src/components/club/InsightCard.vue';
 import PayBanner from 'src/components/PayBanner.vue';
 import * as echarts from 'echarts';
 import QRCode from 'qrcode';
@@ -2217,120 +2177,6 @@ const ratingVelocity = computed(() => {
   const oldest = events[events.length - 1]?.rating ?? current;
   const change = current - oldest;
   return { current, oldest, change };
-});
-
-const showInsight = ref(false);
-
-// Scouting-report payload: compact facts across all stat tabs so the
-// on-device model narrates strengths, trends, and rivalries — it never
-// does the math itself.
-const playerInsightPayload = computed(() => {
-  const username = PlayerProfile.state.username;
-  let wins = 0;
-  let losses = 0;
-  const recentForm: string[] = [];
-  for (const m of sortedMatches.value) {
-    const inA = m.team_a?.some((p) => p.username === username);
-    const inB = m.team_b?.some((p) => p.username === username);
-    if (!inA && !inB) continue;
-    const mine = inA ? m.team_a_score : m.team_b_score;
-    const theirs = inA ? m.team_b_score : m.team_a_score;
-    const won = mine > theirs;
-    if (won) wins++;
-    else losses++;
-    if (recentForm.length < 5) recentForm.push(won ? 'W' : 'L');
-  }
-  const bestPartner = partnerStats.value[0];
-  const toughestRival = nemesisStats.value[0];
-  return {
-    player: PlayerProfile.state.firstName || username,
-    rating: playerRating.value,
-    ratingTrend: ratingVelocity.value
-      ? {
-          from: ratingVelocity.value.oldest,
-          to: ratingVelocity.value.current,
-          change: ratingVelocity.value.change,
-        }
-      : null,
-    record: {
-      matches: wins + losses,
-      wins,
-      losses,
-      winRatePct:
-        wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null,
-    },
-    lastFiveResults: recentForm,
-    bestPartner: bestPartner
-      ? {
-          name: bestPartner.name,
-          gamesTogether: bestPartner.games,
-          winRatePct: Math.round(bestPartner.winRate),
-        }
-      : null,
-    toughestRival: toughestRival
-      ? {
-          name: toughestRival.name,
-          gamesAgainst: toughestRival.games,
-          theirWinRatePct: Math.round(toughestRival.winRate),
-        }
-      : null,
-    clutchRecord:
-      clutchStats.value.total > 0
-        ? {
-            tightGames: clutchStats.value.total,
-            wins: clutchStats.value.wins,
-            winRatePct: Math.round(clutchStats.value.winRate),
-          }
-        : null,
-  };
-});
-
-const showLbInsight = ref(false);
-
-const lbInsightLabels: Record<string, string> = {
-  global: 'Global leaderboard (last 30 days)',
-  matches: 'My Matches leaderboard — players this player faced (last 30 days)',
-};
-
-// Same shape as the club leaderboard insight: top rows plus precomputed
-// storylines. My Matches is Pro-gated — masked rows never reach the model.
-const lbInsightPayload = computed(() => {
-  const visibleRows =
-    leaderboardTab.value === 'matches' && isPaymentExpired.value
-      ? leaderboardData.value.slice(5)
-      : leaderboardData.value;
-  const rows = visibleRows.slice(0, 12).map((p, i) => ({
-    rank: i + 1,
-    name: p.firstName || p.username,
-    score: p.score ?? p.rating,
-    games: p.games,
-    wins: p.wins,
-    losses: p.losses,
-    winRatePct: p.winRate,
-  }));
-  const first = rows[0];
-  const second = rows[1];
-  const gap = first && second ? (first.score ?? 0) - (second.score ?? 0) : null;
-  const topRace =
-    gap !== null && gap <= 30
-      ? `${first.name} vs ${second.name} (${gap} pts apart)`
-      : null;
-  return {
-    table: rows,
-    storylines: {
-      leader: first?.name,
-      leadGap: gap,
-      tightRaceAtTop: topRace,
-      mostExperienced: rows.reduce(
-        (a, b) => ((b.games ?? 0) > (a?.games ?? -1) ? b : a),
-        rows[0],
-      )?.name,
-      highestWinRate: rows.reduce(
-        (a, b) => ((b.winRatePct ?? 0) > (a?.winRatePct ?? -1) ? b : a),
-        rows[0],
-      )?.name,
-    },
-  };
 });
 
 const chartRef = ref<HTMLDivElement | null>(null);

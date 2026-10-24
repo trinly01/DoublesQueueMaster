@@ -129,25 +129,7 @@
           </q-popup-proxy>
         </q-btn>
         <q-space />
-        <q-btn
-          icon="auto_awesome"
-          flat
-          round
-          dense
-          size="sm"
-          text-color="accent"
-          @click="toggleInsight"
-        >
-          <q-tooltip>AI insights — runs offline on your device</q-tooltip>
-        </q-btn>
         <q-btn icon="close" flat round dense v-close-popup />
-      </q-card-section>
-      <q-card-section v-if="showInsight" class="q-py-xs">
-        <InsightCard
-          :context-label="insightLabels[leaderboardTab]"
-          :stats="insightPayload"
-          @close="showInsight = false"
-        />
       </q-card-section>
       <div class="row q-gutter-xs q-px-md q-pb-xs justify-center">
         <q-chip dense color="grey-6" text-color="white" size="xs">
@@ -549,7 +531,6 @@ import PlayerAvatar from '../PlayerAvatar.vue';
 import PayBanner from '../PayBanner.vue';
 import { getRatingColor } from '../../utils/playerHelpers';
 import { useProFeatures } from '../../composables/useProFeatures';
-import InsightCard from './InsightCard.vue';
 
 defineOptions({ name: 'LeaderboardDialog' });
 
@@ -652,8 +633,6 @@ const emit = defineEmits<{
 
 const { maskNum, maskText } = useProFeatures();
 
-const showInsight = ref(false);
-
 const leaderboardTab = ref<'club' | 'matches' | 'global' | 'duo'>('club');
 
 // The scroll container keeps its scrollTop across tab switches; each tab is
@@ -678,102 +657,6 @@ const activeLoading = computed(() => {
   if (leaderboardTab.value === 'duo') return props.duoLoading || false;
   return props.loading;
 });
-
-// Compact stats payload — small models narrate numbers far better than they
-// aggregate them, so all math stays in the app and the LLM only writes prose.
-// Storylines are precomputed so the model gets the drama, not just the table.
-const insightPayload = computed(() => {
-  if (leaderboardTab.value === 'duo') {
-    const rows = (props.duoLeaderboard || []).slice(0, 8).map((d, i) => ({
-      rank: i + 1,
-      players: `${d.player1.firstName} & ${d.player2.firstName}`,
-      games: d.games,
-      wins: d.wins,
-      losses: d.losses,
-      winRatePct: d.winRate,
-      synergyPct: d.synergy,
-      recentFormPct: d.recentForm,
-      duoRating: Math.round(d.duoScore),
-    }));
-    const hottest = rows.reduce(
-      (a, b) => (b.recentFormPct > (a?.recentFormPct ?? -999) ? b : a),
-      rows[0],
-    );
-    const chemistry = rows.reduce(
-      (a, b) => (b.synergyPct > (a?.synergyPct ?? -999) ? b : a),
-      rows[0],
-    );
-    return {
-      table: rows,
-      storylines: {
-        topDuo: rows[0]?.players,
-        leadGap:
-          rows.length > 1
-            ? (rows[0]?.duoRating ?? 0) - (rows[1]?.duoRating ?? 0)
-            : null,
-        hottestStreak: hottest?.recentFormPct > 0 ? hottest : null,
-        bestChemistry: chemistry?.synergyPct > 5 ? chemistry : null,
-        winRateLeader: rows.reduce(
-          (a, b) => (b.winRatePct > (a?.winRatePct ?? -1) ? b : a),
-          rows[0],
-        ),
-      },
-    };
-  }
-  // My Matches is Pro-gated: rows 0-4 are masked (names/avatars) and stats
-  // blurred for non-Pro — the model must only see what is actually rendered.
-  const visibleRows =
-    leaderboardTab.value === 'matches' && props.isPaymentExpired
-      ? activeLeaderboard.value.slice(5)
-      : activeLeaderboard.value;
-  const rows = visibleRows.slice(0, 12).map((p, i) => ({
-    rank: p.provisional ? 'provisional' : i + 1,
-    name: p.firstName || p.username,
-    score: p.score,
-    games: p.games,
-    wins: p.wins,
-    losses: p.losses,
-    winRatePct: p.winRate,
-  }));
-  const ranked = rows.filter((r) => typeof r.rank === 'number');
-  const first = ranked[0];
-  const second = ranked[1];
-  const gap = first && second ? (first.score ?? 0) - (second.score ?? 0) : null;
-  const topRace =
-    gap !== null && gap <= 30
-      ? `${first.name} vs ${second.name} (${gap} pts apart)`
-      : null;
-  return {
-    table: rows,
-    storylines: {
-      leader: first?.name,
-      leadGap: gap,
-      tightRaceAtTop: topRace,
-      mostExperienced: rows.reduce(
-        (a, b) => ((b.games ?? 0) > (a?.games ?? -1) ? b : a),
-        rows[0],
-      )?.name,
-      highestWinRate: rows.reduce(
-        (a, b) => ((b.winRatePct ?? 0) > (a?.winRatePct ?? -1) ? b : a),
-        rows[0],
-      )?.name,
-      provisionalCount: rows.filter((r) => r.rank === 'provisional').length,
-    },
-  };
-});
-
-const insightLabels: Record<string, string> = {
-  club: 'Club leaderboard (last 30 days)',
-  matches: 'My matches leaderboard (last 30 days)',
-  global: 'Global leaderboard (last 30 days)',
-  duo: 'Best duo partnerships (last 30 days)',
-};
-
-// InsightCard self-generates on mount and re-generates whenever the payload
-// hash changes — covering both tab switches and fresh match data.
-function toggleInsight() {
-  showInsight.value = !showInsight.value;
-}
 </script>
 
 <style scoped>
