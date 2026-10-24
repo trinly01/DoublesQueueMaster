@@ -38,17 +38,32 @@ function payloadHash(contextLabel: string, stats: unknown): string {
   return (h >>> 0).toString(36);
 }
 
-function readInsightCache(): Record<string, { text: string; ts: number }> {
+type InsightCacheEntry = { text: string; ts: number; ctx?: string };
+
+function readInsightCache(): Record<string, InsightCacheEntry> {
   try {
     return (
       (LocalStorage.getItem(INSIGHT_CACHE_KEY) as Record<
         string,
-        { text: string; ts: number }
+        InsightCacheEntry
       > | null) ?? {}
     );
   } catch {
     return {};
   }
+}
+
+// Most recent cached entry for the same context — shown upfront while a
+// fresh insight generates, so the card is never empty on data changes.
+function latestForContext(
+  cache: Record<string, InsightCacheEntry>,
+  ctx: string,
+): InsightCacheEntry | null {
+  let best: InsightCacheEntry | null = null;
+  for (const entry of Object.values(cache)) {
+    if (entry.ctx === ctx && (!best || entry.ts > best.ts)) best = entry;
+  }
+  return best;
 }
 
 // Some models emit <think>…</think> blocks even with thinking disabled —
@@ -71,11 +86,11 @@ function describeErr(err: unknown): string {
   }
 }
 
-function writeInsightCache(hash: string, text: string) {
+function writeInsightCache(hash: string, ctx: string, text: string) {
   try {
     LocalStorage.set(INSIGHT_USED_KEY, true);
     const all = readInsightCache();
-    all[hash] = { text, ts: Date.now() };
+    all[hash] = { text, ts: Date.now(), ctx };
     const keys = Object.keys(all);
     if (keys.length > INSIGHT_CACHE_MAX) {
       keys
@@ -123,6 +138,7 @@ export function useInsights() {
   const progressText = ref('');
   const progressPct = ref(0);
   const output = ref('');
+  const staleOutput = ref('');
   const error = ref('');
   const modelId = sharedModelId;
   const isCpuMode = sharedIsCpuMode;
@@ -269,7 +285,12 @@ export function useInsights() {
       }
       output.value = stripThink(output.value);
       if (output.value)
-        writeInsightCache(payloadHash(contextLabel, stats), output.value);
+        writeInsightCache(
+          payloadHash(contextLabel, stats),
+          contextLabel,
+          output.value,
+        );
+      staleOutput.value = '';
       status.value = 'done';
     } catch (err) {
       console.error('[insights] CPU fallback failed', err);
@@ -290,12 +311,20 @@ export function useInsights() {
   ) {
     const hash = payloadHash(contextLabel, stats);
     if (!force) {
-      const hit = readInsightCache()[hash];
+      const cache = readInsightCache();
+      const hit = cache[hash];
       if (hit) {
         output.value = hit.text;
         status.value = 'done';
         return;
       }
+      // Data changed: show the last insight for this context upfront
+      // while the new one generates.
+      const stale = latestForContext(cache, contextLabel);
+      staleOutput.value = stale ? stale.text : '';
+    } else {
+      const prev = readInsightCache()[hash];
+      staleOutput.value = prev ? prev.text : '';
     }
     // Shared engine: queue concurrent generations instead of interleaving.
     while (engineBusy) await new Promise((r) => setTimeout(r, 400));
@@ -339,7 +368,8 @@ export function useInsights() {
         return;
       }
       output.value = stripThink(output.value);
-      if (output.value) writeInsightCache(hash, output.value);
+      if (output.value) writeInsightCache(hash, contextLabel, output.value);
+      staleOutput.value = '';
       status.value = 'done';
     } catch (err) {
       console.error('[insights] generation failed', err);
@@ -368,6 +398,7 @@ export function useInsights() {
     progressText,
     progressPct,
     output,
+    staleOutput,
     error,
     modelId,
     isCpuMode,
