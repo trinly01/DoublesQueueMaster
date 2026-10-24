@@ -75,7 +75,7 @@
           @click="requestInsight(true)"
         />
       </div>
-      <div v-else class="insight-text">
+      <div v-if="displayText" class="insight-text q-mt-xs">
         <div
           v-if="staleShown"
           class="text-caption text-grey-5 row items-center q-mb-xs"
