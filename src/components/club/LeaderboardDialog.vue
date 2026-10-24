@@ -143,92 +143,11 @@
         <q-btn icon="close" flat round dense v-close-popup />
       </q-card-section>
       <q-card-section v-if="showInsight" class="q-py-xs">
-        <q-card flat bordered class="insight-card">
-          <q-card-section class="q-py-sm">
-            <div class="row items-center no-wrap q-mb-xs">
-              <q-icon
-                name="auto_awesome"
-                color="accent"
-                size="16px"
-                :class="{ 'insight-sparkle': insightBusy }"
-              />
-              <span class="text-caption text-weight-bold q-ml-xs"
-                >On-device AI insight</span
-              >
-              <q-space />
-              <q-btn
-                v-if="insightStatus === 'done'"
-                icon="refresh"
-                flat
-                round
-                dense
-                size="xs"
-                text-color="accent"
-                @click="regenerateInsight"
-              >
-                <q-tooltip>Regenerate</q-tooltip>
-              </q-btn>
-              <q-btn
-                icon="close"
-                flat
-                round
-                dense
-                size="xs"
-                @click="showInsight = false"
-              />
-            </div>
-            <template
-              v-if="
-                insightStatus === 'downloading' ||
-                insightStatus === 'loading' ||
-                insightStatus === 'checking'
-              "
-            >
-              <q-linear-progress
-                :value="insightPct / 100"
-                color="accent"
-                class="q-mb-xs"
-              />
-              <div class="text-caption text-grey-7">
-                {{ insightProgress || 'Preparing on-device model…' }}
-              </div>
-              <div
-                v-if="insightStatus === 'downloading'"
-                class="text-caption text-grey-5"
-              >
-                One-time model download. Cached afterwards — works offline.
-                <template v-if="insightCpu"
-                  >CPU mode — slower but works on this device.</template
-                >
-              </div>
-            </template>
-            <div
-              v-else-if="insightStatus === 'unsupported'"
-              class="text-caption text-grey-7"
-            >
-              On-device AI needs a WebGPU-capable browser (Chrome on Android,
-              Safari 18+ on recent iPhones).
-              <div v-if="insightError" class="text-grey-5 q-mt-xs">
-                {{ insightError }}
-              </div>
-            </div>
-            <div
-              v-else-if="insightStatus === 'error'"
-              class="text-caption text-negative"
-            >
-              {{ insightError }}
-            </div>
-            <div v-else class="insight-text">
-              <span v-html="formattedInsight"></span
-              ><span
-                v-if="insightStatus === 'generating' && insightCpu"
-                class="text-grey-5"
-              >
-                (CPU mode — ~1 min)</span
-              >
-            </div>
-          </q-card-section>
-        </q-card>
+        <InsightCard
+          :context-label="insightLabels[leaderboardTab]"
+          :stats="insightPayload"
+          @close="showInsight = false"
+        />
       </q-card-section>
       <div class="row q-gutter-xs q-px-md q-pb-xs justify-center">
         <q-chip dense color="grey-6" text-color="white" size="xs">
@@ -630,7 +549,7 @@ import PlayerAvatar from '../PlayerAvatar.vue';
 import PayBanner from '../PayBanner.vue';
 import { getRatingColor } from '../../utils/playerHelpers';
 import { useProFeatures } from '../../composables/useProFeatures';
-import { useInsights } from '../../composables/useInsights';
+import InsightCard from './InsightCard.vue';
 
 defineOptions({ name: 'LeaderboardDialog' });
 
@@ -732,16 +651,6 @@ const emit = defineEmits<{
 }>();
 
 const { maskNum, maskText } = useProFeatures();
-
-const {
-  status: insightStatus,
-  progressText: insightProgress,
-  progressPct: insightPct,
-  output: insightOutput,
-  error: insightError,
-  isCpuMode: insightCpu,
-  generateInsight,
-} = useInsights();
 
 const showInsight = ref(false);
 
@@ -854,78 +763,14 @@ const insightLabels: Record<string, string> = {
   duo: 'Best duo partnerships (last 30 days)',
 };
 
-const insightBusy = computed(() =>
-  ['checking', 'downloading', 'loading', 'generating'].includes(
-    insightStatus.value,
-  ),
-);
-
-// Small models leak markdown no matter what the prompt says. Escape HTML
-// first, then render the common bits: **bold**, *em*, headings, bullets.
-const formattedInsight = computed(() => {
-  const esc = insightOutput.value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  return esc
-    .replace(/^#{1,4}\s*(.+)$/gm, '<strong>$1</strong>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/(?<!\w)\*([^*\n]+)\*(?!\w)/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/^\s*[-*•]\s+/gm, '• ')
-    .replace(/\n{2,}/g, '<br><br>')
-    .replace(/\n/g, '<br>');
-});
-
-function requestInsight(force = false) {
-  generateInsight(
-    insightLabels[leaderboardTab.value],
-    insightPayload.value,
-    force,
-  );
-}
-
-function regenerateInsight() {
-  requestInsight(true);
-}
-
+// InsightCard self-generates on mount and re-generates whenever the payload
+// hash changes — covering both tab switches and fresh match data.
 function toggleInsight() {
   showInsight.value = !showInsight.value;
-  if (showInsight.value) requestInsight();
 }
-
-// Cache-hit renders instantly; a changed dataset gets a new hash and
-// regenerates automatically.
-watch(leaderboardTab, () => {
-  if (showInsight.value) requestInsight();
-});
 </script>
 
 <style scoped>
-.insight-card {
-  border-radius: 10px;
-  background: #fafaff;
-}
-.insight-text {
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: #444;
-  white-space: pre-wrap;
-}
-.insight-sparkle {
-  animation: insight-sparkle 1.1s ease-in-out infinite;
-}
-@keyframes insight-sparkle {
-  0%,
-  100% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.3) rotate(18deg);
-    opacity: 0.55;
-  }
-}
 .duo-row {
   padding: 4px 6px;
   min-height: auto;

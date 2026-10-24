@@ -79,20 +79,29 @@ const SYSTEM_PROMPT =
   'gaps mean dominance, small margins mean a battle, high synergy means ' +
   'chemistry, negative recent form means slumping.';
 
+// Engine state is module-level: every insight card shares one worker/model
+// instance — spawning a second WebGPU/WASM engine per card would be heavy.
+const sharedEngine = shallowRef<
+  import('@mlc-ai/web-llm').WebWorkerMLCEngine | null
+>(null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sharedWasmEngine = shallowRef<any>(null);
+const sharedModelId = ref('');
+const sharedIsCpuMode = ref(false);
+let sharedWorker: Worker | null = null;
+// Serializes concurrent generateInsight calls from multiple cards.
+let engineBusy = false;
+
 export function useInsights() {
   const status = ref<InsightStatus>('idle');
   const progressText = ref('');
   const progressPct = ref(0);
   const output = ref('');
   const error = ref('');
-  const modelId = ref('');
-  const engine = shallowRef<
-    import('@mlc-ai/web-llm').WebWorkerMLCEngine | null
-  >(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const wasmEngine = shallowRef<any>(null);
-  const isCpuMode = ref(false);
-  let worker: Worker | null = null;
+  const modelId = sharedModelId;
+  const isCpuMode = sharedIsCpuMode;
+  const engine = sharedEngine;
+  const wasmEngine = sharedWasmEngine;
 
   // Pick the biggest model the adapter can plausibly hold. WebLLM does its
   // own limit check during init and throws — we catch and step down.
@@ -132,14 +141,14 @@ export function useInsights() {
   }
 
   async function createEngine(id: string) {
-    if (!worker) {
-      worker = new Worker(
+    if (!sharedWorker) {
+      sharedWorker = new Worker(
         new URL('../workers/insights.worker.ts', import.meta.url),
         { type: 'module' },
       );
     }
     const webllm = await import('@mlc-ai/web-llm');
-    return webllm.CreateWebWorkerMLCEngine(worker, id, {
+    return webllm.CreateWebWorkerMLCEngine(sharedWorker, id, {
       initProgressCallback: (p) => {
         progressText.value = p.text;
         progressPct.value = Math.round((p.progress || 0) * 100);
@@ -250,16 +259,19 @@ export function useInsights() {
         return;
       }
     }
-    output.value = '';
-    error.value = '';
-    if (!wasmEngine.value) await ensureEngine();
-    if (!engine.value && !wasmEngine.value) {
-      await runCpuFallback(contextLabel, stats);
-      return;
-    }
-    if (!engine.value) return;
-    status.value = 'generating';
+    // Shared engine: queue concurrent generations instead of interleaving.
+    while (engineBusy) await new Promise((r) => setTimeout(r, 400));
+    engineBusy = true;
     try {
+      output.value = '';
+      error.value = '';
+      if (!wasmEngine.value) await ensureEngine();
+      if (!engine.value && !wasmEngine.value) {
+        await runCpuFallback(contextLabel, stats);
+        return;
+      }
+      if (!engine.value) return;
+      status.value = 'generating';
       const stream = await engine.value.chat.completions.create({
         stream: true,
         temperature: 0.4,
@@ -284,6 +296,8 @@ export function useInsights() {
       status.value = 'error';
       error.value =
         err instanceof Error ? err.message : 'Insight generation failed.';
+    } finally {
+      engineBusy = false;
     }
   }
 
@@ -294,8 +308,8 @@ export function useInsights() {
       /* worker teardown */
     }
     engine.value = null;
-    worker?.terminate();
-    worker = null;
+    sharedWorker?.terminate();
+    sharedWorker = null;
     status.value = 'idle';
     output.value = '';
   }
