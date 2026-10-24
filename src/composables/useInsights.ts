@@ -60,6 +60,17 @@ function stripThink(text: string): string {
     .trim();
 }
 
+// Workers and WASM libs throw plain objects, not always Error.
+function describeErr(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
 function writeInsightCache(hash: string, text: string) {
   try {
     const all = readInsightCache();
@@ -193,8 +204,7 @@ export function useInsights() {
       }
     }
     status.value = 'error';
-    error.value =
-      lastErr instanceof Error ? lastErr.message : 'Failed to load AI model.';
+    error.value = describeErr(lastErr) || 'Failed to load AI model.';
   }
 
   /**
@@ -244,9 +254,9 @@ export function useInsights() {
         writeInsightCache(payloadHash(contextLabel, stats), output.value);
       status.value = 'done';
     } catch (err) {
-      status.value = 'unsupported';
-      error.value =
-        err instanceof Error ? err.message : 'On-device AI unavailable.';
+      console.error('[insights] CPU fallback failed', err);
+      status.value = 'error';
+      error.value = describeErr(err) || 'On-device AI unavailable.';
     }
   }
 
@@ -282,31 +292,40 @@ export function useInsights() {
       }
       if (!engine.value) return;
       status.value = 'generating';
-      const stream = await engine.value.chat.completions.create({
-        stream: true,
-        temperature: 0.4,
-        max_tokens: 200,
-        messages: [
-          {
-            role: 'system',
-            content: SYSTEM_PROMPT,
-          },
-          {
-            role: 'user',
-            content: `/no_think\n${contextLabel} stats:\n${JSON.stringify(stats)}`,
-          },
-        ],
-      });
-      for await (const chunk of stream) {
-        output.value += chunk.choices[0]?.delta?.content || '';
+      try {
+        const stream = await engine.value.chat.completions.create({
+          stream: true,
+          temperature: 0.4,
+          max_tokens: 200,
+          messages: [
+            {
+              role: 'system',
+              content: SYSTEM_PROMPT,
+            },
+            {
+              role: 'user',
+              content: `/no_think\n${contextLabel} stats:\n${JSON.stringify(stats)}`,
+            },
+          ],
+        });
+        for await (const chunk of stream) {
+          output.value += chunk.choices[0]?.delta?.content || '';
+        }
+      } catch (gpuErr) {
+        // GPU generation can fail after init (OOM, worker crash) — the CPU
+        // path is slower but still delivers an insight.
+        console.error('[insights] GPU generation failed, trying CPU', gpuErr);
+        output.value = '';
+        await runCpuFallback(contextLabel, stats);
+        return;
       }
       output.value = stripThink(output.value);
       if (output.value) writeInsightCache(hash, output.value);
       status.value = 'done';
     } catch (err) {
+      console.error('[insights] generation failed', err);
       status.value = 'error';
-      error.value =
-        err instanceof Error ? err.message : 'Insight generation failed.';
+      error.value = describeErr(err) || 'Insight generation failed.';
     } finally {
       engineBusy = false;
     }
