@@ -146,15 +146,29 @@
         <q-card flat bordered class="insight-card">
           <q-card-section class="q-py-sm">
             <div class="row items-center no-wrap q-mb-xs">
-              <q-icon name="auto_awesome" color="accent" size="16px" />
+              <q-icon
+                name="auto_awesome"
+                color="accent"
+                size="16px"
+                :class="{ 'insight-sparkle': insightBusy }"
+              />
               <span class="text-caption text-weight-bold q-ml-xs"
                 >On-device AI insight</span
               >
               <q-space />
               <q-btn
-                v-if="
-                  insightStatus === 'generating' || insightStatus === 'done'
-                "
+                v-if="insightStatus === 'done'"
+                icon="refresh"
+                flat
+                round
+                dense
+                size="xs"
+                text-color="accent"
+                @click="regenerateInsight"
+              >
+                <q-tooltip>Regenerate</q-tooltip>
+              </q-btn>
+              <q-btn
                 icon="close"
                 flat
                 round
@@ -840,12 +854,34 @@ const insightLabels: Record<string, string> = {
   duo: 'Best duo partnerships (last 30 days)',
 };
 
+const insightBusy = computed(() =>
+  ['checking', 'downloading', 'loading', 'generating'].includes(
+    insightStatus.value,
+  ),
+);
+
+function requestInsight(force = false) {
+  generateInsight(
+    insightLabels[leaderboardTab.value],
+    insightPayload.value,
+    force,
+  );
+}
+
+function regenerateInsight() {
+  requestInsight(true);
+}
+
 function toggleInsight() {
   showInsight.value = !showInsight.value;
-  if (showInsight.value && insightStatus.value === 'idle') {
-    generateInsight(insightLabels[leaderboardTab.value], insightPayload.value);
-  }
+  if (showInsight.value) requestInsight();
 }
+
+// Cache-hit renders instantly; a changed dataset gets a new hash and
+// regenerates automatically.
+watch(leaderboardTab, () => {
+  if (showInsight.value) requestInsight();
+});
 </script>
 
 <style scoped>
@@ -858,6 +894,20 @@ function toggleInsight() {
   line-height: 1.55;
   color: #444;
   white-space: pre-wrap;
+}
+.insight-sparkle {
+  animation: insight-sparkle 1.1s ease-in-out infinite;
+}
+@keyframes insight-sparkle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3) rotate(18deg);
+    opacity: 0.55;
+  }
 }
 .duo-row {
   padding: 4px 6px;
