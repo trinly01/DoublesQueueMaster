@@ -75,6 +75,31 @@ function stripThink(text: string): string {
     .trim();
 }
 
+// Any await that can legitimately hang (worker init, a wedged inference
+// stream, a parked mutex) gets a bounded wait — never wait forever.
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out`)), ms),
+    ),
+  ]);
+}
+
+// Streams are consumed via explicit iterator so a stall between tokens
+// can be detected and aborted.
+async function* timedStream<T>(
+  stream: AsyncIterable<T>,
+  idleMs: number,
+): AsyncGenerator<T> {
+  const it = stream[Symbol.asyncIterator]();
+  for (;;) {
+    const next = await withTimeout(it.next(), idleMs, 'Generation stalled');
+    if (next.done) return;
+    yield next.value;
+  }
+}
+
 // Workers and WASM libs throw plain objects, not always Error.
 function describeErr(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -190,15 +215,34 @@ export function useInsights() {
       );
     }
     const webllm = await import('@mlc-ai/web-llm');
-    return webllm.CreateWebWorkerMLCEngine(sharedWorker, id, {
-      initProgressCallback: (p) => {
-        progressText.value = p.text;
-        progressPct.value = Math.round((p.progress || 0) * 100);
-        status.value = /fetch|cache|download/i.test(p.text)
-          ? 'downloading'
-          : 'loading';
-      },
-    });
+    // Worker init can hang on driver/shader issues — bound it and step
+    // down the ladder instead of waiting forever.
+    return withTimeout(
+      webllm.CreateWebWorkerMLCEngine(sharedWorker, id, {
+        initProgressCallback: (p) => {
+          progressText.value = p.text;
+          progressPct.value = Math.round((p.progress || 0) * 100);
+          status.value = /fetch|cache|download/i.test(p.text)
+            ? 'downloading'
+            : 'loading';
+        },
+      }),
+      240_000,
+      'Model init',
+    );
+  }
+
+  // A wedged engine can never be awaited or reused — kill the worker so
+  // the next request starts fresh.
+  function resetEngine() {
+    try {
+      sharedWorker?.terminate();
+    } catch {
+      /* already dead */
+    }
+    sharedWorker = null;
+    engine.value = null;
+    enginePromise = null;
   }
 
   async function ensureEngine() {
@@ -239,6 +283,14 @@ export function useInsights() {
       } catch (err) {
         lastErr = err;
         console.warn(`[insights] model ${id} failed to init`, err);
+        // A failed or timed-out init leaves the worker in a bad state —
+        // respawn it before the next ladder attempt.
+        try {
+          sharedWorker?.terminate();
+        } catch {
+          /* already dead */
+        }
+        sharedWorker = null;
       }
     }
     status.value = 'error';
@@ -259,14 +311,18 @@ export function useInsights() {
         wasmEngine.value = new Wllama({ default: wasmUrl });
         status.value = 'downloading';
         progressText.value = 'Downloading on-device model (CPU mode)…';
-        await wasmEngine.value.loadModelFromUrl(WASM_GGUF_URL, {
-          progressCallback: (p: { loaded: number; total: number }) => {
-            progressPct.value = p.total
-              ? Math.round((p.loaded / p.total) * 100)
-              : 0;
-            progressText.value = `Downloading model… ${Math.round(p.loaded / 1048576)} MB`;
-          },
-        });
+        await withTimeout(
+          wasmEngine.value.loadModelFromUrl(WASM_GGUF_URL, {
+            progressCallback: (p: { loaded: number; total: number }) => {
+              progressPct.value = p.total
+                ? Math.round((p.loaded / p.total) * 100)
+                : 0;
+              progressText.value = `Downloading model… ${Math.round(p.loaded / 1048576)} MB`;
+            },
+          }),
+          600_000,
+          'Model download',
+        );
         modelId.value = 'Qwen3-0.6B (CPU)';
         isCpuMode.value = true;
       }
@@ -284,8 +340,9 @@ export function useInsights() {
           },
         ],
       });
-      for await (const chunk of chunks) {
-        output.value += chunk.choices?.[0]?.delta?.content || '';
+      for await (const chunk of timedStream(chunks, 120_000)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        output.value += (chunk as any).choices?.[0]?.delta?.content || '';
       }
       output.value = stripThink(output.value);
       if (output.value)
@@ -332,10 +389,18 @@ export function useInsights() {
     }
     // Shared engine: queue concurrent generations instead of interleaving.
     // Show a waiting state so the card never looks dead while parked.
+    // Cap the wait: a wedged generation would otherwise block forever.
     if (engineBusy) {
       status.value = 'checking';
       progressText.value = 'Waiting for another insight…';
-      while (engineBusy) await new Promise((r) => setTimeout(r, 400));
+      const deadline = Date.now() + 120_000;
+      while (engineBusy && Date.now() < deadline)
+        await new Promise((r) => setTimeout(r, 400));
+      if (engineBusy) {
+        console.warn('[insights] generation mutex stuck — resetting engine');
+        engineBusy = false;
+        resetEngine();
+      }
     }
     engineBusy = true;
     try {
@@ -365,14 +430,15 @@ export function useInsights() {
             },
           ],
         });
-        for await (const chunk of stream) {
+        for await (const chunk of timedStream(stream, 90_000)) {
           output.value += chunk.choices[0]?.delta?.content || '';
         }
       } catch (gpuErr) {
-        // GPU generation can fail after init (OOM, worker crash) — the CPU
-        // path is slower but still delivers an insight.
+        // GPU generation can fail after init (OOM, worker crash, stalled
+        // stream) — the CPU path is slower but still delivers an insight.
         console.error('[insights] GPU generation failed, trying CPU', gpuErr);
         output.value = '';
+        resetEngine();
         await runCpuFallback(contextLabel, stats);
         return;
       }
