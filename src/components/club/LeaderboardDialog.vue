@@ -758,9 +758,10 @@ const activeLoading = computed(() => {
 
 // Compact stats payload — small models narrate numbers far better than they
 // aggregate them, so all math stays in the app and the LLM only writes prose.
+// Storylines are precomputed so the model gets the drama, not just the table.
 const insightPayload = computed(() => {
   if (leaderboardTab.value === 'duo') {
-    return (props.duoLeaderboard || []).slice(0, 8).map((d, i) => ({
+    const rows = (props.duoLeaderboard || []).slice(0, 8).map((d, i) => ({
       rank: i + 1,
       players: `${d.player1.firstName} & ${d.player2.firstName}`,
       games: d.games,
@@ -771,8 +772,32 @@ const insightPayload = computed(() => {
       recentFormPct: d.recentForm,
       duoRating: Math.round(d.duoScore),
     }));
+    const hottest = rows.reduce(
+      (a, b) => (b.recentFormPct > (a?.recentFormPct ?? -999) ? b : a),
+      rows[0],
+    );
+    const chemistry = rows.reduce(
+      (a, b) => (b.synergyPct > (a?.synergyPct ?? -999) ? b : a),
+      rows[0],
+    );
+    return {
+      table: rows,
+      storylines: {
+        topDuo: rows[0]?.players,
+        leadGap:
+          rows.length > 1
+            ? (rows[0]?.duoRating ?? 0) - (rows[1]?.duoRating ?? 0)
+            : null,
+        hottestStreak: hottest?.recentFormPct > 0 ? hottest : null,
+        bestChemistry: chemistry?.synergyPct > 5 ? chemistry : null,
+        winRateLeader: rows.reduce(
+          (a, b) => (b.winRatePct > (a?.winRatePct ?? -1) ? b : a),
+          rows[0],
+        ),
+      },
+    };
   }
-  return activeLeaderboard.value.slice(0, 12).map((p, i) => ({
+  const rows = activeLeaderboard.value.slice(0, 12).map((p, i) => ({
     rank: p.provisional ? 'provisional' : i + 1,
     name: p.firstName || p.username,
     score: p.score,
@@ -781,6 +806,31 @@ const insightPayload = computed(() => {
     losses: p.losses,
     winRatePct: p.winRate,
   }));
+  const ranked = rows.filter((r) => typeof r.rank === 'number');
+  const first = ranked[0];
+  const second = ranked[1];
+  const gap = first && second ? (first.score ?? 0) - (second.score ?? 0) : null;
+  const topRace =
+    gap !== null && gap <= 30
+      ? `${first.name} vs ${second.name} (${gap} pts apart)`
+      : null;
+  return {
+    table: rows,
+    storylines: {
+      leader: first?.name,
+      leadGap: gap,
+      tightRaceAtTop: topRace,
+      mostExperienced: rows.reduce(
+        (a, b) => ((b.games ?? 0) > (a?.games ?? -1) ? b : a),
+        rows[0],
+      )?.name,
+      highestWinRate: rows.reduce(
+        (a, b) => ((b.winRatePct ?? 0) > (a?.winRatePct ?? -1) ? b : a),
+        rows[0],
+      )?.name,
+      provisionalCount: rows.filter((r) => r.rank === 'provisional').length,
+    },
+  };
 });
 
 const insightLabels: Record<string, string> = {

@@ -26,10 +26,15 @@ const WASM_GGUF_URL =
   'https://huggingface.co/unsloth/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf';
 
 const SYSTEM_PROMPT =
-  'You are a pickleball club analyst. Given JSON stats, write one short ' +
-  'paragraph (3-4 sentences, plain text, no markdown) highlighting ' +
-  'notable performances, streaks, and tight races. Use first names only. ' +
-  'Never invent numbers.';
+  'You are a pickleball sports analyst doing live TV commentary. Given JSON ' +
+  'stats plus precomputed storylines, deliver one punchy broadcast-style ' +
+  'segment (3-5 short sentences, plain text, no markdown, no bullet lists). ' +
+  'Lead with the headline story (dominance, tight race, streak). Use vivid ' +
+  'broadcast language ("on a tear", "breathing down their neck", ' +
+  '"the duo to beat") but stay accurate — use only the numbers given, ' +
+  'first names only, never invent stats. Interpret storylines into drama: ' +
+  'gaps mean dominance, small margins mean a battle, high synergy means ' +
+  'chemistry, negative recent form means slumping.';
 
 export function useInsights() {
   const status = ref<InsightStatus>('idle');
