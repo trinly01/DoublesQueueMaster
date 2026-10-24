@@ -435,6 +435,19 @@
               </q-popup-proxy>
             </q-btn>
             <q-space />
+            <q-btn
+              icon="auto_awesome"
+              flat
+              round
+              dense
+              size="sm"
+              text-color="accent"
+              @click="showInsight = !showInsight"
+            >
+              <q-tooltip
+                >AI scouting report — runs offline on your device</q-tooltip
+              >
+            </q-btn>
             <q-btn icon="close" flat round dense v-close-popup>
               <q-tooltip
                 anchor="top middle"
@@ -444,6 +457,14 @@
               >
             </q-btn>
           </q-card-section>
+
+          <div v-if="showInsight" class="q-px-md q-pt-xs">
+            <InsightCard
+              :context-label="`Player scouting report for ${PlayerProfile.state.firstName || PlayerProfile.state.username}`"
+              :stats="playerInsightPayload"
+              @close="showInsight = false"
+            />
+          </div>
 
           <div :class="$q.screen.lt.md ? 'q-px-sm q-pt-sm' : 'q-px-md q-pt-md'">
             <q-btn-group dense spread>
@@ -1452,6 +1473,7 @@ import { usePayment } from 'src/composables/usePayment';
 import { useProFeatures } from 'src/composables/useProFeatures';
 import MatchResult from 'src/components/MatchResult.vue';
 import PlayerAvatar from 'src/components/PlayerAvatar.vue';
+import InsightCard from 'src/components/club/InsightCard.vue';
 import PayBanner from 'src/components/PayBanner.vue';
 import * as echarts from 'echarts';
 import QRCode from 'qrcode';
@@ -2177,6 +2199,72 @@ const ratingVelocity = computed(() => {
   const oldest = events[events.length - 1]?.rating ?? current;
   const change = current - oldest;
   return { current, oldest, change };
+});
+
+const showInsight = ref(false);
+
+// Scouting-report payload: compact facts across all stat tabs so the
+// on-device model narrates strengths, trends, and rivalries — it never
+// does the math itself.
+const playerInsightPayload = computed(() => {
+  const username = PlayerProfile.state.username;
+  let wins = 0;
+  let losses = 0;
+  const recentForm: string[] = [];
+  for (const m of sortedMatches.value) {
+    const inA = m.team_a?.some((p) => p.username === username);
+    const inB = m.team_b?.some((p) => p.username === username);
+    if (!inA && !inB) continue;
+    const mine = inA ? m.team_a_score : m.team_b_score;
+    const theirs = inA ? m.team_b_score : m.team_a_score;
+    const won = mine > theirs;
+    if (won) wins++;
+    else losses++;
+    if (recentForm.length < 5) recentForm.push(won ? 'W' : 'L');
+  }
+  const bestPartner = partnerStats.value[0];
+  const toughestRival = nemesisStats.value[0];
+  return {
+    player: PlayerProfile.state.firstName || username,
+    rating: playerRating.value,
+    ratingTrend: ratingVelocity.value
+      ? {
+          from: ratingVelocity.value.oldest,
+          to: ratingVelocity.value.current,
+          change: ratingVelocity.value.change,
+        }
+      : null,
+    record: {
+      matches: wins + losses,
+      wins,
+      losses,
+      winRatePct:
+        wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null,
+    },
+    lastFiveResults: recentForm,
+    bestPartner: bestPartner
+      ? {
+          name: bestPartner.name,
+          gamesTogether: bestPartner.games,
+          winRatePct: Math.round(bestPartner.winRate),
+        }
+      : null,
+    toughestRival: toughestRival
+      ? {
+          name: toughestRival.name,
+          gamesAgainst: toughestRival.games,
+          theirWinRatePct: Math.round(toughestRival.winRate),
+        }
+      : null,
+    clutchRecord:
+      clutchStats.value.total > 0
+        ? {
+            tightGames: clutchStats.value.total,
+            wins: clutchStats.value.wins,
+            winRatePct: Math.round(clutchStats.value.winRate),
+          }
+        : null,
+  };
 });
 
 const chartRef = ref<HTMLDivElement | null>(null);
