@@ -2576,32 +2576,33 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   }
 
   // Compute effective reset checkpoints (latest reset wins across both sides)
+  // A checkpoint stamped in the future comes from a skewed clock — ignore it
+  // rather than wiping valid data club-wide.
+  const guardFutureCheckpoint = (name: string, value: number) => {
+    if (value > Date.now()) {
+      console.warn(`[mergeAppState] ignoring future-dated ${name}:`, value);
+      return 0;
+    }
+    return value;
+  };
   const effectivePlayersResetAt = Math.max(
-    local.playersResetAt ?? 0,
-    server.playersResetAt ?? 0,
+    guardFutureCheckpoint('playersResetAt', local.playersResetAt ?? 0),
+    guardFutureCheckpoint('playersResetAt', server.playersResetAt ?? 0),
   );
   const effectiveQueuesResetAt = Math.max(
-    local.queuesResetAt ?? 0,
-    server.queuesResetAt ?? 0,
+    guardFutureCheckpoint('queuesResetAt', local.queuesResetAt ?? 0),
+    guardFutureCheckpoint('queuesResetAt', server.queuesResetAt ?? 0),
   );
   const effectiveMatchesResetAt = Math.max(
-    local.matchesResetAt ?? 0,
-    server.matchesResetAt ?? 0,
+    guardFutureCheckpoint('matchesResetAt', local.matchesResetAt ?? 0),
+    guardFutureCheckpoint('matchesResetAt', server.matchesResetAt ?? 0),
   );
   // Stat blocks statted before this checkpoint are pre-reset data — a stale
-  // admin's old stats must never overlay post-reset state. Future-dated
-  // checkpoints (clock skew) are ignored rather than wiping valid stats.
-  let effectiveStatsResetAt = Math.max(
-    local.statsResetAt ?? 0,
-    server.statsResetAt ?? 0,
+  // admin's old stats must never overlay post-reset state.
+  const effectiveStatsResetAt = Math.max(
+    guardFutureCheckpoint('statsResetAt', local.statsResetAt ?? 0),
+    guardFutureCheckpoint('statsResetAt', server.statsResetAt ?? 0),
   );
-  if (effectiveStatsResetAt > Date.now()) {
-    console.warn(
-      '[mergeAppState] ignoring future-dated statsResetAt:',
-      effectiveStatsResetAt,
-    );
-    effectiveStatsResetAt = 0;
-  }
 
   // Pre-filter collections: drop any entity created before the effective checkpoint
   const filterPlayers = (

@@ -2254,6 +2254,75 @@ describe('mergeAppState — player consistency', () => {
     expect(merged.players.alice.matchesPlayed).toBe(7);
     expect(merged.statsResetAt).toBe(0);
   });
+
+  it('future-dated checkpoint on one side does not cancel a valid one on the other', () => {
+    const future = Date.now() + 100_000;
+    // A has a bogus future statsResetAt AND a valid queuesResetAt=500.
+    const a = makeState({
+      statsResetAt: future,
+      queuesResetAt: 500,
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          updatedAt: 500,
+          matchesPlayed: 0,
+          statsUpdatedAt: 500,
+        }),
+      },
+    });
+    // B has a valid statsResetAt=500 plus stale queue/stat data from before it.
+    const b = makeState({
+      statsResetAt: 500,
+      queues: [makeQueueEntry('alice', { createdAt: 100, updatedAt: 100 })],
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          updatedAt: 100,
+          matchesPlayed: 40,
+          wins: 30,
+          statsUpdatedAt: 100,
+        }),
+      },
+    });
+    const merged = mergeAppState(b, a);
+    // B's valid statsResetAt survives — stale stats still lose.
+    expect(merged.players.alice.matchesPlayed).toBe(0);
+    expect(merged.statsResetAt).toBe(500);
+    // A's valid queuesResetAt drops B's pre-reset queue entry.
+    expect(merged.queues.length).toBe(0);
+    expect(merged.queuesResetAt).toBe(500);
+  });
+
+  it('future-dated playersResetAt/queuesResetAt/matchesResetAt are ignored', () => {
+    const future = Date.now() + 100_000;
+    const a = makeState({
+      playersResetAt: future,
+      queuesResetAt: future,
+      matchesResetAt: future,
+      players: {},
+      queues: [],
+      activeMatches: [],
+    });
+    const b = makeState({
+      players: {
+        alice: makePlayer(1500, { username: 'alice', createdAt: 100 }),
+        bob: makePlayer(1400, { username: 'bob', createdAt: 100 }),
+        carol: makePlayer(1300, { username: 'carol', createdAt: 100 }),
+      },
+      queues: [makeQueueEntry('carol', { createdAt: 100, updatedAt: 100 })],
+      activeMatches: [
+        makeMatch('m1', ['alice'], ['bob'], { createdAt: 100, updatedAt: 100 }),
+      ],
+    });
+    const merged = mergeAppState(a, b);
+    // None of B's pre-existing data is wiped by the bogus future checkpoints.
+    expect(merged.players.alice).toBeDefined();
+    expect(merged.queues.length).toBe(1);
+    expect(merged.activeMatches.length).toBe(1);
+    expect(merged.playersResetAt).toBe(0);
+    expect(merged.queuesResetAt).toBe(0);
+    expect(merged.matchesResetAt).toBe(0);
+  });
 });
 
 describe('mergeAppState — reset / checkpoint consistency', () => {
