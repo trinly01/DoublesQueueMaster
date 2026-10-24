@@ -264,7 +264,7 @@
               <q-toolbar class="q-pa-md">
                 <q-toolbar-title>
                   <q-icon name="people" class="q-mr-sm" />
-                  Players ({{ busyPlayersCount }}/{{ players.length }})
+                  ({{ busyPlayersCount }}/{{ players.length }})
                   <q-tooltip>
                     {{ busyPlayers.playing }} playing ·
                     {{ busyPlayers.queued }} in queue ·
@@ -378,7 +378,7 @@
               <q-toolbar class="q-pa-md">
                 <q-toolbar-title>
                   <q-icon name="queue" class="q-mr-sm" />
-                  Players Queue ({{ queue.length }})
+                  Queue ({{ queue.length }})
                 </q-toolbar-title>
                 <div class="queue-stats">
                   <q-chip
