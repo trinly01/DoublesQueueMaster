@@ -205,7 +205,11 @@ export function useInsights() {
     if (engine.value) return;
     // Share one in-flight init: a warm-up running while a card requests
     // must not trigger a second worker reload.
-    if (enginePromise) return enginePromise;
+    if (enginePromise) {
+      status.value = 'loading';
+      progressText.value = 'Warming up model…';
+      return enginePromise;
+    }
     enginePromise = doEnsureEngine();
     try {
       await enginePromise;
@@ -327,7 +331,12 @@ export function useInsights() {
       staleOutput.value = prev ? prev.text : '';
     }
     // Shared engine: queue concurrent generations instead of interleaving.
-    while (engineBusy) await new Promise((r) => setTimeout(r, 400));
+    // Show a waiting state so the card never looks dead while parked.
+    if (engineBusy) {
+      status.value = 'checking';
+      progressText.value = 'Waiting for another insight…';
+      while (engineBusy) await new Promise((r) => setTimeout(r, 400));
+    }
     engineBusy = true;
     try {
       output.value = '';
