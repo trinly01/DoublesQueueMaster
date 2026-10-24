@@ -23,7 +23,7 @@ const MODEL_LOW = 'Qwen3.5-0.8B-q4f16_1-MLC';
 // multi-thread requires COOP/COEP headers that would break cross-origin API
 // calls. ~470MB weights, cached by wllama after first download.
 const WASM_GGUF_URL =
-  'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf';
+  'https://huggingface.co/unsloth/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf';
 
 const SYSTEM_PROMPT =
   'You are a pickleball club analyst. Given JSON stats, write one short ' +
