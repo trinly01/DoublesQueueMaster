@@ -96,6 +96,9 @@ export function useDataManagement(context: UseDataManagementContext) {
           player.statsUpdatedAt = now;
           player.updatedAt = now;
         });
+        // Checkpoint so pre-reset stat blocks from stale admins can never
+        // merge back over the zeroed stats.
+        MatchmakingApp.state.statsResetAt = now;
 
         MatchmakingApp.persist();
         MatchmakingApp.addActionLog(
@@ -127,10 +130,14 @@ export function useDataManagement(context: UseDataManagementContext) {
           (m) => !m.deletedAt,
         ).length;
         // Tombstone all matches instead of wiping (for cross-admin sync)
+        const now = Date.now();
         MatchmakingApp.state.activeMatches.forEach((m) => {
-          m.deletedAt = Date.now();
-          m.updatedAt = Date.now();
+          m.deletedAt = now;
+          m.updatedAt = now;
         });
+        // Checkpoint purges any other pre-clear matches a stale admin holds
+        // that this device never had.
+        MatchmakingApp.state.matchesResetAt = now;
         MatchmakingApp.persist();
         MatchmakingApp.addActionLog(
           'clear_matches',
@@ -168,6 +175,9 @@ export function useDataManagement(context: UseDataManagementContext) {
           q.deletedAt = now;
           q.updatedAt = now;
         });
+        // Checkpoint purges any other pre-clear entries a stale admin holds
+        // that this device never had.
+        MatchmakingApp.state.queuesResetAt = now;
         MatchmakingApp.persist();
         MatchmakingApp.addActionLog(
           'clear_queue',
