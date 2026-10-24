@@ -2323,6 +2323,48 @@ describe('mergeAppState — player consistency', () => {
     expect(merged.queuesResetAt).toBe(0);
     expect(merged.matchesResetAt).toBe(0);
   });
+
+  it('offline hard reset: fresh-looking local with reset epochs deletes stale server data', () => {
+    // Admin ran Clear Session offline at t=500, then reopened the app. Local
+    // state is empty but its checkpoints must still delete the server's
+    // pre-reset data — the reset must not be silently undone.
+    const local = makeState({
+      playersResetAt: 500,
+      statsResetAt: 500,
+      queuesResetAt: 500,
+      matchesResetAt: 500,
+      completedMatchesResetAt: 500,
+      lastModified: 500,
+    });
+    const server = makeState({
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          createdAt: 100,
+          updatedAt: 100,
+          statsUpdatedAt: 100,
+          matchesPlayed: 40,
+        }),
+      },
+      queues: [makeQueueEntry('alice', { createdAt: 100, updatedAt: 100 })],
+      activeMatches: [
+        makeMatch('m1', ['alice'], ['bob'], { createdAt: 100, updatedAt: 100 }),
+      ],
+      completedMatches: [makeCompletedMatch('c1', { completedAt: 200 })],
+      lastModified: 400,
+    });
+    const merged = mergeAppState(local, server);
+    expect(Object.keys(merged.players).length).toBe(0);
+    expect(merged.queues.length).toBe(0);
+    expect(merged.activeMatches.length).toBe(0);
+    expect(merged.completedMatches.length).toBe(0);
+    // Epochs propagate so the deletion sticks on every device.
+    expect(merged.playersResetAt).toBe(500);
+    expect(merged.statsResetAt).toBe(500);
+    expect(merged.queuesResetAt).toBe(500);
+    expect(merged.matchesResetAt).toBe(500);
+    expect(merged.completedMatchesResetAt).toBe(500);
+  });
 });
 
 describe('mergeAppState — reset / checkpoint consistency', () => {

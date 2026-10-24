@@ -288,6 +288,10 @@ export function useClubData(context: UseClubDataContext) {
       MatchmakingApp.suppressSettingsLog = true;
       Object.assign(MatchmakingApp.state, cachedState);
       MatchmakingApp.suppressSettingsLog = false;
+      // Run the saveState checkpoint purge now — a blob cached by an older
+      // version can carry pre-reset stat blocks/entities alongside the
+      // checkpoints that invalidate them.
+      MatchmakingApp.persistSilently();
       MatchmakingApp.state.clubId = clubId;
       currentClubId.value = clubId;
       currentClubUUID.value = meta.clubUUID || '';
@@ -362,6 +366,18 @@ export function useClubData(context: UseClubDataContext) {
       }
       // Reset state silently (no onStateChange → no cloud sync armed)
       MatchmakingApp.resetState();
+      // resetState() stamps all reset checkpoints at now() — that stamp is
+      // bookkeeping, not a user reset. Zero them so the fresh-state branch
+      // below can treat any surviving checkpoint as a real local reset to
+      // preserve (otherwise a first visit to an existing club would drop
+      // all server data created before this moment).
+      MatchmakingApp.state.playersResetAt = 0;
+      MatchmakingApp.state.statsResetAt = 0;
+      MatchmakingApp.state.queuesResetAt = 0;
+      MatchmakingApp.state.matchesResetAt = 0;
+      MatchmakingApp.state.completedMatchesResetAt = 0;
+      MatchmakingApp.state.actionLogsResetAt = 0;
+      MatchmakingApp.state.settingsFieldTimestamps = {};
       // Reset concurrency token to avoid false conflicts with new club's server state
       lastSyncedServerTimestamp.value = 0;
     }
@@ -635,6 +651,10 @@ export function useClubData(context: UseClubDataContext) {
                   serverMatchmaking.queuesResetAt ?? 0;
                 MatchmakingApp.state.matchesResetAt =
                   serverMatchmaking.matchesResetAt ?? 0;
+                MatchmakingApp.state.statsResetAt = Math.max(
+                  MatchmakingApp.state.statsResetAt ?? 0,
+                  serverMatchmaking.statsResetAt ?? 0,
+                );
                 // Carry over completedMatchesResetAt using Math.max so the most
                 // recent reset always wins — without this, a stale admin would
                 // push completedMatchesResetAt=0 on their next sync, wiping the
@@ -703,42 +723,54 @@ export function useClubData(context: UseClubDataContext) {
                   // now(), which would cause mergeAppState to filter out all
                   // server queues/matches/players created before now.
                   //
-                  // EXCEPTION: preserve completedMatchesResetAt and its per-field
-                  // stamp if set. A local "Reset All" leaves the state looking
-                  // fresh (empty players/queues/matches), but the reset epoch
-                  // must survive the merge so old completed matches on the server
-                  // are dropped. Without this, an offline admin who resets and
-                  // comes back online would see all old matches resurrect.
-                  const localCompletedResetAt =
-                    MatchmakingApp.state.completedMatchesResetAt ?? 0;
+                  // EXCEPTION: preserve every reset checkpoint set locally.
+                  // An offline "Reset All"/"Clear Session" leaves the state
+                  // looking fresh (empty players/queues/matches) but its reset
+                  // epochs must survive the merge so old server data is dropped.
+                  // Without this, an offline admin who resets and comes back
+                  // online would see everything resurrect. The club-switch
+                  // resetState() zeroes its bookkeeping stamps above, so any
+                  // checkpoint >0 here is a real local reset.
+                  const keptCheckpoints = {
+                    playersResetAt: MatchmakingApp.state.playersResetAt ?? 0,
+                    statsResetAt: MatchmakingApp.state.statsResetAt ?? 0,
+                    queuesResetAt: MatchmakingApp.state.queuesResetAt ?? 0,
+                    matchesResetAt: MatchmakingApp.state.matchesResetAt ?? 0,
+                    completedMatchesResetAt:
+                      MatchmakingApp.state.completedMatchesResetAt ?? 0,
+                    actionLogsResetAt:
+                      MatchmakingApp.state.actionLogsResetAt ?? 0,
+                  };
                   const localCompletedStamp =
                     (MatchmakingApp.state.settingsFieldTimestamps ?? {})[
                       'completedMatchesResetAt'
                     ] ?? 0;
-                  const localActionLogsResetAt =
-                    MatchmakingApp.state.actionLogsResetAt ?? 0;
                   MatchmakingApp.state.settingsUpdatedAt = 0;
                   MatchmakingApp.state.settingsFieldTimestamps = {};
                   MatchmakingApp.state.lastModified = 0;
                   MatchmakingApp.state.playersResetAt = 0;
+                  MatchmakingApp.state.statsResetAt = 0;
                   MatchmakingApp.state.queuesResetAt = 0;
                   MatchmakingApp.state.matchesResetAt = 0;
                   MatchmakingApp.state.completedMatchesResetAt = 0;
                   MatchmakingApp.state.actionLogsResetAt = 0;
-                  // Restore completedMatchesResetAt if it was set by a local reset
-                  if (localCompletedResetAt > 0) {
-                    MatchmakingApp.state.completedMatchesResetAt =
-                      localCompletedResetAt;
-                    if (localCompletedStamp > 0) {
-                      MatchmakingApp.state.settingsFieldTimestamps = {
-                        completedMatchesResetAt: localCompletedStamp,
-                      };
+                  for (const [key, value] of Object.entries(keptCheckpoints)) {
+                    if (value > 0) {
+                      (
+                        MatchmakingApp.state as unknown as Record<
+                          string,
+                          number
+                        >
+                      )[key] = value;
                     }
                   }
-                  // Restore actionLogsResetAt if it was set by a local reset
-                  if (localActionLogsResetAt > 0) {
-                    MatchmakingApp.state.actionLogsResetAt =
-                      localActionLogsResetAt;
+                  if (
+                    keptCheckpoints.completedMatchesResetAt > 0 &&
+                    localCompletedStamp > 0
+                  ) {
+                    MatchmakingApp.state.settingsFieldTimestamps = {
+                      completedMatchesResetAt: localCompletedStamp,
+                    };
                   }
 
                   const merged = mergeAppState(
@@ -843,6 +875,8 @@ export function useClubData(context: UseClubDataContext) {
                 serverMatchmaking.queuesResetAt ?? 0;
               MatchmakingApp.state.matchesResetAt =
                 serverMatchmaking.matchesResetAt ?? 0;
+              MatchmakingApp.state.statsResetAt =
+                serverMatchmaking.statsResetAt ?? 0;
               MatchmakingApp.state.completedMatchesResetAt =
                 serverMatchmaking.completedMatchesResetAt ?? 0;
               MatchmakingApp.state.actionLogsResetAt =
