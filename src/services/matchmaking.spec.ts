@@ -1139,6 +1139,51 @@ describe('saveState local purge of completedMatches', () => {
   });
 });
 
+describe('saveState local purge of stale stats', () => {
+  it('zeroes stat blocks statted before statsResetAt on saveState', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    // Simulate a stale admin who received a remote stats checkpoint while
+    // still holding pre-reset stat blocks.
+    const resetAt = Date.now() - 1000;
+    sys.state.statsResetAt = resetAt;
+    sys.state.players = {
+      stale: makePlayer(1500, {
+        username: 'stale',
+        matchesPlayed: 40,
+        wins: 30,
+        losses: 10,
+        statsUpdatedAt: resetAt - 100,
+      }),
+      fresh: makePlayer(1500, {
+        username: 'fresh',
+        matchesPlayed: 2,
+        wins: 1,
+        statsUpdatedAt: resetAt + 100,
+      }),
+    };
+    sys.persist();
+    expect(sys.state.players.stale.matchesPlayed).toBe(0);
+    expect(sys.state.players.stale.wins).toBe(0);
+    expect(sys.state.players.stale.statsUpdatedAt).toBe(resetAt);
+    expect(sys.state.players.fresh.matchesPlayed).toBe(2);
+  });
+
+  it('does not purge when statsResetAt is 0', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.statsResetAt = 0;
+    sys.state.players = {
+      alice: makePlayer(1500, {
+        username: 'alice',
+        matchesPlayed: 40,
+        wins: 30,
+        statsUpdatedAt: 100,
+      }),
+    };
+    sys.persist();
+    expect(sys.state.players.alice.matchesPlayed).toBe(40);
+  });
+});
+
 // Minimal AppState builder for merge tests
 const makeState = (overrides: Partial<AppState> = {}): AppState => ({
   teamSize: 2,
@@ -2106,6 +2151,108 @@ describe('mergeAppState — player consistency', () => {
     expect(merged.players.alice).toBeUndefined();
     expect(merged.players.bob).toBeDefined();
     expect(merged.players.carol).toBeDefined();
+  });
+
+  it('statsResetAt purges pre-reset stat blocks — stale stats never resurrect', () => {
+    // Admin A ran Restart Session at t=500: stats zeroed, checkpoint stamped.
+    const a = makeState({
+      statsResetAt: 500,
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          createdAt: 100,
+          updatedAt: 500,
+          matchesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          statsUpdatedAt: 500,
+        }),
+      },
+      lastModified: 1000,
+    });
+    // Stale admin B still holds pre-reset stats (statted at t=100).
+    const b = makeState({
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          createdAt: 100,
+          updatedAt: 100,
+          matchesPlayed: 40,
+          wins: 30,
+          losses: 10,
+          statsUpdatedAt: 100,
+        }),
+      },
+      lastModified: 900,
+    });
+    const merged = mergeAppState(b, a);
+    expect(merged.players.alice.matchesPlayed).toBe(0);
+    expect(merged.players.alice.wins).toBe(0);
+    expect(merged.players.alice.statsUpdatedAt).toBe(500);
+    expect(merged.statsResetAt).toBe(500);
+    // Symmetric — the stale side can be on either end of the merge.
+    const merged2 = mergeAppState(a, b);
+    expect(merged2.players.alice.matchesPlayed).toBe(0);
+  });
+
+  it('stats statted after statsResetAt still merge normally', () => {
+    const a = makeState({
+      statsResetAt: 500,
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          updatedAt: 500,
+          matchesPlayed: 0,
+          wins: 0,
+          statsUpdatedAt: 500,
+        }),
+      },
+    });
+    // B played a legit match AFTER the reset checkpoint.
+    const b = makeState({
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          updatedAt: 600,
+          matchesPlayed: 2,
+          wins: 1,
+          statsUpdatedAt: 600,
+        }),
+      },
+    });
+    const merged = mergeAppState(b, a);
+    expect(merged.players.alice.matchesPlayed).toBe(2);
+    expect(merged.players.alice.wins).toBe(1);
+  });
+
+  it('future-dated statsResetAt is ignored (clock skew guard)', () => {
+    const future = Date.now() + 100_000;
+    const a = makeState({
+      statsResetAt: future,
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          updatedAt: 100,
+          matchesPlayed: 0,
+          statsUpdatedAt: 100,
+        }),
+      },
+    });
+    const b = makeState({
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          updatedAt: 2000,
+          matchesPlayed: 7,
+          wins: 5,
+          statsUpdatedAt: 2000,
+        }),
+      },
+    });
+    const merged = mergeAppState(a, b);
+    // Checkpoint ignored -> normal LWW, B's newer stats win.
+    expect(merged.players.alice.matchesPlayed).toBe(7);
+    expect(merged.statsResetAt).toBe(0);
   });
 });
 

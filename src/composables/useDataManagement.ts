@@ -242,11 +242,14 @@ export function useDataManagement(context: UseDataManagementContext) {
           player.updatedAt = now;
         });
 
-        // Hard-delete matches and queues; checkpoint handles cross-admin purge
+        // Hard-delete matches and queues; checkpoint handles cross-admin purge.
+        // statsResetAt makes pre-reset stat blocks lose everywhere — a stale
+        // admin's old stats can never overlay the zeroed post-reset stats.
         MatchmakingApp.state.activeMatches = [];
         MatchmakingApp.state.queues = [];
         MatchmakingApp.state.matchesResetAt = now;
         MatchmakingApp.state.queuesResetAt = now;
+        MatchmakingApp.state.statsResetAt = now;
 
         // Epoch-based clear for completedMatches (multi-admin safe)
         MatchmakingApp.clearCompletedMatches();
