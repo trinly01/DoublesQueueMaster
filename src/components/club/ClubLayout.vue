@@ -94,9 +94,14 @@
         <q-tab
           name="players"
           icon="people"
-          :label="`Players (${playersCount})`"
+          :label="`Players (${busyPlayers.busy}/${playersCount})`"
           :class="{ shake: tabShakeStates.players }"
-        />
+        >
+          <q-tooltip>
+            {{ busyPlayers.playing }} playing · {{ busyPlayers.queued }} in
+            queue · {{ playersCount }} checked in
+          </q-tooltip>
+        </q-tab>
         <q-tab
           name="queue"
           icon="queue"
@@ -151,6 +156,7 @@ const $q = useQuasar();
 defineProps<{
   modelValue: string;
   playersCount: number;
+  busyPlayers: { busy: number; queued: number; playing: number };
   queueCount: number;
   matchesCount: number;
   tabShakeStates: { players: boolean; queue: boolean; matches: boolean };

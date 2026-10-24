@@ -245,6 +245,7 @@
       <ClubLayout
         v-model="activeMobileTab"
         :players-count="players.length"
+        :busy-players="busyPlayers"
         :queue-count="queue.length"
         :matches-count="filteredMatches.length"
         :tab-shake-states="tabShakeStates"
@@ -263,7 +264,12 @@
               <q-toolbar class="q-pa-md">
                 <q-toolbar-title>
                   <q-icon name="people" class="q-mr-sm" />
-                  Players ({{ players.length }})
+                  Players ({{ busyPlayersCount }}/{{ players.length }})
+                  <q-tooltip>
+                    {{ busyPlayers.playing }} playing ·
+                    {{ busyPlayers.queued }} in queue ·
+                    {{ players.length }} checked in
+                  </q-tooltip>
                 </q-toolbar-title>
                 <q-select
                   v-model="sortBy"
@@ -1783,6 +1789,22 @@ const players = computed(() =>
         : undefined,
     })),
 );
+
+// Players who are queued or in a live match (waiting or in-progress).
+const busyPlayers = computed(() => {
+  const queued = new Set<string>();
+  for (const q of MatchmakingApp.state.queues) {
+    if (!q.deletedAt) queued.add(q.username);
+  }
+  const playing = new Set<string>();
+  for (const m of MatchmakingApp.state.activeMatches) {
+    if (m.deletedAt) continue;
+    for (const u of [...m.teamA, ...m.teamB]) playing.add(u);
+  }
+  const busy = new Set([...queued, ...playing]);
+  return { busy: busy.size, queued: queued.size, playing: playing.size };
+});
+const busyPlayersCount = computed(() => busyPlayers.value.busy);
 
 // Player actions composable — extracted removePlayer, removeFromQueue, requeuePlayer, addAllPlayersToQueue
 const {
