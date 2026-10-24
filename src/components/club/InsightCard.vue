@@ -63,8 +63,17 @@
         18+ on recent iPhones).
         <div v-if="error" class="text-grey-5 q-mt-xs">{{ error }}</div>
       </div>
-      <div v-else-if="status === 'error'" class="text-caption text-negative">
-        {{ error }}
+      <div v-else-if="status === 'error'" class="text-caption">
+        <span class="text-negative">{{ error }}</span>
+        <q-btn
+          label="Retry"
+          flat
+          dense
+          size="sm"
+          color="accent"
+          class="q-ml-sm"
+          @click="requestInsight(true)"
+        />
       </div>
       <div v-else class="insight-text">
         <span v-html="formatted"></span
