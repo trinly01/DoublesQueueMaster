@@ -191,6 +191,7 @@ export interface AppState {
   settingsUpdatedAt?: number; // Epoch ms of last settings change (for per-field LWW)
   settingsFieldTimestamps?: Record<string, number>; // Per-field epoch ms for granular LWW
   playersResetAt?: number; // Epoch ms — drops players created before this checkpoint
+  statsResetAt?: number; // Epoch ms — stat blocks statted before this checkpoint are treated as absent
   queuesResetAt?: number; // Epoch ms — drops queue entries entered before this checkpoint
   matchesResetAt?: number; // Epoch ms — drops matches created before this checkpoint
   lastModified?: number;
@@ -1001,6 +1002,7 @@ export class LocalMatchmakingSystem {
     }
     if (initialState.playersResetAt === undefined)
       initialState.playersResetAt = 0;
+    if (initialState.statsResetAt === undefined) initialState.statsResetAt = 0;
     if (initialState.queuesResetAt === undefined)
       initialState.queuesResetAt = 0;
     if (initialState.matchesResetAt === undefined)
@@ -1189,6 +1191,21 @@ export class LocalMatchmakingSystem {
       if (dropped) this.state.players = keptPlayers;
     }
 
+    // Stats checkpoint purge: zero stat blocks statted before statsResetAt
+    // so a stale local copy can't push pre-reset stats back on next sync.
+    const statsCheckpoint = this.state.statsResetAt ?? 0;
+    if (statsCheckpoint > 0) {
+      for (const player of Object.values(this.state.players)) {
+        if ((player.statsUpdatedAt ?? 0) < statsCheckpoint) {
+          player.matchesPlayed = 0;
+          player.wins = 0;
+          player.losses = 0;
+          player.history = undefined;
+          player.statsUpdatedAt = statsCheckpoint;
+        }
+      }
+    }
+
     if (queuesCheckpoint > 0) {
       const kept = this.state.queues.filter((q) => {
         const effectiveTime = Math.max(
@@ -1372,6 +1389,7 @@ export class LocalMatchmakingSystem {
     this.state.completedMatches = [];
     this.state.completedMatchIds = [];
     this.state.playersResetAt = now;
+    this.state.statsResetAt = now;
     this.state.queuesResetAt = now;
     this.state.matchesResetAt = now;
     this.state.completedMatchesResetAt = now;
@@ -1392,6 +1410,7 @@ export class LocalMatchmakingSystem {
     this.state.completedMatchIds = [];
     this.state.actionLogs = [];
     this.state.playersResetAt = now;
+    this.state.statsResetAt = now;
     this.state.queuesResetAt = now;
     this.state.matchesResetAt = now;
     this.state.completedMatchesResetAt = now;
@@ -2569,6 +2588,20 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     local.matchesResetAt ?? 0,
     server.matchesResetAt ?? 0,
   );
+  // Stat blocks statted before this checkpoint are pre-reset data — a stale
+  // admin's old stats must never overlay post-reset state. Future-dated
+  // checkpoints (clock skew) are ignored rather than wiping valid stats.
+  let effectiveStatsResetAt = Math.max(
+    local.statsResetAt ?? 0,
+    server.statsResetAt ?? 0,
+  );
+  if (effectiveStatsResetAt > Date.now()) {
+    console.warn(
+      '[mergeAppState] ignoring future-dated statsResetAt:',
+      effectiveStatsResetAt,
+    );
+    effectiveStatsResetAt = 0;
+  }
 
   // Pre-filter collections: drop any entity created before the effective checkpoint
   const filterPlayers = (
@@ -2595,6 +2628,34 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       }
     }
     return filtered;
+  };
+
+  // Stats statted before statsResetAt are pre-reset data. Zero the stat
+  // block (the player row stays) so stale history can never win the stats
+  // overlay and resurrect on another admin's screen.
+  const purgeStaleStats = (
+    players: Record<string, Player>,
+    checkpoint: number,
+  ) => {
+    if (checkpoint === 0) return players;
+    const out: Record<string, Player> = {};
+    let changed = false;
+    for (const [key, p] of Object.entries(players)) {
+      if ((p.statsUpdatedAt ?? 0) < checkpoint) {
+        out[key] = {
+          ...p,
+          matchesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          history: undefined,
+          statsUpdatedAt: checkpoint,
+        };
+        changed = true;
+      } else {
+        out[key] = p;
+      }
+    }
+    return changed ? out : players;
   };
 
   const filterQueues = (queues: QueueEntry[], checkpoint: number) => {
@@ -2629,13 +2690,13 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     });
   };
 
-  const localPlayers = filterPlayers(
-    local.players || {},
-    effectivePlayersResetAt,
+  const localPlayers = purgeStaleStats(
+    filterPlayers(local.players || {}, effectivePlayersResetAt),
+    effectiveStatsResetAt,
   );
-  const serverPlayers = filterPlayers(
-    server.players || {},
-    effectivePlayersResetAt,
+  const serverPlayers = purgeStaleStats(
+    filterPlayers(server.players || {}, effectivePlayersResetAt),
+    effectiveStatsResetAt,
   );
   const localQueues = filterQueues(local.queues || [], effectiveQueuesResetAt);
   const serverQueues = filterQueues(
@@ -3287,6 +3348,7 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     lastModified: Math.max(localTime, serverTime),
     settingsUpdatedAt: Math.max(localSettingsTime, serverSettingsTime),
     playersResetAt: effectivePlayersResetAt,
+    statsResetAt: effectiveStatsResetAt,
     queuesResetAt: effectiveQueuesResetAt,
     matchesResetAt: effectiveMatchesResetAt,
   } as AppState;
