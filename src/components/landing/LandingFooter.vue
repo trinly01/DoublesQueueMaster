@@ -14,6 +14,10 @@
         <a href="/open-play-rotation.html">Open Play Rotation</a>
         <a href="/pickleball-matchmaking.html">Matchmaking</a>
         <a href="/paddle-rack-alternative.html">Paddle Rack Alternative</a>
+        <a href="/pickleball-leaderboard.html">Leaderboards</a>
+        <a href="/dupr-export.html">DUPR Export</a>
+        <a href="/fixed-duo.html">Fixed Duo</a>
+        <a href="/how-to-run-pickleball-open-play.html">Open Play Guide</a>
         <a href="/compare.html">Compare</a>
       </div>
       <div class="text-caption text-grey-6">
