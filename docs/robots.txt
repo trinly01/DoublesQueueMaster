@@ -23,4 +23,4 @@ Allow: /
 User-agent: Bingbot
 Allow: /
 
-Sitemap: https://dink.zyberlab.com/sitemap.xml
+Sitemap: https://dinkmatch.club/sitemap.xml

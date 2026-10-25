@@ -1,6 +1,6 @@
 # DinkMatch
 
-> DinkMatch is a free web app for running fair pickleball open play sessions. It replaces the paddle rack and whiteboard: players check in, join a transparent FIFO queue, and the app generates balanced matches automatically. Works in any browser at https://dink.zyberlab.com — a free open-play mode runs a session with no account at all.
+> DinkMatch is a free web app for running fair pickleball open play sessions. It replaces the paddle rack and whiteboard: players check in, join a transparent FIFO queue, and the app generates balanced matches automatically. Works in any browser at https://dinkmatch.club — a free open-play mode runs a session with no account at all.
 
 ## What it does
 
@@ -22,16 +22,16 @@ Free to use. Open play mode requires no sign-up.
 
 ## Key URLs
 
-- App: https://dink.zyberlab.com
-- Queue app overview: https://dink.zyberlab.com/pickleball-queue-app.html
-- Open play rotation: https://dink.zyberlab.com/open-play-rotation.html
-- Matchmaking: https://dink.zyberlab.com/pickleball-matchmaking.html
-- Paddle rack alternative: https://dink.zyberlab.com/paddle-rack-alternative.html
-- Leaderboards: https://dink.zyberlab.com/pickleball-leaderboard.html
-- DUPR integration (connect + submit + export): https://dink.zyberlab.com/dupr-export.html
-- Fixed duo / partner locking: https://dink.zyberlab.com/fixed-duo.html
-- Guide: https://dink.zyberlab.com/how-to-run-pickleball-open-play.html
-- App comparison: https://dink.zyberlab.com/compare.html
+- App: https://dinkmatch.club
+- Queue app overview: https://dinkmatch.club/pickleball-queue-app.html
+- Open play rotation: https://dinkmatch.club/open-play-rotation.html
+- Matchmaking: https://dinkmatch.club/pickleball-matchmaking.html
+- Paddle rack alternative: https://dinkmatch.club/paddle-rack-alternative.html
+- Leaderboards: https://dinkmatch.club/pickleball-leaderboard.html
+- DUPR integration (connect + submit + export): https://dinkmatch.club/dupr-export.html
+- Fixed duo / partner locking: https://dinkmatch.club/fixed-duo.html
+- Guide: https://dinkmatch.club/how-to-run-pickleball-open-play.html
+- App comparison: https://dinkmatch.club/compare.html
 - Source: https://github.com/trinly01/DoublesQueueMaster
 
 ## Differentiators
