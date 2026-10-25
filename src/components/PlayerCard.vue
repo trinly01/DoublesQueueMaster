@@ -10,6 +10,8 @@
       'avoid-candidate': avoidState === 'candidate',
       'avoid-ineligible': avoidState === 'ineligible',
       'is-self': isSelf,
+      'self-loser': isSelf && player.queueType === 'LOSERS',
+      'self-winner': isSelf && player.queueType === 'WINNERS',
 
       [queueBgClass]: true,
     }"
@@ -398,9 +400,40 @@ const handleAvatarError = () => {
   }
 }
 
+// Self + queue-type rows keep their status color as the pulse base —
+// loser red ↔ amber, winner green ↔ amber — so the "you" highlight never
+// erases which queue the row is in.
+@keyframes self-loser-pulse {
+  0%,
+  100% {
+    background-color: rgba(244, 67, 54, 0.12);
+  }
+  50% {
+    background-color: rgba(255, 179, 0, 0.28);
+  }
+}
+
+@keyframes self-winner-pulse {
+  0%,
+  100% {
+    background-color: rgba(76, 175, 80, 0.12);
+  }
+  50% {
+    background-color: rgba(255, 179, 0, 0.28);
+  }
+}
+
 .player-item.is-self {
   box-shadow: inset 3px 0 0 #ffb300;
   animation: self-row-pulse 3s ease-in-out infinite;
+}
+
+.player-item.is-self.self-loser {
+  animation-name: self-loser-pulse;
+}
+
+.player-item.is-self.self-winner {
+  animation-name: self-winner-pulse;
 }
 
 .queue-lock-badge {
