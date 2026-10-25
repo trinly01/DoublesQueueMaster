@@ -668,8 +668,8 @@
             <q-card-section class="waiting-header text-white q-pa-none">
               <q-toolbar class="q-pa-md">
                 <q-toolbar-title>
-                  <q-icon name="hourglass_top" class="q-mr-sm" />
-                  Waiting ({{ waitingMatches.length }})
+                  <q-icon name="queue_play_next" class="q-mr-sm" />
+                  Up Next ({{ waitingMatches.length }})
                 </q-toolbar-title>
               </q-toolbar>
             </q-card-section>
@@ -4017,7 +4017,13 @@ const matchesFilterOptionsWithCounts = computed(() => {
     )
     .map((o) => ({
       ...o,
-      label: `${o.label} (${counts[o.value] ?? 0})`,
+      // Non-managers see waiting matches in their own column — keep the
+      // "All" count consistent with what the Matches column actually lists.
+      label: `${o.label} (${
+        o.value === 'all' && !canManageSession.value
+          ? (counts.all ?? 0) - (counts.waiting ?? 0)
+          : (counts[o.value] ?? 0)
+      })`,
     }));
 });
 
