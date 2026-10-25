@@ -68,14 +68,21 @@
         <slot name="players-desktop" />
       </div>
 
-      <!-- Center Column: Queue (hidden for players when it's empty) -->
-      <div v-if="showQueueColumn" :class="`col-12 col-md-${queueWidth}`">
+      <!-- Center Column: Queue (managers get a standalone column) -->
+      <div v-if="showPlayersColumn" class="col-12 col-md-4">
         <slot name="queue-desktop" />
       </div>
 
-      <!-- Waiting Column: staged matches (non-manager pipeline view) -->
-      <div v-if="showWaitingColumn" class="col-12 col-md-4">
-        <slot name="waiting-desktop" />
+      <!-- Side stack for regular players: called matches (Waiting) sit on
+           top of the line-up (Queue) — a vertical "up next → in line"
+           pipeline beside the full-height Matches column. -->
+      <div v-else-if="showSideColumn" class="col-12 col-md-5 side-stack">
+        <div v-if="showWaitingColumn" class="side-stack-top">
+          <slot name="waiting-desktop" />
+        </div>
+        <div v-if="showQueueColumn" class="side-stack-bottom">
+          <slot name="queue-desktop" />
+        </div>
       </div>
 
       <!-- Right Column: Matches -->
@@ -198,15 +205,15 @@ const showWaitingColumn = computed(
   () => !props.showPlayersColumn && props.waitingCount > 0,
 );
 
-const queueWidth = computed(() => {
-  if (!showQueueColumn.value) return 0;
-  if (props.showPlayersColumn) return 4;
-  return showWaitingColumn.value ? 3 : 5;
-});
+// The side stack exists when either half has content — each half still
+// hides independently so a dead Queue or empty Waiting leaves no hole.
+const showSideColumn = computed(
+  () => showWaitingColumn.value || showQueueColumn.value,
+);
 
 const matchesWidth = computed(() => {
   if (props.showPlayersColumn) return 4;
-  return 12 - queueWidth.value - (showWaitingColumn.value ? 4 : 0);
+  return showSideColumn.value ? 7 : 12;
 });
 
 // A lone Matches tab bar is pointless chrome — skip it entirely.
@@ -220,3 +227,23 @@ defineEmits<{
   'join-club': [];
 }>();
 </script>
+
+<style scoped lang="scss">
+// Vertical pipeline for regular players: Waiting card takes natural
+// height on top; Queue stretches to fill whatever the Matches column
+// leaves, so the left column never shows dead air.
+.side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px; // matches q-col-gutter-lg spacing
+}
+
+.side-stack-top {
+  flex: 0 0 auto;
+}
+
+.side-stack-bottom {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+</style>
