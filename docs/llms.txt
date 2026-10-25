@@ -12,7 +12,7 @@
 - **Queue priority modes**: First in Line, Less Played First, and other drafting orders.
 - **Ratings and stats**: per-player rating history, partners, rivals, and clutch record (games decided by 2 points or less).
 - **Leaderboards**: club, global, and Best Duo rankings.
-- **DUPR-ready export**: completed matches export as a DUPR CSV for bulk upload; players can store their DUPR ID.
+- **DUPR integration**: players connect their DUPR account (SSO) to show official ratings in-app; clubs submit completed matches directly to DUPR or export a DUPR-ready CSV; DUPR+ subscription gating for premium sessions.
 - **Multi-admin sync**: admins and moderators on different devices stay in sync; reset actions are authoritative so stale devices cannot overwrite an active session.
 - **Roles**: admins manage everything, moderators run queues and matches, members view and report.
 
@@ -28,7 +28,7 @@ Free to use. Open play mode requires no sign-up.
 - Matchmaking: https://dink.zyberlab.com/pickleball-matchmaking.html
 - Paddle rack alternative: https://dink.zyberlab.com/paddle-rack-alternative.html
 - Leaderboards: https://dink.zyberlab.com/pickleball-leaderboard.html
-- DUPR export: https://dink.zyberlab.com/dupr-export.html
+- DUPR integration (connect + submit + export): https://dink.zyberlab.com/dupr-export.html
 - Fixed duo / partner locking: https://dink.zyberlab.com/fixed-duo.html
 - Guide: https://dink.zyberlab.com/how-to-run-pickleball-open-play.html
 - App comparison: https://dink.zyberlab.com/compare.html

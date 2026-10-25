@@ -91,7 +91,7 @@ const faqs = [
   {
     question: 'Is this connected to DUPR?',
     answer:
-      'No — DinkMatch uses its own rating system. However, the club admin can export all completed matches as a DUPR-ready CSV file for bulk upload. Add your DUPR ID in your profile so it gets included in the export.',
+      'Yes — DinkMatch integrates with DUPR. Connect your DUPR account from your profile to see your official singles/doubles ratings in-app, and clubs can report completed matches straight to DUPR — no CSV needed. A DUPR-ready CSV export is also available for bulk upload, and admins can run DUPR+ sessions where queue check-in requires a DUPR subscription.',
   },
 ];
 </script>
