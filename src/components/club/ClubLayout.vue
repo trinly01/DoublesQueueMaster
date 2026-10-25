@@ -69,12 +69,12 @@
       </div>
 
       <!-- Center Column: Queue -->
-      <div :class="showPlayersColumn ? 'col-12 col-md-4' : 'col-12 col-md-6'">
+      <div :class="showPlayersColumn ? 'col-12 col-md-4' : 'col-12 col-md-5'">
         <slot name="queue-desktop" />
       </div>
 
       <!-- Right Column: Matches -->
-      <div :class="showPlayersColumn ? 'col-12 col-md-4' : 'col-12 col-md-6'">
+      <div :class="showPlayersColumn ? 'col-12 col-md-4' : 'col-12 col-md-7'">
         <slot name="matches-desktop" />
       </div>
     </div>
