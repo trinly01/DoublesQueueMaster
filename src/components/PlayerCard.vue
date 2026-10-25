@@ -13,7 +13,9 @@
       'self-loser': isSelf && player.queueType === 'LOSERS',
       'self-winner': isSelf && player.queueType === 'WINNERS',
 
-      [queueBgClass]: true,
+      // Quasar bg-* utilities are !important — they'd override the pulse
+      // animation. On self rows the keyframes carry the queue color instead.
+      [queueBgClass]: !isSelf,
     }"
     @click="$emit('click', player)"
     clickable

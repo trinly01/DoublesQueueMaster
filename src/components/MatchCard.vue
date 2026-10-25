@@ -2,8 +2,10 @@
   <q-item
     class="match-item"
     :class="{
-      'bg-yellow-1': match.status === 'in-progress',
-      'bg-red-1': match.status === 'cancelled',
+      // bg-* utilities are !important and would block the self pulse —
+      // on your own match the pulse owns the background instead.
+      'bg-yellow-1': match.status === 'in-progress' && !containsSelf,
+      'bg-red-1': match.status === 'cancelled' && !containsSelf,
       'self-match': containsSelf,
       'self-playing': containsSelf && match.status === 'in-progress',
     }"
