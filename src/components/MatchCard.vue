@@ -422,15 +422,26 @@ const elapsed = computed(() => {
   font-weight: 700;
 }
 
-// Soft amber pulse for matches containing the logged-in player — slow,
-// gentle tint ramp, not a hard blink.
+// Soft amber pulse for matches containing the logged-in player. Waiting
+// ("you're up — get to your court") pulses louder; in-progress is gentler
+// since you're already playing and it's just orientation.
 @keyframes self-match-pulse {
   0%,
   100% {
-    background-color: rgba(255, 179, 0, 0.06);
+    background-color: rgba(255, 179, 0, 0.08);
   }
   50% {
-    background-color: rgba(255, 179, 0, 0.25);
+    background-color: rgba(255, 179, 0, 0.32);
+  }
+}
+
+@keyframes self-playing-pulse {
+  0%,
+  100% {
+    background-color: rgba(255, 179, 0, 0.05);
+  }
+  50% {
+    background-color: rgba(255, 179, 0, 0.18);
   }
 }
 
@@ -443,7 +454,7 @@ const elapsed = computed(() => {
   }
 
   &.self-playing {
-    animation: self-match-pulse 3s ease-in-out infinite;
+    animation-name: self-playing-pulse;
   }
 
   &:hover {
