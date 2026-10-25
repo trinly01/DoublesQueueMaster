@@ -4,6 +4,8 @@
     :class="{
       'bg-yellow-1': match.status === 'in-progress',
       'bg-red-1': match.status === 'cancelled',
+      'self-match': containsSelf,
+      'self-waiting': containsSelf && match.status === 'waiting',
     }"
     @click="handleClick"
     clickable
@@ -20,6 +22,7 @@
           >
             <span
               class="text-weight-medium text-center"
+              :class="{ 'self-name': isSelfPlayer(player) }"
               style="
                 max-width: 80px;
                 overflow: hidden;
@@ -27,7 +30,10 @@
                 white-space: nowrap;
                 display: block;
               "
-              >{{ player.firstName || player.username }}</span
+              >{{ player.firstName || player.username
+              }}<span v-if="isSelfPlayer(player)" class="self-tag"
+                >You</span
+              ></span
             >
             <span
               v-if="player.username && player.firstName"
@@ -127,6 +133,7 @@
           >
             <span
               class="text-weight-medium text-center"
+              :class="{ 'self-name': isSelfPlayer(player) }"
               style="
                 max-width: 80px;
                 overflow: hidden;
@@ -134,7 +141,10 @@
                 white-space: nowrap;
                 display: block;
               "
-              >{{ player.firstName || player.username }}</span
+              >{{ player.firstName || player.username
+              }}<span v-if="isSelfPlayer(player)" class="self-tag"
+                >You</span
+              ></span
             >
             <span
               v-if="player.username && player.firstName"
@@ -319,6 +329,7 @@ interface Props {
   canStart?: boolean;
   allowEditCancel?: boolean;
   showDate?: boolean;
+  currentUserId?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -326,7 +337,19 @@ const props = withDefaults(defineProps<Props>(), {
   canStart: false,
   allowEditCancel: false,
   showDate: false,
+  currentUserId: '',
 });
+
+const isSelfPlayer = (player: Player) =>
+  !!props.currentUserId &&
+  !!player.userId &&
+  player.userId === props.currentUserId;
+
+const containsSelf = computed(
+  () =>
+    !!props.currentUserId &&
+    [...props.match.teamA, ...props.match.teamB].some(isSelfPlayer),
+);
 
 const emit = defineEmits<{
   click: [match: Match];
@@ -394,8 +417,49 @@ const elapsed = computed(() => {
 </script>
 
 <style lang="scss" scoped>
+// Matches containing the logged-in player get a persistent primary edge.
+// When their match is waiting ("you're up — go to your court"), a slow
+// glow draws the eye. This is the one place animation is justified: it's
+// an alert, not decoration.
+.self-name {
+  color: var(--q-primary);
+  font-weight: 700;
+}
+
+.self-tag {
+  font-size: 8px;
+  background: var(--q-primary);
+  color: #fff;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-left: 3px;
+  vertical-align: 1px;
+}
+
+@keyframes self-waiting-glow {
+  0%,
+  100% {
+    box-shadow:
+      inset 3px 0 0 var(--q-primary),
+      0 0 0 rgba(25, 118, 210, 0);
+  }
+  50% {
+    box-shadow:
+      inset 3px 0 0 var(--q-primary),
+      0 0 14px rgba(25, 118, 210, 0.45);
+  }
+}
+
 .match-item {
   transition: background-color 0.2s ease;
+
+  &.self-match {
+    box-shadow: inset 3px 0 0 var(--q-primary);
+  }
+
+  &.self-waiting {
+    animation: self-waiting-glow 2s ease-in-out infinite;
+  }
 
   &:hover {
     background-color: rgba(0, 0, 0, 0.02);

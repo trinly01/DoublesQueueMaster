@@ -257,6 +257,20 @@
         @dismiss-error="clubLoadingState = 'loaded'"
         @join-club="handleJoinClub"
       >
+        <!-- "Where am I" strip — the player's own status, above the columns -->
+        <template #my-status v-if="myStatus">
+          <q-banner
+            dense
+            rounded
+            :class="`bg-${myStatus.color} text-white q-mb-sm`"
+          >
+            <template v-slot:avatar>
+              <q-icon :name="myStatus.icon" />
+            </template>
+            {{ myStatus.text }}
+          </q-banner>
+        </template>
+
         <!-- Desktop Players Column -->
         <template #players-desktop>
           <q-card class="players-card" flat bordered>
@@ -866,6 +880,7 @@
                         )
                       "
                       :allow-edit-cancel="isCurrentUserAdmin"
+                      :current-user-id="currentUserId"
                       @completeMatch="openMatchResultDialog(index)"
                       @editMatch="editMatch(index)"
                       @startMatch="startMatch(index)"
@@ -1475,6 +1490,7 @@
                         )
                       "
                       :allow-edit-cancel="isCurrentUserAdmin"
+                      :current-user-id="currentUserId"
                       @completeMatch="openMatchResultDialog(index)"
                       @editMatch="editMatch(index)"
                       @startMatch="startMatch(index)"
@@ -1805,6 +1821,49 @@ const busyPlayers = computed(() => {
   return { busy: busy.size, queued: queued.size, playing: playing.size };
 });
 const busyPlayersCount = computed(() => busyPlayers.value.busy);
+
+// "Where am I" status strip for the logged-in player — the first thing a
+// player wants when they open the app: am I queued, called, or playing?
+const myStatus = computed(() => {
+  if (!currentUserId.value) return null;
+  const me = players.value.find((p) => p.userId === currentUserId.value);
+  if (!me) return null;
+
+  const myMatch = matches.value.find((m) =>
+    [...m.teamA, ...m.teamB].some((p) => p.userId === currentUserId.value),
+  );
+  if (myMatch) {
+    if (myMatch.status === 'waiting') {
+      return {
+        color: 'positive',
+        icon: 'sports_tennis',
+        text: `You're up — ${
+          myMatch.court ? `Court ${myMatch.court}` : 'check your court'
+        }, get ready!`,
+      };
+    }
+    return {
+      color: 'primary',
+      icon: 'play_circle',
+      text: `You're playing${myMatch.court ? ` on Court ${myMatch.court}` : ''}`,
+    };
+  }
+
+  const pos = queue.value.findIndex((p) => p.userId === currentUserId.value);
+  if (pos >= 0) {
+    return {
+      color: 'info',
+      icon: 'queue',
+      text: `You're #${pos + 1} in the queue`,
+    };
+  }
+
+  return {
+    color: 'grey-6',
+    icon: 'event_busy',
+    text: "You're checked out — join the queue to play",
+  };
+});
 
 // Player actions composable — extracted removePlayer, removeFromQueue, requeuePlayer, addAllPlayersToQueue
 const {
