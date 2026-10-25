@@ -9,7 +9,16 @@
         <q-btn flat dense no-caps label="Login" @click="goLogin" />
         <q-btn flat dense no-caps label="Open Play" @click="goOpenPlay" />
       </div>
-      <div class="text-caption text-grey-6">&copy; {{ currentYear }} DinkMatch</div>
+      <div class="col-12 row q-gutter-x-md justify-center seo-links">
+        <a href="/pickleball-queue-app.html">Queue App</a>
+        <a href="/open-play-rotation.html">Open Play Rotation</a>
+        <a href="/pickleball-matchmaking.html">Matchmaking</a>
+        <a href="/paddle-rack-alternative.html">Paddle Rack Alternative</a>
+        <a href="/compare.html">Compare</a>
+      </div>
+      <div class="text-caption text-grey-6">
+        &copy; {{ currentYear }} DinkMatch
+      </div>
     </div>
   </footer>
 </template>
@@ -43,6 +52,17 @@ const goOpenPlay = () => router.push('/openplay');
 
   .q-btn {
     color: #c3cfe2;
+  }
+
+  .seo-links a {
+    color: #8fa1c4;
+    font-size: 0.8rem;
+    text-decoration: none;
+
+    &:hover {
+      color: #c3cfe2;
+      text-decoration: underline;
+    }
   }
 }
 </style>

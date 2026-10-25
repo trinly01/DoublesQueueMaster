@@ -23,6 +23,11 @@ Free to use. Open play mode requires no sign-up.
 ## Key URLs
 
 - App: https://dink.zyberlab.com
+- Queue app overview: https://dink.zyberlab.com/pickleball-queue-app.html
+- Open play rotation: https://dink.zyberlab.com/open-play-rotation.html
+- Matchmaking: https://dink.zyberlab.com/pickleball-matchmaking.html
+- Paddle rack alternative: https://dink.zyberlab.com/paddle-rack-alternative.html
+- App comparison: https://dink.zyberlab.com/compare.html
 - Source: https://github.com/trinly01/DoublesQueueMaster
 
 ## Differentiators
