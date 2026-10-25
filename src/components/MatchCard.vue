@@ -416,29 +416,19 @@ const elapsed = computed(() => {
 // glow draws the eye. This is the one place animation is justified: it's
 // an alert, not decoration.
 .self-name {
-  color: var(--q-primary);
+  color: #bf7c00;
   font-weight: 700;
 }
 
-// Soft background pulse — slow, gentle tint ramp, not a hard blink.
-// Amber variant for in-progress so it stays in the "playing" color family.
+// Soft amber pulse for matches containing the logged-in player — slow,
+// gentle tint ramp, not a hard blink.
 @keyframes self-match-pulse {
   0%,
   100% {
-    background-color: rgba(25, 118, 210, 0.05);
+    background-color: rgba(255, 179, 0, 0.06);
   }
   50% {
-    background-color: rgba(25, 118, 210, 0.18);
-  }
-}
-
-@keyframes self-playing-pulse {
-  0%,
-  100% {
-    background-color: rgba(255, 179, 0, 0.08);
-  }
-  50% {
-    background-color: rgba(255, 179, 0, 0.28);
+    background-color: rgba(255, 179, 0, 0.25);
   }
 }
 
@@ -446,12 +436,12 @@ const elapsed = computed(() => {
   transition: background-color 0.2s ease;
 
   &.self-match {
-    box-shadow: inset 3px 0 0 var(--q-primary);
+    box-shadow: inset 3px 0 0 #ffb300;
     animation: self-match-pulse 3s ease-in-out infinite;
   }
 
   &.self-playing {
-    animation: self-playing-pulse 3s ease-in-out infinite;
+    animation: self-match-pulse 3s ease-in-out infinite;
   }
 
   &:hover {

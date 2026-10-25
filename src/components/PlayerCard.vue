@@ -391,15 +391,15 @@ const handleAvatarError = () => {
 @keyframes self-row-pulse {
   0%,
   100% {
-    background-color: rgba(25, 118, 210, 0.05);
+    background-color: rgba(255, 179, 0, 0.06);
   }
   50% {
-    background-color: rgba(25, 118, 210, 0.18);
+    background-color: rgba(255, 179, 0, 0.25);
   }
 }
 
 .player-item.is-self {
-  box-shadow: inset 3px 0 0 var(--q-primary);
+  box-shadow: inset 3px 0 0 #ffb300;
   animation: self-row-pulse 3s ease-in-out infinite;
 }
 
