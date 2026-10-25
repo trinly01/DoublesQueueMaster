@@ -436,17 +436,14 @@ const elapsed = computed(() => {
   vertical-align: 1px;
 }
 
-@keyframes self-waiting-glow {
+// Soft background pulse — slow, gentle tint ramp, not a hard blink.
+@keyframes self-waiting-pulse {
   0%,
   100% {
-    box-shadow:
-      inset 3px 0 0 var(--q-primary),
-      0 0 0 rgba(25, 118, 210, 0);
+    background-color: rgba(25, 118, 210, 0.05);
   }
   50% {
-    box-shadow:
-      inset 3px 0 0 var(--q-primary),
-      0 0 14px rgba(25, 118, 210, 0.45);
+    background-color: rgba(25, 118, 210, 0.18);
   }
 }
 
@@ -458,7 +455,7 @@ const elapsed = computed(() => {
   }
 
   &.self-waiting {
-    animation: self-waiting-glow 2s ease-in-out infinite;
+    animation: self-waiting-pulse 3s ease-in-out infinite;
   }
 
   &:hover {
