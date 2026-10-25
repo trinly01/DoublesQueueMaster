@@ -254,6 +254,7 @@
         :club-error-message="clubErrorMessage"
         :is-current-user-member="isCurrentUserMember"
         :is-open-play="isOpenPlay"
+        :show-players-column="canManageSession"
         @dismiss-error="clubLoadingState = 'loaded'"
         @join-club="handleJoinClub"
       >
@@ -3609,6 +3610,18 @@ if (savedTab) activeMobileTab.value = savedTab;
 watch(activeMobileTab, (tab) => {
   LocalStorage.set('active_tab', tab);
 });
+
+// Non-admin/mod users don't get the Players column — if they're sitting on
+// that tab (or had it persisted), move them to Queue.
+watch(
+  canManageSession,
+  (canManage) => {
+    if (!canManage && activeMobileTab.value === 'players') {
+      activeMobileTab.value = 'queue';
+    }
+  },
+  { immediate: true },
+);
 
 function getClubFeedbackCacheKey(): string {
   return `club_feedback_cache_${currentClubUUID.value}`;
