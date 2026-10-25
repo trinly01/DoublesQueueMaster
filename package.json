@@ -1,8 +1,8 @@
 {
   "name": "dinkmatch",
   "version": "0.0.1",
-  "description": "Smart matchmaking for singles & doubles",
-  "productName": "DinkMatch - Queueing (Open Play)",
+  "description": "Fair queue, smart matchmaking, rotating partners, club ratings, leaderboards, and DUPR-ready export for pickleball open play — the app that replaces the paddle rack.",
+  "productName": "DinkMatch — Pickleball Open Play Queue & Matchmaking App",
   "author": "Trinmar Boado <timi.boado@gmail.com>",
   "type": "module",
   "private": true,

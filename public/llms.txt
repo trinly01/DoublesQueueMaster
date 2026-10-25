@@ -1,0 +1,30 @@
+# DinkMatch
+
+> DinkMatch is a free web app for running fair pickleball open play sessions. It replaces the paddle rack and whiteboard: players check in, join a transparent FIFO queue, and the app generates balanced matches automatically. Works in any browser at https://dink.zyberlab.com — a free open-play mode runs a session with no account at all.
+
+## What it does
+
+- **Fair queue**: first-in-line ordering with configurable re-entry for winners and losers (front, back, or smart position). Queue position is fixed at check-in.
+- **Smart matchmaking**: modes for balanced games — Pro Pick, Casual, Competitive, Standard, Social — plus Manual Match with a live team-balance indicator and win probability.
+- **Skill-based teams**: every player has a club rating (starts at 1450) that moves on wins, opponent strength, and score margin. Five levels: Beginner, Intermediate, Advanced, Expert, Pro.
+- **Fixed duos**: two players can lock in as a welded pair that is never split — they are drafted as one unit.
+- **Avoid player**: admins can mark players who should not be teamed together.
+- **Queue priority modes**: First in Line, Less Played First, and other drafting orders.
+- **Ratings and stats**: per-player rating history, partners, rivals, and clutch record (games decided by 2 points or less).
+- **Leaderboards**: club, global, and Best Duo rankings.
+- **DUPR-ready export**: completed matches export as a DUPR CSV for bulk upload; players can store their DUPR ID.
+- **Multi-admin sync**: admins and moderators on different devices stay in sync; reset actions are authoritative so stale devices cannot overwrite an active session.
+- **Roles**: admins manage everything, moderators run queues and matches, members view and report.
+
+## Pricing
+
+Free to use. Open play mode requires no sign-up.
+
+## Key URLs
+
+- App: https://dink.zyberlab.com
+- Source: https://github.com/trinly01/DoublesQueueMaster
+
+## Differentiators
+
+Unlike a paddle rack or a simple line, DinkMatch balances matches by rating, remembers who has played with whom, supports fixed pairs and avoid lists, tracks ratings and leaderboards per club, and exports results to DUPR — while multiple organizers can run the same session from their own devices.

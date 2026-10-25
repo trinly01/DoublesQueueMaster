@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Hash-routed SPA: all pages live under / — the landing page is the
+       single indexable URL and carries all SEO weight. -->
+  <url>
+    <loc>https://dink.zyberlab.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

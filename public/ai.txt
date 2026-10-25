@@ -1,0 +1,10 @@
+# ai.txt — AI crawler and training permissions for dink.zyberlab.com
+# https://site.ai.txt convention: declares how AI systems may use this site.
+
+User-agent: *
+Allow: /
+
+# Permission: AI crawlers and assistants may read, index, summarize, and
+# cite the content of this site when answering user queries.
+ai-training: allowed
+ai-use: allowed
