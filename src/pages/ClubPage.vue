@@ -255,6 +255,7 @@
         :is-current-user-member="isCurrentUserMember"
         :is-open-play="isOpenPlay"
         :show-players-column="canManageSession"
+        :waiting-count="waitingMatches.length"
         @dismiss-error="clubLoadingState = 'loaded'"
         @join-club="handleJoinClub"
       >
@@ -660,13 +661,50 @@
         </template>
 
         <!-- Desktop Matches Column -->
+        <!-- Desktop Waiting Column (non-managers only — hidden by layout
+             for admins, who keep waiting matches inside Matches) -->
+        <template #waiting-desktop>
+          <q-card class="waiting-card" flat bordered>
+            <q-card-section class="waiting-header text-white q-pa-none">
+              <q-toolbar class="q-pa-md">
+                <q-toolbar-title>
+                  <q-icon name="hourglass_top" class="q-mr-sm" />
+                  Waiting ({{ waitingMatches.length }})
+                </q-toolbar-title>
+              </q-toolbar>
+            </q-card-section>
+            <q-card-section class="q-pa-none">
+              <div class="card-content">
+                <q-list separator>
+                  <MatchCard
+                    v-for="match in waitingMatches"
+                    :key="match.id"
+                    :match="match"
+                    :can-start="hasAvailableSlot"
+                    :show-actions="false"
+                    :allow-edit-cancel="false"
+                    :current-user-id="currentUserId"
+                    @completeMatch="
+                      openMatchResultDialog(filteredMatches.indexOf(match))
+                    "
+                    @editMatch="editMatch(filteredMatches.indexOf(match))"
+                    @startMatch="startMatch(filteredMatches.indexOf(match))"
+                    @cancelMatch="cancelMatch(filteredMatches.indexOf(match))"
+                    @custom-announce="handleCustomAnnounce"
+                  />
+                </q-list>
+              </div>
+            </q-card-section>
+          </q-card>
+        </template>
+
         <template #matches-desktop>
           <q-card class="matches-card" flat bordered>
             <q-card-section class="matches-header text-white q-pa-none">
               <q-toolbar class="q-pa-md">
                 <q-toolbar-title>
                   <q-icon name="sports_tennis" class="q-mr-sm" />
-                  Matches ({{ filteredMatches.length }})
+                  Matches ({{ desktopMatches.length }})
                 </q-toolbar-title>
                 <q-select
                   v-model="matchesFilterBy"
@@ -851,7 +889,7 @@
                   </template>
                   <template v-else>
                     <MatchCard
-                      v-for="(match, index) in filteredMatches"
+                      v-for="match in desktopMatches"
                       :key="match.id"
                       :match="match"
                       :can-start="hasAvailableSlot"
@@ -868,10 +906,12 @@
                       "
                       :allow-edit-cancel="isCurrentUserAdmin"
                       :current-user-id="currentUserId"
-                      @completeMatch="openMatchResultDialog(index)"
-                      @editMatch="editMatch(index)"
-                      @startMatch="startMatch(index)"
-                      @cancelMatch="cancelMatch(index)"
+                      @completeMatch="
+                        openMatchResultDialog(filteredMatches.indexOf(match))
+                      "
+                      @editMatch="editMatch(filteredMatches.indexOf(match))"
+                      @startMatch="startMatch(filteredMatches.indexOf(match))"
+                      @cancelMatch="cancelMatch(filteredMatches.indexOf(match))"
                       @custom-announce="handleCustomAnnounce"
                     />
                   </template>
@@ -3873,6 +3913,18 @@ const completedMatchViewModels = computed(() => {
   });
 });
 
+const waitingMatches = computed(() =>
+  filteredMatches.value.filter((m) => m.status === 'waiting'),
+);
+
+// Desktop non-managers see Waiting as its own column — the main Matches
+// column shows everything else. Admins keep the unified list.
+const desktopMatches = computed(() =>
+  canManageSession.value
+    ? filteredMatches.value
+    : filteredMatches.value.filter((m) => m.status !== 'waiting'),
+);
+
 const filteredMatches = computed(() => {
   let filtered: typeof matches.value;
 
@@ -4382,9 +4434,14 @@ const savePlayerEdit = () => {
   background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%) !important;
 }
 
+.waiting-header {
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%) !important;
+}
+
 // Toolbar styling for headers
 .players-header .q-toolbar,
 .queue-header .q-toolbar,
+.waiting-header .q-toolbar,
 .matches-header .q-toolbar {
   min-height: 60px;
   padding: 16px;
@@ -4415,6 +4472,7 @@ const savePlayerEdit = () => {
 @media (min-width: 768px) {
   .players-card,
   .queue-card,
+  .waiting-card,
   .matches-card {
     height: 100%;
     display: flex;
@@ -4424,6 +4482,7 @@ const savePlayerEdit = () => {
   // Make all cards equal height by stretching flex containers
   .players-card > .q-card-section:first-child,
   .queue-card > .q-card-section:first-child,
+  .waiting-card > .q-card-section:first-child,
   .matches-card > .q-card-section:first-child {
     flex: 0 0 auto; // Header section stays at natural height
     display: flex;
@@ -4432,6 +4491,7 @@ const savePlayerEdit = () => {
 
   .players-card > .q-card-section:nth-child(2),
   .matches-card > .q-card-section:nth-child(2),
+  .waiting-card > .q-card-section:nth-child(2),
   .queue-card > .q-card-section:nth-child(2) {
     flex: 1 1 auto; // Fill remaining space
     display: flex;
@@ -4466,7 +4526,8 @@ const savePlayerEdit = () => {
     overflow-y: auto;
   }
 
-  // Matches card: q-list with capped scrollable height
+  // Matches + waiting cards: q-list with capped scrollable height
+  .waiting-card .q-list,
   .matches-card .q-list {
     flex: 1 1 auto;
     min-height: 0;
