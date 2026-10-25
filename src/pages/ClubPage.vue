@@ -4418,8 +4418,10 @@ const savePlayerEdit = () => {
 // Column header gradients matching the header theme
 .players-header,
 .queue-header,
+.waiting-header,
 .matches-header {
   min-height: 60px !important;
+  border-radius: 12px 12px 0 0;
 }
 
 .players-header {
@@ -4455,6 +4457,7 @@ const savePlayerEdit = () => {
 
 .players-card,
 .queue-card,
+.waiting-card,
 .matches-card {
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
