@@ -68,93 +68,109 @@
         <slot name="players-desktop" />
       </div>
 
-      <!-- Center Column: Queue -->
-      <div :class="showPlayersColumn ? 'col-12 col-md-4' : 'col-12 col-md-5'">
+      <!-- Center Column: Queue (hidden for players when it's empty) -->
+      <div
+        v-if="showQueueColumn"
+        :class="showPlayersColumn ? 'col-12 col-md-4' : 'col-12 col-md-5'"
+      >
         <slot name="queue-desktop" />
       </div>
 
       <!-- Right Column: Matches -->
-      <div :class="showPlayersColumn ? 'col-12 col-md-4' : 'col-12 col-md-7'">
+      <div
+        :class="
+          showPlayersColumn
+            ? 'col-12 col-md-4'
+            : showQueueColumn
+              ? 'col-12 col-md-7'
+              : 'col-12'
+        "
+      >
         <slot name="matches-desktop" />
       </div>
     </div>
 
-    <!-- Mobile Layout: qTabs -->
+    <!-- Mobile Layout: qTabs (or bare matches when it's the only view) -->
     <div v-else class="lt-md">
-      <q-tabs
-        :model-value="modelValue"
-        @update:model-value="$emit('update:modelValue', String($event))"
-        class="text-grey-7"
-        active-color="primary"
-        indicator-color="primary"
-        align="justify"
-        narrow-indicator
-        scrollable="false"
-      >
-        <q-tab
-          v-if="showPlayersColumn"
-          name="players"
-          icon="people"
-          :label="`Players (${busyPlayers.busy}/${playersCount})`"
-          :class="{ shake: tabShakeStates.players }"
+      <slot v-if="!showTabBar" name="matches-mobile" />
+      <template v-else>
+        <q-tabs
+          :model-value="modelValue"
+          @update:model-value="$emit('update:modelValue', String($event))"
+          class="text-grey-7"
+          active-color="primary"
+          indicator-color="primary"
+          align="justify"
+          narrow-indicator
+          scrollable="false"
         >
-          <q-tooltip>
-            {{ busyPlayers.playing }} playing · {{ busyPlayers.queued }} in
-            queue · {{ playersCount - busyPlayers.busy }} checked out
-          </q-tooltip>
-        </q-tab>
-        <q-tab
-          name="queue"
-          icon="queue"
-          :label="`Queue (${queueCount})`"
-          :class="{ shake: tabShakeStates.queue }"
-        />
-        <q-tab
-          name="matches"
-          icon="sports_tennis"
-          :label="`Matches (${matchesCount})`"
-          :class="{ shake: tabShakeStates.matches }"
-        />
-      </q-tabs>
+          <q-tab
+            v-if="showPlayersColumn"
+            name="players"
+            icon="people"
+            :label="`Players (${busyPlayers.busy}/${playersCount})`"
+            :class="{ shake: tabShakeStates.players }"
+          >
+            <q-tooltip>
+              {{ busyPlayers.playing }} playing · {{ busyPlayers.queued }} in
+              queue · {{ playersCount - busyPlayers.busy }} checked out
+            </q-tooltip>
+          </q-tab>
+          <q-tab
+            v-if="showQueueColumn"
+            name="queue"
+            icon="queue"
+            :label="`Queue (${queueCount})`"
+            :class="{ shake: tabShakeStates.queue }"
+          />
+          <q-tab
+            name="matches"
+            icon="sports_tennis"
+            :label="`Matches (${matchesCount})`"
+            :class="{ shake: tabShakeStates.matches }"
+          />
+        </q-tabs>
 
-      <q-separator />
+        <q-separator />
 
-      <!-- keep-alive: without it every tab switch unmounts the old column and
+        <!-- keep-alive: without it every tab switch unmounts the old column and
            remounts the new one from scratch (all PlayerCards/MatchCards +
            avatar fetches). Cached panels make switches near-instant. -->
-      <q-tab-panels
-        :model-value="modelValue"
-        @update:model-value="$emit('update:modelValue', String($event))"
-        animated
-        keep-alive
-      >
-        <!-- Players Tab -->
-        <q-tab-panel v-if="showPlayersColumn" name="players">
-          <slot name="players-mobile" />
-        </q-tab-panel>
+        <q-tab-panels
+          :model-value="modelValue"
+          @update:model-value="$emit('update:modelValue', String($event))"
+          animated
+          keep-alive
+        >
+          <!-- Players Tab -->
+          <q-tab-panel v-if="showPlayersColumn" name="players">
+            <slot name="players-mobile" />
+          </q-tab-panel>
 
-        <!-- Queue Tab -->
-        <q-tab-panel name="queue">
-          <slot name="queue-mobile" />
-        </q-tab-panel>
+          <!-- Queue Tab -->
+          <q-tab-panel v-if="showQueueColumn" name="queue">
+            <slot name="queue-mobile" />
+          </q-tab-panel>
 
-        <!-- Matches Tab -->
-        <q-tab-panel name="matches">
-          <slot name="matches-mobile" />
-        </q-tab-panel>
-      </q-tab-panels>
+          <!-- Matches Tab -->
+          <q-tab-panel name="matches">
+            <slot name="matches-mobile" />
+          </q-tab-panel>
+        </q-tab-panels>
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useQuasar } from 'quasar';
 
 defineOptions({ name: 'ClubLayout' });
 
 const $q = useQuasar();
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     modelValue: string;
     playersCount: number;
@@ -172,6 +188,17 @@ withDefaults(
   {
     showPlayersColumn: true,
   },
+);
+
+// The Queue column is dead space for non-managers when it's empty —
+// only admins/mods (who act on the queue) always see it.
+const showQueueColumn = computed(
+  () => props.showPlayersColumn || props.queueCount > 0,
+);
+
+// A lone Matches tab bar is pointless chrome — skip it entirely.
+const showTabBar = computed(
+  () => props.showPlayersColumn || showQueueColumn.value,
 );
 
 defineEmits<{
