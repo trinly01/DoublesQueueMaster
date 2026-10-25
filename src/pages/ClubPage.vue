@@ -3611,16 +3611,23 @@ watch(activeMobileTab, (tab) => {
   LocalStorage.set('active_tab', tab);
 });
 
-// Non-admin/mod users don't get the Players column — if they're sitting on
-// that tab (or had it persisted), move them to Queue.
+// Non-admin/mod users don't get the Players column, and an empty Queue
+// column hides too — bounce them off whichever tab just disappeared.
 watch(
-  canManageSession,
-  (canManage) => {
-    if (!canManage && activeMobileTab.value === 'players') {
+  [canManageSession, queue],
+  () => {
+    if (!canManageSession.value && activeMobileTab.value === 'players') {
       activeMobileTab.value = 'queue';
     }
+    if (
+      !canManageSession.value &&
+      queue.value.length === 0 &&
+      activeMobileTab.value === 'queue'
+    ) {
+      activeMobileTab.value = 'matches';
+    }
   },
-  { immediate: true },
+  { immediate: true, deep: true },
 );
 
 function getClubFeedbackCacheKey(): string {
