@@ -63,18 +63,18 @@
          MatchCard, avatar request, and reactive dependency. $q.screen is
          reactive, so crossing the breakpoint remounts once. -->
     <div v-if="$q.screen.gt.sm" class="row q-col-gutter-lg gt-sm">
-      <!-- Left Column: Players List -->
-      <div class="col-12 col-md-4">
+      <!-- Left Column: Players List (admin/mod only — roster management) -->
+      <div v-if="showPlayersColumn" class="col-12 col-md-4">
         <slot name="players-desktop" />
       </div>
 
       <!-- Center Column: Queue -->
-      <div class="col-12 col-md-4">
+      <div :class="showPlayersColumn ? 'col-12 col-md-4' : 'col-12 col-md-6'">
         <slot name="queue-desktop" />
       </div>
 
       <!-- Right Column: Matches -->
-      <div class="col-12 col-md-4">
+      <div :class="showPlayersColumn ? 'col-12 col-md-4' : 'col-12 col-md-6'">
         <slot name="matches-desktop" />
       </div>
     </div>
@@ -92,6 +92,7 @@
         scrollable="false"
       >
         <q-tab
+          v-if="showPlayersColumn"
           name="players"
           icon="people"
           :label="`Players (${busyPlayers.busy}/${playersCount})`"
@@ -128,7 +129,7 @@
         keep-alive
       >
         <!-- Players Tab -->
-        <q-tab-panel name="players">
+        <q-tab-panel v-if="showPlayersColumn" name="players">
           <slot name="players-mobile" />
         </q-tab-panel>
 
@@ -153,19 +154,25 @@ defineOptions({ name: 'ClubLayout' });
 
 const $q = useQuasar();
 
-defineProps<{
-  modelValue: string;
-  playersCount: number;
-  busyPlayers: { busy: number; queued: number; playing: number };
-  queueCount: number;
-  matchesCount: number;
-  tabShakeStates: { players: boolean; queue: boolean; matches: boolean };
-  isOnline: boolean;
-  clubLoadingState: string;
-  clubErrorMessage: string;
-  isCurrentUserMember: boolean;
-  isOpenPlay: boolean;
-}>();
+withDefaults(
+  defineProps<{
+    modelValue: string;
+    playersCount: number;
+    busyPlayers: { busy: number; queued: number; playing: number };
+    queueCount: number;
+    matchesCount: number;
+    tabShakeStates: { players: boolean; queue: boolean; matches: boolean };
+    isOnline: boolean;
+    clubLoadingState: string;
+    clubErrorMessage: string;
+    isCurrentUserMember: boolean;
+    isOpenPlay: boolean;
+    showPlayersColumn?: boolean;
+  }>(),
+  {
+    showPlayersColumn: true,
+  },
+);
 
 defineEmits<{
   'update:modelValue': [value: string];
