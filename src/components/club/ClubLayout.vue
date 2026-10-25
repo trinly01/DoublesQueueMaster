@@ -69,23 +69,17 @@
       </div>
 
       <!-- Center Column: Queue (hidden for players when it's empty) -->
-      <div
-        v-if="showQueueColumn"
-        :class="showPlayersColumn ? 'col-12 col-md-4' : 'col-12 col-md-5'"
-      >
+      <div v-if="showQueueColumn" :class="`col-12 col-md-${queueWidth}`">
         <slot name="queue-desktop" />
       </div>
 
+      <!-- Waiting Column: staged matches (non-manager pipeline view) -->
+      <div v-if="showWaitingColumn" class="col-12 col-md-4">
+        <slot name="waiting-desktop" />
+      </div>
+
       <!-- Right Column: Matches -->
-      <div
-        :class="
-          showPlayersColumn
-            ? 'col-12 col-md-4'
-            : showQueueColumn
-              ? 'col-12 col-md-7'
-              : 'col-12'
-        "
-      >
+      <div :class="`col-12 col-md-${matchesWidth}`">
         <slot name="matches-desktop" />
       </div>
     </div>
@@ -184,9 +178,11 @@ const props = withDefaults(
     isCurrentUserMember: boolean;
     isOpenPlay: boolean;
     showPlayersColumn?: boolean;
+    waitingCount?: number;
   }>(),
   {
     showPlayersColumn: true,
+    waitingCount: 0,
   },
 );
 
@@ -195,6 +191,23 @@ const props = withDefaults(
 const showQueueColumn = computed(
   () => props.showPlayersColumn || props.queueCount > 0,
 );
+
+// Non-managers get a dedicated Waiting column — the Queue → Waiting →
+// Playing pipeline made visible. Admins keep waiting inside Matches.
+const showWaitingColumn = computed(
+  () => !props.showPlayersColumn && props.waitingCount > 0,
+);
+
+const queueWidth = computed(() => {
+  if (!showQueueColumn.value) return 0;
+  if (props.showPlayersColumn) return 4;
+  return showWaitingColumn.value ? 3 : 5;
+});
+
+const matchesWidth = computed(() => {
+  if (props.showPlayersColumn) return 4;
+  return 12 - queueWidth.value - (showWaitingColumn.value ? 4 : 0);
+});
 
 // A lone Matches tab bar is pointless chrome — skip it entirely.
 const showTabBar = computed(
