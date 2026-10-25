@@ -173,7 +173,14 @@ export default configure((/* ctx */) => {
       // useCredentialsForManifestTag: true,
       // injectPwaMetaTags: false,
       // extendPWACustomSWConf (esbuildConf) {},
-      // extendGenerateSWOptions (cfg) {},
+      extendGenerateSWOptions(cfg) {
+        // Static SEO files must bypass the SPA navigation fallback —
+        // otherwise installed service workers rewrite /sitemap.xml,
+        // /compare.html, etc. to index.html and the app hijacks them.
+        cfg.navigateFallbackDenylist = [
+          /\.(?:html|xml|txt|json|png|ico|svg|webmanifest)$/,
+        ];
+      },
       // extendInjectManifestOptions (cfg) {}
     },
 
