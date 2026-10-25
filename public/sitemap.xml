@@ -3,52 +3,52 @@
   <!-- The SPA is hash-routed (one indexable URL); the static keyword pages
        below are real URLs that carry the SEO surface. -->
   <url>
-    <loc>https://dink.zyberlab.com/</loc>
+    <loc>https://dinkmatch.club/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://dink.zyberlab.com/pickleball-queue-app.html</loc>
+    <loc>https://dinkmatch.club/pickleball-queue-app.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://dink.zyberlab.com/open-play-rotation.html</loc>
+    <loc>https://dinkmatch.club/open-play-rotation.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://dink.zyberlab.com/pickleball-matchmaking.html</loc>
+    <loc>https://dinkmatch.club/pickleball-matchmaking.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://dink.zyberlab.com/paddle-rack-alternative.html</loc>
+    <loc>https://dinkmatch.club/paddle-rack-alternative.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://dink.zyberlab.com/pickleball-leaderboard.html</loc>
+    <loc>https://dinkmatch.club/pickleball-leaderboard.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://dink.zyberlab.com/dupr-export.html</loc>
+    <loc>https://dinkmatch.club/dupr-export.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://dink.zyberlab.com/fixed-duo.html</loc>
+    <loc>https://dinkmatch.club/fixed-duo.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://dink.zyberlab.com/how-to-run-pickleball-open-play.html</loc>
+    <loc>https://dinkmatch.club/how-to-run-pickleball-open-play.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://dink.zyberlab.com/compare.html</loc>
+    <loc>https://dinkmatch.club/compare.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>

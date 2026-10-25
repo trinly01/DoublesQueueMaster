@@ -1,4 +1,4 @@
-# ai.txt — AI crawler and training permissions for dink.zyberlab.com
+# ai.txt — AI crawler and training permissions for dinkmatch.club
 # https://site.ai.txt convention: declares how AI systems may use this site.
 
 User-agent: *
