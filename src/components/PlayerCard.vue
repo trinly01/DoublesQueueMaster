@@ -112,7 +112,6 @@
     <q-item-section>
       <q-item-label class="text-weight-medium">
         {{ player.firstName || player.username }}
-        <q-badge v-if="isSelf" color="primary" class="self-badge">You</q-badge>
       </q-item-label>
       <q-item-label
         caption
@@ -387,18 +386,21 @@ const handleAvatarError = () => {
 </script>
 
 <style lang="scss" scoped>
-// Logged-in player's own row: quiet, always-on marker (not an animation —
-// it's an orientation cue, not an alert).
-.player-item.is-self {
-  box-shadow: inset 3px 0 0 var(--q-primary);
-  background-color: rgba(25, 118, 210, 0.07);
+// Logged-in player's own row: slow soft pulse so they can spot themselves
+// at a glance — no badge clutter.
+@keyframes self-row-pulse {
+  0%,
+  100% {
+    background-color: rgba(25, 118, 210, 0.05);
+  }
+  50% {
+    background-color: rgba(25, 118, 210, 0.18);
+  }
 }
 
-.self-badge {
-  font-size: 9px;
-  padding: 2px 5px;
-  margin-left: 5px;
-  vertical-align: middle;
+.player-item.is-self {
+  box-shadow: inset 3px 0 0 var(--q-primary);
+  animation: self-row-pulse 3s ease-in-out infinite;
 }
 
 .queue-lock-badge {

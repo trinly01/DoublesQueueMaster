@@ -5,7 +5,7 @@
       'bg-yellow-1': match.status === 'in-progress',
       'bg-red-1': match.status === 'cancelled',
       'self-match': containsSelf,
-      'self-waiting': containsSelf && match.status === 'waiting',
+      'self-playing': containsSelf && match.status === 'in-progress',
     }"
     @click="handleClick"
     clickable
@@ -30,10 +30,7 @@
                 white-space: nowrap;
                 display: block;
               "
-              >{{ player.firstName || player.username
-              }}<span v-if="isSelfPlayer(player)" class="self-tag"
-                >You</span
-              ></span
+              >{{ player.firstName || player.username }}</span
             >
             <span
               v-if="player.username && player.firstName"
@@ -141,10 +138,7 @@
                 white-space: nowrap;
                 display: block;
               "
-              >{{ player.firstName || player.username
-              }}<span v-if="isSelfPlayer(player)" class="self-tag"
-                >You</span
-              ></span
+              >{{ player.firstName || player.username }}</span
             >
             <span
               v-if="player.username && player.firstName"
@@ -426,18 +420,9 @@ const elapsed = computed(() => {
   font-weight: 700;
 }
 
-.self-tag {
-  font-size: 8px;
-  background: var(--q-primary);
-  color: #fff;
-  padding: 1px 4px;
-  border-radius: 4px;
-  margin-left: 3px;
-  vertical-align: 1px;
-}
-
 // Soft background pulse — slow, gentle tint ramp, not a hard blink.
-@keyframes self-waiting-pulse {
+// Amber variant for in-progress so it stays in the "playing" color family.
+@keyframes self-match-pulse {
   0%,
   100% {
     background-color: rgba(25, 118, 210, 0.05);
@@ -447,15 +432,26 @@ const elapsed = computed(() => {
   }
 }
 
+@keyframes self-playing-pulse {
+  0%,
+  100% {
+    background-color: rgba(255, 179, 0, 0.08);
+  }
+  50% {
+    background-color: rgba(255, 179, 0, 0.28);
+  }
+}
+
 .match-item {
   transition: background-color 0.2s ease;
 
   &.self-match {
     box-shadow: inset 3px 0 0 var(--q-primary);
+    animation: self-match-pulse 3s ease-in-out infinite;
   }
 
-  &.self-waiting {
-    animation: self-waiting-pulse 3s ease-in-out infinite;
+  &.self-playing {
+    animation: self-playing-pulse 3s ease-in-out infinite;
   }
 
   &:hover {
