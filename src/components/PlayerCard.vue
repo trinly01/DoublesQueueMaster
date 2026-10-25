@@ -9,6 +9,7 @@
       'avoid-source': avoidState === 'source',
       'avoid-candidate': avoidState === 'candidate',
       'avoid-ineligible': avoidState === 'ineligible',
+      'is-self': isSelf,
 
       [queueBgClass]: true,
     }"
@@ -111,6 +112,7 @@
     <q-item-section>
       <q-item-label class="text-weight-medium">
         {{ player.firstName || player.username }}
+        <q-badge v-if="isSelf" color="primary" class="self-badge">You</q-badge>
       </q-item-label>
       <q-item-label
         caption
@@ -385,6 +387,20 @@ const handleAvatarError = () => {
 </script>
 
 <style lang="scss" scoped>
+// Logged-in player's own row: quiet, always-on marker (not an animation —
+// it's an orientation cue, not an alert).
+.player-item.is-self {
+  box-shadow: inset 3px 0 0 var(--q-primary);
+  background-color: rgba(25, 118, 210, 0.07);
+}
+
+.self-badge {
+  font-size: 9px;
+  padding: 2px 5px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
 .queue-lock-badge {
   padding: 2px 4px;
 }
