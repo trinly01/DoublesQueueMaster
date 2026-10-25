@@ -57,9 +57,6 @@
       </template>
     </q-banner>
 
-    <!-- Logged-in player's "where am I" status strip -->
-    <slot name="my-status" />
-
     <!-- Desktop/Large Tablet Layout: 3 Columns -->
     <!-- v-if (not just gt-sm CSS) so the inactive layout is never mounted —
          previously both rendered simultaneously, doubling every PlayerList,
