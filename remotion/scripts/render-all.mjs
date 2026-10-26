@@ -15,6 +15,7 @@ const ADS = [
   "EveryGameCounts",
   "QueueGuide",
   "DuprOfficial",
+  "BigScreen",
 ];
 const RATIOS = ["9x16", "1x1", "16x9"];
 
