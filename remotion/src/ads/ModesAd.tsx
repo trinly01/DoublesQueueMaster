@@ -260,6 +260,8 @@ const ModeBeat: React.FC<{
   const chipSize = 56 * s;
   const chipGap = 14 * s;
   const chipW = 196 * s; // fixed chip block width — pitch for lane slides
+  // pool chips a bit narrower so the 4-col grid fits on 9:16
+  const poolChipW = (lay.isVertical ? 178 : 196) * s;
 
   const aRating = teamRating(mode.teamA);
   const bRating = teamRating(mode.teamB);
@@ -336,7 +338,10 @@ const ModeBeat: React.FC<{
               key={lane.label}
               style={{
                 display: "flex",
-                alignItems: "center",
+                // pool lane: label goes on top so all width serves the
+                // 4-col chip grid — keeps the sort readable on 9:16
+                flexDirection: mode.poolSkip ? "column" : "row",
+                alignItems: mode.poolSkip ? "flex-start" : "center",
                 gap: 12 * s,
                 opacity: feeding || frame < DRAFT ? 1 : 0.6,
               }}
@@ -348,7 +353,7 @@ const ModeBeat: React.FC<{
                   fontSize: 16 * s,
                   letterSpacing: 1.5,
                   color: lane.color,
-                  minWidth: 190 * s,
+                  minWidth: mode.poolSkip ? 0 : 190 * s,
                   flexShrink: 0,
                   display: "flex",
                   flexDirection: "column",
@@ -388,22 +393,23 @@ const ModeBeat: React.FC<{
               </div>
               <div
                 style={{
-                  display: "flex",
-                  gap: chipGap,
                   position: "relative",
-                  // Pro Pick's single pool wraps to two rows — top-rated
-                  // row drafts away, lower-rated row stays queued.
+                  // Pro Pick pool: strict 4-col CSS grid — slot math in the
+                  // sort animation must match the visual grid exactly.
                   ...(mode.poolSkip
                     ? {
-                        flexWrap: "wrap" as const,
-                        maxWidth: POOL_COLS * (chipW + chipGap),
+                        display: "grid" as const,
+                        gridTemplateColumns: `repeat(${POOL_COLS}, ${poolChipW}px)`,
+                        gap: chipGap,
                       }
-                    : {}),
+                    : { display: "flex" as const, gap: chipGap }),
                 }}
               >
                 {lane.idxs.map((qi, li) => {
                   const p = QUEUE[qi];
                   const picked = mode.pick.includes(qi);
+                  // column pitch for this lane — pool uses the tighter width
+                  const colW = (mode.poolSkip ? poolChipW : chipW) + chipGap;
                   // Pro Pick sequence: (1) queue order shown briefly,
                   // (2) organized re-sort — each chip dims out, snaps to
                   // its rating-ranked slot while invisible, fades back.
@@ -419,9 +425,7 @@ const ModeBeat: React.FC<{
                   const rowPitch = chipSize * 1.24 + chipGap;
                   const snap = reorderT >= 0.5 ? 1 : 0;
                   const sortX =
-                    ((target % POOL_COLS) - (li % POOL_COLS)) *
-                    (chipW + chipGap) *
-                    snap;
+                    ((target % POOL_COLS) - (li % POOL_COLS)) * colW * snap;
                   const sortY =
                     (Math.floor(target / POOL_COLS) -
                       Math.floor(li / POOL_COLS)) *
@@ -446,7 +450,7 @@ const ModeBeat: React.FC<{
                           fps,
                           config: { damping: 16, stiffness: 170 },
                         });
-                  const slideX = -ahead * (chipW + chipGap) * slide;
+                  const slideX = -ahead * colW * slide;
                   // Pro Pick: picked chips lift out of the pool right at draft
                   const jump =
                     mode.poolSkip && picked
@@ -482,7 +486,7 @@ const ModeBeat: React.FC<{
                         skill={p.skill}
                         rating={p.rating}
                         size={chipSize}
-                        width={chipW}
+                        width={mode.poolSkip ? poolChipW : chipW}
                       />
                       {/* rank badge appears once sorted into place */}
                       {mode.poolSkip && reorderT > 0.95 && (
@@ -676,7 +680,7 @@ export const ModesAd: React.FC<AdProps> = ({ aspect, voiceoverFile }) => {
   const { durationInFrames } = useVideoConfig();
   // Pro Pick gets a longer beat — it stages three steps (queue order →
   // rating sort → top-4 draft) instead of one.
-  const beatLen = (m: Mode) => (m.poolSkip ? 145 : 105);
+  const beatLen = (m: Mode) => (m.poolSkip ? 155 : 105);
   const modesStart = 90;
   let off = modesStart;
   const seqs = MODES.map((m) => {
