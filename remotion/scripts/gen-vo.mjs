@@ -73,6 +73,35 @@ const LINES = {
     text: "One board. Zero confusion. DinkMatch dot club.",
     voice: "en-US-AndrewMultilingualNeural",
   },
+  // Modes ad — mood-driven: each mode answers a vibe. Natural voice.
+  mm_hook: {
+    text: "Same queue. Different vibes.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  mm_casual: {
+    text: "Just here to chill? Casual keeps it easy.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  mm_social: {
+    text: "Bored of the same faces? Social mixes it up.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  mm_standard: {
+    text: "Want it fair and fresh? That's Standard.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  mm_competitive: {
+    text: "Ready to sweat? Competitive finds your match.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  mm_propick: {
+    text: "Chasing the perfect game? Pro Pick scans the whole pool.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  mm_outro: {
+    text: "Your club. Your vibe. DinkMatch dot club.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
 };
 
 mkdirSync(OUT, { recursive: true });
