@@ -282,7 +282,6 @@ const ScreenMock: React.FC<{
   matchPulse: number; // 0..1 for the called match's amber throb
   flash: number; // header flash on the call beat
   matchIn: number; // spring — called match pops into Up Next (can overshoot >1)
-  anaLift: number; // spring — Ana rises to #1, overshoots, settles
   start: number; // 0→1 Up Next→Matches move progress
   playIn: number; // spring — the match lands in Matches as a live game
   matchesFlash: number; // Matches header flash on the start beat
@@ -292,7 +291,6 @@ const ScreenMock: React.FC<{
   matchPulse,
   flash,
   matchIn,
-  anaLift,
   start,
   playIn,
   matchesFlash,
@@ -308,7 +306,15 @@ const ScreenMock: React.FC<{
       easing: Easing.in(Easing.quad),
     });
   const exits = [0, 1, 2, 3].map(rowExit);
-  const anaPos = anaLift > 0.7 ? 1 : 5;
+  // Once a row is mostly gone its slot collapses (maxHeight → 0) — the
+  // list really reflows, so Ana lands in #1 by construction rather than
+  // by a hand-tuned translate that can drift off the row pitch.
+  const collapse = (e: number) =>
+    interpolate(e, [0.8, 1], [92, 0], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+  const anaPos = exits[3] > 0.75 ? 1 : 5;
   return (
     <div
       style={{
@@ -474,38 +480,48 @@ const ScreenMock: React.FC<{
                   gap: 10,
                 }}
               >
-                <QueueRow
-                  pos={1}
-                  name="You"
-                  stats="G:1  W:1  L:0 · 1500"
-                  isYou
-                  pulse={matchPulse * 0.6}
-                  opacity={1 - interpolate(exits[0], [0.7, 1], [0, 1])}
-                  lift={-300 * exits[0]}
-                  shrink={exits[0]}
-                />
+                <div
+                  style={{ maxHeight: collapse(exits[0]), overflow: "hidden" }}
+                >
+                  <QueueRow
+                    pos={1}
+                    name="You"
+                    stats="G:1  W:1  L:0 · 1500"
+                    isYou
+                    pulse={matchPulse * 0.6}
+                    opacity={1 - interpolate(exits[0], [0.7, 1], [0, 1])}
+                    lift={-300 * exits[0]}
+                    shrink={exits[0]}
+                  />
+                </div>
                 {[
                   { n: "Mia", s: "G:0  W:0  L:0 · 1500" },
                   { n: "Rex", s: "G:2  W:1  L:1 · 1480" },
                   { n: "Ben", s: "G:1  W:0  L:1 · 1490" },
                 ].map((p, i) => (
-                  <QueueRow
+                  <div
                     key={p.n}
-                    pos={i + 2}
-                    name={p.n}
-                    stats={p.s}
-                    opacity={1 - interpolate(exits[i + 1], [0.7, 1], [0, 1])}
-                    lift={-300 * exits[i + 1]}
-                    shrink={exits[i + 1]}
-                  />
+                    style={{
+                      maxHeight: collapse(exits[i + 1]),
+                      overflow: "hidden",
+                    }}
+                  >
+                    <QueueRow
+                      pos={i + 2}
+                      name={p.n}
+                      stats={p.s}
+                      opacity={1 - interpolate(exits[i + 1], [0.7, 1], [0, 1])}
+                      lift={-300 * exits[i + 1]}
+                      shrink={exits[i + 1]}
+                    />
+                  </div>
                 ))}
-                {/* Once the four drafted rows clear out, everyone below slides
-                    up — Ana springs from #5 to #1 with a settle overshoot. */}
+                {/* No manual lift — the collapsed slots above reflow the list
+                    and Ana arrives at #1 exactly where row 1 stood. */}
                 <QueueRow
                   pos={anaPos}
                   name="Ana"
                   stats="G:3  W:2  L:1 · 1520"
-                  lift={-320 * anaLift}
                 />
               </div>
             </div>
@@ -641,13 +657,6 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
     fps,
     config: { damping: 9, stiffness: 150 },
   });
-  // Everyone below the drafted players slides up once the rows clear —
-  // springy rise with a settle overshoot, like a real list re-ordering.
-  const anaLift = spring({
-    frame: frame - (CALL + 30),
-    fps,
-    config: { damping: 11, stiffness: 110 },
-  });
   const flash = interpolate(
     frame,
     [CALL + 36, CALL + 42, CALL + 62],
@@ -709,7 +718,6 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
           matchPulse={matchPulse}
           flash={flash}
           matchIn={matchIn}
-          anaLift={anaLift}
           start={start}
           playIn={playIn}
           matchesFlash={matchesFlash}
