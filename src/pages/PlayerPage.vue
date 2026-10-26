@@ -2693,16 +2693,20 @@ const fetchLeaderboard = async () => {
       return acronym.length >= 2 ? acronym : name;
     };
     const clubNames = new Map<string, string>();
+    const clubIds = new Map<string, string>();
     try {
       const clubs = (await likhaClient.request(
         readItems('club', {
           filter: { id: { _in: [...new Set(lastClubByUsername.values())] } },
-          fields: ['id', 'name'],
+          fields: ['id', 'name', 'clubId'],
           limit: -1,
         }),
-      )) as Array<{ id: string; name?: string }>;
+      )) as Array<{ id: string; name?: string; clubId?: string }>;
       for (const c of clubs || []) {
-        if (c?.id) clubNames.set(c.id, abbreviateClubName(c.name || c.id));
+        if (c?.id) {
+          clubNames.set(c.id, abbreviateClubName(c.name || c.clubId || c.id));
+          if (c.clubId) clubIds.set(c.id, c.clubId);
+        }
       }
     } catch {
       /* club names not readable for this role — IDs still shown */
@@ -2713,8 +2717,14 @@ const fetchLeaderboard = async () => {
       .filter((p) => p.ratedMatchesPlayed >= 12)
       .slice(0, 30)
       .map((p) => {
-        const lastClubId = p.username
+        const lastClubUuid = p.username
           ? lastClubByUsername.get(p.username)
+          : undefined;
+        const lastClubId = lastClubUuid
+          ? (clubIds.get(lastClubUuid) ?? lastClubUuid)
+          : undefined;
+        const lastClubName = lastClubUuid
+          ? clubNames.get(lastClubUuid)
           : undefined;
         return {
           firstName: p.firstName || '',
@@ -2728,8 +2738,10 @@ const fetchLeaderboard = async () => {
           games: p.matchesPlayed,
           winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
           lastClubId,
-          lastClub: lastClubId
-            ? (clubNames.get(lastClubId) ?? lastClubId)
+          lastClub: lastClubUuid
+            ? lastClubName && lastClubId && lastClubName !== lastClubId
+              ? `${lastClubName} @${lastClubId}`
+              : (lastClubName ?? lastClubId)
             : undefined,
         };
       });
