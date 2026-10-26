@@ -1,5 +1,6 @@
 import {
   AbsoluteFill,
+  Easing,
   Sequence,
   interpolate,
   spring,
@@ -20,12 +21,14 @@ import { AdAudio, Sfx } from "../components/AdAudio";
  *
  * Scene-synced VO (see scripts/gen-vo.mjs, bs_* lines).
  */
+// Cues are spaced from measured line durations so lines never overlap:
+// intro 61f, layout 114f, called 95f, pulse 82f, outro 126f.
 const VO_LINES = [
   { at: 5, file: "bs_intro" },
   { at: 108, file: "bs_layout" },
-  { at: 178, file: "bs_called" },
-  { at: 238, file: "bs_pulse" },
-  { at: 420, file: "bs_outro" },
+  { at: 232, file: "bs_called" },
+  { at: 322, file: "bs_pulse" },
+  { at: 410, file: "bs_outro" },
 ];
 
 /* Column header gradients — same values as ClubPage.vue */
@@ -98,7 +101,17 @@ const QueueRow: React.FC<{
   pulse?: number;
   opacity?: number;
   lift?: number;
-}> = ({ pos, name, stats, isYou, pulse = 0, opacity = 1, lift = 0 }) => (
+  shrink?: number;
+}> = ({
+  pos,
+  name,
+  stats,
+  isYou,
+  pulse = 0,
+  opacity = 1,
+  lift = 0,
+  shrink = 0,
+}) => (
   <div
     style={{
       display: "flex",
@@ -112,7 +125,7 @@ const QueueRow: React.FC<{
       padding: "12px 18px",
       fontFamily: FONT_STACK,
       opacity,
-      transform: `translateY(${lift}px)`,
+      transform: `translateY(${lift}px) scale(${1 - shrink * 0.08})`,
       boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
     }}
   >
@@ -268,8 +281,20 @@ const ScreenMock: React.FC<{
   called: number; // 0→1 handoff progress
   matchPulse: number; // 0..1 for the called match's amber throb
   flash: number; // header flash on the call beat
-}> = ({ called, matchPulse, flash }) => {
-  const youLift = -interpolate(called, [0, 1], [0, 220]);
+  matchIn: number; // spring — called match pops into Up Next (can overshoot >1)
+  anaLift: number; // spring — Ana rises to #1, overshoots, settles
+}> = ({ called, matchPulse, flash, matchIn, anaLift }) => {
+  // Domino exits — each departing row starts a beat after the previous and
+  // accelerates away (ease-in quad), fading only at the tail of its travel
+  // so the handoff reads as rows physically lifting into Up Next.
+  const rowExit = (i: number) =>
+    interpolate(called, [i * 0.14, 0.5 + i * 0.14], [0, 1], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.in(Easing.quad),
+    });
+  const exits = [0, 1, 2, 3].map(rowExit);
+  const anaPos = anaLift > 0.7 ? 1 : 5;
   return (
     <div
       style={{
@@ -359,19 +384,22 @@ const ScreenMock: React.FC<{
               gap: 26,
             }}
           >
-            {/* Up Next */}
+            {/* Up Next — the card "catches" the arriving match: a small
+                overshoot bump + amber glow driven by the same spring. */}
             <div
               style={{
                 background: "#fff",
                 borderRadius: 18,
-                boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                boxShadow: `0 4px 6px rgba(0,0,0,0.1), 0 0 ${Math.max(0, matchIn - 1) * 120}px rgba(255,179,0,${Math.max(0, matchIn - 1) * 2})`,
                 overflow: "hidden",
                 flexShrink: 0,
+                transform: `scale(${1 + Math.max(0, matchIn - 1) * 0.25})`,
+                transformOrigin: "center bottom",
               }}
             >
               <ColHeader
                 title="Up Next"
-                count={called > 0.5 ? 2 : 1}
+                count={matchIn > 0.5 ? 2 : 1}
                 gradient={GRADIENTS.upNext}
                 flash={flash}
               />
@@ -392,9 +420,9 @@ const ScreenMock: React.FC<{
                   teamA="You + Mia"
                   teamB="Rex + Ben"
                   status="waiting"
-                  pulse={called > 0.5 ? matchPulse : 0}
-                  opacity={called}
-                  scaleIn={0.7 + called * 0.3}
+                  pulse={matchIn > 0.95 ? matchPulse : 0}
+                  opacity={Math.min(matchIn * 1.4, 1)}
+                  scaleIn={0.6 + matchIn * 0.4}
                 />
               </div>
             </div>
@@ -411,7 +439,7 @@ const ScreenMock: React.FC<{
             >
               <ColHeader
                 title="Queue"
-                count={called > 0.5 ? 1 : 5}
+                count={called > 0.7 ? 1 : 5}
                 gradient={GRADIENTS.queue}
               />
               <div
@@ -428,8 +456,9 @@ const ScreenMock: React.FC<{
                   stats="G:1  W:1  L:0 · 1500"
                   isYou
                   pulse={matchPulse * 0.6}
-                  opacity={1 - called}
-                  lift={youLift}
+                  opacity={1 - interpolate(exits[0], [0.7, 1], [0, 1])}
+                  lift={-300 * exits[0]}
+                  shrink={exits[0]}
                 />
                 {[
                   { n: "Mia", s: "G:0  W:0  L:0 · 1500" },
@@ -441,14 +470,18 @@ const ScreenMock: React.FC<{
                     pos={i + 2}
                     name={p.n}
                     stats={p.s}
-                    opacity={1 - called}
-                    lift={youLift}
+                    opacity={1 - interpolate(exits[i + 1], [0.7, 1], [0, 1])}
+                    lift={-300 * exits[i + 1]}
+                    shrink={exits[i + 1]}
                   />
                 ))}
+                {/* Once the four drafted rows clear out, everyone below slides
+                    up — Ana springs from #5 to #1 with a settle overshoot. */}
                 <QueueRow
-                  pos={called > 0.5 ? 1 : 5}
+                  pos={anaPos}
                   name="Ana"
                   stats="G:3  W:2  L:1 · 1520"
+                  lift={-320 * anaLift}
                 />
               </div>
             </div>
@@ -516,27 +549,52 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
   const lay = layoutFor(aspect);
   const mockScale = lay.isVertical ? 0.6 : lay.isSquare ? 0.8 : 1;
 
-  const CALL = 115; // local frame the match gets called
+  const CALL = 160; // local frame the match gets called
   const enter = spring({
     frame,
     fps,
     config: { damping: 15, stiffness: 90 },
   });
-  const called = interpolate(frame, [CALL, CALL + 40], [0, 1], {
+  const called = interpolate(frame, [CALL, CALL + 42], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
+  // The match lands a beat after the last row clears — low-damping spring
+  // overshoots >1 so the card visibly "catches" it.
+  const matchIn = spring({
+    frame: frame - (CALL + 38),
+    fps,
+    config: { damping: 9, stiffness: 150 },
+  });
+  // Everyone below the drafted players slides up once the rows clear —
+  // springy rise with a settle overshoot, like a real list re-ordering.
+  const anaLift = spring({
+    frame: frame - (CALL + 30),
+    fps,
+    config: { damping: 11, stiffness: 110 },
+  });
   const flash = interpolate(
     frame,
-    [CALL + 18, CALL + 24, CALL + 48],
+    [CALL + 36, CALL + 42, CALL + 62],
     [0, 1, 0],
     {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     },
   );
-  // amber throb — active from the call onward (gentle pre-call on your row)
-  const pulseStart = CALL + 40;
+  // Camera punch on the call — quick 2.5% kick, springs back.
+  const punch = interpolate(
+    frame,
+    [CALL + 38, CALL + 44, CALL + 62],
+    [0, 1, 0],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.out(Easing.quad),
+    },
+  );
+  // amber throb — gentle on your queue row pre-call, loud once it lands
+  const pulseStart = CALL + 38;
   const matchPulse =
     frame < pulseStart
       ? 0.35 + 0.35 * Math.sin(frame / 7)
@@ -566,27 +624,33 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
           flexDirection: "column",
           alignItems: "center",
           gap: 40,
-          scale: `${(0.92 + enter * 0.08) * mockScale}`,
+          scale: `${(0.92 + enter * 0.08) * mockScale * (1 + punch * 0.025)}`,
           opacity: enter,
           translate: `0px ${(1 - enter) * 90}px`,
         }}
       >
-        <ScreenMock called={called} matchPulse={matchPulse} flash={flash} />
+        <ScreenMock
+          called={called}
+          matchPulse={matchPulse}
+          flash={flash}
+          matchIn={matchIn}
+          anaLift={anaLift}
+        />
         <div style={{ minHeight: 110, display: "flex", alignItems: "center" }}>
           {cap(
-            40,
-            112,
-            "Up Next now sits on top of the Queue — called matches, front and center",
+            45,
+            150,
+            "Up Next sits on top of the Queue — called matches, front and center",
           )}
           {cap(
-            120,
-            178,
-            "Your match is called — it climbs straight to Up Next",
+            165,
+            225,
+            "Match called — it climbs straight to Up Next",
             "gold",
           )}
-          {cap(185, 250, "The amber pulse? That's you. Get ready.", "gold")}
+          {cap(232, 292, "The amber pulse? That's you. Get ready.", "gold")}
           {cap(
-            255,
+            298,
             335,
             "Queue → Up Next → Playing — one board every player can see",
           )}
@@ -616,9 +680,9 @@ export const BigScreenAd: React.FC<AdProps> = ({ aspect, voiceoverFile }) => (
     </Sequence>
     <Sfx at={60} file="whoosh" volume={0.5} />
     <Sfx at={100} file="chime" volume={0.5} />
-    <Sfx at={175} file="chime" volume={0.8} />
-    <Sfx at={195} file="tick" volume={0.55} />
-    <Sfx at={240} file="dink" volume={0.6} />
+    <Sfx at={225} file="chime" volume={0.8} />
+    <Sfx at={245} file="tick" volume={0.55} />
+    <Sfx at={295} file="dink" volume={0.6} />
     <Sfx at={402} file="win" volume={0.8} />
     <AdAudio lines={VO_LINES} voiceoverFile={voiceoverFile} />
   </AbsoluteFill>
