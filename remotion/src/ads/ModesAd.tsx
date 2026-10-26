@@ -20,8 +20,8 @@ const VO_LINES = [
   { at: 200, file: "mm_social" },
   { at: 305, file: "mm_standard" },
   { at: 410, file: "mm_competitive" },
-  { at: 512, file: "mm_propick" },
-  { at: 620, file: "mm_outro" },
+  { at: 516, file: "mm_propick" },
+  { at: 660, file: "mm_outro" },
 ];
 
 type P = {
@@ -255,7 +255,7 @@ const ModeBeat: React.FC<{
     fps,
     config: { damping: 12, stiffness: 190 },
   });
-  const DRAFT = mode.poolSkip ? 56 : 30; // Pro Pick sorts first, then drafts
+  const DRAFT = mode.poolSkip ? 60 : 30; // Pro Pick sorts first, then drafts
   const chipSize = 56 * s;
   const chipGap = 14 * s;
   const chipW = 196 * s; // fixed chip block width — pitch for lane slides
@@ -349,14 +349,41 @@ const ModeBeat: React.FC<{
                   color: lane.color,
                   minWidth: 190 * s,
                   flexShrink: 0,
-                  whiteSpace: "nowrap",
                   display: "flex",
-                  alignItems: "center",
-                  gap: 4 * s,
+                  flexDirection: "column",
+                  gap: 3 * s,
                 }}
               >
-                <span>{lane.icon}</span>
-                <span>{lane.label}</span>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4 * s,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span>{lane.icon}</span>
+                  <span>{lane.label}</span>
+                </div>
+                {/* Pro Pick stage guide — the beat runs as a strict
+                    sequence: queue order → sorted by rating → top 4 drafted */}
+                {mode.poolSkip && (
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      fontSize: 15 * s,
+                      letterSpacing: 1,
+                      color:
+                        frame >= DRAFT ? BRAND.gold : "rgba(255,255,255,0.65)",
+                    }}
+                  >
+                    {frame < 16
+                      ? "① queue order"
+                      : frame < DRAFT
+                        ? "② sorted by rating"
+                        : "③ top 4 → drafted"}
+                  </div>
+                )}
               </div>
               <div
                 style={{
@@ -376,19 +403,19 @@ const ModeBeat: React.FC<{
                 {lane.idxs.map((qi, li) => {
                   const p = QUEUE[qi];
                   const picked = mode.pick.includes(qi);
-                  // Pro Pick: organized re-sort, not a scramble.
-                  // Phase 1 (rowT): strongest chips rise to the top row,
-                  // weakest drop to the bottom. Phase 2 (colT): each row
-                  // lines up left→right in rating order.
+                  // Pro Pick sequence: (1) queue order shown briefly,
+                  // (2) organized re-sort — chips rise/drop to their
+                  // rating-tier row, then line up left→right by rating,
+                  // (3) top row drafts at DRAFT.
                   const rowT = mode.poolSkip
-                    ? interpolate(frame, [8 + li * 2, 24 + li * 2], [0, 1], {
+                    ? interpolate(frame, [16 + li * 2, 32 + li * 2], [0, 1], {
                         extrapolateLeft: "clamp",
                         extrapolateRight: "clamp",
                         easing: (t) => t * t * (3 - 2 * t),
                       })
                     : 0;
                   const colT = mode.poolSkip
-                    ? interpolate(frame, [26 + li * 2, 42 + li * 2], [0, 1], {
+                    ? interpolate(frame, [34 + li * 2, 50 + li * 2], [0, 1], {
                         extrapolateLeft: "clamp",
                         extrapolateRight: "clamp",
                         easing: (t) => t * t * (3 - 2 * t),
@@ -617,7 +644,7 @@ const ModeBeat: React.FC<{
             border: `2px solid ${BRAND.gold}`,
             borderRadius: 999,
             padding: `${8 * s}px ${24 * s}px`,
-            opacity: interpolate(frame, [50, 60], [0, 1], {
+            opacity: interpolate(frame, [DRAFT + 22, DRAFT + 34], [0, 1], {
               extrapolateLeft: "clamp",
               extrapolateRight: "clamp",
             }),
@@ -632,9 +659,18 @@ const ModeBeat: React.FC<{
 
 export const ModesAd: React.FC<AdProps> = ({ aspect, voiceoverFile }) => {
   const lay = layoutFor(aspect);
-  const beatLen = 105;
+  const { durationInFrames } = useVideoConfig();
+  // Pro Pick gets a longer beat — it stages three steps (queue order →
+  // rating sort → top-4 draft) instead of one.
+  const beatLen = (m: Mode) => (m.poolSkip ? 145 : 105);
   const modesStart = 90;
-  const outroStart = modesStart + MODES.length * beatLen;
+  let off = modesStart;
+  const seqs = MODES.map((m) => {
+    const from = off;
+    off += beatLen(m);
+    return { m, from, dur: beatLen(m) };
+  });
+  const outroStart = off;
   return (
     <AbsoluteFill>
       <BrandBackground />
@@ -662,17 +698,16 @@ export const ModesAd: React.FC<AdProps> = ({ aspect, voiceoverFile }) => {
         </AbsoluteFill>
       </Sequence>
       {/* One beat per mode — same queue, different draft */}
-      {MODES.map((m, i) => (
-        <Sequence
-          key={m.key}
-          from={modesStart + i * beatLen}
-          durationInFrames={beatLen}
-        >
+      {seqs.map(({ m, from, dur }) => (
+        <Sequence key={m.key} from={from} durationInFrames={dur}>
           <ModeBeat aspect={aspect} mode={m} />
         </Sequence>
       ))}
       {/* Outro */}
-      <Sequence from={outroStart} durationInFrames={720 - outroStart}>
+      <Sequence
+        from={outroStart}
+        durationInFrames={durationInFrames - outroStart}
+      >
         <AbsoluteFill
           style={{
             justifyContent: "center",
@@ -693,8 +728,8 @@ export const ModesAd: React.FC<AdProps> = ({ aspect, voiceoverFile }) => {
         </AbsoluteFill>
       </Sequence>
       {/* SFX — one accent per mode change + outro */}
-      {MODES.map((_, i) => (
-        <Sfx key={i} at={modesStart + i * beatLen} file="whoosh" volume={0.5} />
+      {seqs.map(({ from }, i) => (
+        <Sfx key={i} at={from} file="whoosh" volume={0.5} />
       ))}
       <Sfx at={outroStart} file="win" volume={0.8} />
       <AdAudio lines={VO_LINES} voiceoverFile={voiceoverFile} />
