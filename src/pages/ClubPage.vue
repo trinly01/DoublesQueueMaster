@@ -3064,6 +3064,16 @@ const fetchGlobalLeaderboard = async () => {
 
     const ranked = rankClubPlayers(replayed);
 
+    // Registered accounts only — guests never appear in the players
+    // junction (it links directus_users), so this is the authoritative set.
+    const registeredUsernames = new Set<string>();
+    for (const m of matches) {
+      for (const jp of m.players || []) {
+        const u = jp.directus_users_id;
+        if (u?.username) registeredUsernames.add(u.username);
+      }
+    }
+
     // Last club each player competed at — matches are sorted newest-first,
     // so the first club seen per username is their most recent one.
     const lastClubByUsername = new Map<string, string>();
@@ -3111,7 +3121,12 @@ const fetchGlobalLeaderboard = async () => {
     }
 
     globalLeaderboard.value = ranked
-      .filter((p) => p.ratedMatchesPlayed >= 12)
+      .filter(
+        (p) =>
+          p.ratedMatchesPlayed >= 12 &&
+          !!p.username &&
+          registeredUsernames.has(p.username),
+      )
       .slice(0, 30)
       .map((p) => {
         const lastClubUuid = p.username
@@ -3135,13 +3150,8 @@ const fetchGlobalLeaderboard = async () => {
           games: p.matchesPlayed,
           winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
           lastClubId,
-          // Prefer "Name @clubId"; name-only or @clubId-only when the
-          // other is missing; raw UUID last resort.
-          lastClub: lastClubUuid
-            ? lastClubName && lastClubId && lastClubName !== lastClubId
-              ? `${lastClubName} @${lastClubId}`
-              : (lastClubName ?? lastClubId)
-            : undefined,
+          // Club name (abbreviated when long); clubId or UUID as fallback.
+          lastClub: lastClubUuid ? (lastClubName ?? lastClubId) : undefined,
         };
       });
     globalLeaderboardFetched.value = true;

@@ -2658,6 +2658,16 @@ const fetchLeaderboard = async () => {
 
     const ranked = rankClubPlayers(replayed);
 
+    // Registered accounts only — guests never appear in the players
+    // junction (it links directus_users), so this is the authoritative set.
+    const registeredUsernames = new Set<string>();
+    for (const m of matches) {
+      for (const jp of m.players || []) {
+        const u = jp.directus_users_id;
+        if (u?.username) registeredUsernames.add(u.username);
+      }
+    }
+
     const resolveAvatar = (avatar: unknown): string => {
       const a = (avatar as string) || '';
       if (!a) return '';
@@ -2712,7 +2722,12 @@ const fetchLeaderboard = async () => {
 
     // Hide players with fewer than 12 rated games, take top 30
     globalLeaderboard.value = ranked
-      .filter((p) => p.ratedMatchesPlayed >= 12)
+      .filter(
+        (p) =>
+          p.ratedMatchesPlayed >= 12 &&
+          !!p.username &&
+          registeredUsernames.has(p.username),
+      )
       .slice(0, 30)
       .map((p) => {
         const lastClubUuid = p.username
@@ -2736,11 +2751,7 @@ const fetchLeaderboard = async () => {
           games: p.matchesPlayed,
           winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
           lastClubId,
-          lastClub: lastClubUuid
-            ? lastClubName && lastClubId && lastClubName !== lastClubId
-              ? `${lastClubName} @${lastClubId}`
-              : (lastClubName ?? lastClubId)
-            : undefined,
+          lastClub: lastClubUuid ? (lastClubName ?? lastClubId) : undefined,
         };
       });
 
