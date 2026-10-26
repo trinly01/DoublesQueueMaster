@@ -13,7 +13,7 @@ const GUIDE_DURATION = 735;
 /** 22s — the Natural-voice VO needs more room than the 18s template. */
 const BS_DURATION = 660;
 /** 24s — five mode beats (90f each) + hook + outro. */
-const MODES_DURATION = 760;
+const MODES_DURATION = 770;
 
 /** Remotion's loose component signature — AdProps has required keys. */
 type AdComp = React.FC<Record<string, unknown>>;
