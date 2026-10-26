@@ -308,11 +308,9 @@
               <q-item-label
                 v-if="leaderboardTab === 'global' && player.lastClub"
                 caption
-                class="ellipsis"
+                class="ellipsis text-accent"
               >
-                <q-icon name="stadium" size="12px" class="q-mr-xs" />{{
-                  player.lastClub
-                }}
+                {{ player.lastClub }}
               </q-item-label>
             </q-item-section>
             <q-item-section side class="text-right" style="min-width: 0">
