@@ -286,6 +286,8 @@ const ScreenMock: React.FC<{
   playIn: number; // spring — the match lands in Matches as a live game
   matchesFlash: number; // Matches header flash on the start beat
   timer: string; // live "m:ss" once the match is playing
+  finish: number; // 0→1 Court 1 wraps up, players head back to queue
+  requeue: number; // spring — finished players drop into the queue
 }> = ({
   called,
   matchPulse,
@@ -295,6 +297,8 @@ const ScreenMock: React.FC<{
   playIn,
   matchesFlash,
   timer,
+  finish,
+  requeue,
 }) => {
   // Domino exits — each departing row starts a beat after the previous and
   // accelerates away (ease-in quad), fading only at the tail of its travel
@@ -469,7 +473,7 @@ const ScreenMock: React.FC<{
             >
               <ColHeader
                 title="Queue"
-                count={called > 0.7 ? 1 : 5}
+                count={requeue > 0.6 ? 5 : called > 0.7 ? 1 : 5}
                 gradient={GRADIENTS.queue}
               />
               <div
@@ -523,6 +527,36 @@ const ScreenMock: React.FC<{
                   name="Ana"
                   stats="G:3  W:2  L:1 · 1520"
                 />
+                {/* Finished players drop back in at the bottom — the Court 1
+                    four requeue behind Ana, staggered springs. */}
+                {[
+                  { n: "Sam", s: "G:2  W:1  L:1 · 1510" },
+                  { n: "Pat", s: "G:2  W:1  L:1 · 1495" },
+                  { n: "Jo", s: "G:2  W:1  L:1 · 1505" },
+                  { n: "Dee", s: "G:2  W:1  L:1 · 1485" },
+                ].map((p, i) => {
+                  const inAt = Math.min(
+                    Math.max(requeue * 1.5 - i * 0.12, 0),
+                    1,
+                  );
+                  return (
+                    <div
+                      key={p.n}
+                      style={{
+                        maxHeight: inAt * 92,
+                        overflow: "hidden",
+                        opacity: inAt,
+                      }}
+                    >
+                      <QueueRow
+                        pos={i + 2}
+                        name={p.n}
+                        stats={p.s}
+                        lift={(1 - inAt) * 40}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -553,13 +587,24 @@ const ScreenMock: React.FC<{
                 gap: 14,
               }}
             >
-              <MiniMatch
-                teamA="Sam + Pat"
-                teamB="Jo + Dee"
-                status="playing"
-                court={1}
-                timer="12:34"
-              />
+              {/* Game over — the card collapses down-left toward the queue as
+                  its four players rejoin the line. */}
+              <div
+                style={{
+                  maxHeight: (1 - finish) * 220,
+                  overflow: "hidden",
+                  opacity: 1 - finish,
+                  transform: `translate(${finish * -160}px, ${finish * 60}px) scale(${1 - finish * 0.15})`,
+                }}
+              >
+                <MiniMatch
+                  teamA="Sam + Pat"
+                  teamB="Jo + Dee"
+                  status="playing"
+                  court={1}
+                  timer="12:34"
+                />
+              </div>
               {/* Your match lands here as a live game — same players that
                   climbed into Up Next now own Court 2, timer running. */}
               <div
@@ -641,6 +686,18 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
   // The timer actually runs once the game starts — sells "live".
   const elapsed = Math.max(0, Math.floor((frame - (START + 34)) / fps));
   const timer = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
+
+  const FINISH = 362; // Court 1 wraps — its players rejoin the queue
+  const finish = interpolate(frame, [FINISH, FINISH + 40], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.quad),
+  });
+  const requeue = spring({
+    frame: frame - (FINISH + 16),
+    fps,
+    config: { damping: 13, stiffness: 130 },
+  });
   const enter = spring({
     frame,
     fps,
@@ -722,6 +779,8 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
           playIn={playIn}
           matchesFlash={matchesFlash}
           timer={timer}
+          finish={finish}
+          requeue={requeue}
         />
         <div style={{ minHeight: 110, display: "flex", alignItems: "center" }}>
           {cap(
@@ -741,11 +800,11 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
             "That amber glow? That's you. Time to warm up.",
             "gold",
           )}
-          {cap(320, 365, "Court's free — you're on. Live in Matches.", "gold")}
+          {cap(320, 360, "Court's free — you're on. Live in Matches.", "gold")}
           {cap(
-            372,
+            368,
             405,
-            "Queue → Up Next → Playing — one board every player can see",
+            "Game done — straight back in line. The queue keeps moving.",
           )}
         </div>
       </div>
@@ -777,6 +836,8 @@ export const BigScreenAd: React.FC<AdProps> = ({ aspect, voiceoverFile }) => (
     <Sfx at={335} file="tick" volume={0.55} />
     <Sfx at={402} file="whoosh" volume={0.45} />
     <Sfx at={432} file="chime" volume={0.75} />
+    <Sfx at={468} file="dink" volume={0.6} />
+    <Sfx at={480} file="tick" volume={0.5} />
     <Sfx at={505} file="win" volume={0.8} />
     <AdAudio lines={VO_LINES} voiceoverFile={voiceoverFile} />
   </AbsoluteFill>
