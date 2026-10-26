@@ -245,7 +245,7 @@
           v-else-if="leaderboardTab !== 'duo' && activeLeaderboard.length"
           :key="`${leaderboardTab}:${includeNonCompetitive}`"
           :items="activeLeaderboard"
-          :virtual-scroll-item-size="60"
+          :virtual-scroll-item-size="leaderboardTab === 'global' ? 78 : 60"
           v-slot="{ item: player, index: idx }"
         >
           <q-item
@@ -304,11 +304,15 @@
                     leaderboardTab === 'matches' && isPaymentExpired && idx < 5,
                   )
                 }}
-                <template v-if="leaderboardTab === 'global' && player.lastClub">
-                  ·
-                  <q-icon name="stadium" size="12px" class="q-mx-xs" />
-                  {{ player.lastClub }}
-                </template>
+              </q-item-label>
+              <q-item-label
+                v-if="leaderboardTab === 'global' && player.lastClub"
+                caption
+                class="ellipsis"
+              >
+                <q-icon name="stadium" size="12px" class="q-mr-xs" />{{
+                  player.lastClub
+                }}
               </q-item-label>
             </q-item-section>
             <q-item-section side class="text-right" style="min-width: 0">
