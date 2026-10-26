@@ -575,7 +575,7 @@ const ScreenMock: React.FC<{
           >
             <ColHeader
               title="Matches"
-              count={playIn > 0.5 ? 2 : 1}
+              count={2 + (playIn > 0.5 ? 1 : 0) - (finish > 0.7 ? 1 : 0)}
               gradient={GRADIENTS.matches}
               flash={matchesFlash}
             />
@@ -606,9 +606,12 @@ const ScreenMock: React.FC<{
                 />
               </div>
               {/* Your match lands here as a live game — same players that
-                  climbed into Up Next now own Court 2, timer running. */}
+                  climbed into Up Next now own Court 2, timer running.
+                  maxHeight collapse keeps Court 3 flush above until it lands. */}
               <div
                 style={{
+                  maxHeight: Math.min(playIn, 1) * 240,
+                  overflow: "hidden",
                   opacity: Math.min(playIn * 1.4, 1),
                   transform: `translateX(${(1 - Math.min(playIn, 1)) * -70}px) scale(${0.6 + playIn * 0.4})`,
                 }}
@@ -622,6 +625,15 @@ const ScreenMock: React.FC<{
                   pulse={matchPulse * 0.5}
                 />
               </div>
+              {/* Third court — a real club board is never just one game.
+                  When Court 1 finishes above, these reflow upward. */}
+              <MiniMatch
+                teamA="Ali + Roz"
+                teamB="Don + Eva"
+                status="playing"
+                court={3}
+                timer="7:41"
+              />
             </div>
           </div>
         </div>
