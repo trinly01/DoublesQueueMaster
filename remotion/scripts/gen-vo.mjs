@@ -95,7 +95,7 @@ const LINES = {
     voice: "en-US-AndrewMultilingualNeural",
   },
   mm_propick: {
-    text: "Chasing the perfect game? Pro Pick scans the whole pool.",
+    text: "Chasing the perfect game? Pro Pick ranks the pool — best four play.",
     voice: "en-US-AndrewMultilingualNeural",
   },
   mm_outro: {
