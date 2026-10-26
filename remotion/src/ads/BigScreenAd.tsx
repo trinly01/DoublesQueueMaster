@@ -278,12 +278,26 @@ const MiniMatch: React.FC<{
  * `called` drives the queue→Up Next handoff, `pulse` drives amber self-pulse.
  */
 const ScreenMock: React.FC<{
-  called: number; // 0→1 handoff progress
+  called: number; // 0→1 queue→Up Next handoff progress
   matchPulse: number; // 0..1 for the called match's amber throb
   flash: number; // header flash on the call beat
   matchIn: number; // spring — called match pops into Up Next (can overshoot >1)
   anaLift: number; // spring — Ana rises to #1, overshoots, settles
-}> = ({ called, matchPulse, flash, matchIn, anaLift }) => {
+  start: number; // 0→1 Up Next→Matches move progress
+  playIn: number; // spring — the match lands in Matches as a live game
+  matchesFlash: number; // Matches header flash on the start beat
+  timer: string; // live "m:ss" once the match is playing
+}> = ({
+  called,
+  matchPulse,
+  flash,
+  matchIn,
+  anaLift,
+  start,
+  playIn,
+  matchesFlash,
+  timer,
+}) => {
   // Domino exits — each departing row starts a beat after the previous and
   // accelerates away (ease-in quad), fading only at the tail of its travel
   // so the handoff reads as rows physically lifting into Up Next.
@@ -399,7 +413,7 @@ const ScreenMock: React.FC<{
             >
               <ColHeader
                 title="Up Next"
-                count={matchIn > 0.5 ? 2 : 1}
+                count={start > 0.6 ? 1 : matchIn > 0.5 ? 2 : 1}
                 gradient={GRADIENTS.upNext}
                 flash={flash}
               />
@@ -416,14 +430,24 @@ const ScreenMock: React.FC<{
                   teamB="Kim + Lou"
                   status="waiting"
                 />
-                <MiniMatch
-                  teamA="You + Mia"
-                  teamB="Rex + Ben"
-                  status="waiting"
-                  pulse={matchIn > 0.95 ? matchPulse : 0}
-                  opacity={Math.min(matchIn * 1.4, 1)}
-                  scaleIn={0.6 + matchIn * 0.4}
-                />
+                {/* Your called match: slides right toward Matches as the
+                    court frees, then collapses out of the card. */}
+                <div
+                  style={{
+                    maxHeight: (1 - start) * 220,
+                    overflow: "hidden",
+                    opacity: Math.min(matchIn * 1.4, 1) * (1 - start),
+                    transform: `translateX(${start * 90}px) scale(${(0.6 + matchIn * 0.4) * (1 - start * 0.1)})`,
+                  }}
+                >
+                  <MiniMatch
+                    teamA="You + Mia"
+                    teamB="Rex + Ben"
+                    status="waiting"
+                    pulse={matchIn > 0.95 && start < 0.5 ? matchPulse : 0}
+                    scaleIn={1}
+                  />
+                </div>
               </div>
             </div>
 
@@ -499,8 +523,20 @@ const ScreenMock: React.FC<{
               flexDirection: "column",
             }}
           >
-            <ColHeader title="Matches" count={1} gradient={GRADIENTS.matches} />
-            <div style={{ padding: 18 }}>
+            <ColHeader
+              title="Matches"
+              count={playIn > 0.5 ? 2 : 1}
+              gradient={GRADIENTS.matches}
+              flash={matchesFlash}
+            />
+            <div
+              style={{
+                padding: 18,
+                display: "flex",
+                flexDirection: "column",
+                gap: 14,
+              }}
+            >
               <MiniMatch
                 teamA="Sam + Pat"
                 teamB="Jo + Dee"
@@ -508,6 +544,23 @@ const ScreenMock: React.FC<{
                 court={1}
                 timer="12:34"
               />
+              {/* Your match lands here as a live game — same players that
+                  climbed into Up Next now own Court 2, timer running. */}
+              <div
+                style={{
+                  opacity: Math.min(playIn * 1.4, 1),
+                  transform: `translateX(${(1 - Math.min(playIn, 1)) * -70}px) scale(${0.6 + playIn * 0.4})`,
+                }}
+              >
+                <MiniMatch
+                  teamA="You + Mia"
+                  teamB="Rex + Ben"
+                  status="playing"
+                  court={2}
+                  timer={timer}
+                  pulse={matchPulse * 0.5}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -550,6 +603,28 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
   const mockScale = lay.isVertical ? 0.6 : lay.isSquare ? 0.8 : 1;
 
   const CALL = 185; // local frame the match gets called
+  const START = 310; // local frame the court frees and play begins
+  const start = interpolate(frame, [START, START + 42], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.quad),
+  });
+  // Live game lands in Matches a beat after the departure — same overshoot
+  // trick as the Up Next pop.
+  const playIn = spring({
+    frame: frame - (START + 32),
+    fps,
+    config: { damping: 9, stiffness: 150 },
+  });
+  const matchesFlash = interpolate(
+    frame,
+    [START + 30, START + 36, START + 56],
+    [0, 1, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+  );
+  // The timer actually runs once the game starts — sells "live".
+  const elapsed = Math.max(0, Math.floor((frame - (START + 34)) / fps));
+  const timer = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
   const enter = spring({
     frame,
     fps,
@@ -635,6 +710,10 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
           flash={flash}
           matchIn={matchIn}
           anaLift={anaLift}
+          start={start}
+          playIn={playIn}
+          matchesFlash={matchesFlash}
+          timer={timer}
         />
         <div style={{ minHeight: 110, display: "flex", alignItems: "center" }}>
           {cap(
@@ -644,18 +723,19 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
           )}
           {cap(
             190,
-            255,
+            250,
             "Match called — it climbs straight to Up Next",
             "gold",
           )}
           {cap(
-            265,
-            330,
+            258,
+            305,
             "That amber glow? That's you. Time to warm up.",
             "gold",
           )}
+          {cap(320, 365, "Court's free — you're on. Live in Matches.", "gold")}
           {cap(
-            340,
+            372,
             405,
             "Queue → Up Next → Playing — one board every player can see",
           )}
@@ -687,7 +767,8 @@ export const BigScreenAd: React.FC<AdProps> = ({ aspect, voiceoverFile }) => (
     <Sfx at={135} file="chime" volume={0.5} />
     <Sfx at={313} file="chime" volume={0.8} />
     <Sfx at={335} file="tick" volume={0.55} />
-    <Sfx at={390} file="dink" volume={0.6} />
+    <Sfx at={402} file="whoosh" volume={0.45} />
+    <Sfx at={432} file="chime" volume={0.75} />
     <Sfx at={505} file="win" volume={0.8} />
     <AdAudio lines={VO_LINES} voiceoverFile={voiceoverFile} />
   </AbsoluteFill>
