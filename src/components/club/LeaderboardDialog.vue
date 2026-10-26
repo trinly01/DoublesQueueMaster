@@ -304,6 +304,11 @@
                     leaderboardTab === 'matches' && isPaymentExpired && idx < 5,
                   )
                 }}
+                <template v-if="leaderboardTab === 'global' && player.lastClub">
+                  ·
+                  <q-icon name="stadium" size="12px" class="q-mx-xs" />
+                  {{ player.lastClub }}
+                </template>
               </q-item-label>
             </q-item-section>
             <q-item-section side class="text-right" style="min-width: 0">
@@ -566,6 +571,8 @@ const props = defineProps<{
     provisional?: boolean;
     reliability?: number;
     gamesToReliable?: number;
+    lastClub?: string;
+    lastClubId?: string;
   }>;
   globalLoading?: boolean;
   myMatchesLeaderboard?: Array<{

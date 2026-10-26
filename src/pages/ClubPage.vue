@@ -2980,12 +2980,14 @@ const globalLeaderboard = ref<
     wins?: number;
     losses?: number;
     winRate?: number;
+    lastClub?: string;
+    lastClubId?: string;
   }>
 >([]);
 const globalLeaderboardLoading = ref(false);
 const globalLeaderboardFetched = ref(false);
 
-const GLOBAL_LB_CACHE_KEY = 'global_leaderboard_v1';
+const GLOBAL_LB_CACHE_KEY = 'global_leaderboard_v2';
 
 const loadCachedGlobalLeaderboard = () => {
   try {
@@ -3061,21 +3063,63 @@ const fetchGlobalLeaderboard = async () => {
     );
 
     const ranked = rankClubPlayers(replayed);
+
+    // Last club each player competed at — matches are sorted newest-first,
+    // so the first club seen per username is their most recent one.
+    const lastClubByUsername = new Map<string, string>();
+    for (const m of competitiveMatches) {
+      const clubId =
+        typeof m.club === 'string' ? m.club : (m.club as { id?: string })?.id;
+      if (!clubId) continue;
+      for (const p of [...(m.team_a ?? []), ...(m.team_b ?? [])]) {
+        if (p.username && !lastClubByUsername.has(p.username)) {
+          lastClubByUsername.set(p.username, clubId);
+        }
+      }
+    }
+
+    // Resolve club UUIDs to names; if the role can't read other clubs,
+    // entries fall back to the raw ID below.
+    const clubNames = new Map<string, string>();
+    try {
+      const clubs = (await likhaClient.request(
+        readItems('club', {
+          filter: { id: { _in: [...new Set(lastClubByUsername.values())] } },
+          fields: ['id', 'name'],
+          limit: -1,
+        }),
+      )) as Array<{ id: string; name?: string }>;
+      for (const c of clubs || []) {
+        if (c?.id) clubNames.set(c.id, c.name || c.id);
+      }
+    } catch {
+      /* club names not readable for this role — IDs still shown */
+    }
+
     globalLeaderboard.value = ranked
       .filter((p) => p.ratedMatchesPlayed >= 12)
       .slice(0, 30)
-      .map((p) => ({
-        firstName: p.firstName || '',
-        lastName: p.lastName || '',
-        username: p.username,
-        rating: p.rating,
-        avatar: resolveAvatarUrl(p.avatar),
-        score: p.rating,
-        wins: p.wins,
-        losses: p.losses,
-        games: p.matchesPlayed,
-        winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
-      }));
+      .map((p) => {
+        const lastClubId = p.username
+          ? lastClubByUsername.get(p.username)
+          : undefined;
+        return {
+          firstName: p.firstName || '',
+          lastName: p.lastName || '',
+          username: p.username,
+          rating: p.rating,
+          avatar: resolveAvatarUrl(p.avatar),
+          score: p.rating,
+          wins: p.wins,
+          losses: p.losses,
+          games: p.matchesPlayed,
+          winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
+          lastClubId,
+          lastClub: lastClubId
+            ? (clubNames.get(lastClubId) ?? lastClubId)
+            : undefined,
+        };
+      });
     globalLeaderboardFetched.value = true;
     saveCachedGlobalLeaderboard();
   } catch (err) {
