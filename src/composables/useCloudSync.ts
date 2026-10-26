@@ -373,7 +373,9 @@ export function useCloudSync(ctx: CloudSyncContext) {
   type ClubRealtimeMessage = {
     type?: string;
     event?: 'init' | 'create' | 'update' | 'delete';
-    data?: Array<{ id?: string; appState?: { matchmaking?: AppState } }>;
+    data?:
+      | Array<{ id?: string; appState?: { matchmaking?: AppState } }>
+      | { id?: string; appState?: { matchmaking?: AppState } };
   };
 
   const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
@@ -530,6 +532,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
   let realtimeWanted = false;
   let realtimeRetryTimer: ReturnType<typeof setTimeout> | null = null;
   let realtimeRetryDelay = 3000;
+  // Last time the stream produced any message. A stream can stay "open"
+  // while silently delivering nothing (e.g. WS handshake auth issues for
+  // cookie-mode logins) — the staleness poll below detects that.
+  let lastRealtimeMessageAt = 0;
 
   const scheduleRealtimeRetry = () => {
     if (realtimeRetryTimer || !realtimeWanted) return;
@@ -575,7 +581,15 @@ export function useCloudSync(ctx: CloudSyncContext) {
               );
               continue;
             }
-            applyServerMatchmaking(msg.data?.[0]?.appState?.matchmaking);
+            // data is an array for create/update, but tolerate a bare object
+            // in case a server/SDK version returns the item directly.
+            const item = Array.isArray(msg.data) ? msg.data[0] : msg.data;
+            const matchmaking = item?.appState?.matchmaking;
+            // Only a message carrying usable data proves the stream is
+            // healthy — stripped/empty payloads (e.g. permission-filtered
+            // appState) must not suppress the staleness poll.
+            if (matchmaking) lastRealtimeMessageAt = Date.now();
+            applyServerMatchmaking(matchmaking);
           }
         } catch (err) {
           console.warn('Realtime stream ended:', err);
@@ -645,6 +659,73 @@ export function useCloudSync(ctx: CloudSyncContext) {
     restartRealtime();
   };
 
+  // Staleness watchdog: a realtime stream can be "open" yet silently
+  // deliver nothing (WS handshake authenticated but permission-filtered,
+  // cookie-mode SSO sockets, proxy buffering). Viewers can't rely on the
+  // stream alone, so every POLL_MS we compare the server's matchmaking
+  // timestamp against our last-synced one and pull on drift. Skipped
+  // entirely while the stream is healthy (a message arrived recently),
+  // so realtime costs nothing extra.
+  const STALENESS_POLL_MS = 20000;
+  let pollInFlight = false;
+  const pollServerState = async () => {
+    if (pollInFlight) return;
+    if (isOpenPlay.value || clubSwitchInProgress.value) return;
+    if (!isOnline.value || !currentClubUUID.value || !currentClubId.value)
+      return;
+    // Don't pull mid-edit: an admin's debounced push is in flight.
+    if (hasPendingCloudSync.value || syncInProgress) return;
+    // Healthy stream delivered recently — nothing to check.
+    if (Date.now() - lastRealtimeMessageAt < STALENESS_POLL_MS) return;
+
+    pollInFlight = true;
+    try {
+      const light = await likhaClient.request(
+        readItems('club', {
+          filter: { id: { _eq: currentClubUUID.value } },
+          fields: [
+            'json(appState, matchmaking.lastModified)',
+          ] as unknown as string[],
+        }),
+      );
+      const serverTs = parseLightweightTimestamp(light);
+      if (serverTs && serverTs !== lastSyncedServerTimestamp.value) {
+        console.log(
+          '[poll] server moved:',
+          serverTs,
+          'local:',
+          lastSyncedServerTimestamp.value,
+          '— pulling',
+        );
+        const full = await likhaClient.request(
+          readItems('club', {
+            filter: { id: { _eq: currentClubUUID.value } },
+            fields: ['appState'],
+          }),
+        );
+        const serverAppState = (
+          full?.[0] as unknown as {
+            appState?: { matchmaking?: AppState };
+          }
+        )?.appState;
+        applyServerMatchmaking(serverAppState?.matchmaking);
+      }
+    } catch (err) {
+      console.warn('[poll] staleness check failed:', err);
+      // Lightweight read unsupported/failed and realtime is dead — fall
+      // back to a full pull so viewers still converge.
+      if (!realtimeUnsub && !realtimeStarting && currentClubId.value) {
+        try {
+          await loadClubData(currentClubId.value);
+        } catch {
+          /* offline-ish */
+        }
+      }
+    } finally {
+      pollInFlight = false;
+    }
+  };
+
   // Watch for matchmaking state changes and sync to cloud
   // Debounced wrapper: batch rapid mutations into a single sync attempt.
   const debouncedCloudSync = () => {
@@ -660,6 +741,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
 
   // Sync-related event listeners (mounted/unmounted in composable)
   let ratingsRefreshInterval: ReturnType<typeof setInterval> | null = null;
+  let stalenessPollInterval: ReturnType<typeof setInterval> | null = null;
 
   // Flush any pending debounced sync immediately on pagehide (tab close /
   // navigation / mobile backgrounding). The async performCloudSync may not
@@ -683,23 +765,17 @@ export function useCloudSync(ctx: CloudSyncContext) {
 
     // Player ratings live in directus_users (not in club.appState), so realtime
     // can't observe them. Poll the club.players M2M periodically to keep ratings fresh.
-    //
-    // Same interval doubles as the appState polling fallback: when the
-    // realtime stream is dead (WS blocked by the viewer's network/proxy, or
-    // the socket dropped with no focus event to revive it), pull the club
-    // state once a minute so player views update without a manual refresh.
     ratingsRefreshInterval = setInterval(() => {
       if (!isOnline.value || !currentClubUUID.value) return;
       void refreshPlayerRatings();
-      if (
-        realtimeWanted &&
-        !realtimeUnsub &&
-        !realtimeStarting &&
-        currentClubId.value
-      ) {
-        void loadClubData(currentClubId.value).then(() => restartRealtime());
-      }
     }, 60000);
+
+    // Staleness watchdog: catches streams that are open but silent, plus
+    // fully-dead sockets, without relying on focus events. Cheap — skips
+    // entirely while realtime is delivering.
+    stalenessPollInterval = setInterval(() => {
+      void pollServerState();
+    }, STALENESS_POLL_MS);
   });
 
   onUnmounted(() => {
@@ -710,6 +786,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
     if (ratingsRefreshInterval) {
       clearInterval(ratingsRefreshInterval);
       ratingsRefreshInterval = null;
+    }
+    if (stalenessPollInterval) {
+      clearInterval(stalenessPollInterval);
+      stalenessPollInterval = null;
     }
   });
 
