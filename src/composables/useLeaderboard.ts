@@ -24,6 +24,8 @@ export type ClubLeaderboardEntry = {
   reliability: number;
   provisional: boolean;
   gamesToReliable: number;
+  lastClub?: string;
+  lastClubId?: string;
 };
 
 export interface UseLeaderboardContext {
