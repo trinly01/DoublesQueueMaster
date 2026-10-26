@@ -1170,6 +1170,15 @@
                       )
                     }}
                   </q-item-label>
+                  <q-item-label
+                    v-if="leaderboardTab === 'global' && player.lastClub"
+                    caption
+                    class="ellipsis"
+                  >
+                    <q-icon name="stadium" size="12px" class="q-mr-xs" />{{
+                      player.lastClub
+                    }}
+                  </q-item-label>
                 </q-item-section>
                 <q-item-section side class="text-right">
                   <q-chip
@@ -1624,6 +1633,8 @@ type LeaderboardEntry = {
   losses?: number;
   games?: number;
   winRate?: number;
+  lastClub?: string;
+  lastClubId?: string;
 };
 
 const leaderboardTab = ref<'global' | 'matches'>('global');
@@ -2656,22 +2667,72 @@ const fetchLeaderboard = async () => {
       return `https://api.dinkmatch.club/assets/${a}`;
     };
 
+    // Last club each player competed at — matches are sorted newest-first,
+    // so the first club seen per username is their most recent one.
+    const lastClubByUsername = new Map<string, string>();
+    for (const m of competitiveMatches) {
+      const clubId =
+        typeof m.club === 'string' ? m.club : (m.club as { id?: string })?.id;
+      if (!clubId) continue;
+      for (const p of [...(m.team_a ?? []), ...(m.team_b ?? [])]) {
+        if (p.username && !lastClubByUsername.has(p.username)) {
+          lastClubByUsername.set(p.username, clubId);
+        }
+      }
+    }
+
+    // Resolve club UUIDs to names; long names collapse to an acronym.
+    // If the role can't read other clubs, entries fall back to the raw ID.
+    const abbreviateClubName = (name: string) => {
+      if (name.length <= 22) return name;
+      const acronym = name
+        .split(/\s+/)
+        .filter((w) => /[A-Za-z0-9]/.test(w[0] ?? ''))
+        .map((w) => w[0]!.toUpperCase())
+        .join('');
+      return acronym.length >= 2 ? acronym : name;
+    };
+    const clubNames = new Map<string, string>();
+    try {
+      const clubs = (await likhaClient.request(
+        readItems('club', {
+          filter: { id: { _in: [...new Set(lastClubByUsername.values())] } },
+          fields: ['id', 'name'],
+          limit: -1,
+        }),
+      )) as Array<{ id: string; name?: string }>;
+      for (const c of clubs || []) {
+        if (c?.id) clubNames.set(c.id, abbreviateClubName(c.name || c.id));
+      }
+    } catch {
+      /* club names not readable for this role — IDs still shown */
+    }
+
     // Hide players with fewer than 12 rated games, take top 30
     globalLeaderboard.value = ranked
       .filter((p) => p.ratedMatchesPlayed >= 12)
       .slice(0, 30)
-      .map((p) => ({
-        firstName: p.firstName || '',
-        lastName: p.lastName || '',
-        username: p.username,
-        rating: p.rating,
-        avatar: resolveAvatar(p.avatar),
-        score: p.rating,
-        wins: p.wins,
-        losses: p.losses,
-        games: p.matchesPlayed,
-        winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
-      }));
+      .map((p) => {
+        const lastClubId = p.username
+          ? lastClubByUsername.get(p.username)
+          : undefined;
+        return {
+          firstName: p.firstName || '',
+          lastName: p.lastName || '',
+          username: p.username,
+          rating: p.rating,
+          avatar: resolveAvatar(p.avatar),
+          score: p.rating,
+          wins: p.wins,
+          losses: p.losses,
+          games: p.matchesPlayed,
+          winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
+          lastClubId,
+          lastClub: lastClubId
+            ? (clubNames.get(lastClubId) ?? lastClubId)
+            : undefined,
+        };
+      });
 
     saveLeaderboardCache();
   } catch (err) {
