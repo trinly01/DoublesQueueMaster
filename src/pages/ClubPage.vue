@@ -3079,7 +3079,17 @@ const fetchGlobalLeaderboard = async () => {
     }
 
     // Resolve club UUIDs to names; if the role can't read other clubs,
-    // entries fall back to the raw ID below.
+    // entries fall back to the raw ID below. Long names collapse to an
+    // acronym (initials) so the row caption stays compact.
+    const abbreviateClubName = (name: string) => {
+      if (name.length <= 22) return name;
+      const acronym = name
+        .split(/\s+/)
+        .filter((w) => /[A-Za-z0-9]/.test(w[0] ?? ''))
+        .map((w) => w[0]!.toUpperCase())
+        .join('');
+      return acronym.length >= 2 ? acronym : name;
+    };
     const clubNames = new Map<string, string>();
     try {
       const clubs = (await likhaClient.request(
@@ -3090,7 +3100,7 @@ const fetchGlobalLeaderboard = async () => {
         }),
       )) as Array<{ id: string; name?: string }>;
       for (const c of clubs || []) {
-        if (c?.id) clubNames.set(c.id, c.name || c.id);
+        if (c?.id) clubNames.set(c.id, abbreviateClubName(c.name || c.id));
       }
     } catch {
       /* club names not readable for this role — IDs still shown */
