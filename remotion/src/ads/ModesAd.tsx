@@ -60,15 +60,19 @@ const LANES: Lane[] = [
   { label: "LOSERS", icon: "🔁", color: "#f472b6", idxs: [4, 5, 6, 7] },
 ];
 
-/** Pro Pick ignores brackets — one pool, sorted by rating (top first). */
+/** Pro Pick ignores brackets — one pool. Chips start in queue order,
+ *  then visibly sort by rating before the top-4 draft. */
 const POOL_LANE: Lane[] = [
   {
-    label: "POOL · by rating",
+    label: "POOL",
     icon: "⚡",
     color: BRAND.gold,
-    idxs: [0, 4, 1, 5, 2, 3, 6, 7],
+    idxs: [0, 1, 2, 3, 4, 5, 6, 7],
   },
 ];
+/** Rating-descending order the pool animates into */
+const POOL_SORTED = [0, 4, 1, 5, 2, 3, 6, 7];
+const POOL_COLS = 4;
 
 type Mode = {
   key: string;
@@ -251,7 +255,7 @@ const ModeBeat: React.FC<{
     fps,
     config: { damping: 12, stiffness: 190 },
   });
-  const DRAFT = 30; // chips start leaving the queue
+  const DRAFT = mode.poolSkip ? 48 : 30; // Pro Pick sorts first, then drafts
   const chipSize = 56 * s;
   const chipGap = 14 * s;
   const chipW = 196 * s; // fixed chip block width — pitch for lane slides
@@ -353,28 +357,6 @@ const ModeBeat: React.FC<{
               >
                 <span>{lane.icon}</span>
                 <span>{lane.label}</span>
-                {feeding && !mode.poolSkip && frame >= DRAFT && (
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.75)",
-                      fontWeight: 700,
-                      fontSize: 13 * s,
-                    }}
-                  >
-                    ▲ priority
-                  </span>
-                )}
-                {!feeding && !mode.poolSkip && frame >= DRAFT && (
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.55)",
-                      fontWeight: 700,
-                      fontSize: 13 * s,
-                    }}
-                  >
-                    waits
-                  </span>
-                )}
               </div>
               <div
                 style={{
@@ -386,7 +368,7 @@ const ModeBeat: React.FC<{
                   ...(mode.poolSkip
                     ? {
                         flexWrap: "wrap" as const,
-                        maxWidth: 4 * (chipW + chipGap),
+                        maxWidth: POOL_COLS * (chipW + chipGap),
                       }
                     : {}),
                 }}
@@ -394,11 +376,34 @@ const ModeBeat: React.FC<{
                 {lane.idxs.map((qi, li) => {
                   const p = QUEUE[qi];
                   const picked = mode.pick.includes(qi);
+                  // Pro Pick: pool starts in queue order, then chips
+                  // animate into rating order — the visible re-sort is
+                  // what "whole pool, top rated first" means.
+                  const sortT = mode.poolSkip
+                    ? interpolate(frame, [8 + li * 2, 30 + li * 2], [0, 1], {
+                        extrapolateLeft: "clamp",
+                        extrapolateRight: "clamp",
+                        easing: (t) => t * t * (3 - 2 * t),
+                      })
+                    : 0;
+                  const target = mode.poolSkip ? POOL_SORTED.indexOf(qi) : li;
+                  const rowPitch = chipSize * 1.24 + chipGap;
+                  const sortX =
+                    ((target % POOL_COLS) - (li % POOL_COLS)) *
+                    (chipW + chipGap) *
+                    sortT;
+                  const sortY =
+                    (Math.floor(target / POOL_COLS) -
+                      Math.floor(li / POOL_COLS)) *
+                    rowPitch *
+                    sortT;
                   // FIFO movement: drafted chips leave, the line slides
                   // forward — shift = drafted chips ahead within this lane.
                   const ahead = lane.idxs
                     .slice(0, li)
                     .filter((i) => mode.pick.includes(i)).length;
+                  // pool chips already land in their sorted grid slots —
+                  // the picked top row clears as one block, no compaction
                   const slide =
                     picked || mode.poolSkip
                       ? 0
@@ -408,15 +413,19 @@ const ModeBeat: React.FC<{
                           config: { damping: 16, stiffness: 170 },
                         });
                   const slideX = -ahead * (chipW + chipGap) * slide;
-                  // Pro Pick: picked chips lift out of the single pool —
-                  // visually the "whole pool" draft the other modes can't do.
+                  // Pro Pick: picked chips lift out of the pool right at draft
                   const jump =
                     mode.poolSkip && picked
-                      ? interpolate(frame, [14, 26], [0, -22 * s], {
-                          extrapolateLeft: "clamp",
-                          extrapolateRight: "clamp",
-                          easing: (t) => t * (2 - t),
-                        })
+                      ? interpolate(
+                          frame,
+                          [DRAFT - 4, DRAFT + 4],
+                          [0, -18 * s],
+                          {
+                            extrapolateLeft: "clamp",
+                            extrapolateRight: "clamp",
+                            easing: (t) => t * (2 - t),
+                          },
+                        )
                       : 0;
                   const gone = picked
                     ? interpolate(frame, [DRAFT, DRAFT + 14], [1, 0], {
@@ -428,10 +437,10 @@ const ModeBeat: React.FC<{
                     <div
                       key={p.name}
                       style={{
-                        transform: `translateX(${slideX}px) translateY(${jump}px) scale(${0.9 + gone * 0.1})`,
+                        transform: `translateX(${sortX + slideX}px) translateY(${sortY + jump}px) scale(${0.9 + gone * 0.1})`,
                         opacity: picked ? gone : 0.85,
                         position: "relative",
-                        zIndex: picked ? 2 : 1,
+                        zIndex: picked ? 2 : sortT > 0 && sortT < 1 ? 3 : 1,
                       }}
                     >
                       <PlayerChip
