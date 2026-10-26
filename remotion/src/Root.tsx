@@ -9,6 +9,8 @@ import { DuprOfficialAd } from "./ads/DuprOfficialAd";
 import { BigScreenAd } from "./ads/BigScreenAd";
 
 const GUIDE_DURATION = 735;
+/** 22s — the Natural-voice VO needs more room than the 18s template. */
+const BS_DURATION = 660;
 
 /** Remotion's loose component signature — AdProps has required keys. */
 type AdComp = React.FC<Record<string, unknown>>;
@@ -164,7 +166,7 @@ export const RemotionRoot: React.FC = () => (
     <Composition
       id="BigScreen-9x16"
       component={BigScreen}
-      durationInFrames={AD_DURATION}
+      durationInFrames={BS_DURATION}
       fps={AD_FPS}
       width={AD_DIMS["9:16"].width}
       height={AD_DIMS["9:16"].height}
@@ -173,7 +175,7 @@ export const RemotionRoot: React.FC = () => (
     <Composition
       id="BigScreen-1x1"
       component={BigScreen}
-      durationInFrames={AD_DURATION}
+      durationInFrames={BS_DURATION}
       fps={AD_FPS}
       width={AD_DIMS["1:1"].width}
       height={AD_DIMS["1:1"].height}
@@ -182,7 +184,7 @@ export const RemotionRoot: React.FC = () => (
     <Composition
       id="BigScreen-16x9"
       component={BigScreen}
-      durationInFrames={AD_DURATION}
+      durationInFrames={BS_DURATION}
       fps={AD_FPS}
       width={AD_DIMS["16:9"].width}
       height={AD_DIMS["16:9"].height}
