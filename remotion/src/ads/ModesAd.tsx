@@ -405,34 +405,32 @@ const ModeBeat: React.FC<{
                   const p = QUEUE[qi];
                   const picked = mode.pick.includes(qi);
                   // Pro Pick sequence: (1) queue order shown briefly,
-                  // (2) organized re-sort — chips rise/drop to their
-                  // rating-tier row, then line up left→right by rating,
+                  // (2) organized re-sort — each chip dims out, snaps to
+                  // its rating-ranked slot while invisible, fades back.
+                  // Grid never visibly breaks; no crisscrossing paths.
                   // (3) top row drafts at DRAFT.
-                  const rowT = mode.poolSkip
-                    ? interpolate(frame, [16 + li * 2, 32 + li * 2], [0, 1], {
+                  const reorderT = mode.poolSkip
+                    ? interpolate(frame, [18 + li * 2, 36 + li * 2], [0, 1], {
                         extrapolateLeft: "clamp",
                         extrapolateRight: "clamp",
-                        easing: (t) => t * t * (3 - 2 * t),
-                      })
-                    : 0;
-                  const colT = mode.poolSkip
-                    ? interpolate(frame, [34 + li * 2, 50 + li * 2], [0, 1], {
-                        extrapolateLeft: "clamp",
-                        extrapolateRight: "clamp",
-                        easing: (t) => t * t * (3 - 2 * t),
                       })
                     : 0;
                   const target = mode.poolSkip ? POOL_SORTED.indexOf(qi) : li;
                   const rowPitch = chipSize * 1.24 + chipGap;
+                  const snap = reorderT >= 0.5 ? 1 : 0;
                   const sortX =
                     ((target % POOL_COLS) - (li % POOL_COLS)) *
                     (chipW + chipGap) *
-                    colT;
+                    snap;
                   const sortY =
                     (Math.floor(target / POOL_COLS) -
                       Math.floor(li / POOL_COLS)) *
                     rowPitch *
-                    rowT;
+                    snap;
+                  // dip to near-invisible mid-reorder so the teleport reads
+                  // as a clean re-sort, not a fly-across
+                  const reorderFade =
+                    0.85 - 0.72 * Math.sin(Math.PI * reorderT);
                   // FIFO movement: drafted chips leave, the line slides
                   // forward — shift = drafted chips ahead within this lane.
                   const ahead = lane.idxs
@@ -474,13 +472,9 @@ const ModeBeat: React.FC<{
                       key={p.name}
                       style={{
                         transform: `translateX(${sortX + slideX}px) translateY(${sortY + jump}px) scale(${0.9 + gone * 0.1})`,
-                        opacity: picked ? gone : 0.85,
+                        opacity: picked ? gone : reorderFade,
                         position: "relative",
-                        zIndex: picked
-                          ? 2
-                          : (rowT > 0 && rowT < 1) || (colT > 0 && colT < 1)
-                            ? 3
-                            : 1,
+                        zIndex: picked ? 2 : 1,
                       }}
                     >
                       <PlayerChip
@@ -490,6 +484,25 @@ const ModeBeat: React.FC<{
                         size={chipSize}
                         width={chipW}
                       />
+                      {/* rank badge appears once sorted into place */}
+                      {mode.poolSkip && reorderT > 0.95 && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: -8 * s,
+                            right: -4 * s,
+                            fontFamily: FONT_STACK,
+                            fontWeight: 900,
+                            fontSize: 15 * s,
+                            color: BRAND.gold,
+                            background: "rgba(0,0,0,0.55)",
+                            borderRadius: 999,
+                            padding: `${1 * s}px ${8 * s}px`,
+                          }}
+                        >
+                          #{target + 1}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
