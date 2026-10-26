@@ -57,8 +57,7 @@ const LINES = {
     "The player view, rebuilt. Up Next sits right on top of the queue.",
   bs_called: "When your match is called, it climbs straight to Up Next.",
   bs_pulse: "And the amber pulse? That's you. Get ready.",
-  bs_outro:
-    "Queue, Up Next, Playing — one board every player can see. DinkMatch dot club.",
+  bs_outro: "Queue, Up Next, Playing — one board. DinkMatch dot club.",
 };
 
 mkdirSync(OUT, { recursive: true });
