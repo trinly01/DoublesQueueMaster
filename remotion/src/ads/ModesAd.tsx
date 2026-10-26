@@ -255,7 +255,8 @@ const ModeBeat: React.FC<{
     fps,
     config: { damping: 12, stiffness: 190 },
   });
-  const DRAFT = mode.poolSkip ? 60 : 30; // Pro Pick sorts first, then drafts
+  // Pro Pick: sort fully settles (~f64), hold the sorted grid, then draft.
+  const DRAFT = mode.poolSkip ? 74 : 30;
   const chipSize = 56 * s;
   const chipGap = 14 * s;
   const chipW = 196 * s; // fixed chip block width — pitch for lane slides
