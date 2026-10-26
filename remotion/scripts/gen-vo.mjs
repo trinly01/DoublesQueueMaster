@@ -51,6 +51,14 @@ const LINES = {
     rate: "+0%",
   },
   qg_outro: "Organized queue. Fair play. More games. Powered by DinkMatch.",
+  // BigScreen layout update (scenes at 0 / 60 / 115+60 / 178 / 238 / 400)
+  bs_intro: "Put your open play on the big screen.",
+  bs_layout:
+    "The player view, rebuilt. Up Next sits right on top of the queue.",
+  bs_called: "When your match is called, it climbs straight to Up Next.",
+  bs_pulse: "And the amber pulse? That's you. Get ready.",
+  bs_outro:
+    "Queue, Up Next, Playing — one board every player can see. DinkMatch dot club.",
 };
 
 mkdirSync(OUT, { recursive: true });

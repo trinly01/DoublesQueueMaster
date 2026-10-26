@@ -6,6 +6,7 @@ import { ZeroPoliticsAd } from "./ads/ZeroPoliticsAd";
 import { EveryGameCountsAd } from "./ads/EveryGameCountsAd";
 import { QueueGuideAd } from "./ads/QueueGuideAd";
 import { DuprOfficialAd } from "./ads/DuprOfficialAd";
+import { BigScreenAd } from "./ads/BigScreenAd";
 
 const GUIDE_DURATION = 735;
 
@@ -16,6 +17,7 @@ const ZeroPolitics = ZeroPoliticsAd as unknown as AdComp;
 const EveryGameCounts = EveryGameCountsAd as unknown as AdComp;
 const QueueGuide = QueueGuideAd as unknown as AdComp;
 const DuprOfficial = DuprOfficialAd as unknown as AdComp;
+const BigScreen = BigScreenAd as unknown as AdComp;
 
 /**
  * Compositions are registered literally (not in a loop) so Remotion Studio can
@@ -153,6 +155,33 @@ export const RemotionRoot: React.FC = () => (
     <Composition
       id="DuprOfficial-16x9"
       component={DuprOfficial}
+      durationInFrames={AD_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["16:9"].width}
+      height={AD_DIMS["16:9"].height}
+      defaultProps={{ aspect: "16:9" }}
+    />
+    <Composition
+      id="BigScreen-9x16"
+      component={BigScreen}
+      durationInFrames={AD_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["9:16"].width}
+      height={AD_DIMS["9:16"].height}
+      defaultProps={{ aspect: "9:16" }}
+    />
+    <Composition
+      id="BigScreen-1x1"
+      component={BigScreen}
+      durationInFrames={AD_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["1:1"].width}
+      height={AD_DIMS["1:1"].height}
+      defaultProps={{ aspect: "1:1" }}
+    />
+    <Composition
+      id="BigScreen-16x9"
+      component={BigScreen}
       durationInFrames={AD_DURATION}
       fps={AD_FPS}
       width={AD_DIMS["16:9"].width}
