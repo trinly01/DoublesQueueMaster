@@ -255,7 +255,7 @@ const ModeBeat: React.FC<{
     fps,
     config: { damping: 12, stiffness: 190 },
   });
-  const DRAFT = mode.poolSkip ? 48 : 30; // Pro Pick sorts first, then drafts
+  const DRAFT = mode.poolSkip ? 56 : 30; // Pro Pick sorts first, then drafts
   const chipSize = 56 * s;
   const chipGap = 14 * s;
   const chipW = 196 * s; // fixed chip block width — pitch for lane slides
@@ -376,11 +376,19 @@ const ModeBeat: React.FC<{
                 {lane.idxs.map((qi, li) => {
                   const p = QUEUE[qi];
                   const picked = mode.pick.includes(qi);
-                  // Pro Pick: pool starts in queue order, then chips
-                  // animate into rating order — the visible re-sort is
-                  // what "whole pool, top rated first" means.
-                  const sortT = mode.poolSkip
-                    ? interpolate(frame, [8 + li * 2, 30 + li * 2], [0, 1], {
+                  // Pro Pick: organized re-sort, not a scramble.
+                  // Phase 1 (rowT): strongest chips rise to the top row,
+                  // weakest drop to the bottom. Phase 2 (colT): each row
+                  // lines up left→right in rating order.
+                  const rowT = mode.poolSkip
+                    ? interpolate(frame, [8 + li * 2, 24 + li * 2], [0, 1], {
+                        extrapolateLeft: "clamp",
+                        extrapolateRight: "clamp",
+                        easing: (t) => t * t * (3 - 2 * t),
+                      })
+                    : 0;
+                  const colT = mode.poolSkip
+                    ? interpolate(frame, [26 + li * 2, 42 + li * 2], [0, 1], {
                         extrapolateLeft: "clamp",
                         extrapolateRight: "clamp",
                         easing: (t) => t * t * (3 - 2 * t),
@@ -391,12 +399,12 @@ const ModeBeat: React.FC<{
                   const sortX =
                     ((target % POOL_COLS) - (li % POOL_COLS)) *
                     (chipW + chipGap) *
-                    sortT;
+                    colT;
                   const sortY =
                     (Math.floor(target / POOL_COLS) -
                       Math.floor(li / POOL_COLS)) *
                     rowPitch *
-                    sortT;
+                    rowT;
                   // FIFO movement: drafted chips leave, the line slides
                   // forward — shift = drafted chips ahead within this lane.
                   const ahead = lane.idxs
@@ -440,7 +448,11 @@ const ModeBeat: React.FC<{
                         transform: `translateX(${sortX + slideX}px) translateY(${sortY + jump}px) scale(${0.9 + gone * 0.1})`,
                         opacity: picked ? gone : 0.85,
                         position: "relative",
-                        zIndex: picked ? 2 : sortT > 0 && sortT < 1 ? 3 : 1,
+                        zIndex: picked
+                          ? 2
+                          : (rowT > 0 && rowT < 1) || (colT > 0 && colT < 1)
+                            ? 3
+                            : 1,
                       }}
                     >
                       <PlayerChip
