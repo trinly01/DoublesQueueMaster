@@ -435,29 +435,32 @@ const ScreenMock: React.FC<{
                   gap: 12,
                 }}
               >
-                <MiniMatch
-                  teamA="Tito + Ria"
-                  teamB="Kim + Lou"
-                  status="waiting"
-                />
-                {/* Your called match: slides right toward Matches as the
-                    court frees, then collapses out of the card. */}
+                {/* FIFO: the match staged FIRST takes the freed court —
+                    Tito + Ria slide right into Matches, not your new call. */}
                 <div
                   style={{
                     maxHeight: (1 - start) * 220,
                     overflow: "hidden",
-                    opacity: Math.min(matchIn * 1.4, 1) * (1 - start),
-                    transform: `translateX(${start * 90}px) scale(${(0.6 + matchIn * 0.4) * (1 - start * 0.1)})`,
+                    opacity: 1 - start,
+                    transform: `translateX(${start * 90}px) scale(${1 - start * 0.1})`,
                   }}
                 >
                   <MiniMatch
-                    teamA="You + Mia"
-                    teamB="Rex + Ben"
+                    teamA="Tito + Ria"
+                    teamB="Kim + Lou"
                     status="waiting"
-                    pulse={matchIn > 0.95 && start < 0.5 ? matchPulse : 0}
-                    scaleIn={1}
                   />
                 </div>
+                {/* Your match stays pulsing in Up Next — you're next,
+                    not skipping the line. */}
+                <MiniMatch
+                  teamA="You + Mia"
+                  teamB="Rex + Ben"
+                  status="waiting"
+                  pulse={matchIn > 0.95 ? matchPulse : 0}
+                  opacity={Math.min(matchIn * 1.4, 1)}
+                  scaleIn={0.6 + matchIn * 0.4}
+                />
               </div>
             </div>
 
@@ -605,9 +608,9 @@ const ScreenMock: React.FC<{
                   timer="12:34"
                 />
               </div>
-              {/* Your match lands here as a live game — same players that
-                  climbed into Up Next now own Court 2, timer running.
-                  maxHeight collapse keeps Court 3 flush above until it lands. */}
+              {/* The freed court goes to the OLDEST staged match — Tito's
+                  group takes Court 2 while yours keeps waiting its turn.
+                  maxHeight collapse keeps Court 3 flush until it lands. */}
               <div
                 style={{
                   maxHeight: Math.min(playIn, 1) * 240,
@@ -617,12 +620,11 @@ const ScreenMock: React.FC<{
                 }}
               >
                 <MiniMatch
-                  teamA="You + Mia"
-                  teamB="Rex + Ben"
+                  teamA="Tito + Ria"
+                  teamB="Kim + Lou"
                   status="playing"
                   court={2}
                   timer={timer}
-                  pulse={matchPulse * 0.5}
                 />
               </div>
               {/* Third court — a real club board is never just one game.
@@ -812,7 +814,12 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
             "That amber glow? That's you. Time to warm up.",
             "gold",
           )}
-          {cap(320, 360, "Court's free — you're on. Live in Matches.", "gold")}
+          {cap(
+            320,
+            360,
+            "Court opens — the match staged first goes live. You're next.",
+            "gold",
+          )}
           {cap(
             368,
             405,
