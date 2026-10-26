@@ -523,10 +523,30 @@ export function useCloudSync(ctx: CloudSyncContext) {
     );
   };
 
+  // Watchdog state: distinguishes a dropped stream (retry with backoff)
+  // from an intentional stop, and drives the polling fallback for
+  // foregrounded-but-idle viewers (TV / second screen) who never emit a
+  // focus/visibility event to trigger restartRealtime().
+  let realtimeWanted = false;
+  let realtimeRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let realtimeRetryDelay = 3000;
+
+  const scheduleRealtimeRetry = () => {
+    if (realtimeRetryTimer || !realtimeWanted) return;
+    realtimeRetryTimer = setTimeout(() => {
+      realtimeRetryTimer = null;
+      if (realtimeWanted && isOnline.value && currentClubUUID.value) {
+        void startRealtime();
+      }
+    }, realtimeRetryDelay);
+    realtimeRetryDelay = Math.min(realtimeRetryDelay * 2, 30000);
+  };
+
   const startRealtime = async () => {
     if (realtimeUnsub || realtimeStarting) return;
     if (!isOnline.value || !currentClubUUID.value) return;
 
+    realtimeWanted = true;
     realtimeStarting = true;
     try {
       await likhaClient.connect();
@@ -560,9 +580,11 @@ export function useCloudSync(ctx: CloudSyncContext) {
         } catch (err) {
           console.warn('Realtime stream ended:', err);
         } finally {
-          // Stream closed (drop or unsubscribe) → let polling take over and
-          // allow a fresh subscribe on the next reconnect.
+          // Stream closed (drop or unsubscribe). Unless stopRealtime() ran,
+          // the stream was dropped — come back with exponential backoff so
+          // idle viewers (TV/second screen, no focus events) self-heal.
           realtimeUnsub = null;
+          scheduleRealtimeRetry();
         }
       })();
 
@@ -570,17 +592,24 @@ export function useCloudSync(ctx: CloudSyncContext) {
         'Realtime subscription active for club',
         currentClubUUID.value,
       );
+      realtimeRetryDelay = 3000; // healthy subscribe → reset backoff
     } catch (err) {
       console.warn(
         'Realtime subscribe failed; falling back to polling/manual refresh',
         err,
       );
+      scheduleRealtimeRetry();
     } finally {
       realtimeStarting = false;
     }
   };
 
   const stopRealtime = () => {
+    realtimeWanted = false;
+    if (realtimeRetryTimer) {
+      clearTimeout(realtimeRetryTimer);
+      realtimeRetryTimer = null;
+    }
     if (realtimeUnsub) {
       try {
         realtimeUnsub();
@@ -654,9 +683,21 @@ export function useCloudSync(ctx: CloudSyncContext) {
 
     // Player ratings live in directus_users (not in club.appState), so realtime
     // can't observe them. Poll the club.players M2M periodically to keep ratings fresh.
+    //
+    // Same interval doubles as the appState polling fallback: when the
+    // realtime stream is dead (WS blocked by the viewer's network/proxy, or
+    // the socket dropped with no focus event to revive it), pull the club
+    // state once a minute so player views update without a manual refresh.
     ratingsRefreshInterval = setInterval(() => {
-      if (isOnline.value && currentClubUUID.value) {
-        void refreshPlayerRatings();
+      if (!isOnline.value || !currentClubUUID.value) return;
+      void refreshPlayerRatings();
+      if (
+        realtimeWanted &&
+        !realtimeUnsub &&
+        !realtimeStarting &&
+        currentClubId.value
+      ) {
+        void loadClubData(currentClubId.value).then(() => restartRealtime());
       }
     }, 60000);
   });
