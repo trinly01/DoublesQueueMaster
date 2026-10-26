@@ -76,7 +76,6 @@ type Mode = {
   name: string;
   /** the mood/question this mode answers — headline of the beat */
   mood: string;
-  tag: string;
   rated: boolean;
   /** queue indices drafted */
   pick: number[];
@@ -97,7 +96,6 @@ const MODES: Mode[] = [
     key: "casual",
     name: "Casual",
     mood: "Just here to chill?",
-    tag: "Next in line. Fair teams. Ratings untouched.",
     rated: false,
     // winners bracket outranks losers on priority → all 4 drafted there
     pick: [0, 1, 2, 3],
@@ -110,7 +108,6 @@ const MODES: Mode[] = [
     key: "social",
     name: "Social",
     mood: "Bored of the same faces?",
-    tag: "Fresh partners. Every round.",
     rated: false,
     pick: [0, 1, 2, 3],
     // linked pairs (0↔1, 2↔3) split across teams — variety over balance
@@ -124,7 +121,6 @@ const MODES: Mode[] = [
     key: "standard",
     name: "Standard",
     mood: "Want it fair and fresh?",
-    tag: "Balanced and fresh — and it counts.",
     rated: true,
     pick: [0, 1, 2, 3],
     teamA: [0, 3],
@@ -137,7 +133,6 @@ const MODES: Mode[] = [
     key: "competitive",
     name: "Competitive",
     mood: "Ready to sweat?",
-    tag: "The tightest game your queue can make.",
     rated: true,
     pick: [0, 1, 2, 3],
     teamA: [0, 3],
@@ -150,7 +145,6 @@ const MODES: Mode[] = [
     key: "propick",
     name: "Pro Pick",
     mood: "Chasing the perfect game?",
-    tag: "The whole pool is fair game.",
     rated: true,
     // ignores lanes — top 4 by rating reach across the losers bracket
     pick: [0, 1, 4, 5],
@@ -261,6 +255,7 @@ const ModeBeat: React.FC<{
   const DRAFT = 30; // chips start leaving the queue
   const chipSize = 56 * s;
   const chipGap = 14 * s;
+  const chipW = 196 * s; // fixed chip block width — pitch for lane slides
 
   const aRating = teamRating(mode.teamA);
   const bRating = teamRating(mode.teamB);
@@ -311,18 +306,6 @@ const ModeBeat: React.FC<{
           }}
         >
           {mode.name}
-        </div>
-        <div
-          style={{
-            fontFamily: FONT_STACK,
-            fontWeight: 700,
-            fontSize: 32 * s,
-            color: "rgba(255,255,255,0.85)",
-            textShadow: "0 2px 14px rgba(0,0,0,0.3)",
-            opacity: nameIn,
-          }}
-        >
-          {mode.tag}
         </div>
         <div style={{ opacity: nameIn }}>
           <Dials mode={mode} scale={s} startFrame={10} />
@@ -425,7 +408,7 @@ const ModeBeat: React.FC<{
                         fps,
                         config: { damping: 16, stiffness: 170 },
                       });
-                  const slideX = -ahead * (chipSize + chipGap) * slide;
+                  const slideX = -ahead * (chipW + chipGap) * slide;
                   // Pro Pick: picked losers' chips arc up before leaving —
                   // visually crossing the lane the other modes respect.
                   const jump =
@@ -457,6 +440,7 @@ const ModeBeat: React.FC<{
                         skill={p.skill}
                         rating={p.rating}
                         size={chipSize}
+                        width={chipW}
                       />
                     </div>
                   );
@@ -469,8 +453,8 @@ const ModeBeat: React.FC<{
                     const tIdx =
                       p.linkTo == null ? -1 : lane.idxs.indexOf(p.linkTo);
                     if (p.linkTo == null || tIdx <= li || tIdx < 0) return null;
-                    const x1 = li * (chipSize + chipGap) + chipSize / 2;
-                    const x2 = tIdx * (chipSize + chipGap) + chipSize / 2;
+                    const x1 = li * (chipW + chipGap) + chipW / 2;
+                    const x2 = tIdx * (chipW + chipGap) + chipW / 2;
                     const sever = interpolate(
                       frame,
                       [DRAFT + 2, DRAFT + 12],
@@ -508,22 +492,6 @@ const ModeBeat: React.FC<{
             </div>
           );
         })}
-      </div>
-
-      {/* Queue order is a club setting — first-in-line or least-games-first;
-          either way, non-Pro modes draft off the front */}
-      <div
-        style={{
-          fontFamily: FONT_STACK,
-          fontWeight: 600,
-          fontSize: 20 * s,
-          color: "rgba(255,255,255,0.5)",
-          letterSpacing: 1,
-          marginTop: -18 * s,
-          opacity: nameIn,
-        }}
-      >
-        lanes + order = your club's queue settings
       </div>
 
       {/* Teams — drafted chips spring in staggered, rating bars level out */}
