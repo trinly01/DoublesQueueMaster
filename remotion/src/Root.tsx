@@ -7,10 +7,13 @@ import { EveryGameCountsAd } from "./ads/EveryGameCountsAd";
 import { QueueGuideAd } from "./ads/QueueGuideAd";
 import { DuprOfficialAd } from "./ads/DuprOfficialAd";
 import { BigScreenAd } from "./ads/BigScreenAd";
+import { ModesAd } from "./ads/ModesAd";
 
 const GUIDE_DURATION = 735;
 /** 22s — the Natural-voice VO needs more room than the 18s template. */
 const BS_DURATION = 660;
+/** 24s — five mode beats (90f each) + hook + outro. */
+const MODES_DURATION = 720;
 
 /** Remotion's loose component signature — AdProps has required keys. */
 type AdComp = React.FC<Record<string, unknown>>;
@@ -20,6 +23,7 @@ const EveryGameCounts = EveryGameCountsAd as unknown as AdComp;
 const QueueGuide = QueueGuideAd as unknown as AdComp;
 const DuprOfficial = DuprOfficialAd as unknown as AdComp;
 const BigScreen = BigScreenAd as unknown as AdComp;
+const Modes = ModesAd as unknown as AdComp;
 
 /**
  * Compositions are registered literally (not in a loop) so Remotion Studio can
@@ -185,6 +189,33 @@ export const RemotionRoot: React.FC = () => (
       id="BigScreen-16x9"
       component={BigScreen}
       durationInFrames={BS_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["16:9"].width}
+      height={AD_DIMS["16:9"].height}
+      defaultProps={{ aspect: "16:9" }}
+    />
+    <Composition
+      id="Modes-9x16"
+      component={Modes}
+      durationInFrames={MODES_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["9:16"].width}
+      height={AD_DIMS["9:16"].height}
+      defaultProps={{ aspect: "9:16" }}
+    />
+    <Composition
+      id="Modes-1x1"
+      component={Modes}
+      durationInFrames={MODES_DURATION}
+      fps={AD_FPS}
+      width={AD_DIMS["1:1"].width}
+      height={AD_DIMS["1:1"].height}
+      defaultProps={{ aspect: "1:1" }}
+    />
+    <Composition
+      id="Modes-16x9"
+      component={Modes}
+      durationInFrames={MODES_DURATION}
       fps={AD_FPS}
       width={AD_DIMS["16:9"].width}
       height={AD_DIMS["16:9"].height}

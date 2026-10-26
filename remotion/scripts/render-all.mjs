@@ -16,6 +16,7 @@ const ADS = [
   "QueueGuide",
   "DuprOfficial",
   "BigScreen",
+  "Modes",
 ];
 const RATIOS = ["9x16", "1x1", "16x9"];
 
