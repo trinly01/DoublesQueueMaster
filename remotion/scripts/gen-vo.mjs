@@ -51,13 +51,28 @@ const LINES = {
     rate: "+0%",
   },
   qg_outro: "Organized queue. Fair play. More games. Powered by DinkMatch.",
-  // BigScreen layout update (scenes at 0 / 60 / 115+60 / 178 / 238 / 400)
-  bs_intro: "Put your open play on the big screen.",
-  bs_layout:
-    "The player view, rebuilt. Up Next sits right on top of the queue.",
-  bs_called: "When your match is called, it climbs straight to Up Next.",
-  bs_pulse: "And the amber pulse? That's you. Get ready.",
-  bs_outro: "Queue, Up Next, Playing — one board. DinkMatch dot club.",
+  // BigScreen layout update — Natural multilingual voice for a human,
+  // conversational ad read (per-line `voice` overrides the global VOICE).
+  bs_intro: {
+    text: "Okay — picture this. Your whole open play, up on the big screen.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bs_layout: {
+    text: "We rebuilt the player view. Up Next? It sits right on top of the queue.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bs_called: {
+    text: "Match called — boom, you're climbing straight to the top.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bs_pulse: {
+    text: "See that amber glow? That's you. Time to warm up.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bs_outro: {
+    text: "One board. Zero confusion. DinkMatch dot club.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
 };
 
 mkdirSync(OUT, { recursive: true });
@@ -65,13 +80,14 @@ for (const [name, line] of Object.entries(LINES)) {
   const file = join(OUT, `${name}.mp3`);
   const text = typeof line === "string" ? line : line.text;
   const rate = typeof line === "string" ? RATE : (line.rate ?? RATE);
+  const voice = typeof line === "string" ? VOICE : (line.voice ?? VOICE);
   execFileSync(
     "python",
     [
       "-m",
       "edge_tts",
       "--voice",
-      VOICE,
+      voice,
       `--rate=${rate}`,
       "--text",
       text,

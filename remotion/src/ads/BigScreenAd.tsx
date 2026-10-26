@@ -22,13 +22,13 @@ import { AdAudio, Sfx } from "../components/AdAudio";
  * Scene-synced VO (see scripts/gen-vo.mjs, bs_* lines).
  */
 // Cues are spaced from measured line durations so lines never overlap:
-// intro 61f, layout 114f, called 95f, pulse 82f, outro 126f.
+// intro 115f, layout 124f, called 101f, pulse 89f, outro 107f.
 const VO_LINES = [
-  { at: 5, file: "bs_intro" },
-  { at: 108, file: "bs_layout" },
-  { at: 232, file: "bs_called" },
-  { at: 322, file: "bs_pulse" },
-  { at: 410, file: "bs_outro" },
+  { at: 10, file: "bs_intro" },
+  { at: 140, file: "bs_layout" },
+  { at: 278, file: "bs_called" },
+  { at: 385, file: "bs_pulse" },
+  { at: 520, file: "bs_outro" },
 ];
 
 /* Column header gradients — same values as ClubPage.vue */
@@ -542,14 +542,14 @@ const IntroScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
   );
 };
 
-/** Mock scene (absolute frames 60-400; local 0-340). */
+/** Mock scene (absolute frames 90-500; local 0-410). */
 const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const lay = layoutFor(aspect);
   const mockScale = lay.isVertical ? 0.6 : lay.isSquare ? 0.8 : 1;
 
-  const CALL = 160; // local frame the match gets called
+  const CALL = 185; // local frame the match gets called
   const enter = spring({
     frame,
     fps,
@@ -639,19 +639,24 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
         <div style={{ minHeight: 110, display: "flex", alignItems: "center" }}>
           {cap(
             45,
-            150,
+            175,
             "Up Next sits on top of the Queue — called matches, front and center",
           )}
           {cap(
-            165,
-            225,
+            190,
+            255,
             "Match called — it climbs straight to Up Next",
             "gold",
           )}
-          {cap(232, 292, "The amber pulse? That's you. Get ready.", "gold")}
           {cap(
-            298,
-            335,
+            265,
+            330,
+            "That amber glow? That's you. Time to warm up.",
+            "gold",
+          )}
+          {cap(
+            340,
+            405,
             "Queue → Up Next → Playing — one board every player can see",
           )}
         </div>
@@ -663,13 +668,13 @@ const MockScene: React.FC<{ aspect: AdProps["aspect"] }> = ({ aspect }) => {
 export const BigScreenAd: React.FC<AdProps> = ({ aspect, voiceoverFile }) => (
   <AbsoluteFill>
     <BrandBackground />
-    <Sequence durationInFrames={60}>
+    <Sequence durationInFrames={90}>
       <IntroScene aspect={aspect} />
     </Sequence>
-    <Sequence from={60} durationInFrames={340}>
+    <Sequence from={90} durationInFrames={410}>
       <MockScene aspect={aspect} />
     </Sequence>
-    <Sequence from={400} durationInFrames={140}>
+    <Sequence from={500} durationInFrames={160}>
       <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
         <AdCtaOutro
           tagline="One board. Every screen. Zero who's-next arguments."
@@ -678,12 +683,12 @@ export const BigScreenAd: React.FC<AdProps> = ({ aspect, voiceoverFile }) => (
         />
       </AbsoluteFill>
     </Sequence>
-    <Sfx at={60} file="whoosh" volume={0.5} />
-    <Sfx at={100} file="chime" volume={0.5} />
-    <Sfx at={225} file="chime" volume={0.8} />
-    <Sfx at={245} file="tick" volume={0.55} />
-    <Sfx at={295} file="dink" volume={0.6} />
-    <Sfx at={402} file="win" volume={0.8} />
+    <Sfx at={90} file="whoosh" volume={0.5} />
+    <Sfx at={135} file="chime" volume={0.5} />
+    <Sfx at={313} file="chime" volume={0.8} />
+    <Sfx at={335} file="tick" volume={0.55} />
+    <Sfx at={390} file="dink" volume={0.6} />
+    <Sfx at={505} file="win" volume={0.8} />
     <AdAudio lines={VO_LINES} voiceoverFile={voiceoverFile} />
   </AbsoluteFill>
 );
