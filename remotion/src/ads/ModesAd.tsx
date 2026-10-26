@@ -47,27 +47,26 @@ const QUEUE: P[] = [
   { name: "Ed", rating: 2.6, skill: "beginner" },
 ];
 
-/** Lane membership as QUEUE indices — mirrors queueType WINNERS/LOSERS */
-const LANES: {
+type Lane = {
   label: string;
   icon: string;
   color: string;
-  note: string;
   idxs: number[];
-}[] = [
+};
+
+/** Lane membership as QUEUE indices — mirrors queueType WINNERS/LOSERS */
+const LANES: Lane[] = [
+  { label: "WINNERS", icon: "🏆", color: BRAND.gold, idxs: [0, 1, 2, 3] },
+  { label: "LOSERS", icon: "🔁", color: "#f472b6", idxs: [4, 5, 6, 7] },
+];
+
+/** Pro Pick ignores brackets — one pool, sorted by rating (top first). */
+const POOL_LANE: Lane[] = [
   {
-    label: "WINNERS",
-    icon: "🏆",
+    label: "POOL · by rating",
+    icon: "⚡",
     color: BRAND.gold,
-    note: "1–2 games",
-    idxs: [0, 1, 2, 3],
-  },
-  {
-    label: "LOSERS",
-    icon: "🔁",
-    color: "#f472b6",
-    note: "4–6 games",
-    idxs: [4, 5, 6, 7],
+    idxs: [0, 4, 1, 5, 2, 3, 6, 7],
   },
 ];
 
@@ -325,7 +324,7 @@ const ModeBeat: React.FC<{
           border: "2px dashed rgba(255,255,255,0.2)",
         }}
       >
-        {LANES.map((lane) => {
+        {(mode.poolSkip ? POOL_LANE : LANES).map((lane) => {
           const feeding = lane.idxs.some((i) => mode.pick.includes(i));
           return (
             <div
@@ -354,15 +353,6 @@ const ModeBeat: React.FC<{
               >
                 <span>{lane.icon}</span>
                 <span>{lane.label}</span>
-                <span
-                  style={{
-                    color: "rgba(255,255,255,0.45)",
-                    fontWeight: 600,
-                    fontSize: 13 * s,
-                  }}
-                >
-                  {lane.note}
-                </span>
                 {feeding && !mode.poolSkip && frame >= DRAFT && (
                   <span
                     style={{
@@ -391,6 +381,14 @@ const ModeBeat: React.FC<{
                   display: "flex",
                   gap: chipGap,
                   position: "relative",
+                  // Pro Pick's single pool wraps to two rows — top-rated
+                  // row drafts away, lower-rated row stays queued.
+                  ...(mode.poolSkip
+                    ? {
+                        flexWrap: "wrap" as const,
+                        maxWidth: 4 * (chipW + chipGap),
+                      }
+                    : {}),
                 }}
               >
                 {lane.idxs.map((qi, li) => {
@@ -401,18 +399,19 @@ const ModeBeat: React.FC<{
                   const ahead = lane.idxs
                     .slice(0, li)
                     .filter((i) => mode.pick.includes(i)).length;
-                  const slide = picked
-                    ? 0
-                    : spring({
-                        frame: frame - DRAFT + 2,
-                        fps,
-                        config: { damping: 16, stiffness: 170 },
-                      });
+                  const slide =
+                    picked || mode.poolSkip
+                      ? 0
+                      : spring({
+                          frame: frame - DRAFT + 2,
+                          fps,
+                          config: { damping: 16, stiffness: 170 },
+                        });
                   const slideX = -ahead * (chipW + chipGap) * slide;
-                  // Pro Pick: picked losers' chips arc up before leaving —
-                  // visually crossing the lane the other modes respect.
+                  // Pro Pick: picked chips lift out of the single pool —
+                  // visually the "whole pool" draft the other modes can't do.
                   const jump =
-                    mode.poolSkip && picked && lane.label === "LOSERS"
+                    mode.poolSkip && picked
                       ? interpolate(frame, [14, 26], [0, -22 * s], {
                           extrapolateLeft: "clamp",
                           extrapolateRight: "clamp",
@@ -603,7 +602,7 @@ const ModeBeat: React.FC<{
             }),
           }}
         >
-          ⚡ drafts the whole pool — both lanes, by rating
+          ⚡ ignores the lanes — top rated first
         </div>
       )}
     </AbsoluteFill>
