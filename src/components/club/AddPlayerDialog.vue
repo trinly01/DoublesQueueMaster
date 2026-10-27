@@ -73,7 +73,7 @@
           v-if="duprGateActive"
           dense
           rounded
-          class="bg-green-1 text-green-10 q-mt-sm q-mb-md"
+          class="bg-green-1 text-green-10 q-mb-lg"
         >
           <template v-slot:avatar>
             <q-icon name="verified_user" />
