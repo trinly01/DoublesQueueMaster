@@ -18,7 +18,7 @@ import { AdAudio, Sfx } from "../components/AdAudio";
 // Each line starts ~1s after the previous one ends — the pause between
 // lines is what makes the beats readable.
 const VO_LINES = [
-  { at: 2, file: "du_hook" },
+  { at: 0, file: "du_hook" },
   { at: 108, file: "du_connect" },
   { at: 236, file: "du_submit" },
   { at: 352, file: "du_cta" },

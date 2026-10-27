@@ -26,7 +26,7 @@ export const LINES = {
   // "dooper" = phonetic spelling so TTS says DUPR correctly
   // (rhymes with "super"); on-screen text stays "DUPR".
   du_hook: {
-    text: "Big news — DinkMatch now syncs with dooper.",
+    text: "Big news — dinkmatch dot club now syncs with dooper.",
     voice: "en-US-AndrewMultilingualNeural",
   },
   du_connect: {
