@@ -38,7 +38,7 @@ export const LINES = {
     voice: "en-US-AndrewMultilingualNeural",
   },
   du_cta: {
-    text: "Your dooper rating updates itself. Every game counts.",
+    text: "Your dooper rating updates itself. Every game counts — at dinkmatch dot club.",
     voice: "en-US-AndrewMultilingualNeural",
   },
   // QueueGuide tutorial (scenes at 0 / 60 / 165 / 270 / 375 / 480 / 585)
