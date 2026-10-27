@@ -504,7 +504,7 @@ export const DuprOfficialAd: React.FC<AdProps> = ({
         }}
       >
         <AdCtaOutro
-          tagline="Every game counts — officially."
+          tagline="Every game counts."
           cta="Link your DUPR"
           scale={layoutFor(aspect).fontScale}
         />

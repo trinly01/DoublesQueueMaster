@@ -13,8 +13,10 @@ Hard-won conventions for ad VO in this project. Read before touching
   new ads should opt into the Natural voice.
 - Alternates: `en-US-BrianMultilingualNeural` (more casual),
   `en-US-AvaMultilingualNeural` (female read).
-- For true ad-read quality beyond edge-tts: ElevenLabs
-  (`ELEVENLABS_API_KEY`), see `remotion/.agents/skills/remotion-markup/voiceover.md`.
+- For true ad-read quality beyond edge-tts: ElevenLabs —
+  `ELEVENLABS_API_KEY=... node scripts/gen-vo-el.mjs [line names...]`.
+  Same `vo-lines.mjs` source and `public/vo/*.mp3` outputs; optional
+  `ELEVENLABS_VOICE_ID` / `ELEVENLABS_MODEL` overrides.
 
 ## Copy: spoken ad-speak
 
