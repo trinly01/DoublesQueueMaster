@@ -105,6 +105,34 @@ export function useCloudSync(ctx: CloudSyncContext) {
   let realtimeUnsub: (() => void) | null = null;
   const isRealtimeActive = () => realtimeUnsub !== null && isOnline.value;
 
+  // Timestamp-only read — cheap probe for whether the server state moved.
+  const readServerTimestamp = async (): Promise<number> => {
+    const lightResult = await likhaClient.request(
+      readItems('club', {
+        filter: { id: { _eq: currentClubUUID.value } },
+        fields: [
+          'json(appState, matchmaking.lastModified)',
+        ] as unknown as string[],
+      }),
+    );
+    return parseLightweightTimestamp(lightResult);
+  };
+
+  const readServerMatchmaking = async (): Promise<AppState | undefined> => {
+    const serverResult = await likhaClient.request(
+      readItems('club', {
+        filter: { id: { _eq: currentClubUUID.value } },
+        fields: ['appState'],
+      }),
+    );
+    const serverAppState = (
+      serverResult?.[0] as unknown as {
+        appState?: { matchmaking?: AppState };
+      }
+    )?.appState;
+    return serverAppState?.matchmaking;
+  };
+
   // Immediate sync to cloud (read-before-write for multi-admin conflict detection)
   const performCloudSync = async (skipServerMerge = false) => {
     if (isOpenPlay.value) return;
@@ -136,15 +164,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
           // When realtime is active, it keeps lastSyncedServerTimestamp current,
           // so a timestamp-only check is sufficient to detect concurrent writes.
           try {
-            const lightResult = await likhaClient.request(
-              readItems('club', {
-                filter: { id: { _eq: currentClubUUID.value } },
-                fields: [
-                  'json(appState, matchmaking.lastModified)',
-                ] as unknown as string[],
-              }),
-            );
-            serverTimestamp = parseLightweightTimestamp(lightResult);
+            serverTimestamp = await readServerTimestamp();
 
             // If timestamp matches, skip full read — realtime kept us current.
             if (
@@ -154,50 +174,17 @@ export function useCloudSync(ctx: CloudSyncContext) {
               )
             ) {
               // Timestamp moved — do full read to get changes for merging.
-              const serverResult = await likhaClient.request(
-                readItems('club', {
-                  filter: { id: { _eq: currentClubUUID.value } },
-                  fields: ['appState'],
-                }),
-              );
-              const serverAppState = (
-                serverResult?.[0] as unknown as {
-                  appState?: { matchmaking?: AppState };
-                }
-              )?.appState;
-              serverMatchmaking = serverAppState?.matchmaking;
+              serverMatchmaking = await readServerMatchmaking();
               serverTimestamp = serverMatchmaking?.lastModified ?? 0;
             }
           } catch {
             // json() failed — fall back to full read (safe).
-            const serverResult = await likhaClient.request(
-              readItems('club', {
-                filter: { id: { _eq: currentClubUUID.value } },
-                fields: ['appState'],
-              }),
-            );
-            const serverAppState = (
-              serverResult?.[0] as unknown as {
-                appState?: { matchmaking?: AppState };
-              }
-            )?.appState;
-            serverMatchmaking = serverAppState?.matchmaking;
+            serverMatchmaking = await readServerMatchmaking();
             serverTimestamp = serverMatchmaking?.lastModified ?? 0;
           }
         } else {
           // Realtime not active — do full read (existing behavior).
-          const serverResult = await likhaClient.request(
-            readItems('club', {
-              filter: { id: { _eq: currentClubUUID.value } },
-              fields: ['appState'],
-            }),
-          );
-          const serverAppState = (
-            serverResult?.[0] as unknown as {
-              appState?: { matchmaking?: AppState };
-            }
-          )?.appState;
-          serverMatchmaking = serverAppState?.matchmaking;
+          serverMatchmaking = await readServerMatchmaking();
           serverTimestamp = serverMatchmaking?.lastModified ?? 0;
         }
       }
@@ -243,6 +230,34 @@ export function useCloudSync(ctx: CloudSyncContext) {
           message: 'Merged concurrent changes from another session.',
           timeout: 3000,
         });
+      }
+
+      // 4. Pre-write guard: another admin may have written between our read
+      // and this push. Re-check the timestamp once more; if it moved, pull
+      // the fresh state and merge it in so our write can't silently clobber
+      // their change (e.g. re-tombstoning a player another admin just
+      // re-checked-in).
+      try {
+        const verifyTimestamp = await readServerTimestamp();
+        const observedTimestamp =
+          serverTimestamp || lastSyncedServerTimestamp.value;
+        if (verifyTimestamp !== observedTimestamp) {
+          const fresh = await readServerMatchmaking();
+          if (fresh) {
+            applyMergedState(
+              MatchmakingApp.state,
+              mergeAppState(MatchmakingApp.state, fresh),
+            );
+            MatchmakingApp.enforceOneMatchPerPlayer();
+            console.log(
+              '[cloudSync] server moved during sync — merged fresh state before push',
+            );
+          }
+        }
+      } catch (verifyErr) {
+        // Best-effort: if the verify read fails we still push — the next
+        // realtime message or sync converges the states.
+        console.warn('[cloudSync] pre-write verify failed:', verifyErr);
       }
 
       // 5. Stamp, push to cloud, persist locally, and advance our base version.
@@ -416,105 +431,121 @@ export function useCloudSync(ctx: CloudSyncContext) {
     // server-driven settings changes should not be attributed to the
     // local admin in the action log.
     MatchmakingApp.suppressSettingsLog = true;
-    if (isCurrentUserPrivilegedForSync) {
-      // Privileged (admins/moderators): smart-merge so local offline edits are preserved
-      const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
-      // Assign only keys whose content actually changed — identical merges
-      // keep their references and don't invalidate the page's computeds.
-      applyMergedState(MatchmakingApp.state, merged);
-      // Extra safety: ensure no player appears in multiple matches
-      // and no court has multiple in-progress matches
-      MatchmakingApp.enforceOneMatchPerPlayer();
-      MatchmakingApp.enforceOneMatchPerCourt();
-    } else {
-      // Non-privileged: server is source of truth — direct overwrite, no merge.
-      // collectionEqual guards keep identical collections' references so the
-      // Club page computeds aren't invalidated by a no-op overwrite; it
-      // early-exits at the first differing element instead of serializing
-      // whole collections.
-      if (
-        serverMatchmaking.players &&
-        !collectionEqual(
-          MatchmakingApp.state.players,
-          serverMatchmaking.players,
-        )
-      ) {
-        MatchmakingApp.state.players = { ...serverMatchmaking.players };
+    try {
+      if (isCurrentUserPrivilegedForSync) {
+        // Privileged (admins/moderators): smart-merge so local offline edits are preserved
+        const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
+        // Assign only keys whose content actually changed — identical merges
+        // keep their references and don't invalidate the page's computeds.
+        applyMergedState(MatchmakingApp.state, merged);
+        // Extra safety: ensure no player appears in multiple matches
+        // and no court has multiple in-progress matches
+        MatchmakingApp.enforceOneMatchPerPlayer();
+        MatchmakingApp.enforceOneMatchPerCourt();
+      } else {
+        // Non-privileged: server is source of truth — direct overwrite, no merge.
+        // collectionEqual guards keep identical collections' references so the
+        // Club page computeds aren't invalidated by a no-op overwrite; it
+        // early-exits at the first differing element instead of serializing
+        // whole collections.
+        if (
+          serverMatchmaking.players &&
+          !collectionEqual(
+            MatchmakingApp.state.players,
+            serverMatchmaking.players,
+          )
+        ) {
+          MatchmakingApp.state.players = { ...serverMatchmaking.players };
+        }
+        if (
+          serverMatchmaking.queues &&
+          !collectionEqual(
+            MatchmakingApp.state.queues,
+            serverMatchmaking.queues,
+          )
+        ) {
+          MatchmakingApp.state.queues = [...serverMatchmaking.queues];
+        }
+        if (
+          serverMatchmaking.activeMatches &&
+          !collectionEqual(
+            MatchmakingApp.state.activeMatches,
+            serverMatchmaking.activeMatches,
+          )
+        ) {
+          MatchmakingApp.state.activeMatches = [
+            ...serverMatchmaking.activeMatches,
+          ];
+        }
+        if (
+          serverMatchmaking.completedMatches &&
+          !collectionEqual(
+            MatchmakingApp.state.completedMatches,
+            serverMatchmaking.completedMatches,
+          )
+        ) {
+          MatchmakingApp.state.completedMatches = [
+            ...serverMatchmaking.completedMatches,
+          ];
+        }
+        if (
+          serverMatchmaking.completedMatchIds &&
+          !collectionEqual(
+            MatchmakingApp.state.completedMatchIds,
+            serverMatchmaking.completedMatchIds,
+          )
+        ) {
+          MatchmakingApp.state.completedMatchIds = [
+            ...serverMatchmaking.completedMatchIds,
+          ];
+        }
+        if (
+          serverMatchmaking.actionLogs &&
+          !collectionEqual(
+            MatchmakingApp.state.actionLogs,
+            serverMatchmaking.actionLogs,
+          )
+        ) {
+          MatchmakingApp.state.actionLogs = [...serverMatchmaking.actionLogs];
+        }
+        // Overwrite settings — non-privileged users don't have local settings to preserve
+        copyServerSettings(serverMatchmaking, SETTINGS_OVERWRITE_FIELDS, false);
+        // Carry checkpoint timestamps
+        MatchmakingApp.state.playersResetAt =
+          serverMatchmaking.playersResetAt ?? 0;
+        MatchmakingApp.state.queuesResetAt =
+          serverMatchmaking.queuesResetAt ?? 0;
+        MatchmakingApp.state.matchesResetAt =
+          serverMatchmaking.matchesResetAt ?? 0;
+        MatchmakingApp.state.statsResetAt = serverMatchmaking.statsResetAt ?? 0;
+        MatchmakingApp.state.completedMatchesResetAt =
+          serverMatchmaking.completedMatchesResetAt ?? 0;
+        MatchmakingApp.state.actionLogsResetAt =
+          serverMatchmaking.actionLogsResetAt ?? 0;
+        if (serverMatchmaking.settingsFieldTimestamps) {
+          MatchmakingApp.state.settingsFieldTimestamps = {
+            ...serverMatchmaking.settingsFieldTimestamps,
+          };
+        }
       }
-      if (
-        serverMatchmaking.queues &&
-        !collectionEqual(MatchmakingApp.state.queues, serverMatchmaking.queues)
-      ) {
-        MatchmakingApp.state.queues = [...serverMatchmaking.queues];
-      }
-      if (
-        serverMatchmaking.activeMatches &&
-        !collectionEqual(
-          MatchmakingApp.state.activeMatches,
-          serverMatchmaking.activeMatches,
-        )
-      ) {
-        MatchmakingApp.state.activeMatches = [
-          ...serverMatchmaking.activeMatches,
-        ];
-      }
-      if (
-        serverMatchmaking.completedMatches &&
-        !collectionEqual(
-          MatchmakingApp.state.completedMatches,
-          serverMatchmaking.completedMatches,
-        )
-      ) {
-        MatchmakingApp.state.completedMatches = [
-          ...serverMatchmaking.completedMatches,
-        ];
-      }
-      if (
-        serverMatchmaking.completedMatchIds &&
-        !collectionEqual(
-          MatchmakingApp.state.completedMatchIds,
-          serverMatchmaking.completedMatchIds,
-        )
-      ) {
-        MatchmakingApp.state.completedMatchIds = [
-          ...serverMatchmaking.completedMatchIds,
-        ];
-      }
-      if (
-        serverMatchmaking.actionLogs &&
-        !collectionEqual(
-          MatchmakingApp.state.actionLogs,
-          serverMatchmaking.actionLogs,
-        )
-      ) {
-        MatchmakingApp.state.actionLogs = [...serverMatchmaking.actionLogs];
-      }
-      // Overwrite settings — non-privileged users don't have local settings to preserve
-      copyServerSettings(serverMatchmaking, SETTINGS_OVERWRITE_FIELDS, false);
-      // Carry checkpoint timestamps
-      MatchmakingApp.state.playersResetAt =
-        serverMatchmaking.playersResetAt ?? 0;
-      MatchmakingApp.state.queuesResetAt = serverMatchmaking.queuesResetAt ?? 0;
-      MatchmakingApp.state.matchesResetAt =
-        serverMatchmaking.matchesResetAt ?? 0;
-      MatchmakingApp.state.statsResetAt = serverMatchmaking.statsResetAt ?? 0;
-      MatchmakingApp.state.completedMatchesResetAt =
-        serverMatchmaking.completedMatchesResetAt ?? 0;
-      MatchmakingApp.state.actionLogsResetAt =
-        serverMatchmaking.actionLogsResetAt ?? 0;
-      if (serverMatchmaking.settingsFieldTimestamps) {
-        MatchmakingApp.state.settingsFieldTimestamps = {
-          ...serverMatchmaking.settingsFieldTimestamps,
-        };
-      }
+    } finally {
+      // Re-enable settings_change logging now that the merge is complete —
+      // finally so a merge exception can't leave logging stuck off.
+      MatchmakingApp.suppressSettingsLog = false;
     }
 
     MatchmakingApp.persistSilently();
-    // Re-enable settings_change logging now that the merge is complete.
-    MatchmakingApp.suppressSettingsLog = false;
-    lastSyncedServerTimestamp.value = incomingTs;
+    // Base version only moves forward — an out-of-order older realtime
+    // message must not regress it and trigger spurious conflict merges.
+    lastSyncedServerTimestamp.value = Math.max(
+      lastSyncedServerTimestamp.value,
+      incomingTs,
+    );
     if (currentClubId.value) {
-      saveLastSyncedTimestamp(currentClubId.value, incomingTs);
+      saveLastSyncedTimestamp(
+        currentClubId.value,
+        lastSyncedServerTimestamp.value,
+      );
     }
 
     console.log(

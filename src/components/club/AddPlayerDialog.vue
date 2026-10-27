@@ -486,12 +486,19 @@ const handleAuthError = ctxHandleAuthError as (
   router: ReturnType<typeof useRouter>,
 ) => Promise<boolean>;
 
-const logCheckIn = (playerName: string, source: string) =>
+// Actor name as the club knows it — member record first (survives blank
+// profile name/username on the account), then profile fallbacks.
+const actorDisplayName = () => {
+  const self = clubMembers.value.find((m) => m.id === PlayerProfile.state.id);
+  return self?.firstName || self?.username || PlayerProfile.displayName;
+};
+
+const logCheckIn = (playerName: string, source: string, username?: string) =>
   MatchmakingApp.addActionLog(
     'check_in',
-    PlayerProfile.state.firstName || PlayerProfile.state.username,
+    actorDisplayName(),
     PlayerProfile.state.id,
-    { player: playerName, source },
+    { player: playerName, username, source },
   );
 
 const clubMembers = toRef(props, 'clubMembers');
@@ -725,7 +732,11 @@ const onScanSuccess = async (decodedText: string) => {
       });
     }
     if (result === 'added') {
-      logCheckIn(member.firstName || member.username || scannedUsername, 'qr');
+      logCheckIn(
+        member.firstName || member.username || scannedUsername,
+        'qr',
+        member.username || scannedUsername,
+      );
       notify({
         type: 'positive',
         message: `Added "${member.firstName || member.username}" to queue`,
@@ -818,7 +829,7 @@ const onScanSuccess = async (decodedText: string) => {
         timeout: 5000,
       });
     } else if (checkInResult === 'added') {
-      logCheckIn(firstName || scannedUsername, 'qr');
+      logCheckIn(firstName || scannedUsername, 'qr', scannedUsername);
       notify({
         type: 'positive',
         message: `Joined & added "${firstName || scannedUsername}" to queue`,
@@ -913,8 +924,11 @@ const addClubMembers = () => {
     const member = clubMembers.value.find((m) => m.id === memberId);
     if (!member) return;
 
+    // Key by account username when present; fall back to the member's user
+    // UUID — never a shared literal like 'Unknown', which would collapse all
+    // unnamed members into one player record and overwrite each other's name.
     const username =
-      member.username || member.email?.split('@')[0] || 'Unknown';
+      member.username || member.email?.split('@')[0] || member.id;
 
     const memberLevel = member.level ?? 2;
     const memberRating = member.rating ?? levelSeedRating(memberLevel);
@@ -929,7 +943,7 @@ const addClubMembers = () => {
 
     if (result === 'added') {
       added.push(username);
-      logCheckIn(member.firstName || username, 'club');
+      logCheckIn(member.firstName || username, 'club', username);
     } else if (result === 'already_in_queue') {
       alreadyInQueue.push(username);
     } else if (result === 'already_in_match') {
@@ -1009,7 +1023,7 @@ const addNewPlayer = () => {
     return;
   }
 
-  logCheckIn(trimmedName, 'manual');
+  logCheckIn(trimmedName, 'manual', trimmedName);
   newPlayerName.value = null;
   newPlayerLevel.value = null;
   showAddPlayerDialog.value = false;
@@ -1052,7 +1066,7 @@ const addBulkPlayers = () => {
       { rating: initialRating },
     );
     if (result === 'added') {
-      logCheckIn(trimmedName, 'bulk');
+      logCheckIn(trimmedName, 'bulk', trimmedName);
     } else if (result === 'already_in_queue') {
       alreadyInQueue.push(trimmedName);
     } else if (result === 'already_in_match') {
