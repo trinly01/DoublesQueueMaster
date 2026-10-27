@@ -56,6 +56,23 @@
               size="xs"
               dense
             />
+            <q-chip
+              v-else-if="duprChipRating(player) !== null"
+              :label="duprChipRating(player)!.toFixed(3)"
+              color="green-8"
+              text-color="white"
+              size="xs"
+              dense
+            >
+              <q-tooltip>
+                <div>
+                  DUPR Doubles · {{ duprChipRating(player)!.toFixed(3) }}
+                </div>
+                <div v-if="duprSinglesRating(player) !== null">
+                  DUPR Singles · {{ duprSinglesRating(player)!.toFixed(3) }}
+                </div>
+              </q-tooltip>
+            </q-chip>
           </div>
         </div>
 
@@ -165,6 +182,23 @@
               size="xs"
               dense
             />
+            <q-chip
+              v-else-if="duprChipRating(player) !== null"
+              :label="duprChipRating(player)!.toFixed(3)"
+              color="green-8"
+              text-color="white"
+              size="xs"
+              dense
+            >
+              <q-tooltip>
+                <div>
+                  DUPR Doubles · {{ duprChipRating(player)!.toFixed(3) }}
+                </div>
+                <div v-if="duprSinglesRating(player) !== null">
+                  DUPR Singles · {{ duprSinglesRating(player)!.toFixed(3) }}
+                </div>
+              </q-tooltip>
+            </q-chip>
           </div>
         </div>
       </div>
@@ -288,6 +322,8 @@ import {
   getRatingColor,
   getMatchStatusLabel,
   formatDate,
+  duprChipRating,
+  duprSinglesRating,
 } from '../utils/playerHelpers';
 import type { Player } from '../services/matchmaking';
 import MatchMetaChips from './MatchMetaChips.vue';

@@ -55,9 +55,15 @@
             </div>
             <div class="header-right">
               <span class="header-stat"> H:{{ getHarmonicMean(team1) }} </span>
-              <span class="header-stat"> A:{{ getArithmeticMean(team1) }} </span>
+              <span class="header-stat">
+                A:{{ getArithmeticMean(team1) }}
+              </span>
             </div>
-            <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">
+            <q-tooltip
+              anchor="top middle"
+              self="bottom middle"
+              :offset="[8, 8]"
+            >
               Rating: 60% Harmonic + 40% Arithmetic · Win: Win Probability · H:
               Harmonic Mean (weakest player weighs more) · A: Arithmetic Mean
               (simple average)
@@ -103,6 +109,21 @@
             size="xs"
             dense
           />
+          <q-chip
+            v-else-if="duprChipRating(player) !== null"
+            :label="duprChipRating(player)!.toFixed(3)"
+            color="green-8"
+            text-color="white"
+            size="xs"
+            dense
+          >
+            <q-tooltip>
+              <div>DUPR Doubles · {{ duprChipRating(player)!.toFixed(3) }}</div>
+              <div v-if="duprSinglesRating(player) !== null">
+                DUPR Singles · {{ duprSinglesRating(player)!.toFixed(3) }}
+              </div>
+            </q-tooltip>
+          </q-chip>
         </div>
         <div v-if="team1.length === 0" class="text-grey-5 text-caption q-pa-sm">
           Empty
@@ -131,9 +152,15 @@
             </div>
             <div class="header-right">
               <span class="header-stat"> H:{{ getHarmonicMean(team2) }} </span>
-              <span class="header-stat"> A:{{ getArithmeticMean(team2) }} </span>
+              <span class="header-stat">
+                A:{{ getArithmeticMean(team2) }}
+              </span>
             </div>
-            <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">
+            <q-tooltip
+              anchor="top middle"
+              self="bottom middle"
+              :offset="[8, 8]"
+            >
               Rating: 60% Harmonic + 40% Arithmetic · Win: Win Probability · H:
               Harmonic Mean (weakest player weighs more) · A: Arithmetic Mean
               (simple average)
@@ -179,6 +206,21 @@
             size="xs"
             dense
           />
+          <q-chip
+            v-else-if="duprChipRating(player) !== null"
+            :label="duprChipRating(player)!.toFixed(3)"
+            color="green-8"
+            text-color="white"
+            size="xs"
+            dense
+          >
+            <q-tooltip>
+              <div>DUPR Doubles · {{ duprChipRating(player)!.toFixed(3) }}</div>
+              <div v-if="duprSinglesRating(player) !== null">
+                DUPR Singles · {{ duprSinglesRating(player)!.toFixed(3) }}
+              </div>
+            </q-tooltip>
+          </q-chip>
         </div>
         <div v-if="team2.length === 0" class="text-grey-5 text-caption q-pa-sm">
           Empty
@@ -199,7 +241,11 @@ import { ref, computed } from 'vue';
 
 import { useNotify } from '../composables/useNotify';
 import { useDupr } from '../composables/useDupr';
-import { getRatingColor } from '../utils/playerHelpers';
+import {
+  getRatingColor,
+  duprChipRating,
+  duprSinglesRating,
+} from '../utils/playerHelpers';
 
 const hideInternalRating = computed(() => useDupr().hideInternalRating);
 import {

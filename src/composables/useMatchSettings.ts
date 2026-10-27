@@ -229,6 +229,18 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
     },
   });
 
+  // DUPR-only session gate — club-synced so every device/admin applies the
+  // same queue restriction. Players without a linked DUPR account are
+  // blocked at check-in.
+  const duprOnly = computed<boolean>({
+    get: () => MatchmakingApp.state.duprOnly ?? false,
+    set: (val) => {
+      MatchmakingApp.state.duprOnly = val;
+      MatchmakingApp.stampSetting('duprOnly');
+      MatchmakingApp.persist();
+    },
+  });
+
   // DUPR+ session gate — club-synced so every device/admin applies the same
   // queue restriction. Players without PREMIUM_L1 are blocked at check-in.
   const duprPlusOnly = computed<boolean>({
@@ -394,6 +406,7 @@ export function useMatchSettings(context: UseMatchSettingsContext) {
     matchmakingMode,
     allStarSortDirection,
     autoSortQueue,
+    duprOnly,
     duprPlusOnly,
     scoreType,
     sortBy,

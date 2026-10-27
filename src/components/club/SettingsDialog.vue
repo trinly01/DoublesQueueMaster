@@ -247,6 +247,17 @@
               </div>
               <div class="col-12">
                 <q-toggle
+                  v-model="duprOnly"
+                  label="DUPR-only event — queue requires a linked DUPR account"
+                  color="accent"
+                />
+                <div class="text-caption text-grey-6 q-ml-xl">
+                  Only players who linked DUPR to their account can join the
+                  queue.
+                </div>
+              </div>
+              <div class="col-12">
+                <q-toggle
                   v-model="duprPlusOnly"
                   label="DUPR+ event — queue requires DUPR+ membership"
                   color="accent"
@@ -584,6 +595,26 @@
                       dense
                       class="q-ml-xs"
                     />
+                    <q-chip
+                      v-else-if="duprChipRating(member) !== null"
+                      :label="duprChipRating(member)!.toFixed(3)"
+                      color="green-8"
+                      text-color="white"
+                      size="xs"
+                      dense
+                      class="q-ml-xs"
+                    >
+                      <q-tooltip>
+                        <div>
+                          DUPR Doubles ·
+                          {{ duprChipRating(member)!.toFixed(3) }}
+                        </div>
+                        <div v-if="duprSinglesRating(member) !== null">
+                          DUPR Singles ·
+                          {{ duprSinglesRating(member)!.toFixed(3) }}
+                        </div>
+                      </q-tooltip>
+                    </q-chip>
                   </div>
                   <q-item-label caption v-if="member.username" class="ellipsis"
                     >@{{ member.username }}</q-item-label
@@ -665,6 +696,26 @@
                       dense
                       class="q-ml-xs"
                     />
+                    <q-chip
+                      v-else-if="duprChipRating(member) !== null"
+                      :label="duprChipRating(member)!.toFixed(3)"
+                      color="green-8"
+                      text-color="white"
+                      size="xs"
+                      dense
+                      class="q-ml-xs"
+                    >
+                      <q-tooltip>
+                        <div>
+                          DUPR Doubles ·
+                          {{ duprChipRating(member)!.toFixed(3) }}
+                        </div>
+                        <div v-if="duprSinglesRating(member) !== null">
+                          DUPR Singles ·
+                          {{ duprSinglesRating(member)!.toFixed(3) }}
+                        </div>
+                      </q-tooltip>
+                    </q-chip>
                   </div>
                   <q-item-label caption v-if="member.username" class="ellipsis"
                     >@{{ member.username }}</q-item-label
@@ -764,6 +815,26 @@
                       dense
                       class="q-ml-xs"
                     />
+                    <q-chip
+                      v-else-if="duprChipRating(member) !== null"
+                      :label="duprChipRating(member)!.toFixed(3)"
+                      color="green-8"
+                      text-color="white"
+                      size="xs"
+                      dense
+                      class="q-ml-xs"
+                    >
+                      <q-tooltip>
+                        <div>
+                          DUPR Doubles ·
+                          {{ duprChipRating(member)!.toFixed(3) }}
+                        </div>
+                        <div v-if="duprSinglesRating(member) !== null">
+                          DUPR Singles ·
+                          {{ duprSinglesRating(member)!.toFixed(3) }}
+                        </div>
+                      </q-tooltip>
+                    </q-chip>
                   </div>
                   <q-item-label caption v-if="member.username" class="ellipsis"
                     >@{{ member.username }}</q-item-label
@@ -936,6 +1007,8 @@ import {
   getRatingColor,
   formatDate,
   formatDateOnly,
+  duprChipRating,
+  duprSinglesRating,
 } from '../../utils/playerHelpers';
 import { useDupr } from '../../composables/useDupr';
 import {
@@ -1015,6 +1088,7 @@ const props = withDefaults(
       firstName?: string;
       avatar?: string;
       rating?: number;
+      duprId?: string;
       adminJunctionId?: string;
     }>;
     moderatorMembers: Array<{
@@ -1023,6 +1097,7 @@ const props = withDefaults(
       firstName?: string;
       avatar?: string;
       rating?: number;
+      duprId?: string;
       moderatorJunctionId?: string;
     }>;
     regularMembers: Array<{
@@ -1031,6 +1106,7 @@ const props = withDefaults(
       firstName?: string;
       avatar?: string;
       rating?: number;
+      duprId?: string;
       playerJunctionId?: string;
     }>;
     adminMatchStats: Record<
@@ -1073,6 +1149,7 @@ defineEmits<{
   'update:availableCourts': [value: number];
   'update:autoAdvanceMatches': [value: boolean];
   'update:ttsEnabled': [value: boolean];
+  'update:duprOnly': [value: boolean];
   'update:duprPlusOnly': [value: boolean];
   'update:scoreType': [value: string];
   'update:editClubName': [value: string];
@@ -1131,6 +1208,9 @@ const autoAdvanceMatches = defineModel<boolean>('autoAdvanceMatches', {
   required: true,
 });
 const ttsEnabled = defineModel<boolean>('ttsEnabled', { required: true });
+const duprOnly = defineModel<boolean>('duprOnly', {
+  required: true,
+});
 const duprPlusOnly = defineModel<boolean>('duprPlusOnly', {
   required: true,
 });

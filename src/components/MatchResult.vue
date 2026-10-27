@@ -40,6 +40,21 @@
             dense
             :class="{ 'stats-blur': isBlurred(player.username) }"
           />
+          <q-chip
+            v-else-if="duprChipRating(player) !== null"
+            :label="duprChipRating(player)!.toFixed(3)"
+            color="green-8"
+            text-color="white"
+            size="xs"
+            dense
+          >
+            <q-tooltip>
+              <div>DUPR Doubles · {{ duprChipRating(player)!.toFixed(3) }}</div>
+              <div v-if="duprSinglesRating(player) !== null">
+                DUPR Singles · {{ duprSinglesRating(player)!.toFixed(3) }}
+              </div>
+            </q-tooltip>
+          </q-chip>
         </div>
 
         <!-- Editable: score input -->
@@ -206,6 +221,21 @@
             dense
             :class="{ 'stats-blur': isBlurred(player.username) }"
           />
+          <q-chip
+            v-else-if="duprChipRating(player) !== null"
+            :label="duprChipRating(player)!.toFixed(3)"
+            color="green-8"
+            text-color="white"
+            size="xs"
+            dense
+          >
+            <q-tooltip>
+              <div>DUPR Doubles · {{ duprChipRating(player)!.toFixed(3) }}</div>
+              <div v-if="duprSinglesRating(player) !== null">
+                DUPR Singles · {{ duprSinglesRating(player)!.toFixed(3) }}
+              </div>
+            </q-tooltip>
+          </q-chip>
         </div>
 
         <!-- Editable: score input -->
@@ -253,7 +283,12 @@ import { useNowTicker } from '../composables/useNowTicker';
 import type { QInput } from 'quasar';
 import type { MatchMeta } from '../types/matchMeta';
 import type { TeamPlayer } from '../types/player';
-import { getRatingColor, formatDate } from '../utils/playerHelpers';
+import {
+  getRatingColor,
+  formatDate,
+  duprChipRating,
+  duprSinglesRating,
+} from '../utils/playerHelpers';
 import { useDupr } from '../composables/useDupr';
 import MatchMetaChips from './MatchMetaChips.vue';
 

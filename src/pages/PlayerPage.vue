@@ -1565,10 +1565,12 @@ const duprId = computed(
   () => Dupr.state.connection?.dupr_id || PlayerProfile.state.duprId || '',
 );
 const duprSinglesRating = computed(
-  () => Dupr.state.connection?.singles_rating ?? null,
+  () =>
+    Dupr.state.connection?.singles_rating ?? Dupr.duprSinglesOf(duprId.value),
 );
 const duprDoublesRating = computed(
-  () => Dupr.state.connection?.doubles_rating ?? null,
+  () =>
+    Dupr.state.connection?.doubles_rating ?? Dupr.duprDoublesOf(duprId.value),
 );
 
 const getRatingGradient = (color: string): string => {
@@ -2661,6 +2663,8 @@ onMounted(async () => {
   // Fetch DUPR settings and connection status
   await Dupr.fetchSettings();
   await Dupr.fetchConnection();
+  // Backfill own DUPR rating into the display map (covers stale connections)
+  if (duprId.value) void Dupr.ensureRatings([duprId.value]);
 });
 
 const fetchLeaderboard = async () => {

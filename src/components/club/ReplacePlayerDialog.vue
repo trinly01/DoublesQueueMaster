@@ -22,8 +22,7 @@
         <div class="text-subtitle2 q-mb-sm">
           Choose a player to replace
           <strong>{{
-            playerToReplaceInEdit?.firstName ||
-            playerToReplaceInEdit?.username
+            playerToReplaceInEdit?.firstName || playerToReplaceInEdit?.username
           }}</strong>
           with:
         </div>
@@ -59,9 +58,7 @@
                 @{{ player.username }}
               </q-item-label>
               <q-item-label caption class="player-stats">
-                <span class="text-grey-7"
-                  >G:{{ player.matchesPlayed }}</span
-                >
+                <span class="text-grey-7">G:{{ player.matchesPlayed }}</span>
                 <span
                   class="q-ml-xs text-positive"
                   v-if="player.wins !== undefined"
@@ -81,6 +78,24 @@
                   dense
                   class="q-ml-xs"
                 />
+                <q-chip
+                  v-else-if="duprChipRating(player) !== null"
+                  :label="duprChipRating(player)!.toFixed(3)"
+                  color="green-8"
+                  text-color="white"
+                  size="xs"
+                  dense
+                  class="q-ml-xs"
+                >
+                  <q-tooltip>
+                    <div>
+                      DUPR Doubles · {{ duprChipRating(player)!.toFixed(3) }}
+                    </div>
+                    <div v-if="duprSinglesRating(player) !== null">
+                      DUPR Singles · {{ duprSinglesRating(player)!.toFixed(3) }}
+                    </div>
+                  </q-tooltip>
+                </q-chip>
               </q-item-label>
             </q-item-section>
             <q-item-section side>
@@ -106,10 +121,7 @@
           color="grey"
           @click="$emit('update:modelValue', false)"
         >
-          <q-tooltip
-            anchor="top middle"
-            self="bottom middle"
-            :offset="[8, 8]"
+          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
             >Cancel</q-tooltip
           >
         </q-btn>
@@ -123,7 +135,11 @@ import { computed } from 'vue';
 import { useQuasar } from 'quasar';
 import DialogHeader from '../DialogHeader.vue';
 import PlayerAvatar from '../PlayerAvatar.vue';
-import { getRatingColor } from '../../utils/playerHelpers';
+import {
+  getRatingColor,
+  duprChipRating,
+  duprSinglesRating,
+} from '../../utils/playerHelpers';
 import { useDupr } from '../../composables/useDupr';
 import type { Player } from '../../services/matchmaking';
 

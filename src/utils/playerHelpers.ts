@@ -74,6 +74,22 @@ export const displayRatingColor = (rating: number): string =>
   DuprServiceInstance.hideInternalRating ? 'grey-6' : getRatingColor(rating);
 
 /**
+ * Real DUPR doubles rating for chip/badge display while internal ratings are
+ * hidden — resolved live from the in-memory ratingsMap (webhook projection +
+ * batch backfill). Display-only; never persisted to matchmaking state.
+ */
+export const duprChipRating = (p: { duprId?: string | null }): number | null =>
+  DuprServiceInstance.duprDoublesOf(p.duprId);
+
+/**
+ * Real DUPR singles rating for the same display-only ratingsMap — shown as a
+ * secondary line in the DUPR chip tooltip, never on the chip itself.
+ */
+export const duprSinglesRating = (p: {
+  duprId?: string | null;
+}): number | null => DuprServiceInstance.duprSinglesOf(p.duprId);
+
+/**
  * Get the category name for a player rating.
  * Tiers: Beginner, Intermediate, Advanced, Expert, Pro.
  */

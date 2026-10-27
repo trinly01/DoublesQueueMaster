@@ -5,6 +5,7 @@ import { readItems, updateItem } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
 import { MatchmakingApp, hasPremiumL1 } from 'src/services/matchmaking';
 import { useNotify } from 'src/composables/useNotify';
+import { useDupr } from 'src/composables/useDupr';
 
 type NotifyFn = (opts: QNotifyCreateOptions) => void;
 
@@ -459,6 +460,8 @@ export function useClubMembers(context: UseClubMembersContext) {
             'players.directus_users_id.email',
             'players.directus_users_id.rating',
             'players.directus_users_id.dupr_id',
+            'players.directus_users_id.dupr_singles_rating',
+            'players.directus_users_id.dupr_doubles_rating',
             'players.directus_users_id.dupr_entitlements',
             'players.directus_users_id.avatar',
             'admins.id',
@@ -546,6 +549,29 @@ export function useClubMembers(context: UseClubMembersContext) {
             if (!acc.some((x) => x.id === m.id)) acc.push(m);
             return acc;
           }, []) || [];
+
+      // Seed the display-only DUPR ratings map from the webhook-projected
+      // user fields, then backfill any duprIds still unrated locally.
+      const seeds = (club.players || [])
+        .map((p) => p.directus_users_id)
+        .filter((u): u is Record<string, unknown> => !!u)
+        .filter((u) => typeof u.dupr_id === 'string')
+        .map((u) => ({
+          duprId: u.dupr_id as string,
+          singles:
+            typeof u.dupr_singles_rating === 'number'
+              ? u.dupr_singles_rating
+              : null,
+          doubles:
+            typeof u.dupr_doubles_rating === 'number'
+              ? u.dupr_doubles_rating
+              : null,
+        }))
+        .filter((s) => s.singles !== null || s.doubles !== null);
+      useDupr().seedRatings(seeds);
+      void useDupr().ensureRatings(
+        clubMembers.value.map((m) => m.duprId),
+      );
     } catch (err) {
       console.warn('Failed to refresh club members:', err);
     }

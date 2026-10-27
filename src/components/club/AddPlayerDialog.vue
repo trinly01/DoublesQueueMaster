@@ -202,6 +202,18 @@
 
         <!-- Club Members Mode -->
         <div v-else-if="addPlayerMode === 'club'" class="q-gutter-y-md">
+          <q-banner
+            v-if="duprOnly"
+            dense
+            rounded
+            class="bg-green-1 text-green-10"
+          >
+            <template v-slot:avatar>
+              <q-icon name="link" />
+            </template>
+            DUPR-only session — only members with a linked DUPR account are
+            shown.
+          </q-banner>
           <!-- Search & Sort -->
           <div class="row q-col-gutter-x-sm">
             <div class="col-12 col-sm-6">
@@ -285,6 +297,26 @@
                       dense
                       class="q-ml-xs"
                     />
+                    <q-chip
+                      v-else-if="duprChipRating(member) !== null"
+                      :label="duprChipRating(member)!.toFixed(3)"
+                      color="green-8"
+                      text-color="white"
+                      size="xs"
+                      dense
+                      class="q-ml-xs"
+                    >
+                      <q-tooltip>
+                        <div>
+                          DUPR Doubles ·
+                          {{ duprChipRating(member)!.toFixed(3) }}
+                        </div>
+                        <div v-if="duprSinglesRating(member) !== null">
+                          DUPR Singles ·
+                          {{ duprSinglesRating(member)!.toFixed(3) }}
+                        </div>
+                      </q-tooltip>
+                    </q-chip>
                   </div>
                   <q-item-label
                     caption
@@ -437,12 +469,17 @@ import {
   getLevelIcon,
   getLevelColor,
   getRatingColor,
+  duprChipRating,
+  duprSinglesRating,
 } from '../../utils/playerHelpers';
 import { useDupr } from '../../composables/useDupr';
 
 defineOptions({ name: 'AddPlayerDialog' });
 
 const hideInternalRating = computed(() => useDupr().hideInternalRating);
+// DUPR-only session — club-synced flag; check-in denies anyone without a
+// linked DUPR account, and the member picker only lists linked members.
+const duprOnly = computed(() => MatchmakingApp.state.duprOnly ?? false);
 
 interface ClubMember {
   id: string;
@@ -588,7 +625,8 @@ const availableClubMembers = computed(() => {
       m.id &&
       !Object.values(MatchmakingApp.state.players).some(
         (p) => p.userId === m.id && !p.deletedAt,
-      ),
+      ) &&
+      (!duprOnly.value || m.duprId),
   );
 
   if (search) {
@@ -728,7 +766,13 @@ const onScanSuccess = async (decodedText: string) => {
         rating: memberRating,
       },
     );
-    if (result === 'dupr_plus_required') {
+    if (result === 'dupr_required') {
+      notify({
+        type: 'warning',
+        message: `"${member.firstName || member.username}" can't join — DUPR-only session, link DUPR to your account`,
+        timeout: 5000,
+      });
+    } else if (result === 'dupr_plus_required') {
       notify({
         type: 'warning',
         message: `"${member.firstName || member.username}" can't join — this session requires DUPR+`,
@@ -826,7 +870,13 @@ const onScanSuccess = async (decodedText: string) => {
       },
     );
 
-    if (checkInResult === 'dupr_plus_required') {
+    if (checkInResult === 'dupr_required') {
+      notify({
+        type: 'warning',
+        message: `"${firstName || scannedUsername}" can't join — DUPR-only session, link DUPR to your account`,
+        timeout: 5000,
+      });
+    } else if (checkInResult === 'dupr_plus_required') {
       notify({
         type: 'warning',
         message: `"${firstName || scannedUsername}" can't join — this session requires DUPR+`,
@@ -922,6 +972,7 @@ const addClubMembers = () => {
   const added: string[] = [];
   const alreadyInQueue: string[] = [];
   const alreadyInMatch: string[] = [];
+  const duprBlocked: string[] = [];
   const duprPlusBlocked: string[] = [];
 
   selectedClubMembers.value.forEach((memberId) => {
@@ -952,6 +1003,8 @@ const addClubMembers = () => {
       alreadyInQueue.push(username);
     } else if (result === 'already_in_match') {
       alreadyInMatch.push(username);
+    } else if (result === 'dupr_required') {
+      duprBlocked.push(username);
     } else if (result === 'dupr_plus_required') {
       duprPlusBlocked.push(username);
     }
@@ -978,6 +1031,13 @@ const addClubMembers = () => {
       timeout: 3000,
     });
   }
+  if (duprBlocked.length > 0) {
+    notify({
+      type: 'warning',
+      message: `Skipped ${duprBlocked.length} — DUPR-only session, link DUPR to your account: ${duprBlocked.join(', ')}`,
+      timeout: 5000,
+    });
+  }
   if (duprPlusBlocked.length > 0) {
     notify({
       type: 'warning',
@@ -1001,6 +1061,15 @@ const addNewPlayer = () => {
     newPlayerLevel.value,
     { rating: initialRating },
   );
+
+  if (result === 'dupr_required') {
+    notify({
+      type: 'warning',
+      message: `"${trimmedName}" can't join — DUPR-only session, link DUPR to your account`,
+      timeout: 5000,
+    });
+    return;
+  }
 
   if (result === 'dupr_plus_required') {
     notify({
@@ -1043,6 +1112,7 @@ const addBulkPlayers = () => {
   const invalidNames: string[] = [];
   const alreadyInQueue: string[] = [];
   const alreadyInMatch: string[] = [];
+  const duprBlocked: string[] = [];
   const duprPlusBlocked: string[] = [];
 
   for (const bulkPlayer of bulkPlayers.value) {
@@ -1075,6 +1145,8 @@ const addBulkPlayers = () => {
       alreadyInQueue.push(trimmedName);
     } else if (result === 'already_in_match') {
       alreadyInMatch.push(trimmedName);
+    } else if (result === 'dupr_required') {
+      duprBlocked.push(trimmedName);
     } else if (result === 'dupr_plus_required') {
       duprPlusBlocked.push(trimmedName);
     }
@@ -1119,6 +1191,13 @@ const addBulkPlayers = () => {
     });
   }
 
+  if (duprBlocked.length > 0) {
+    notify({
+      type: 'warning',
+      message: `Skipped ${duprBlocked.length} — DUPR-only session, link DUPR to your account: ${duprBlocked.join(', ')}`,
+      timeout: 5000,
+    });
+  }
   if (duprPlusBlocked.length > 0) {
     notify({
       type: 'warning',
