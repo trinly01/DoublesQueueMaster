@@ -1649,8 +1649,11 @@ const isEditProfileDisabled = computed(() => {
 });
 
 const showHistoryDialog = ref(false);
+// Default to 'matches' (not 'history') when the flag is already on at mount —
+// the history tab is hidden under hide_internal_rating, so a cached-true flag
+// would otherwise leave the panel blank until another tab is tapped.
 const activeTab = ref<'history' | 'matches' | 'partners' | 'rivals' | 'clutch'>(
-  'history',
+  hideInternalRating.value ? 'matches' : 'history',
 );
 
 const showLeaderboardDialog = ref(false);
