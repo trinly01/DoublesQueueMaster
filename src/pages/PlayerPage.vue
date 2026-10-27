@@ -1561,9 +1561,14 @@ const duprConnected = computed(
     !!PlayerProfile.state.duprId ||
     Dupr.state.connection?.status === 'connected',
 );
-const duprId = computed(
-  () => Dupr.state.connection?.dupr_id || PlayerProfile.state.duprId || '',
-);
+const duprId = computed(() => {
+  const conn = Dupr.state.connection;
+  return (
+    (conn?.status === 'connected' ? conn.dupr_id : undefined) ||
+    PlayerProfile.state.duprId ||
+    ''
+  );
+});
 const duprSinglesRating = computed(
   () =>
     Dupr.state.connection?.singles_rating ?? Dupr.duprSinglesOf(duprId.value),

@@ -3440,10 +3440,13 @@ const refreshPlayerRatings = async () => {
         }
       }
 
-      // Update DUPR ID if present
-      if (typeof u.dupr_id === 'string') {
-        if (local.duprId !== u.dupr_id) {
-          local.duprId = u.dupr_id;
+      // Update DUPR ID — including clearing it on disconnect (a null server
+      // value must propagate, or a disconnected member keeps the stale id
+      // and still passes the DUPR gate).
+      if (u.dupr_id !== undefined) {
+        const next = typeof u.dupr_id === 'string' ? u.dupr_id : undefined;
+        if (local.duprId !== next) {
+          local.duprId = next;
           local.updatedAt = Date.now();
           changed = true;
         }
