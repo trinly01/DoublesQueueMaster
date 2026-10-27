@@ -171,6 +171,10 @@ class DuprService {
     try {
       const result = await likhaClient.request(
         readItems('dupr_connection', {
+          // Connected rows only — Disconnect keeps the row for audit
+          // (status 'disconnected', retains dupr_id), and it must never
+          // land in state.connection or stale ids/ratings keep rendering.
+          filter: { status: { _eq: 'connected' } },
           fields: [
             'id',
             'dupr_id',
