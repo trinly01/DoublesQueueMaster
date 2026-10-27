@@ -42,12 +42,28 @@ interface DuprSettings {
   // DUPR partner requirement: when true, the app must not surface the
   // internal DinkMatch rating (directus_users.rating) anywhere user-facing.
   hide_internal_rating?: boolean | null;
+  // "Get DUPR Ratings" webhook flow — batch rating lookup by duprIds.
+  ratings_flow_url?: string | null;
+}
+
+/** Real DUPR rating for one connected/known player — display only. */
+export interface DuprRatingEntry {
+  singles: number | null;
+  doubles: number | null;
+  singlesReliable?: boolean;
+  doublesReliable?: boolean;
+  fullName?: string | null;
 }
 
 interface DuprState {
   connection: DuprConnection | null;
   settings: DuprSettings | null;
   submissions: DuprSubmissionStatus[];
+  // In-memory only: duprId → live DUPR ratings for display (chips/badges).
+  // Seeded from directus_users.dupr_*_rating projections, topped up by the
+  // ratings batch flow. Deliberately NOT persisted — DUPR ratings are
+  // display data, never written into matchmaking state.
+  ratingsMap: Record<string, DuprRatingEntry>;
   loading: boolean;
   connecting: boolean;
   submitting: boolean;
@@ -81,6 +97,7 @@ class DuprService {
       connection: cachedConnection,
       settings: cachedSettings,
       submissions: cachedSubmissions || [],
+      ratingsMap: {},
       loading: false,
       connecting: false,
       submitting: false,
@@ -127,6 +144,7 @@ class DuprService {
             'client_key',
             'user_api_base_url',
             'hide_internal_rating',
+            'ratings_flow_url',
           ],
         }),
       );
@@ -715,6 +733,75 @@ class DuprService {
     return this.state.settings?.environment === 'production'
       ? 'https://dashboard.dupr.com'
       : 'https://uat.dupr.gg';
+  }
+
+  /** DUPR doubles rating for display — null when unknown/unrated. */
+  duprDoublesOf(duprId?: string | null): number | null {
+    if (!duprId) return null;
+    return this.state.ratingsMap[duprId]?.doubles ?? null;
+  }
+
+  /** Singles counterpart for profile display. */
+  duprSinglesOf(duprId?: string | null): number | null {
+    if (!duprId) return null;
+    return this.state.ratingsMap[duprId]?.singles ?? null;
+  }
+
+  /**
+   * Seed the display map from projected values (webhook →
+   * directus_users.dupr_*_rating). Ignores duprIds already covered.
+   */
+  seedRatings(
+    rows: Array<{ duprId: string; singles: number | null; doubles: number | null }>,
+  ): void {
+    for (const r of rows) {
+      if (!r.duprId) continue;
+      if (!this.state.ratingsMap[r.duprId]) {
+        this.state.ratingsMap[r.duprId] = {
+          singles: r.singles,
+          doubles: r.doubles,
+        };
+      }
+    }
+  }
+
+  private requestedRatingIds = new Set<string>();
+
+  /**
+   * Backfill ratings for any duprIds not yet covered — calls the
+   * "Get DUPR Ratings" flow which proxies DUPR's user/v1.0/batch.
+   * Fire-and-forget; chips render reactively once the map lands.
+   */
+  async ensureRatings(duprIds: Array<string | null | undefined>): Promise<void> {
+    if (!this.state.settings) await this.fetchSettings();
+    const url = this.state.settings?.ratings_flow_url;
+    if (!url) return;
+    const missing = [
+      ...new Set(
+        duprIds
+          .filter((id): id is string => !!id)
+          .filter((id) => !this.state.ratingsMap[id] && !this.requestedRatingIds.has(id)),
+      ),
+    ];
+    if (!missing.length) return;
+    missing.forEach((id) => this.requestedRatingIds.add(id));
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
+        body: JSON.stringify({ duprIds: missing }),
+      });
+      const data = (await res.json()) as {
+        ratings?: Record<string, DuprRatingEntry>;
+      };
+      if (data?.ratings) {
+        for (const [id, r] of Object.entries(data.ratings)) {
+          this.state.ratingsMap[id] = r;
+        }
+      }
+    } catch (err) {
+      console.warn('[DUPR] ratings backfill failed:', err);
+    }
   }
 
   /**

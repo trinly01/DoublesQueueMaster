@@ -3947,6 +3947,46 @@ describe('CLUB_SETTINGS descriptor', () => {
   });
 });
 
+describe('checkInPlayer — DUPR session gates', () => {
+  it('duprOnly blocks players without a linked DUPR account', () => {
+    const sys = new LocalMatchmakingSystem(1);
+    sys.state.duprOnly = true;
+
+    expect(sys.checkInPlayer('guest-no-dupr')).toBe('dupr_required');
+    expect(sys.state.queues).toHaveLength(0);
+    // Still rostered — just not queued.
+    expect(sys.state.players['guest-no-dupr']).toBeDefined();
+
+    expect(
+      sys.checkInPlayer('linked-player', 2, { duprId: 'R4Q0MM' }),
+    ).toBe('added');
+    expect(sys.state.queues).toHaveLength(1);
+  });
+
+  it('duprPlusOnly blocks players without the entitlement', () => {
+    const sys = new LocalMatchmakingSystem(1);
+    sys.state.duprPlusOnly = true;
+
+    expect(sys.checkInPlayer('no-plus')).toBe('dupr_plus_required');
+    expect(
+      sys.checkInPlayer('plus-player', 2, { duprPlus: true }),
+    ).toBe('added');
+  });
+
+  it('duprOnly gates before duprPlusOnly when both are on', () => {
+    const sys = new LocalMatchmakingSystem(1);
+    sys.state.duprOnly = true;
+    sys.state.duprPlusOnly = true;
+
+    // No duprId at all → dupr_required (not dupr_plus_required).
+    expect(sys.checkInPlayer('unlinked')).toBe('dupr_required');
+    // Linked but no DUPR+ → dupr_plus_required.
+    expect(sys.checkInPlayer('linked-no-plus', 2, { duprId: 'ABC123' })).toBe(
+      'dupr_plus_required',
+    );
+  });
+});
+
 // ---------------------------------------------------------------------------
 // actionLogsResetAt checkpoint + ACTION_LOG_CAP + reset-log immunity
 // ---------------------------------------------------------------------------

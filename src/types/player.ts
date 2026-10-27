@@ -5,4 +5,5 @@ export interface TeamPlayer {
   lastName?: string;
   level?: number;
   rating?: number;
+  duprId?: string;
 }

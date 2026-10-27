@@ -184,6 +184,7 @@ export interface AppState {
     | 'edited';
   scoreType?: 'RALLY' | 'SIDEOUT'; // For DUPR CSV export
   duprPlusOnly?: boolean; // DUPR+ session — queue check-in requires PREMIUM_L1 entitlement
+  duprOnly?: boolean; // DUPR-only session — queue check-in requires a linked DUPR account
   ttsEnabled?: boolean; // Text-to-speech announcements
   qrContinueScan?: boolean; // Continue QR scanning after each successful add
   completedMatchesResetAt?: number; // Epoch ms — drops completedMatches older than this
@@ -217,6 +218,7 @@ export const CLUB_SETTINGS: Record<string, unknown> = {
   matchesFilterBy: 'all',
   scoreType: 'SIDEOUT',
   duprPlusOnly: false,
+  duprOnly: false,
   ttsEnabled: true,
   qrContinueScan: true,
   teamSize: 2,
@@ -1511,7 +1513,12 @@ export class LocalMatchmakingSystem {
     username: string,
     level: 1 | 2 | 3 = 1,
     extra?: Partial<Player>,
-  ): 'added' | 'already_in_queue' | 'already_in_match' | 'dupr_plus_required' {
+  ):
+    | 'added'
+    | 'already_in_queue'
+    | 'already_in_match'
+    | 'dupr_plus_required'
+    | 'dupr_required' {
     const normalizedUsername = username.trim();
 
     // Create player profile if they don't exist in the local database
@@ -1567,6 +1574,16 @@ export class LocalMatchmakingSystem {
 
     if (inQueue) {
       return 'already_in_queue';
+    }
+
+    // DUPR-only session gate — the player is still rostered above, they just
+    // can't join the queue without a linked DUPR account.
+    if (this.state.duprOnly) {
+      const p = this.state.players[normalizedUsername];
+      if (!p?.duprId) {
+        this.saveState();
+        return 'dupr_required';
+      }
     }
 
     // DUPR+ session gate — the player is still rostered above, they just

@@ -101,6 +101,26 @@
                       dense
                       class="q-ml-xs"
                     />
+                    <q-chip
+                      v-else-if="duprChipRating(player) !== null"
+                      :label="duprChipRating(player)!.toFixed(3)"
+                      color="green-8"
+                      text-color="white"
+                      size="xs"
+                      dense
+                      class="q-ml-xs"
+                    >
+                      <q-tooltip>
+                        <div>
+                          DUPR Doubles ·
+                          {{ duprChipRating(player)!.toFixed(3) }}
+                        </div>
+                        <div v-if="duprSinglesRating(player) !== null">
+                          DUPR Singles ·
+                          {{ duprSinglesRating(player)!.toFixed(3) }}
+                        </div>
+                      </q-tooltip>
+                    </q-chip>
                   </q-item-label>
                 </q-item-section>
                 <q-item-section side>
@@ -209,6 +229,26 @@
                       dense
                       class="q-ml-xs"
                     />
+                    <q-chip
+                      v-else-if="duprChipRating(player) !== null"
+                      :label="duprChipRating(player)!.toFixed(3)"
+                      color="green-8"
+                      text-color="white"
+                      size="xs"
+                      dense
+                      class="q-ml-xs"
+                    >
+                      <q-tooltip>
+                        <div>
+                          DUPR Doubles ·
+                          {{ duprChipRating(player)!.toFixed(3) }}
+                        </div>
+                        <div v-if="duprSinglesRating(player) !== null">
+                          DUPR Singles ·
+                          {{ duprSinglesRating(player)!.toFixed(3) }}
+                        </div>
+                      </q-tooltip>
+                    </q-chip>
                   </q-item-label>
                 </q-item-section>
                 <q-item-section side>
@@ -355,7 +395,11 @@ import { useQuasar } from 'quasar';
 import PlayerAvatar from '../PlayerAvatar.vue';
 import DialogHeader from '../DialogHeader.vue';
 import TeamArrangement from '../TeamArrangement.vue';
-import { getRatingColor } from '../../utils/playerHelpers';
+import {
+  getRatingColor,
+  duprChipRating,
+  duprSinglesRating,
+} from '../../utils/playerHelpers';
 import { useDupr } from '../../composables/useDupr';
 import type { Player } from '../../services/matchmaking';
 

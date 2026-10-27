@@ -437,6 +437,15 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
     }).onOk(() => {
       const result = MatchmakingApp.checkInPlayer(p.username, p.level);
 
+      if (result === 'dupr_required') {
+        notify({
+          type: 'warning',
+          message: `"${p.firstName || p.username}" can't join — DUPR-only session, link DUPR to your account`,
+          timeout: 5000,
+        });
+        return;
+      }
+
       if (result === 'dupr_plus_required') {
         notify({
           type: 'warning',
@@ -492,6 +501,7 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
       let addedCount = 0;
       let alreadyInQueueCount = 0;
       let alreadyInMatchCount = 0;
+      let duprBlockedCount = 0;
       let duprPlusBlockedCount = 0;
 
       players.value.forEach((p) => {
@@ -504,6 +514,7 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
           });
         } else if (result === 'already_in_queue') alreadyInQueueCount++;
         else if (result === 'already_in_match') alreadyInMatchCount++;
+        else if (result === 'dupr_required') duprBlockedCount++;
         else if (result === 'dupr_plus_required') duprPlusBlockedCount++;
       });
 
@@ -527,6 +538,14 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
           type: 'warning',
           message: `Skipped ${alreadyInMatchCount} player${alreadyInMatchCount > 1 ? 's' : ''} already in match`,
           timeout: 3000,
+        });
+      }
+
+      if (duprBlockedCount > 0) {
+        notify({
+          type: 'warning',
+          message: `${duprBlockedCount} player${duprBlockedCount > 1 ? 's' : ''} skipped — DUPR-only session, link DUPR to your account`,
+          timeout: 5000,
         });
       }
 

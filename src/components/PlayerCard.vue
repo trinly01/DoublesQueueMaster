@@ -151,6 +151,23 @@
           dense
           class="q-ml-xs"
         />
+        <!-- DUPR rating replaces the internal chip while ratings are hidden -->
+        <q-chip
+          v-else-if="hideInternalRating && duprChipRating(player) !== null"
+          :label="duprChipRating(player)!.toFixed(3)"
+          color="green-8"
+          text-color="white"
+          size="xs"
+          dense
+          class="q-ml-xs"
+        >
+          <q-tooltip>
+            <div>DUPR Doubles · {{ duprChipRating(player)!.toFixed(3) }}</div>
+            <div v-if="duprSinglesRating(player) !== null">
+              DUPR Singles · {{ duprSinglesRating(player)!.toFixed(3) }}
+            </div>
+          </q-tooltip>
+        </q-chip>
         <!-- <span v-if="showQueueTime && player.enteredAt" class="q-ml-sm text-grey-6">
           {{ getQueueTimeInfo(player.enteredAt) }}
         </span> -->
@@ -271,7 +288,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import PlayerAvatar from './PlayerAvatar.vue';
-import { getRatingColor, linkPairColor } from '../utils/playerHelpers';
+import {
+  getRatingColor,
+  linkPairColor,
+  duprChipRating,
+  duprSinglesRating,
+} from '../utils/playerHelpers';
 import { useDupr } from '../composables/useDupr';
 import type { Player as BasePlayer } from '../services/matchmaking';
 type Player = BasePlayer & {
@@ -339,9 +361,7 @@ defineEmits<{
 // ring falls back to a neutral color so it can't leak the skill tier either.
 const hideInternalRating = computed(() => useDupr().hideInternalRating);
 const avatarColor = computed(() =>
-  hideInternalRating.value
-    ? 'grey-6'
-    : getRatingColor(props.player.rating),
+  hideInternalRating.value ? 'grey-6' : getRatingColor(props.player.rating),
 );
 
 const isSelf = computed(() => {

@@ -1583,6 +1583,7 @@
         v-model:availableCourts="availableCourts"
         v-model:autoAdvanceMatches="autoAdvanceMatches"
         v-model:ttsEnabled="ttsEnabled"
+        v-model:duprOnly="duprOnly"
         v-model:duprPlusOnly="duprPlusOnly"
         v-model:scoreType="scoreType"
         v-model:editClubName="editClubName"
@@ -1834,6 +1835,20 @@ const players = computed(() =>
           )
         : undefined,
     })),
+);
+
+// Backfill display-only DUPR ratings for rostered players — chips show the
+// real DUPR rating when hide_internal_rating hides the internal one.
+watch(
+  () =>
+    players.value
+      .map((p) => p.duprId)
+      .filter(Boolean)
+      .join(','),
+  (ids) => {
+    if (ids) void Dupr.ensureRatings(ids.split(','));
+  },
+  { immediate: true },
 );
 
 // Players who are queued or in a live match (waiting or in-progress).
@@ -2568,6 +2583,7 @@ const {
   matchmakingMode,
   allStarSortDirection,
   autoSortQueue,
+  duprOnly,
   duprPlusOnly,
   scoreType,
   sortBy,

@@ -55,4 +55,20 @@ describe('hide_internal_rating (DUPR compliance)', () => {
     DuprServiceInstance.state.settings = { environment: 'uat' } as never;
     expect(DuprServiceInstance.duprAppUrl).toBe('https://uat.dupr.gg');
   });
+
+  it('seedRatings fills the display map without clobbering fresher data', () => {
+    const svc = DuprServiceInstance;
+    svc.state.ratingsMap = {};
+    svc.seedRatings([{ duprId: 'ABC123', singles: 4.5, doubles: 3.8 }]);
+    expect(svc.duprDoublesOf('ABC123')).toBe(3.8);
+    expect(svc.duprSinglesOf('ABC123')).toBe(4.5);
+    // Existing entries (e.g. from a batch fetch) win over later seeds
+    svc.state.ratingsMap['XYZ789'] = { singles: null, doubles: 2.5 };
+    svc.seedRatings([{ duprId: 'XYZ789', singles: 1.0, doubles: 1.0 }]);
+    expect(svc.duprDoublesOf('XYZ789')).toBe(2.5);
+    // Unknown / missing ids resolve to null, never to an internal rating
+    expect(svc.duprDoublesOf('NOBODY')).toBeNull();
+    expect(svc.duprDoublesOf(undefined)).toBeNull();
+    expect(svc.duprDoublesOf('')).toBeNull();
+  });
 });
