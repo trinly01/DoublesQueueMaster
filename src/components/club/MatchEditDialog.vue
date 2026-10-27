@@ -60,7 +60,7 @@
                   <PlayerAvatar
                     :name="player.firstName"
                     :username="player.username"
-                    :color="getRatingColor(player.rating)"
+                    :color="ratingColor(player.rating)"
                     :user-id="player.userId"
                     :dupr-id="player.duprId"
                     :image-url="player.avatar"
@@ -93,6 +93,7 @@
                       >L:{{ player.losses || 0 }}</span
                     >
                     <q-chip
+                      v-if="!hideInternalRating"
                       :label="player.rating"
                       :color="getRatingColor(player.rating ?? 1450)"
                       text-color="white"
@@ -167,7 +168,7 @@
                   <PlayerAvatar
                     :name="player.firstName"
                     :username="player.username"
-                    :color="getRatingColor(player.rating)"
+                    :color="ratingColor(player.rating)"
                     :user-id="player.userId"
                     :dupr-id="player.duprId"
                     :image-url="player.avatar"
@@ -200,6 +201,7 @@
                       >L:{{ player.losses || 0 }}</span
                     >
                     <q-chip
+                      v-if="!hideInternalRating"
                       :label="player.rating"
                       :color="getRatingColor(player.rating ?? 1450)"
                       text-color="white"
@@ -354,9 +356,14 @@ import PlayerAvatar from '../PlayerAvatar.vue';
 import DialogHeader from '../DialogHeader.vue';
 import TeamArrangement from '../TeamArrangement.vue';
 import { getRatingColor } from '../../utils/playerHelpers';
+import { useDupr } from '../../composables/useDupr';
 import type { Player } from '../../services/matchmaking';
 
 defineOptions({ name: 'MatchEditDialog' });
+
+const hideInternalRating = computed(() => useDupr().hideInternalRating);
+const ratingColor = (rating?: number) =>
+  hideInternalRating.value ? 'grey-6' : getRatingColor(rating ?? 1450);
 
 const $q = useQuasar();
 

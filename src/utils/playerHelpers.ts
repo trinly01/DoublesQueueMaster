@@ -1,6 +1,7 @@
 // Player utility functions - extracted to reduce duplication
 
 import { Player } from '../services/matchmaking';
+import { DuprServiceInstance } from '../composables/useDupr';
 
 // We also need a UI-level representation for Queue to show wait times
 export interface UIQueueEntry {
@@ -62,6 +63,15 @@ export const getRatingColor = (rating: number): string => {
   if (rating < 2100) return 'amber-7'; // Expert
   return 'red-7'; // Pro
 };
+
+/**
+ * Display-side rating color. DUPR compliance: when the partner workspace sets
+ * dupr_settings.hide_internal_rating, tier colors would still leak the skill
+ * band — this returns a neutral grey so rings/chips stop encoding rating.
+ * Pure getRatingColor is kept for tests and non-display callers.
+ */
+export const displayRatingColor = (rating: number): string =>
+  DuprServiceInstance.hideInternalRating ? 'grey-6' : getRatingColor(rating);
 
 /**
  * Get the category name for a player rating.

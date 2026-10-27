@@ -277,6 +277,7 @@
                       }}
                     </q-item-label>
                     <q-chip
+                      v-if="!hideInternalRating"
                       :label="member.rating || 1450"
                       :color="getRatingColor(member.rating || 1450)"
                       text-color="white"
@@ -437,8 +438,11 @@ import {
   getLevelColor,
   getRatingColor,
 } from '../../utils/playerHelpers';
+import { useDupr } from '../../composables/useDupr';
 
 defineOptions({ name: 'AddPlayerDialog' });
+
+const hideInternalRating = computed(() => useDupr().hideInternalRating);
 
 interface ClubMember {
   id: string;

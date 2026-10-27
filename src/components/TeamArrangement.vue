@@ -41,26 +41,28 @@
       <!-- Team 1 -->
       <div class="col text-center team-col">
         <div class="team-header bg-blue-6 text-white">
-          <div class="header-left">
-            <q-chip
-              :label="getTeamSkill(team1)"
-              color="white"
-              text-color="blue-6"
-              size="xs"
-              dense
-              class="header-chip"
-            />
-            <span class="header-pct"> {{ getWinProbability().teamA }}% </span>
-          </div>
-          <div class="header-right">
-            <span class="header-stat"> H:{{ getHarmonicMean(team1) }} </span>
-            <span class="header-stat"> A:{{ getArithmeticMean(team1) }} </span>
-          </div>
-          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">
-            Rating: 60% Harmonic + 40% Arithmetic · Win: Win Probability · H:
-            Harmonic Mean (weakest player weighs more) · A: Arithmetic Mean
-            (simple average)
-          </q-tooltip>
+          <template v-if="!hideInternalRating">
+            <div class="header-left">
+              <q-chip
+                :label="getTeamSkill(team1)"
+                color="white"
+                text-color="blue-6"
+                size="xs"
+                dense
+                class="header-chip"
+              />
+              <span class="header-pct"> {{ getWinProbability().teamA }}% </span>
+            </div>
+            <div class="header-right">
+              <span class="header-stat"> H:{{ getHarmonicMean(team1) }} </span>
+              <span class="header-stat"> A:{{ getArithmeticMean(team1) }} </span>
+            </div>
+            <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">
+              Rating: 60% Harmonic + 40% Arithmetic · Win: Win Probability · H:
+              Harmonic Mean (weakest player weighs more) · A: Arithmetic Mean
+              (simple average)
+            </q-tooltip>
+          </template>
         </div>
         <div
           v-for="player in team1"
@@ -94,6 +96,7 @@
             {{ player.firstName || player.username }}
           </span>
           <q-chip
+            v-if="!hideInternalRating"
             :label="player.rating || 1450"
             :color="getRatingColor(player.rating || 1450)"
             text-color="white"
@@ -114,26 +117,28 @@
       <!-- Team 2 -->
       <div class="col text-center team-col">
         <div class="team-header bg-orange-6 text-white">
-          <div class="header-left">
-            <q-chip
-              :label="getTeamSkill(team2)"
-              color="white"
-              text-color="orange-6"
-              size="xs"
-              dense
-              class="header-chip"
-            />
-            <span class="header-pct"> {{ getWinProbability().teamB }}% </span>
-          </div>
-          <div class="header-right">
-            <span class="header-stat"> H:{{ getHarmonicMean(team2) }} </span>
-            <span class="header-stat"> A:{{ getArithmeticMean(team2) }} </span>
-          </div>
-          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">
-            Rating: 60% Harmonic + 40% Arithmetic · Win: Win Probability · H:
-            Harmonic Mean (weakest player weighs more) · A: Arithmetic Mean
-            (simple average)
-          </q-tooltip>
+          <template v-if="!hideInternalRating">
+            <div class="header-left">
+              <q-chip
+                :label="getTeamSkill(team2)"
+                color="white"
+                text-color="orange-6"
+                size="xs"
+                dense
+                class="header-chip"
+              />
+              <span class="header-pct"> {{ getWinProbability().teamB }}% </span>
+            </div>
+            <div class="header-right">
+              <span class="header-stat"> H:{{ getHarmonicMean(team2) }} </span>
+              <span class="header-stat"> A:{{ getArithmeticMean(team2) }} </span>
+            </div>
+            <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]">
+              Rating: 60% Harmonic + 40% Arithmetic · Win: Win Probability · H:
+              Harmonic Mean (weakest player weighs more) · A: Arithmetic Mean
+              (simple average)
+            </q-tooltip>
+          </template>
         </div>
         <div
           v-for="player in team2"
@@ -167,6 +172,7 @@
             {{ player.firstName || player.username }}
           </span>
           <q-chip
+            v-if="!hideInternalRating"
             :label="player.rating || 1450"
             :color="getRatingColor(player.rating || 1450)"
             text-color="white"
@@ -189,10 +195,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 import { useNotify } from '../composables/useNotify';
+import { useDupr } from '../composables/useDupr';
 import { getRatingColor } from '../utils/playerHelpers';
+
+const hideInternalRating = computed(() => useDupr().hideInternalRating);
 import {
   MatchmakingApp,
   computeTeamRating,
