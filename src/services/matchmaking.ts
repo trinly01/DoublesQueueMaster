@@ -1487,7 +1487,9 @@ export class LocalMatchmakingSystem {
     const log: ActionLog = {
       id: `${Date.now()}-${performedById}-${Math.random().toString(36).slice(2, 8)}`,
       action,
-      performedBy,
+      // Never stamp a blank performer — an unnamed account still leaves an
+      // 'Unknown' marker rather than an anonymous audit entry.
+      performedBy: performedBy?.trim() || 'Unknown',
       performedById,
       timestamp: Date.now(),
       details,

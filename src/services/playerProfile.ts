@@ -298,6 +298,21 @@ export class PlayerProfileService {
   public hasCachedProfile(): boolean {
     return !!this.state.id && (this.state.lastModified || 0) > 0;
   }
+
+  /**
+   * Best available human-readable name for the logged-in user.
+   * Accounts can legitimately lack first_name AND username (SSO provisioning
+   * gap, email-only signups) — email prefix keeps those actors identifiable
+   * in action logs instead of stamping a blank performer.
+   */
+  public get displayName(): string {
+    return (
+      this.state.firstName ||
+      this.state.username ||
+      this.state.email?.split('@')[0] ||
+      'Unknown'
+    );
+  }
 }
 
 // Singleton instance for app-wide use

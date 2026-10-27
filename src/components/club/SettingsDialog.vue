@@ -406,7 +406,7 @@
                       {{ getLogActionLabel(log) }}
                     </q-item-label>
                     <q-item-label caption>
-                      {{ log.performedBy }} &middot;
+                      {{ log.performedBy || 'Unknown' }} &middot;
                       {{ formatDate(log.timestamp) }}
                     </q-item-label>
                     <q-item-label

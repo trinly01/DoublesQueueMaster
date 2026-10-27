@@ -21,10 +21,17 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
   const { notify: ctxNotify } = useNotify();
   const notify = ctxNotify as NotifyFn;
 
+  // Resolve the actor's name as the club sees it: the roster record carries
+  // the member's display firstName even when the account profile itself has
+  // blank name/username fields (SSO provisioning gap, email-only signups).
+  const actorName = () =>
+    players.value.find((p) => p.userId && p.userId === PlayerProfile.state.id)
+      ?.firstName || PlayerProfile.displayName;
+
   const logAction = (action: string, details: Record<string, unknown>) => {
     MatchmakingApp.addActionLog(
       action,
-      PlayerProfile.state.firstName || PlayerProfile.state.username,
+      actorName(),
       PlayerProfile.state.id,
       details,
     );
@@ -85,7 +92,7 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
     if (MatchmakingApp.isQueueLocked(username)) {
       // Unlock: instant, no confirmation — reversible and harmless.
       if (MatchmakingApp.setQueueLock(username, false)) {
-        logAction('unlock_player', { player: displayName });
+        logAction('unlock_player', { player: displayName, username });
         notify({
           type: 'positive',
           message: `"${displayName}" unlocked — back in auto-draft`,
@@ -102,7 +109,7 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
       persistent: true,
     }).onOk(() => {
       if (MatchmakingApp.setQueueLock(username, true)) {
-        logAction('lock_player', { player: displayName });
+        logAction('lock_player', { player: displayName, username });
         notify({
           type: 'info',
           message: `"${displayName}" locked — skipped by auto-draft`,
