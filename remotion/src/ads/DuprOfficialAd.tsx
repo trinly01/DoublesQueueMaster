@@ -98,7 +98,7 @@ const HandshakeScene: React.FC<{ aspect: AdProps["aspect"] }> = ({
           letterSpacing: 2,
         }}
       >
-        ⚡ NEW
+        ⚡ OFFICIAL
       </div>
       <div
         style={{
@@ -504,7 +504,7 @@ export const DuprOfficialAd: React.FC<AdProps> = ({
         }}
       >
         <AdCtaOutro
-          tagline="Every game counts."
+          tagline="Every game counts — officially."
           cta="Link your DUPR"
           scale={layoutFor(aspect).fontScale}
         />
