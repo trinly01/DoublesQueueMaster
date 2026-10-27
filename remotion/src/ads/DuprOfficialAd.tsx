@@ -18,10 +18,10 @@ import { AdAudio, Sfx } from "../components/AdAudio";
 // Each line starts ~1s after the previous one ends — the pause between
 // lines is what makes the beats readable.
 const VO_LINES = [
-  { at: 12, file: "du_hook" },
-  { at: 148, file: "du_connect" },
-  { at: 232, file: "du_submit" },
-  { at: 362, file: "du_cta" },
+  { at: 2, file: "du_hook" },
+  { at: 108, file: "du_connect" },
+  { at: 236, file: "du_submit" },
+  { at: 352, file: "du_cta" },
 ];
 
 /** Beat 1 (0–3s): DinkMatch × DUPR handshake — two pills link up. */

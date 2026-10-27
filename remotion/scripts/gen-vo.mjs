@@ -18,8 +18,13 @@ const VOICE = "en-US-AndrewNeural";
 const RATE = "+8%";
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "../public/vo");
 
+const wanted = process.argv.slice(2);
+const entries = Object.entries(LINES).filter(
+  ([name]) => wanted.length === 0 || wanted.includes(name),
+);
+
 mkdirSync(OUT, { recursive: true });
-for (const [name, line] of Object.entries(LINES)) {
+for (const [name, line] of entries) {
   const file = join(OUT, `${name}.mp3`);
   const text = typeof line === "string" ? line : line.text;
   const rate = typeof line === "string" ? RATE : (line.rate ?? RATE);
