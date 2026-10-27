@@ -240,10 +240,7 @@
           "body": "{{ do_delete.body }}"
         },
         "resolve": "4cc4282f-2f60-4f7a-a9f7-c139229d5f5e",
-        "reject": "178e1bca-30ce-45dc-a6b6-971ab7ea59f1",
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-21T22:55:25.410Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": "178e1bca-30ce-45dc-a6b6-971ab7ea59f1"
       },
       {
         "id": "178e1bca-30ce-45dc-a6b6-971ab7ea59f1",
@@ -267,10 +264,7 @@
           ]
         },
         "resolve": "3e7f20e8-75c3-4b74-b144-1b86bced639f",
-        "reject": "91c3230b-e576-47d8-9c79-7c182f6f4098",
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-22T01:41:51.084Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": "91c3230b-e576-47d8-9c79-7c182f6f4098"
       },
       {
         "id": "1c6ec07d-0def-43fa-8237-a5993e223852",
@@ -294,10 +288,7 @@
           ]
         },
         "resolve": "c55a95b9-0a55-40f4-ac15-f5749528e4f2",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-17T02:12:17.361Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "37114fd3-8eb4-4e0c-bc55-135ec58c94a3",
@@ -310,10 +301,7 @@
           "code": "module.exports = async function(data) {\n  const step = data.del_req_failed || {};\n  return {\n    matchKey: step.matchKey || null,\n    status: step.status || 'failed',\n    error: step.error || null\n  };\n}"
         },
         "resolve": null,
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-21T22:55:26.111Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "39de68b3-4766-4a23-9790-957c8db6653f",
@@ -328,10 +316,7 @@
           "collection": "dupr_settings"
         },
         "resolve": "6ce05da8-ea09-4c65-923e-a5b77e688bfe",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-17T02:12:15.933Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "3d197ea9-d2a9-49c9-a6ff-bcfc1fd29b4b",
@@ -344,10 +329,7 @@
           "code": "module.exports = async function(data) {\n  \nfunction b64enc(str) {\n  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n  var out = '';\n  for (var i = 0; i < str.length; i += 3) {\n    var a = str.charCodeAt(i) & 0xff;\n    var b = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN;\n    var c = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN;\n    var t = (a << 16) | ((b || 0) << 8) | (c || 0);\n    out += chars[(t >> 18) & 63] + chars[(t >> 12) & 63] + (isNaN(b) ? '=' : chars[(t >> 6) & 63]) + (isNaN(c) ? '=' : chars[t & 63]);\n  }\n  return out;\n}\n  var settings = data.read_settings[0];\n  return { authHeader: b64enc(settings.client_key + ':' + settings.client_secret) };\n}"
         },
         "resolve": "1c6ec07d-0def-43fa-8237-a5993e223852",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-17T02:12:17.007Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "3e7f20e8-75c3-4b74-b144-1b86bced639f",
@@ -360,10 +342,7 @@
           "code": "module.exports = async function(data) {\n  return {\n    status: 'delete_failed',\n    matchKey: data.prepare.matchKey,\n    error: 'DUPR delete request failed and the match still exists on DUPR',\n    now: new Date().toISOString()\n  };\n}"
         },
         "resolve": "5b5b0fa5-8c0d-43c3-a4f5-d2fdf7b9767e",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-22T01:41:51.423Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "454ff751-4716-4b8d-a083-bbfe8a88c4e3",
@@ -383,10 +362,7 @@
           ]
         },
         "resolve": "b5ae95a1-e63b-4997-b7c1-197f72973e34",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-17T02:12:18.101Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "4cc4282f-2f60-4f7a-a9f7-c139229d5f5e",
@@ -399,10 +375,7 @@
           "code": "module.exports = async function(data) {\n  const req = data.dupr_delete_req || {};\n  const json = req.data || {};\n  const ok = json.status === 'SUCCESS';\n  return {\n    status: ok ? 'deleted' : 'delete_failed',\n    matchKey: data.prepare.matchKey,\n    error: ok ? null : (json.message || ('DUPR delete failed (HTTP ' + (req.status || '?') + ')')),\n    now: data.do_delete.now\n  };\n}"
         },
         "resolve": "454ff751-4716-4b8d-a083-bbfe8a88c4e3",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-21T22:55:25.563Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "55f1623b-05fa-4653-8a47-96aa80ce893d",
@@ -421,10 +394,7 @@
           ]
         },
         "resolve": "61ea5813-083d-4ba7-a5ed-38cbac856d9b",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-22T01:41:51.577Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "5b5b0fa5-8c0d-43c3-a4f5-d2fdf7b9767e",
@@ -443,10 +413,7 @@
           ]
         },
         "resolve": "66210410-0ea2-4f2f-baa9-257c05d71512",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-22T01:41:51.711Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "60398838-3a43-4b2e-8c27-6b0a7ccbc5ae",
@@ -459,10 +426,7 @@
           "code": "module.exports = async function(data) {\n  return {\n    status: 'delete_failed',\n    matchKey: data.prepare && data.prepare.matchKey,\n    error: 'DUPR delete request failed',\n    now: new Date().toISOString()\n  };\n}"
         },
         "resolve": "37114fd3-8eb4-4e0c-bc55-135ec58c94a3",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-21T22:55:25.697Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "61ea5813-083d-4ba7-a5ed-38cbac856d9b",
@@ -475,10 +439,7 @@
           "code": "module.exports = async function(data) {\n  const step = data.map_del_gone || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
         },
         "resolve": null,
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-22T01:41:51.877Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "66210410-0ea2-4f2f-baa9-257c05d71512",
@@ -491,10 +452,7 @@
           "code": "module.exports = async function(data) {\n  const step = data.map_del_alive || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
         },
         "resolve": null,
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-22T01:41:52.032Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "6ce05da8-ea09-4c65-923e-a5b77e688bfe",
@@ -507,10 +465,7 @@
           "code": "module.exports = async function(data) {\n  const body = data.$trigger.body || {};\n  const matchKey = body.matchKey;\n  const clubId = body.clubId;\n  if (!matchKey || !clubId) {\n    throw new Error('Missing required fields: matchKey, clubId');\n  }\n  return {\n    matchKey,\n    clubId,\n    apiBaseUrl: data.read_settings[0].api_base_url,\n    environment: data.read_settings[0].environment || 'uat',\n    // Optional client-supplied overrides (avoids completed_match sync race)\n    override: body.match || null\n  };\n}"
         },
         "resolve": "a3750a76-2e06-4b8c-acf6-835c168d0f7c",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-17T02:12:16.284Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "88ac9372-fd49-4322-a8e8-ed94ba0c835f",
@@ -530,10 +485,7 @@
           ]
         },
         "resolve": "fc72b60c-cc9a-4c3e-9f7d-0c6743c3834a",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-21T22:55:25.839Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "91c3230b-e576-47d8-9c79-7c182f6f4098",
@@ -546,10 +498,7 @@
           "code": "module.exports = async function(data) {\n  const err = data.del_verify_req || {};\n  const st = err.status || (err.response && err.response.status) || 0;\n  const msg = String(err.message || (err.data && err.data.message) || '');\n  const gone = st === 410 || st === 404 || st === 400 || /deleted|not found|does not exist/i.test(msg);\n  return {\n    status: gone ? 'deleted' : 'delete_failed',\n    matchKey: data.prepare.matchKey,\n    error: gone ? null : 'DUPR delete failed: ' + (msg || ('HTTP ' + st)),\n    now: new Date().toISOString()\n  };\n}"
         },
         "resolve": "55f1623b-05fa-4653-8a47-96aa80ce893d",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-22T01:41:51.241Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "a3750a76-2e06-4b8c-acf6-835c168d0f7c",
@@ -578,10 +527,7 @@
           }
         },
         "resolve": "3d197ea9-d2a9-49c9-a6ff-bcfc1fd29b4b",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-17T02:12:16.638Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "abacc8a7-715b-4926-a3bd-832e64d17ed9",
@@ -600,10 +546,7 @@
           }
         },
         "resolve": "0f60ef2f-abe7-4126-b744-7c08d8480ae0",
-        "reject": "88ac9372-fd49-4322-a8e8-ed94ba0c835f",
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-21T22:55:25.271Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": "88ac9372-fd49-4322-a8e8-ed94ba0c835f"
       },
       {
         "id": "b5ae95a1-e63b-4997-b7c1-197f72973e34",
@@ -616,10 +559,7 @@
           "code": "module.exports = async function(data) {\n  const step = data.map_delete || {};\n  return {\n    matchKey: step.matchKey || null,\n    status: step.status || 'failed',\n    error: step.error || null\n  };\n}"
         },
         "resolve": null,
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-17T02:12:18.458Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "c55a95b9-0a55-40f4-ac15-f5749528e4f2",
@@ -632,10 +572,7 @@
           "code": "module.exports = async function(data) {\n  const sub = (data.read_submission || [])[0];\n  const token = data.get_partner_token;\n  const partnerToken = (token && token.result && token.result.token) || (token && token.data && token.data.result && token.data.result.token) || (token && token.token);\n  const now = new Date().toISOString();\n  const matchKey = data.prepare.matchKey;\n  if (!partnerToken) throw new Error('Failed to get partner access token');\n\n  if (!sub || !sub.dupr_match_code) {\n    return { proceed: false, status: 'not_submitted', matchKey: matchKey, error: null, now: now };\n  }\n  return {\n    proceed: true,\n    matchKey: matchKey,\n    now: now,\n    url: data.prepare.apiBaseUrl + '/match/v1.0/delete',\n    authHeader: 'Bearer ' + partnerToken,\n    body: JSON.stringify({ matchCode: Number(sub.dupr_match_code), identifier: matchKey })\n  };\n}"
         },
         "resolve": "abacc8a7-715b-4926-a3bd-832e64d17ed9",
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-17T02:12:17.713Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "fc72b60c-cc9a-4c3e-9f7d-0c6743c3834a",
@@ -648,10 +585,7 @@
           "code": "module.exports = async function(data) {\n  const step = data.do_delete || {};\n  return {\n    matchKey: step.matchKey || null,\n    status: step.status || 'failed',\n    error: step.error || null\n  };\n}"
         },
         "resolve": null,
-        "reject": null,
-        "flow": "2e234c53-fba4-4dec-9683-5a84da8265c7",
-        "date_created": "2026-10-21T22:55:25.975Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       }
     ],
     "flow_manager_category": null,
@@ -1202,8 +1136,47 @@
             "{{ parse_webhook.duprId }}"
           ]
         },
-        "resolve": "be639d6d-0e3a-407a-b52d-5431e2c41e86",
+        "resolve": "f24d0956-f04a-4bbe-9b8e-ff28496bd288",
         "reject": null
+      },
+      {
+        "id": "f24d0956-f04a-4bbe-9b8e-ff28496bd288",
+        "name": "update_user_rating",
+        "key": "update_user_rating",
+        "type": "likha_sql",
+        "position_x": 55,
+        "position_y": 1,
+        "options": {
+          "sql": "UPDATE directus_users \nSET dupr_singles_rating = ?, \n    dupr_doubles_rating = ? \nWHERE dupr_id = ?;",
+          "binding": [
+            "{{ parse_webhook.singlesRating }}",
+            "{{ parse_webhook.doublesRating }}",
+            "{{ parse_webhook.duprId }}"
+          ]
+        },
+        "resolve": "fabe2dd7-5004-4caf-97e7-69166159eb1b",
+        "reject": null
+      },
+      {
+        "id": "fabe2dd7-5004-4caf-97e7-69166159eb1b",
+        "name": "refresh_entitlement",
+        "key": "refresh_entitlement",
+        "type": "request",
+        "position_x": 40,
+        "position_y": 20,
+        "options": {
+          "method": "POST",
+          "url": "https://api.dinkmatch.club/flows/trigger/964e6174-941d-4f08-97e0-cbe09437d9e0",
+          "headers": [
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\"duprId\":\"{{ parse_webhook.duprId }}\"}"
+        },
+        "resolve": "be639d6d-0e3a-407a-b52d-5431e2c41e86",
+        "reject": "be639d6d-0e3a-407a-b52d-5431e2c41e86"
       }
     ],
     "flow_manager_category": null,
@@ -1386,9 +1359,10 @@
         "position_x": 41,
         "position_y": 20,
         "options": {
-          "sql": "UPDATE directus_users SET dupr_id = ? WHERE id = ?::uuid;",
+          "sql": "UPDATE directus_users SET dupr_id = ?, dupr_entitlements = NULLIF(?, '')::json WHERE id = ?::uuid;",
           "binding": [
             "{{ prepare_data.duprId }}",
+            "{{ prepare_data.eligibility }}",
             "{{ prepare_data.userId }}"
           ]
         },
@@ -1440,6 +1414,293 @@
     "accountability": "all"
   },
   {
+    "id": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
+    "name": "Reactivate DUPR Match",
+    "icon": "restore",
+    "color": null,
+    "description": "Reactivate a deleted DUPR match (POST /match/v1.0/reactivate). Restores dupr_submission to submitted.",
+    "trigger": "webhook",
+    "options": {
+      "method": "POST",
+      "async": false,
+      "return": "$last"
+    },
+    "operation": "0989948c-e333-4171-9726-738b53780bf9",
+    "operations": [
+      {
+        "id": "0989948c-e333-4171-9726-738b53780bf9",
+        "name": "Read DUPR settings",
+        "key": "read_settings",
+        "type": "item-read",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "collection": "dupr_settings",
+          "query": {
+            "limit": 1
+          },
+          "emitEvents": false
+        },
+        "resolve": "ef6b0557-2721-4cba-8703-e145ae2d0e66",
+        "reject": null
+      },
+      {
+        "id": "104e2c0e-5df8-45e3-ba7b-f2a25faf6412",
+        "name": "Proceed?",
+        "key": "proceed_reactivate",
+        "type": "condition",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "filter": {
+            "$last": {
+              "proceed": {
+                "_eq": true
+              }
+            }
+          }
+        },
+        "resolve": "a49a33cc-5eda-4786-917b-15faa52e3ff2",
+        "reject": "ea86c061-33bb-49e9-b940-1a87d913fa6f"
+      },
+      {
+        "id": "416fdbfc-d233-4e0e-8fbf-a257309affd3",
+        "name": "Persist failure",
+        "key": "persist_fail",
+        "type": "likha_sql",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ?;",
+          "binding": [
+            "{{ req_failed.status }}",
+            "{{ req_failed.error }}",
+            "{{ req_failed.now }}",
+            "{{ prepare.matchKey }}"
+          ]
+        },
+        "resolve": "4a2fc5a3-39ef-41c1-b368-39c8f6dcd28e",
+        "reject": null
+      },
+      {
+        "id": "4a2fc5a3-39ef-41c1-b368-39c8f6dcd28e",
+        "name": "Respond failure",
+        "key": "respond_fail",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.req_failed || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "4f0d7354-7b83-4361-8e57-63f4844b6c20",
+        "name": "Gen auth",
+        "key": "gen_auth",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\nfunction b64enc(str) {\n  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n  var out = '';\n  for (var i = 0; i < str.length; i += 3) {\n    var a = str.charCodeAt(i) & 0xff;\n    var b = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN;\n    var c = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN;\n    var t = (a << 16) | ((b || 0) << 8) | (c || 0);\n    out += chars[(t >> 18) & 63] + chars[(t >> 12) & 63] + (isNaN(b) ? '=' : chars[(t >> 6) & 63]) + (isNaN(c) ? '=' : chars[t & 63]);\n  }\n  return out;\n}\n  var settings = data.read_settings[0];\n  return { authHeader: b64enc(settings.client_key + ':' + settings.client_secret) };\n}"
+        },
+        "resolve": "720f6da1-7405-4518-9e46-f3cae411a589",
+        "reject": null
+      },
+      {
+        "id": "592cc3bd-d289-4647-98f1-e957d6b42215",
+        "name": "Map reactivate result",
+        "key": "map_reactivate",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const req = data.dupr_reactivate_req || {};\n  const json = req.data || {};\n  const ok = json.status === 'SUCCESS';\n  return {\n    status: ok ? 'submitted' : 'failed',\n    matchKey: data.prepare.matchKey,\n    error: ok ? null : (json.message || ('DUPR reactivate failed (HTTP ' + (req.status || '?') + ')')),\n    now: data.do_reactivate.now\n  };\n}"
+        },
+        "resolve": "d3e3fcf9-64dd-4fe4-9315-308be9e3d919",
+        "reject": null
+      },
+      {
+        "id": "597390fb-48d4-463f-8803-72f3b9c708f7",
+        "name": "Read submission",
+        "key": "read_submission",
+        "type": "item-read",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "collection": "dupr_submission",
+          "query": {
+            "filter": {
+              "match_key": {
+                "_eq": "{{ prepare.matchKey }}"
+              }
+            },
+            "limit": 1
+          },
+          "emitEvents": false
+        },
+        "resolve": "4f0d7354-7b83-4361-8e57-63f4844b6c20",
+        "reject": null
+      },
+      {
+        "id": "62e0c512-a722-4e61-9a84-14b366091be4",
+        "name": "Respond",
+        "key": "respond",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.map_reactivate || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "720f6da1-7405-4518-9e46-f3cae411a589",
+        "name": "Get partner token",
+        "key": "get_partner_token",
+        "type": "request",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_settings[0].api_base_url }}/auth/v1.0/token",
+          "headers": [
+            {
+              "header": "x-authorization",
+              "value": "{{ gen_auth.authHeader }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "resolve": "9be885a9-97d4-4fa7-82c2-715727bfc6a1",
+        "reject": null
+      },
+      {
+        "id": "9be885a9-97d4-4fa7-82c2-715727bfc6a1",
+        "name": "Do reactivate",
+        "key": "do_reactivate",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const sub = (data.read_submission || [])[0];\n  const token = data.get_partner_token;\n  const partnerToken = (token && token.result && token.result.token) || (token && token.data && token.data.result && token.data.result.token) || (token && token.token);\n  const now = new Date().toISOString();\n  const matchKey = data.prepare.matchKey;\n  if (!partnerToken) throw new Error('Failed to get partner access token');\n\n  if (!sub || !sub.dupr_match_code) {\n    return { proceed: false, status: 'not_submitted', matchKey: matchKey, error: null, now: now };\n  }\n  if (sub.status !== 'deleted') {\n    return { proceed: false, status: 'failed', matchKey: matchKey, error: 'Match is not in deleted state (current: ' + sub.status + ')', now: now };\n  }\n  return {\n    proceed: true,\n    matchKey: matchKey,\n    now: now,\n    url: data.prepare.apiBaseUrl + '/match/v1.0/reactivate',\n    authHeader: 'Bearer ' + partnerToken,\n    body: JSON.stringify({ matchIdentifiers: [{ matchCode: Number(sub.dupr_match_code), identifier: matchKey }] })\n  };\n}"
+        },
+        "resolve": "104e2c0e-5df8-45e3-ba7b-f2a25faf6412",
+        "reject": null
+      },
+      {
+        "id": "a49a33cc-5eda-4786-917b-15faa52e3ff2",
+        "name": "DUPR reactivate request",
+        "key": "dupr_reactivate_req",
+        "type": "request",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "method": "POST",
+          "url": "{{ do_reactivate.url }}",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "{{ do_reactivate.authHeader }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{{ do_reactivate.body }}"
+        },
+        "resolve": "592cc3bd-d289-4647-98f1-e957d6b42215",
+        "reject": "d8ca2dd3-5d5a-42b1-a4ce-39ab9d758ed2"
+      },
+      {
+        "id": "acae11a6-064a-47a0-a4c3-b419045f798b",
+        "name": "Respond skip",
+        "key": "respond_skip",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const step = data.do_reactivate || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "d3e3fcf9-64dd-4fe4-9315-308be9e3d919",
+        "name": "Persist status",
+        "key": "persist",
+        "type": "likha_sql",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ?;",
+          "binding": [
+            "{{ map_reactivate.status }}",
+            "{{ map_reactivate.error }}",
+            "{{ map_reactivate.now }}",
+            "{{ prepare.matchKey }}"
+          ]
+        },
+        "resolve": "62e0c512-a722-4e61-9a84-14b366091be4",
+        "reject": null
+      },
+      {
+        "id": "d8ca2dd3-5d5a-42b1-a4ce-39ab9d758ed2",
+        "name": "Map request failure",
+        "key": "req_failed",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const err = data.dupr_reactivate_req || {};\n  const msg = String(err.message || (err.data && err.data.message) || err || '');\n  return {\n    status: 'deleted',\n    matchKey: data.prepare && data.prepare.matchKey,\n    error: 'DUPR reactivate request failed: ' + (msg || 'request rejected'),\n    now: new Date().toISOString()\n  };\n}"
+        },
+        "resolve": "416fdbfc-d233-4e0e-8fbf-a257309affd3",
+        "reject": null
+      },
+      {
+        "id": "ea86c061-33bb-49e9-b940-1a87d913fa6f",
+        "name": "Persist skip status",
+        "key": "persist_skip",
+        "type": "likha_sql",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ? AND ? != 'not_submitted';",
+          "binding": [
+            "{{ do_reactivate.status }}",
+            "{{ do_reactivate.error }}",
+            "{{ do_reactivate.now }}",
+            "{{ prepare.matchKey }}",
+            "{{ do_reactivate.status }}"
+          ]
+        },
+        "resolve": "acae11a6-064a-47a0-a4c3-b419045f798b",
+        "reject": null
+      },
+      {
+        "id": "ef6b0557-2721-4cba-8703-e145ae2d0e66",
+        "name": "Prepare",
+        "key": "prepare",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const body = data.$trigger.body || {};\n  const matchKey = body.matchKey;\n  const clubId = body.clubId;\n  if (!matchKey || !clubId) throw new Error('Missing required fields: matchKey, clubId');\n  return {\n    matchKey, clubId,\n    apiBaseUrl: data.read_settings[0].api_base_url,\n    environment: data.read_settings[0].environment || 'uat'\n  };\n}"
+        },
+        "resolve": "597390fb-48d4-463f-8803-72f3b9c708f7",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "8d01e431-d0b9-468e-b0bd-15faa5db1e80",
     "name": "update player rating",
     "icon": "bolt",
@@ -1469,6 +1730,126 @@
           "key": [
             "{{$trigger.uuid}}"
           ]
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "8d268ff9-45d5-4ccf-8a03-45bbb19266bb",
+    "name": "Get DUPR Ratings",
+    "icon": "download",
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "method": "POST",
+      "async": false
+    },
+    "operation": "40285faf-c7b7-40c9-beba-c688ae4594e3",
+    "operations": [
+      {
+        "id": "3c79a295-fecc-4754-8afb-1f44fff4d79b",
+        "name": "gen_auth",
+        "key": "gen_auth",
+        "type": "exec",
+        "position_x": 55,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const settings = data.read_settings[0];\n  const str = settings.client_key + \":\" + settings.client_secret;\n  const chars = \"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/\";\n  let output = \"\";\n  for (let i = 0; i < str.length; i += 3) {\n    const a = str.charCodeAt(i) & 0xff;\n    const b = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN;\n    const c = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN;\n    const triplet = (a << 16) | ((b || 0) << 8) | (c || 0);\n    output += chars[(triplet >> 18) & 63];\n    output += chars[(triplet >> 12) & 63];\n    output += isNaN(b) ? \"=\" : chars[(triplet >> 6) & 63];\n    output += isNaN(c) ? \"=\" : chars[triplet & 63];\n  }\n  return { authHeader: output };\n}"
+        },
+        "resolve": "7ad409e5-9a88-4039-b2b9-bc537eb643df",
+        "reject": null
+      },
+      {
+        "id": "3cf54753-866a-4b83-9b8b-3476b34406cf",
+        "name": "fetch_ratings",
+        "key": "fetch_ratings",
+        "type": "request",
+        "position_x": 91,
+        "position_y": 1,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_settings[0].api_base_url }}/user/v1.0/batch",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "Bearer {{ get_partner_token.data.result.token }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{{ parse_input.bodyJson }}"
+        },
+        "resolve": "c49da500-e9dc-427d-bf4b-a8aeeb5d1d55",
+        "reject": null
+      },
+      {
+        "id": "40285faf-c7b7-40c9-beba-c688ae4594e3",
+        "name": "parse_input",
+        "key": "parse_input",
+        "type": "exec",
+        "position_x": 19,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const body = data.$trigger.body || {};\n  let ids = body.duprIds;\n  if (!Array.isArray(ids)) ids = [];\n  const seen = new Set();\n  const cleaned = [];\n  for (const id of ids) {\n    const v = String(id || '').trim().toUpperCase();\n    if (/^[A-Z0-9]{6}$/.test(v) && !seen.has(v)) { seen.add(v); cleaned.push(v); }\n    if (cleaned.length >= 100) break;\n  }\n  return { count: cleaned.length, bodyJson: JSON.stringify({ duprIds: cleaned }) };\n}"
+        },
+        "resolve": "c2658ade-1d66-49ee-8505-b15b6694772c",
+        "reject": null
+      },
+      {
+        "id": "7ad409e5-9a88-4039-b2b9-bc537eb643df",
+        "name": "get_partner_token",
+        "key": "get_partner_token",
+        "type": "request",
+        "position_x": 73,
+        "position_y": 1,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_settings[0].api_base_url }}/auth/v1.0/token",
+          "headers": [
+            {
+              "header": "x-authorization",
+              "value": "{{ gen_auth.authHeader }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "resolve": "3cf54753-866a-4b83-9b8b-3476b34406cf",
+        "reject": null
+      },
+      {
+        "id": "c2658ade-1d66-49ee-8505-b15b6694772c",
+        "name": "read_settings",
+        "key": "read_settings",
+        "type": "item-read",
+        "position_x": 37,
+        "position_y": 1,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "dupr_settings"
+        },
+        "resolve": "3c79a295-fecc-4754-8afb-1f44fff4d79b",
+        "reject": null
+      },
+      {
+        "id": "c49da500-e9dc-427d-bf4b-a8aeeb5d1d55",
+        "name": "safe_response",
+        "key": "safe_response",
+        "type": "exec",
+        "position_x": 109,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const resp = data.fetch_ratings;\n  const payload = resp && resp.data ? resp.data : (resp || {});\n  const result = payload.result || {};\n  const users = result.users || [];\n  const ratings = {};\n  for (const u of users) {\n    const id = u.id || u.duprId;\n    if (!id) continue;\n    const r = u.ratings || {};\n    ratings[id] = {\n      singles: r.singles != null ? parseFloat(r.singles) : null,\n      doubles: r.doubles != null ? parseFloat(r.doubles) : null,\n      singlesReliable: !!r.isSinglesReliable,\n      doublesReliable: !!r.isDoublesReliable,\n      fullName: u.fullName || null\n    };\n  }\n  return {\n    status: payload.status || \"UNKNOWN\",\n    message: payload.message || null,\n    ratings: ratings,\n    notFound: result.notFound || [],\n    count: users.length\n  };\n}"
         },
         "resolve": null,
         "reject": null
@@ -1609,6 +1990,305 @@
             }
           ],
           "body": "{\"ttl\": 86400}"
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "964e6174-941d-4f08-97e0-cbe09437d9e0",
+    "name": "Refresh DUPR Entitlement",
+    "icon": "sync",
+    "color": "#4CAF50",
+    "description": "Refreshes dupr_entitlements for a duprId: rotates stored user token via refresh-token endpoint, re-calls subscription/active, writes directus_users.dupr_entitlements + dupr_connection.eligibility. Non-fatal branches return refreshed:false.",
+    "trigger": "webhook",
+    "options": {
+      "method": "POST",
+      "async": false
+    },
+    "operation": "9fe68221-fcbe-4b98-b31c-5de9f9290551",
+    "operations": [
+      {
+        "id": "008110ff-7003-44fa-8e5e-7cafe9493310",
+        "name": "fail_refresh",
+        "key": "fail_refresh",
+        "type": "exec",
+        "position_x": 240,
+        "position_y": 50,
+        "options": {
+          "code": "module.exports = async function(data) { return { refreshed: false, plus: false, step: 'refresh', reason: (data.$last && (data.$last.message || JSON.stringify(data.$last))) || 'unavailable' }; }"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "0c75e9a9-310b-4f8f-8839-ff2b4b801cae",
+        "name": "refresh_req",
+        "key": "refresh_req",
+        "type": "request",
+        "position_x": 80,
+        "position_y": 10,
+        "options": {
+          "method": "GET",
+          "url": "{{ read_settings[0].user_api_base_url }}/auth/v2.0/refresh",
+          "headers": [
+            {
+              "header": "x-refresh-token",
+              "value": "{{ gate_creds.refresh_token }}"
+            },
+            {
+              "header": "Authorization",
+              "value": "Bearer {{ gate_creds.access_token }}"
+            }
+          ]
+        },
+        "resolve": "9e6b8d7c-8cd0-4a50-b171-610107e2039c",
+        "reject": "008110ff-7003-44fa-8e5e-7cafe9493310"
+      },
+      {
+        "id": "12a44b4f-e0b4-4025-b0ee-3e970a136071",
+        "name": "fetch_entitlements",
+        "key": "fetch_entitlements",
+        "type": "request",
+        "position_x": 140,
+        "position_y": 10,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_settings[0].user_api_base_url }}/subscription/active",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "Bearer {{ prepare_tokens.accessToken }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{}"
+        },
+        "resolve": "32ce03d6-b7cc-4d94-acde-7f98db5c7c25",
+        "reject": "e685627b-6471-4595-ab8b-519f3071eaf2"
+      },
+      {
+        "id": "1444dd71-d8ef-4b6c-a14d-d8eb67a14425",
+        "name": "safe_response",
+        "key": "safe_response",
+        "type": "exec",
+        "position_x": 220,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n  return {\n    refreshed: true,\n    plus: data.prepare_ent.plus,\n    eligible: data.prepare_ent.eligible,\n    duprId: data.gate_creds.dupr_id\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "1eb7d09d-d008-436b-bcdb-cd547322e355",
+        "name": "find_creds",
+        "key": "find_creds",
+        "type": "item-read",
+        "position_x": 20,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "dupr_credentials",
+          "query": {
+            "filter": {
+              "connection": {
+                "dupr_id": {
+                  "_eq": "{{ $trigger.body.duprId }}"
+                }
+              }
+            },
+            "fields": [
+              "id",
+              "access_token",
+              "refresh_token",
+              "refresh_expires_at",
+              "connection.id",
+              "connection.user",
+              "connection.dupr_id"
+            ],
+            "limit": 1
+          }
+        },
+        "resolve": "5e79f7e2-16d6-4876-8007-6328d149f5ad",
+        "reject": null
+      },
+      {
+        "id": "32ce03d6-b7cc-4d94-acde-7f98db5c7c25",
+        "name": "prepare_ent",
+        "key": "prepare_ent",
+        "type": "exec",
+        "position_x": 160,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const env = data.fetch_entitlements || {};\n  const body = env.data || env;\n  const subs = Array.isArray(body.subscriptions) ? body.subscriptions\n    : (body.result && Array.isArray(body.result.subscriptions) ? body.result.subscriptions : []);\n  const ent = {};\n  for (const s of subs) {\n    const e = (s && s.entitlements) || {};\n    for (const k of Object.keys(e)) ent[k] = Array.from(new Set([...(ent[k]||[]), ...(e[k]||[])]));\n  }\n  if (subs.length === 0 && Object.keys(ent).length === 0) throw new Error('no subscriptions returned');\n  const tournaments = ent.tournaments || [];\n  const plus = Object.values(ent).some(function(a){return Array.isArray(a)&&a.indexOf('PREMIUM_L1')!==-1;});\n  return { eligibility: JSON.stringify({entitlements:ent,eligible:tournaments.indexOf('BASIC_L1')!==-1}),\n           eligible: tournaments.indexOf('BASIC_L1')!==-1, plus: plus };\n}"
+        },
+        "resolve": "5fd6614e-7af8-4fdb-adf8-76188cac9f79",
+        "reject": "963acdfe-bc10-48dd-a815-2a33717364f6"
+      },
+      {
+        "id": "46e3f3d4-1fbd-4284-b9f3-1a5836d00391",
+        "name": "fail_tokens",
+        "key": "fail_tokens",
+        "type": "exec",
+        "position_x": 240,
+        "position_y": 50,
+        "options": {
+          "code": "module.exports = async function(data) { return { refreshed: false, plus: false, step: 'tokens', reason: (data.$last && (data.$last.message || JSON.stringify(data.$last))) || 'unavailable' }; }"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "56dde71f-9f4c-43c9-8516-39130acea259",
+        "name": "update_conn_ent",
+        "key": "update_conn_ent",
+        "type": "likha_sql",
+        "position_x": 200,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE dupr_connection SET eligibility = NULLIF(?, '')::json WHERE id = ?::uuid;",
+          "binding": [
+            "{{ prepare_ent.eligibility }}",
+            "{{ gate_creds.id }}"
+          ]
+        },
+        "resolve": "1444dd71-d8ef-4b6c-a14d-d8eb67a14425",
+        "reject": "1444dd71-d8ef-4b6c-a14d-d8eb67a14425"
+      },
+      {
+        "id": "5e79f7e2-16d6-4876-8007-6328d149f5ad",
+        "name": "gate_creds",
+        "key": "gate_creds",
+        "type": "exec",
+        "position_x": 40,
+        "position_y": 20,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const c = (data.find_creds || [])[0];\n  if (!c) throw new Error('no_credentials');\n  if (!c.refresh_token) throw new Error('no_refresh_token');\n  if (new Date(c.refresh_expires_at) <= new Date()) throw new Error('refresh_expired');\n  const conn = c.connection || {};\n  if (!conn.id || !conn.user) throw new Error('credential_orphaned');\n  return {\n    id: conn.id,\n    user: conn.user,\n    dupr_id: conn.dupr_id,\n    credentialId: c.id,\n    access_token: c.access_token || '',\n    refresh_token: c.refresh_token\n  };\n}"
+        },
+        "resolve": "0c75e9a9-310b-4f8f-8839-ff2b4b801cae",
+        "reject": "b016ab51-5b0d-4740-bf72-4ace2c2f9b51"
+      },
+      {
+        "id": "5fd6614e-7af8-4fdb-adf8-76188cac9f79",
+        "name": "update_user_ent",
+        "key": "update_user_ent",
+        "type": "likha_sql",
+        "position_x": 180,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE directus_users SET dupr_entitlements = NULLIF(?, '')::json WHERE id = ?::uuid;",
+          "binding": [
+            "{{ prepare_ent.eligibility }}",
+            "{{ gate_creds.user }}"
+          ]
+        },
+        "resolve": "56dde71f-9f4c-43c9-8516-39130acea259",
+        "reject": "a5818d95-3a1f-4c6e-958b-4b72d6e6e4e8"
+      },
+      {
+        "id": "833d7a0c-5728-4cea-8c70-ea657733d814",
+        "name": "update_credentials",
+        "key": "update_credentials",
+        "type": "likha_sql",
+        "position_x": 120,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE dupr_credentials SET access_token = ?, refresh_token = ?, access_expires_at = ?::timestamptz, refresh_expires_at = ?::timestamptz, updated_at = NOW() WHERE id = ?::uuid;",
+          "binding": [
+            "{{ prepare_tokens.accessToken }}",
+            "{{ prepare_tokens.refreshToken }}",
+            "{{ prepare_tokens.accessExpires }}",
+            "{{ prepare_tokens.refreshExpires }}",
+            "{{ prepare_tokens.credentialId }}"
+          ]
+        },
+        "resolve": "12a44b4f-e0b4-4025-b0ee-3e970a136071",
+        "reject": "12a44b4f-e0b4-4025-b0ee-3e970a136071"
+      },
+      {
+        "id": "963acdfe-bc10-48dd-a815-2a33717364f6",
+        "name": "fail_parse",
+        "key": "fail_parse",
+        "type": "exec",
+        "position_x": 240,
+        "position_y": 50,
+        "options": {
+          "code": "module.exports = async function(data) { return { refreshed: false, plus: false, step: 'parse', reason: (data.$last && (data.$last.message || JSON.stringify(data.$last))) || 'unavailable' }; }"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "9e6b8d7c-8cd0-4a50-b171-610107e2039c",
+        "name": "prepare_tokens",
+        "key": "prepare_tokens",
+        "type": "exec",
+        "position_x": 100,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const env = data.refresh_req || {};\n  const body = env.data || env;\n  const r = body.result || body;\n  const access = r.accessToken || r.access_token;\n  const refresh = r.refreshToken || r.refresh_token;\n  if (!access || !refresh) throw new Error('refresh-token returned no tokens');\n  const settings = data.read_settings[0];\n  const prod = (settings.environment === 'production');\n  const aDays = prod ? 30 : 7, rDays = prod ? 90 : 30;\n  return {\n    accessToken: access, refreshToken: refresh,\n    accessExpires: new Date(Date.now()+aDays*864e5).toISOString(),\n    refreshExpires: new Date(Date.now()+rDays*864e5).toISOString(),\n    credentialId: data.gate_creds.credentialId\n  };\n}"
+        },
+        "resolve": "833d7a0c-5728-4cea-8c70-ea657733d814",
+        "reject": "46e3f3d4-1fbd-4284-b9f3-1a5836d00391"
+      },
+      {
+        "id": "9fe68221-fcbe-4b98-b31c-5de9f9290551",
+        "name": "read_settings",
+        "key": "read_settings",
+        "type": "item-read",
+        "position_x": 0,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "dupr_settings"
+        },
+        "resolve": "1eb7d09d-d008-436b-bcdb-cd547322e355",
+        "reject": null
+      },
+      {
+        "id": "a5818d95-3a1f-4c6e-958b-4b72d6e6e4e8",
+        "name": "no_entitlements",
+        "key": "no_entitlements",
+        "type": "exec",
+        "position_x": 220,
+        "position_y": 40,
+        "options": {
+          "code": "module.exports = async function(data) {\n  return {\n    refreshed: false,\n    plus: false,\n    reason: (data.$last && (data.$last.message || data.$last)) || \"entitlement refresh unavailable\"\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "b016ab51-5b0d-4740-bf72-4ace2c2f9b51",
+        "name": "fail_noconn",
+        "key": "fail_noconn",
+        "type": "exec",
+        "position_x": 240,
+        "position_y": 50,
+        "options": {
+          "code": "module.exports = async function(data) { return { refreshed: false, plus: false, step: 'noconn', reason: (data.$last && (data.$last.message || JSON.stringify(data.$last))) || 'unavailable' }; }"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "e685627b-6471-4595-ab8b-519f3071eaf2",
+        "name": "fail_fetch",
+        "key": "fail_fetch",
+        "type": "exec",
+        "position_x": 240,
+        "position_y": 50,
+        "options": {
+          "code": "module.exports = async function(data) { return { refreshed: false, plus: false, step: 'fetch', reason: (data.$last && (data.$last.message || JSON.stringify(data.$last))) || 'unavailable' }; }"
         },
         "resolve": null,
         "reject": null
@@ -1866,7 +2546,7 @@
         "position_x": 21,
         "position_y": 38,
         "options": {
-          "sql": "UPDATE directus_users SET dupr_id = NULL WHERE id = ?::uuid;",
+          "sql": "UPDATE directus_users SET dupr_id = NULL, dupr_entitlements = NULL WHERE id = ?::uuid;",
           "binding": [
             "{{ get_user.userId }}"
           ]
@@ -1938,7 +2618,7 @@
     "options": {
       "method": "POST"
     },
-    "operation": "706a7141-5021-4cde-9874-19b51d88b490",
+    "operation": "399ba70b-bc39-45b8-876d-c1c9a2067db1",
     "operations": [
       {
         "id": "08ad1e51-3397-4d9e-b833-a0cfaa8286c3",
@@ -1957,10 +2637,7 @@
           ]
         },
         "resolve": "4b4ebe11-3e11-43a7-9ca4-3f87e5012798",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-22T02:10:10.075Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "1bba8283-0466-446b-ad19-b99e8a5f193a",
@@ -1973,10 +2650,7 @@
           "code": "module.exports = async function(data) {\n  const err = data.upd_verify_req || {};\n  const st = err.status || (err.response && err.response.status) || 0;\n  const msg = String(err.message || (err.data && err.data.message) || '');\n  const gone = st === 410 || st === 404 || st === 400 || /deleted|not found|does not exist/i.test(msg);\n  return {\n    status: gone ? 'deleted' : 'update_failed',\n    matchKey: data.prepare.matchKey,\n    error: gone ? 'Match was deleted on DUPR — cannot update' : 'DUPR update failed: ' + (msg || ('HTTP ' + st)),\n    now: new Date().toISOString()\n  };\n}"
         },
         "resolve": "e975df25-7674-452d-98d6-c6827d878867",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-22T02:10:09.407Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "273dd40c-ed79-4263-a74e-ab3a46618d89",
@@ -1989,10 +2663,7 @@
           "code": "module.exports = async function(data) {\n  const step = data.do_update || {};\n  return {\n    matchKey: step.matchKey || null,\n    status: step.status || 'failed',\n    error: step.error || null\n  };\n}"
         },
         "resolve": null,
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:55:21.588Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "2aea6553-c5ce-4dfc-8926-91f727ec324b",
@@ -2011,10 +2682,7 @@
           }
         },
         "resolve": "e4d970a5-ed2d-46c6-a003-ffd24a19ba35",
-        "reject": "5646a6d7-dcae-427d-a328-41b064bf2b10",
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:53:59.648Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": "5646a6d7-dcae-427d-a328-41b064bf2b10"
       },
       {
         "id": "30fa7e50-17c5-40a0-8aa8-77fc953c6171",
@@ -2027,10 +2695,7 @@
           "code": "module.exports = async function(data) {\n  const step = data.upd_req_failed || {};\n  return {\n    matchKey: step.matchKey || null,\n    status: step.status || 'failed',\n    error: step.error || null\n  };\n}"
         },
         "resolve": null,
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:55:21.750Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "399ba70b-bc39-45b8-876d-c1c9a2067db1",
@@ -2045,10 +2710,7 @@
           "collection": "dupr_settings"
         },
         "resolve": "6422994f-46b8-4476-80e3-c6cba6a50894",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:54:41.889Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "40b23ed4-45d4-44b1-9974-8ff846d3cb6b",
@@ -2061,10 +2723,7 @@
           "code": "module.exports = async function(data) {\n  const step = data.map_update || {};\n  return {\n    matchKey: step.matchKey || null,\n    status: step.status || 'failed',\n    error: step.error || null\n  };\n}"
         },
         "resolve": null,
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:54:43.223Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "475c5ccc-1d6a-454b-a218-4d65887d665d",
@@ -2077,10 +2736,7 @@
           "code": "module.exports = async function(data) {\n  const match = (data.read_match || [])[0];\n  const sub = (data.read_submission || [])[0];\n  const o = data.prepare.override || {};\n  const token = data.get_partner_token;\n  const partnerToken = (token && token.result && token.result.token) || (token && token.data && token.data.result && token.data.result.token) || (token && token.token);\n  const now = new Date().toISOString();\n  const matchKey = data.prepare.matchKey;\n  if (!partnerToken) throw new Error('Failed to get partner access token');\n\n  if (!sub || !sub.dupr_match_code) {\n    return { proceed: false, status: 'not_submitted', matchKey: matchKey, error: null, now: now };\n  }\n\n  // Deleted on DUPR — nothing to update (identifier stays claimed; needs Reactivate)\n  if (sub.status === 'deleted') {\n    return { proceed: false, status: 'deleted', matchKey: matchKey, error: 'Match was deleted on DUPR — cannot update', now: now };\n  }\n\n  const src = match || {};\n  const teamA = o.teamA || src.team_a || [];\n  const teamB = o.teamB || src.team_b || [];\n  const scoreA = o.teamAScore !== undefined ? o.teamAScore : src.team_a_score;\n  const scoreB = o.teamBScore !== undefined ? o.teamBScore : src.team_b_score;\n  const completedAt = o.completedAt || src.completed_at;\n  const matchType = o.matchType || src.match_type || 'doubles';\n\n  const format = matchType === 'singles' ? 'SINGLES' : 'DOUBLES';\n  const need = format === 'DOUBLES' ? 2 : 1;\n  if (teamA.length < need || teamB.length < need || scoreA === undefined || scoreB === undefined || !completedAt) {\n    return { proceed: false, status: 'failed', matchKey: matchKey, error: 'Incomplete match data — pass full match override', now: now };\n  }\n\n  const all = [...teamA, ...teamB];\n  const missing = all.filter(p => !p.duprId).map(p => p.username || p.name || 'unknown');\n  if (missing.length) {\n    return { proceed: false, status: 'failed', matchKey: matchKey, error: 'Players not connected to DUPR: ' + missing.join(', '), now: now };\n  }\n  const ids = all.map(p => p.duprId);\n  if (new Set(ids).size !== ids.length) {\n    return { proceed: false, status: 'failed', matchKey: matchKey, error: 'Duplicate player in match', now: now };\n  }\n  if (scoreA === scoreB) {\n    return { proceed: false, status: 'failed', matchKey: matchKey, error: 'Tied scores are not allowed', now: now };\n  }\n\n  const dateStr = new Date(completedAt).toISOString().split('T')[0];\n  const payload = {\n    matchId: Number(sub.dupr_match_code),\n    identifier: matchKey,\n    matchDate: dateStr,\n    teamA: { player1: teamA[0].duprId, game1: scoreA },\n    teamB: { player1: teamB[0].duprId, game1: scoreB },\n    format: format,\n    matchType: 'RALLY',\n    matchSource: 'PARTNER',\n    event: 'Open Play'\n  };\n  if (format === 'DOUBLES') {\n    payload.teamA.player2 = teamA[1].duprId;\n    payload.teamB.player2 = teamB[1].duprId;\n  }\n\n  return {\n    proceed: true,\n    matchKey: matchKey,\n    now: now,\n    url: data.prepare.apiBaseUrl + '/match/v1.0/update',\n    authHeader: 'Bearer ' + partnerToken,\n    body: JSON.stringify(payload)\n  };\n}"
         },
         "resolve": "2aea6553-c5ce-4dfc-8926-91f727ec324b",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:54:43.390Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "4886bd5e-a2e9-4c14-9d46-84f51457fc46",
@@ -2093,10 +2749,7 @@
           "code": "module.exports = async function(data) {\n  return {\n    status: 'update_failed',\n    matchKey: data.prepare && data.prepare.matchKey,\n    error: 'DUPR update request failed',\n    now: new Date().toISOString()\n  };\n}"
         },
         "resolve": "30fa7e50-17c5-40a0-8aa8-77fc953c6171",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:53:59.665Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "4b4ebe11-3e11-43a7-9ca4-3f87e5012798",
@@ -2109,10 +2762,7 @@
           "code": "module.exports = async function(data) {\n  const step = data.map_upd_alive || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
         },
         "resolve": null,
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-22T02:10:10.402Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "5646a6d7-dcae-427d-a328-41b064bf2b10",
@@ -2132,10 +2782,7 @@
           ]
         },
         "resolve": "273dd40c-ed79-4263-a74e-ab3a46618d89",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:55:21.424Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "61406972-550e-41b9-9078-b2c6d74ec73d",
@@ -2164,10 +2811,7 @@
           }
         },
         "resolve": "a1c2639b-d70e-478e-83dd-e759cfa795cd",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:54:42.322Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "6422994f-46b8-4476-80e3-c6cba6a50894",
@@ -2180,10 +2824,7 @@
           "code": "module.exports = async function(data) {\n  const body = data.$trigger.body || {};\n  const matchKey = body.matchKey;\n  const clubId = body.clubId;\n  if (!matchKey || !clubId) {\n    throw new Error('Missing required fields: matchKey, clubId');\n  }\n  return {\n    matchKey,\n    clubId,\n    apiBaseUrl: data.read_settings[0].api_base_url,\n    environment: data.read_settings[0].environment || 'uat',\n    // Optional client-supplied overrides (avoids completed_match sync race)\n    override: body.match || null\n  };\n}"
         },
         "resolve": "61406972-550e-41b9-9078-b2c6d74ec73d",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:54:42.074Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "6c5e75d0-fdea-4c3f-b71a-7ef7c6a3da10",
@@ -2203,10 +2844,7 @@
           ]
         },
         "resolve": "40b23ed4-45d4-44b1-9974-8ff846d3cb6b",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:54:43.050Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "7dedb231-f318-43c8-8209-73112a4b10a8",
@@ -2219,10 +2857,7 @@
           "code": "module.exports = async function(data) {\n  const step = data.map_upd_gone || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
         },
         "resolve": null,
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-22T02:10:10.270Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "a1c2639b-d70e-478e-83dd-e759cfa795cd",
@@ -2263,10 +2898,7 @@
           }
         },
         "resolve": "bd940a1c-54ce-495b-83b5-5e75023da9f0",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:54:42.521Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "a6cbdaa5-8529-496f-b8cc-acb0bf8ee606",
@@ -2290,10 +2922,7 @@
           ]
         },
         "resolve": "b89e5082-33a3-45b5-90ae-bbd9aea5fa7d",
-        "reject": "1bba8283-0466-446b-ad19-b99e8a5f193a",
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-22T02:10:09.224Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": "1bba8283-0466-446b-ad19-b99e8a5f193a"
       },
       {
         "id": "b15fb198-698c-4c44-ba07-c44e7c25a798",
@@ -2306,10 +2935,7 @@
           "code": "module.exports = async function(data) {\n  const req = data.dupr_update_req || {};\n  const json = req.data || {};\n  const ok = json.status === 'SUCCESS';\n  return {\n    status: ok ? 'submitted' : 'update_failed',\n    matchKey: data.prepare.matchKey,\n    error: ok ? null : (json.message || ('DUPR update failed (HTTP ' + (req.status || '?') + ')')),\n    now: data.do_update.now\n  };\n}"
         },
         "resolve": "6c5e75d0-fdea-4c3f-b71a-7ef7c6a3da10",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:53:59.661Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "b89e5082-33a3-45b5-90ae-bbd9aea5fa7d",
@@ -2322,10 +2948,7 @@
           "code": "module.exports = async function(data) {\n  return {\n    status: 'update_failed',\n    matchKey: data.prepare.matchKey,\n    error: 'DUPR update request failed and the match still exists on DUPR',\n    now: new Date().toISOString()\n  };\n}"
         },
         "resolve": "08ad1e51-3397-4d9e-b833-a0cfaa8286c3",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-22T02:10:09.564Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "bd940a1c-54ce-495b-83b5-5e75023da9f0",
@@ -2338,10 +2961,7 @@
           "code": "module.exports = async function(data) {\n  \nfunction b64enc(str) {\n  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n  var out = '';\n  for (var i = 0; i < str.length; i += 3) {\n    var a = str.charCodeAt(i) & 0xff;\n    var b = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN;\n    var c = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN;\n    var t = (a << 16) | ((b || 0) << 8) | (c || 0);\n    out += chars[(t >> 18) & 63] + chars[(t >> 12) & 63] + (isNaN(b) ? '=' : chars[(t >> 6) & 63]) + (isNaN(c) ? '=' : chars[t & 63]);\n  }\n  return out;\n}\n  var settings = data.read_settings[0];\n  return { authHeader: b64enc(settings.client_key + ':' + settings.client_secret) };\n}"
         },
         "resolve": "f023eaed-6d15-4dfd-907c-a16643f74f05",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:54:42.703Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "e4d970a5-ed2d-46c6-a003-ffd24a19ba35",
@@ -2366,10 +2986,7 @@
           "body": "{{ do_update.body }}"
         },
         "resolve": "b15fb198-698c-4c44-ba07-c44e7c25a798",
-        "reject": "a6cbdaa5-8529-496f-b8cc-acb0bf8ee606",
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:53:59.656Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": "a6cbdaa5-8529-496f-b8cc-acb0bf8ee606"
       },
       {
         "id": "e975df25-7674-452d-98d6-c6827d878867",
@@ -2388,10 +3005,7 @@
           ]
         },
         "resolve": "7dedb231-f318-43c8-8209-73112a4b10a8",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-22T02:10:09.850Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       },
       {
         "id": "f023eaed-6d15-4dfd-907c-a16643f74f05",
@@ -2415,10 +3029,7 @@
           ]
         },
         "resolve": "475c5ccc-1d6a-454b-a218-4d65887d665d",
-        "reject": null,
-        "flow": "bde4206c-b9d7-4eee-8f44-222f34bc9078",
-        "date_created": "2026-10-21T22:54:42.881Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+        "reject": null
       }
     ],
     "flow_manager_category": null,
@@ -2826,350 +3437,5 @@
     ],
     "flow_manager_category": null,
     "accountability": "all"
-  },
-  {
-    "id": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-    "name": "Reactivate DUPR Match",
-    "icon": "restore",
-    "color": null,
-    "description": "Reactivate a deleted DUPR match (POST /match/v1.0/reactivate). Restores dupr_submission to submitted.",
-    "status": "active",
-    "trigger": "webhook",
-    "accountability": "all",
-    "options": {
-      "method": "POST",
-      "async": false,
-      "return": "$last"
-    },
-    "operation": "0989948c-e333-4171-9726-738b53780bf9",
-    "date_created": "2026-10-22T02:16:46.753Z",
-    "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73",
-    "flow_manager_category": null,
-    "flow_manager_order": 0,
-    "flow_manager_last_run_at": "2026-10-22T10:17:47",
-    "flow_manager_run_counter": 2,
-    "flow_manager_last_run_operation": "",
-    "flow_manager_last_run_message": "",
-    "flow_manager_success_counter": 2,
-    "flow_manager_error_counter": 0,
-    "operations": [
-      {
-        "id": "0989948c-e333-4171-9726-738b53780bf9",
-        "name": "Read DUPR settings",
-        "key": "read_settings",
-        "type": "item-read",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "collection": "dupr_settings",
-          "query": {
-            "limit": 1
-          },
-          "emitEvents": false
-        },
-        "resolve": "ef6b0557-2721-4cba-8703-e145ae2d0e66",
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:47.155Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "104e2c0e-5df8-45e3-ba7b-f2a25faf6412",
-        "name": "Proceed?",
-        "key": "proceed_reactivate",
-        "type": "condition",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "filter": {
-            "$last": {
-              "proceed": {
-                "_eq": true
-              }
-            }
-          }
-        },
-        "resolve": "a49a33cc-5eda-4786-917b-15faa52e3ff2",
-        "reject": "ea86c061-33bb-49e9-b940-1a87d913fa6f",
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:49.495Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "416fdbfc-d233-4e0e-8fbf-a257309affd3",
-        "name": "Persist failure",
-        "key": "persist_fail",
-        "type": "likha_sql",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ?;",
-          "binding": [
-            "{{ req_failed.status }}",
-            "{{ req_failed.error }}",
-            "{{ req_failed.now }}",
-            "{{ prepare.matchKey }}"
-          ]
-        },
-        "resolve": "4a2fc5a3-39ef-41c1-b368-39c8f6dcd28e",
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:51.792Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "4a2fc5a3-39ef-41c1-b368-39c8f6dcd28e",
-        "name": "Respond failure",
-        "key": "respond_fail",
-        "type": "exec",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const step = data.req_failed || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
-        },
-        "resolve": null,
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:52.168Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "4f0d7354-7b83-4361-8e57-63f4844b6c20",
-        "name": "Gen auth",
-        "key": "gen_auth",
-        "type": "exec",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "code": "module.exports = async function(data) {\nfunction b64enc(str) {\n  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n  var out = '';\n  for (var i = 0; i < str.length; i += 3) {\n    var a = str.charCodeAt(i) & 0xff;\n    var b = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN;\n    var c = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN;\n    var t = (a << 16) | ((b || 0) << 8) | (c || 0);\n    out += chars[(t >> 18) & 63] + chars[(t >> 12) & 63] + (isNaN(b) ? '=' : chars[(t >> 6) & 63]) + (isNaN(c) ? '=' : chars[t & 63]);\n  }\n  return out;\n}\n  var settings = data.read_settings[0];\n  return { authHeader: b64enc(settings.client_key + ':' + settings.client_secret) };\n}"
-        },
-        "resolve": "720f6da1-7405-4518-9e46-f3cae411a589",
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:48.328Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "592cc3bd-d289-4647-98f1-e957d6b42215",
-        "name": "Map reactivate result",
-        "key": "map_reactivate",
-        "type": "exec",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const req = data.dupr_reactivate_req || {};\n  const json = req.data || {};\n  const ok = json.status === 'SUCCESS';\n  return {\n    status: ok ? 'submitted' : 'failed',\n    matchKey: data.prepare.matchKey,\n    error: ok ? null : (json.message || ('DUPR reactivate failed (HTTP ' + (req.status || '?') + ')')),\n    now: data.do_reactivate.now\n  };\n}"
-        },
-        "resolve": "d3e3fcf9-64dd-4fe4-9315-308be9e3d919",
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:50.242Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "597390fb-48d4-463f-8803-72f3b9c708f7",
-        "name": "Read submission",
-        "key": "read_submission",
-        "type": "item-read",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "collection": "dupr_submission",
-          "query": {
-            "filter": {
-              "match_key": {
-                "_eq": "{{ prepare.matchKey }}"
-              }
-            },
-            "limit": 1
-          },
-          "emitEvents": false
-        },
-        "resolve": "4f0d7354-7b83-4361-8e57-63f4844b6c20",
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:47.945Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "62e0c512-a722-4e61-9a84-14b366091be4",
-        "name": "Respond",
-        "key": "respond",
-        "type": "exec",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const step = data.map_reactivate || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
-        },
-        "resolve": null,
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:51.032Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "720f6da1-7405-4518-9e46-f3cae411a589",
-        "name": "Get partner token",
-        "key": "get_partner_token",
-        "type": "request",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "method": "POST",
-          "url": "{{ read_settings[0].api_base_url }}/auth/v1.0/token",
-          "headers": [
-            {
-              "header": "x-authorization",
-              "value": "{{ gen_auth.authHeader }}"
-            },
-            {
-              "header": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "resolve": "9be885a9-97d4-4fa7-82c2-715727bfc6a1",
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:48.714Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "9be885a9-97d4-4fa7-82c2-715727bfc6a1",
-        "name": "Do reactivate",
-        "key": "do_reactivate",
-        "type": "exec",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const sub = (data.read_submission || [])[0];\n  const token = data.get_partner_token;\n  const partnerToken = (token && token.result && token.result.token) || (token && token.data && token.data.result && token.data.result.token) || (token && token.token);\n  const now = new Date().toISOString();\n  const matchKey = data.prepare.matchKey;\n  if (!partnerToken) throw new Error('Failed to get partner access token');\n\n  if (!sub || !sub.dupr_match_code) {\n    return { proceed: false, status: 'not_submitted', matchKey: matchKey, error: null, now: now };\n  }\n  if (sub.status !== 'deleted') {\n    return { proceed: false, status: 'failed', matchKey: matchKey, error: 'Match is not in deleted state (current: ' + sub.status + ')', now: now };\n  }\n  return {\n    proceed: true,\n    matchKey: matchKey,\n    now: now,\n    url: data.prepare.apiBaseUrl + '/match/v1.0/reactivate',\n    authHeader: 'Bearer ' + partnerToken,\n    body: JSON.stringify({ matchIdentifiers: [{ matchCode: Number(sub.dupr_match_code), identifier: matchKey }] })\n  };\n}"
-        },
-        "resolve": "104e2c0e-5df8-45e3-ba7b-f2a25faf6412",
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:49.110Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "a49a33cc-5eda-4786-917b-15faa52e3ff2",
-        "name": "DUPR reactivate request",
-        "key": "dupr_reactivate_req",
-        "type": "request",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "method": "POST",
-          "url": "{{ do_reactivate.url }}",
-          "headers": [
-            {
-              "header": "Authorization",
-              "value": "{{ do_reactivate.authHeader }}"
-            },
-            {
-              "header": "Content-Type",
-              "value": "application/json"
-            }
-          ],
-          "body": "{{ do_reactivate.body }}"
-        },
-        "resolve": "592cc3bd-d289-4647-98f1-e957d6b42215",
-        "reject": "d8ca2dd3-5d5a-42b1-a4ce-39ab9d758ed2",
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:49.863Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "acae11a6-064a-47a0-a4c3-b419045f798b",
-        "name": "Respond skip",
-        "key": "respond_skip",
-        "type": "exec",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const step = data.do_reactivate || {};\n  return { matchKey: step.matchKey || null, status: step.status || 'failed', error: step.error || null };\n}"
-        },
-        "resolve": null,
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:53.040Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "d3e3fcf9-64dd-4fe4-9315-308be9e3d919",
-        "name": "Persist status",
-        "key": "persist",
-        "type": "likha_sql",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ?;",
-          "binding": [
-            "{{ map_reactivate.status }}",
-            "{{ map_reactivate.error }}",
-            "{{ map_reactivate.now }}",
-            "{{ prepare.matchKey }}"
-          ]
-        },
-        "resolve": "62e0c512-a722-4e61-9a84-14b366091be4",
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:50.650Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "d8ca2dd3-5d5a-42b1-a4ce-39ab9d758ed2",
-        "name": "Map request failure",
-        "key": "req_failed",
-        "type": "exec",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const err = data.dupr_reactivate_req || {};\n  const msg = String(err.message || (err.data && err.data.message) || err || '');\n  return {\n    status: 'deleted',\n    matchKey: data.prepare && data.prepare.matchKey,\n    error: 'DUPR reactivate request failed: ' + (msg || 'request rejected'),\n    now: new Date().toISOString()\n  };\n}"
-        },
-        "resolve": "416fdbfc-d233-4e0e-8fbf-a257309affd3",
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:51.415Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "ea86c061-33bb-49e9-b940-1a87d913fa6f",
-        "name": "Persist skip status",
-        "key": "persist_skip",
-        "type": "likha_sql",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "sql": "UPDATE dupr_submission\nSET status = ?,\n    error_message = ?,\n    updated_at = ?::timestamptz\nWHERE match_key = ? AND ? != 'not_submitted';",
-          "binding": [
-            "{{ do_reactivate.status }}",
-            "{{ do_reactivate.error }}",
-            "{{ do_reactivate.now }}",
-            "{{ prepare.matchKey }}",
-            "{{ do_reactivate.status }}"
-          ]
-        },
-        "resolve": "acae11a6-064a-47a0-a4c3-b419045f798b",
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:52.538Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      },
-      {
-        "id": "ef6b0557-2721-4cba-8703-e145ae2d0e66",
-        "name": "Prepare",
-        "key": "prepare",
-        "type": "exec",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const body = data.$trigger.body || {};\n  const matchKey = body.matchKey;\n  const clubId = body.clubId;\n  if (!matchKey || !clubId) throw new Error('Missing required fields: matchKey, clubId');\n  return {\n    matchKey, clubId,\n    apiBaseUrl: data.read_settings[0].api_base_url,\n    environment: data.read_settings[0].environment || 'uat'\n  };\n}"
-        },
-        "resolve": "597390fb-48d4-463f-8803-72f3b9c708f7",
-        "reject": null,
-        "flow": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
-        "date_created": "2026-10-22T02:16:47.560Z",
-        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
-      }
-    ]
   }
 ]

@@ -8,6 +8,7 @@ import {
 import type { Player } from 'src/services/matchmaking';
 import { PlayerProfile } from 'src/services/playerProfile';
 import { useNotify } from 'src/composables/useNotify';
+import { useDupr } from 'src/composables/useDupr';
 
 type NotifyFn = (opts: QNotifyCreateOptions) => (() => void) | void;
 
@@ -20,6 +21,20 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
   const $q = useQuasar();
   const { notify: ctxNotify } = useNotify();
   const notify = ctxNotify as NotifyFn;
+  const Dupr = useDupr();
+
+  /**
+   * After a dupr_plus_required denial, re-pull the player's DUPR subscription
+   * server-side — covers "just upgraded mid-session". Returns true when the
+   * fresh pull says PREMIUM_L1; callers retry check-in once with
+   * duprPlus: true.
+   */
+  const reverifyDuprPlus = async (duprId?: string | null): Promise<boolean> => {
+    if (!duprId) return false;
+    notify({ type: 'info', message: 'Verifying DUPR+ status…', timeout: 2500 });
+    const res = await Dupr.refreshEntitlement(duprId);
+    return res?.plus === true;
+  };
 
   // Resolve the actor's name as the club sees it: the roster record carries
   // the member's display firstName even when the account profile itself has
@@ -434,8 +449,16 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
       cancel: { label: 'Cancel', color: 'grey' },
       ok: { label: 'Add', color: 'accent' },
       persistent: true,
-    }).onOk(() => {
-      const result = MatchmakingApp.checkInPlayer(p.username, p.level);
+    }).onOk(async () => {
+      let result = MatchmakingApp.checkInPlayer(p.username, p.level);
+
+      // Stale-entitlement recovery: reverify live, then retry once.
+      if (result === 'dupr_plus_required' && (await reverifyDuprPlus(p.duprId))) {
+        result = MatchmakingApp.checkInPlayer(p.username, p.level, {
+          duprId: p.duprId,
+          duprPlus: true,
+        });
+      }
 
       if (result === 'dupr_required') {
         notify({
@@ -497,14 +520,14 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
         icon: 'group_add',
       },
       persistent: true,
-    }).onOk(() => {
+    }).onOk(async () => {
       let addedCount = 0;
       let alreadyInQueueCount = 0;
       let alreadyInMatchCount = 0;
       let duprBlockedCount = 0;
-      let duprPlusBlockedCount = 0;
+      const duprDenied: Player[] = [];
 
-      players.value.forEach((p) => {
+      for (const p of players.value) {
         const result = MatchmakingApp.checkInPlayer(p.username, p.level);
         if (result === 'added') {
           addedCount++;
@@ -515,8 +538,44 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
         } else if (result === 'already_in_queue') alreadyInQueueCount++;
         else if (result === 'already_in_match') alreadyInMatchCount++;
         else if (result === 'dupr_required') duprBlockedCount++;
-        else if (result === 'dupr_plus_required') duprPlusBlockedCount++;
-      });
+        else if (result === 'dupr_plus_required') duprDenied.push(p);
+      }
+
+      // Stale-entitlement recovery: reverify every denied player who has a
+      // linked DUPR account in parallel (one flow call each), then retry the
+      // ones whose fresh pull shows PREMIUM_L1.
+      const reverified = new Set<string>();
+      const withDupr = duprDenied.filter((p) => p.duprId);
+      let recoveredCount = 0;
+      if (withDupr.length) {
+        notify({
+          type: 'info',
+          message: 'Verifying DUPR+ status…',
+          timeout: 2500,
+        });
+        const results = await Promise.all(
+          withDupr.map((p) => Dupr.refreshEntitlement(p.duprId)),
+        );
+        withDupr.forEach((p, i) => {
+          if (results[i]?.plus) reverified.add(p.username);
+        });
+        for (const p of duprDenied) {
+          if (!reverified.has(p.username)) continue;
+          const retry = MatchmakingApp.checkInPlayer(p.username, p.level, {
+            duprId: p.duprId,
+            duprPlus: true,
+          });
+          if (retry === 'added') {
+            addedCount++;
+            recoveredCount++;
+            logAction('check_in', {
+              player: p.firstName || p.username,
+              source: 'requeue',
+            });
+          }
+        }
+      }
+      const duprPlusBlockedCount = duprDenied.length - recoveredCount;
 
       if (addedCount > 0) {
         notify({

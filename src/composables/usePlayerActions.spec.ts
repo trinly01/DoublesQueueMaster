@@ -10,6 +10,13 @@ vi.mock('src/composables/useNotify', () => ({
   }),
 }));
 
+// Mock useDupr — keeps likhaClient/likha-sdk out of the spec module graph
+vi.mock('src/composables/useDupr', () => ({
+  useDupr: () => ({
+    refreshEntitlement: vi.fn(async () => null),
+  }),
+}));
+
 // Mock quasar
 vi.mock('quasar', () => ({
   useQuasar: () => ({

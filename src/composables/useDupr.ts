@@ -44,6 +44,9 @@ interface DuprSettings {
   hide_internal_rating?: boolean | null;
   // "Get DUPR Ratings" webhook flow — batch rating lookup by duprIds.
   ratings_flow_url?: string | null;
+  // "Refresh DUPR Entitlement" webhook flow — re-pulls subscription/active
+  // for one duprId using stored server-side credentials.
+  entitlement_flow_url?: string | null;
 }
 
 /** Real DUPR rating for one connected/known player — display only. */
@@ -145,6 +148,7 @@ class DuprService {
             'user_api_base_url',
             'hide_internal_rating',
             'ratings_flow_url',
+            'entitlement_flow_url',
           ],
         }),
       );
@@ -801,6 +805,43 @@ class DuprService {
       }
     } catch (err) {
       console.warn('[DUPR] ratings backfill failed:', err);
+    }
+  }
+
+  /**
+   * Ask the backend to re-pull DUPR subscription/entitlements for one player
+   * ("Refresh DUPR Entitlement" flow: token refresh → subscription/active →
+   * updates directus_users.dupr_entitlements + dupr_connection.eligibility).
+   * Used to auto-reverify after a dupr_plus_required denial so a player who
+   * just upgraded isn't kept out by a stale snapshot.
+   * Returns { plus, eligible, refreshed } or null on failure — never throws.
+   */
+  async refreshEntitlement(
+    duprId: string | null | undefined,
+  ): Promise<{ plus: boolean; eligible: boolean; refreshed: boolean } | null> {
+    if (!duprId) return null;
+    if (!this.state.settings) await this.fetchSettings();
+    const url = this.state.settings?.entitlement_flow_url;
+    if (!url) return null;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
+        body: JSON.stringify({ duprId }),
+      });
+      const data = (await res.json()) as {
+        plus?: boolean;
+        eligible?: boolean;
+        refreshed?: boolean;
+      };
+      return {
+        plus: !!data?.plus,
+        eligible: !!data?.eligible,
+        refreshed: !!data?.refreshed,
+      };
+    } catch (err) {
+      console.warn('[DUPR] entitlement refresh failed:', err);
+      return null;
     }
   }
 
