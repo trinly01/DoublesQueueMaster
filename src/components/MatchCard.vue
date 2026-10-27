@@ -273,14 +273,22 @@
             </q-item>
 
             <q-item
-              v-if="allowEditCancel"
               clickable
+              :disable="!allowEditCancel"
               @click="$emit('editMatch')"
             >
               <q-item-section avatar>
                 <q-icon name="edit" />
               </q-item-section>
-              <q-item-section>Edit Match</q-item-section>
+              <q-item-section>
+                <q-item-label>Edit Match</q-item-label>
+                <q-item-label
+                  v-if="!allowEditCancel"
+                  caption
+                  class="text-grey-6"
+                  >Admin only</q-item-label
+                >
+              </q-item-section>
             </q-item>
 
             <q-item
@@ -294,18 +302,26 @@
               <q-item-section>Start Match</q-item-section>
             </q-item>
 
-            <q-separator v-if="allowEditCancel" />
+            <q-separator />
 
             <q-item
-              v-if="allowEditCancel"
               clickable
+              :disable="!allowEditCancel"
               @click="$emit('cancelMatch')"
               class="text-negative"
             >
               <q-item-section avatar>
                 <q-icon name="cancel" />
               </q-item-section>
-              <q-item-section>Cancel Match</q-item-section>
+              <q-item-section>
+                <q-item-label>Cancel Match</q-item-label>
+                <q-item-label
+                  v-if="!allowEditCancel"
+                  caption
+                  class="text-grey-6"
+                  >Admin only</q-item-label
+                >
+              </q-item-section>
             </q-item>
           </q-list>
         </q-menu>
