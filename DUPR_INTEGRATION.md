@@ -388,9 +388,9 @@ The `dupr_settings` singleton is the central switch — everything keys off it.
 - `api_base_url` → `https://prod.mydupr.com/api`
 - `user_api_base_url` → `https://api.dupr.gg`
 - `client_key` / `client_secret` → prod values
-- Flow URLs (`submit_flow_url`, `connect_flow_url`, …) → **unchanged** — they point to our own Directus
+- Flow URLs (`submit_flow_url`, `connect_flow_url`, `ratings_flow_url`, `entitlement_flow_url`, …) → **unchanged** — they point to our own Directus
 
-No client changes needed: the SSO iframe already switches by `environment` (`uat.dupr.gg` → `dashboard.dupr.com/login-external-app`), and `read_connections` + `fetchSubmissions` now filter by env (2026-10-21) so UAT connections/submissions become invisible automatically — players simply re-connect via SSO on prod (their prod DUPR IDs differ from UAT test IDs).
+No client changes needed: the SSO iframe already switches by `environment` (`uat.dupr.gg` → `dashboard.dupr.com/login-external-app`), and `read_connections` + `fetchSubmissions` now filter by env (2026-10-21) so UAT connections/submissions become invisible automatically — players simply re-connect via SSO on prod (their prod DUPR IDs differ from UAT test IDs). Rollback = set `environment` back to `uat`; nothing else is persisted per-env client-side.
 
 **Step 2 — webhook re-registration** (one call, prod partner token):
 
@@ -415,5 +415,8 @@ Per-user `RATING` subscriptions happen automatically — Connect DUPR flow alrea
 1. One real player connects DUPR (prod SSO) → `dupr_connection` row with `environment='production'`
 2. Submit one completed match → verify `dupr_match_code` in `dupr_submission` + `GET {api}/match/v1.0/{matchCode}` returns `status:SUCCESS`
 3. Watch `dupr_connection` ratings for webhook backfill (may lag until matches process)
+4. **Entitlement refresh** — `POST {duprId}` to the Refresh DUPR Entitlement flow → expect `{refreshed:true, eligible:…, plus:…}`; this is the first prod exercise of `GET {user_api}/auth/v2.0/refresh` on rotated prod tokens (prod lifetimes: 30d access / 90d refresh)
+5. **Ratings backfill** — `POST {duprIds:[…]}` to Get DUPR Ratings → real prod `singles`/`doubles` values
+6. **Gate check** — with "Queue requirement: DUPR+" on, a linked-but-non-plus member is denied, reverified live, and either admitted (fresh `plus:true`) or kept out with the DUPR+ message
 
 **Step 4 — DUPR review:** email `tech@mydupr.com` — platform link, test accounts, compliance summary (checklist table above).
