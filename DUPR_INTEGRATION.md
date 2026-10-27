@@ -110,9 +110,9 @@ Partner token: ~1 hour. User tokens are **read-only**. Refresh tokens rotate on 
 
 | Field                          | Value / Purpose                                                  |
 | ------------------------------ | ---------------------------------------------------------------- |
-| `api_base_url`                 | `https://uat.mydupr.com/api`                                     |
-| `user_api_base_url`            | `https://api.uat.dupr.gg`                                        |
-| `environment`                  | `uat`                                                            |
+| `api_base_url`                 | `https://prod.mydupr.com/api`                                    |
+| `user_api_base_url`            | `https://api.dupr.gg`                                            |
+| `environment`                  | `production` _(cut over 2026-10-28 — UAT baseline below)_        |
 | `client_key` / `client_secret` | DUPR partner credentials (server-only)                           |
 | `submit_flow_url`              | `…/flows/trigger/41606a0f-59c5-45ec-8567-f308b31df55b`           |
 | `connect_flow_url`             | `…/flows/trigger/6d8a2427-d681-4f93-8e4a-747b9d94c46a`           |
@@ -125,6 +125,20 @@ Partner token: ~1 hour. User tokens are **read-only**. Refresh tokens rotate on 
 | `hide_internal_rating`         | bool — DUPR review flag: when true the app hides every internal `directus_users.rating` surface and shows real DUPR ratings instead _(new 2026-10-28)_ |
 
 > Authenticated-role read permission on `dupr_settings` is a **field whitelist** (`directus_permissions` id 70) — any new settings field must be added there or clients silently get `undefined`.
+
+**Per-environment baselines** (rollback = PATCH these values back; nothing else is env-specific server-side):
+
+| Field                | UAT                                            | Production (live since 2026-10-28)          |
+| -------------------- | ---------------------------------------------- | ------------------------------------------- |
+| `environment`        | `uat`                                          | `production`                                |
+| `api_base_url`       | `https://uat.mydupr.com/api`                   | `https://prod.mydupr.com/api`               |
+| `user_api_base_url`  | `https://api.uat.dupr.gg`                      | `https://api.dupr.gg`                       |
+| `client_key`         | `test-ck-36a1ce51-464f-4f3c-fee3-b946af9c6704` | `ck-f3c860b7-e410-41a8-b7d5-b755cb4dbac1`   |
+| `client_secret`      | `test-cs-b080308d070e4d6cf8e3de4543c10ad6`     | `cs-…` _(redacted — see DUPR dashboard)_    |
+| DUPR Client ID       | —                                              | `8034206056`                                |
+| Webhook registration | registered 2026-10-16                          | registered 2026-10-28 (Register DUPR Webhook flow, HTTP 200 "Client Hook registered ok") |
+
+> The UAT `test-` credentials are DUPR-issued sandbox keys — safe to keep in-repo. The prod `client_secret` is intentionally **not** committed; it lives in Directus only.
 
 ### `dupr_connection`
 
@@ -391,7 +405,7 @@ The `dupr_settings` singleton is the central switch — everything keys off it.
 
 **Step 0 — prerequisite:** prod `client_key`/`client_secret` from the DUPR account manager + a deployed client build containing the env-filtered `fetchSubmissions` (2026-10-21).
 
-**Step 1 — settings** (`dupr_settings` singleton, Directus admin or API PATCH):
+**Step 1 — settings** ✅ DONE 2026-10-28 (`dupr_settings` singleton, Directus admin or API PATCH):
 
 - `environment` → `production`
 - `api_base_url` → `https://prod.mydupr.com/api`
@@ -401,14 +415,14 @@ The `dupr_settings` singleton is the central switch — everything keys off it.
 
 No client changes needed: the SSO iframe already switches by `environment` (`uat.dupr.gg` → `dashboard.dupr.com/login-external-app`), and `read_connections` + `fetchSubmissions` now filter by env (2026-10-21) so UAT connections/submissions become invisible automatically — players simply re-connect via SSO on prod (their prod DUPR IDs differ from UAT test IDs). Rollback = set `environment` back to `uat`; nothing else is persisted per-env client-side.
 
-**Step 2 — webhook re-registration** (triggerable flow — after Step 1 flips settings to prod):
+**Step 2 — webhook re-registration** ✅ DONE 2026-10-28 — `{"registered":true,"status":200, dupr:"Client Hook [ck-f3c860b7-…] registered ok"}` on prod (triggerable flow — re-run if ever needed):
 
 ```bash
 curl -X POST https://api.dinkmatch.club/flows/trigger/033a37a7-9f3e-4b33-8361-5b679ff4f822 \
   -H "Content-Type: application/json" -d '{}'
 # → {"registered":true,"status":200,…} — the flow mints a prod partner token
 #   from the updated client_key/secret and registers the Receive DUPR Rating
-#   trigger URL for the RATING topic (verified live on UAT 2026-10-28).
+#   trigger URL for the RATING topic (verified live on UAT + prod 2026-10-28).
 ```
 
 Manual fallback (or if the flow errors — `registered:false` + `already_registered`/`status`): ask the DUPR account manager to register `https://api.dinkmatch.club/flows/trigger/664e9ba0-589e-4a38-a757-cf73a7307a70` for topic `RATING`. If hand-rolling instead, the spec body is `{"webhookUrl":"…","topics":["RATING"]}` (`ClientHookRequest`), `Bearer <prod partner token>` — 409 means already registered.
