@@ -19,14 +19,28 @@ export const LINES = {
   egc_hook: "What if every open-play game counted?",
   egc_rating: "Real, partner-weighted ratings.",
   egc_duo: "Best-duo leaderboards.",
-  egc_cta: "DUPR sync. Track your rise with DinkMatch. Start free.",
+  egc_cta: "Dooper sync. Track your rise with DinkMatch. Start free.",
   // DuprOfficial announcement (scenes at 0 / 95 / 215 / 335 / 435)
   // Conversational read — says "syncs", not "officially connected"
-  // (pre-approval safe until DUPR's review clears).
-  du_hook: "Okay — big one. DinkMatch now syncs with DUPR.",
-  du_connect: "Link your DUPR once. Ten seconds, done.",
-  du_submit: "Play open play. Your organizer taps one button.",
-  du_cta: "Your rating updates itself. Every game counts.",
+  // (pre-approval safe until DUPR's review clears). Natural voice.
+  // "dooper" = phonetic spelling so TTS says DUPR correctly
+  // (rhymes with "super"); on-screen text stays "DUPR".
+  du_hook: {
+    text: "Big news — DinkMatch now syncs with dooper.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  du_connect: {
+    text: "Link your dooper once. Ten seconds, done.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  du_submit: {
+    text: "Play open play. Your organizer taps one button.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  du_cta: {
+    text: "Your dooper rating updates itself. Every game counts.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
   // QueueGuide tutorial (scenes at 0 / 60 / 165 / 270 / 375 / 480 / 585)
   qg_intro: "Playing open play? Here's how it works.",
   qg_s1: "Step one. Check in with your club admin to join the queue.",
