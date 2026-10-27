@@ -85,6 +85,12 @@
             </q-tooltip>
             <q-menu anchor="bottom middle" self="top middle" :offset="[0, 8]">
               <q-list dense style="min-width: 160px">
+                <q-item clickable v-close-popup @click="openDuprApp">
+                  <q-item-section avatar>
+                    <q-icon name="open_in_new" color="primary" size="18px" />
+                  </q-item-section>
+                  <q-item-section>Open DUPR</q-item-section>
+                </q-item>
                 <q-item clickable v-close-popup @click="handleDisconnectDupr">
                   <q-item-section avatar>
                     <q-icon name="link_off" color="negative" size="18px" />
@@ -134,7 +140,9 @@
             @click="router.push('/play')"
           />
 
+          <!-- Internal rating — hidden when dupr_settings.hide_internal_rating -->
           <div
+            v-if="!hideInternalRating"
             class="rating-badge"
             :style="{
               background: getRatingGradient(ratingColor),
@@ -149,9 +157,35 @@
               <span class="text-caption text-white">Dink Points</span>
             </div>
           </div>
+          <!-- DUPR replaces the internal badge while ratings are hidden -->
+          <div
+            v-else-if="duprConnected"
+            class="rating-badge"
+            :style="{
+              background: 'linear-gradient(135deg,#1c7a3f,#0f5132)',
+              width: '100%',
+              display: 'flex',
+            }"
+          >
+            <div class="column items-center">
+              <span class="text-h4 text-weight-bold text-white">
+                {{
+                  duprDoublesRating !== null
+                    ? duprDoublesRating.toFixed(3)
+                    : 'NR'
+                }}
+              </span>
+              <span class="text-caption text-white">
+                DUPR Doubles
+                <template v-if="duprSinglesRating !== null"
+                  >· S {{ duprSinglesRating.toFixed(3) }}</template
+                >
+              </span>
+            </div>
+          </div>
 
           <q-btn
-            v-if="replayRating !== null"
+            v-if="replayRating !== null && !hideInternalRating"
             no-caps
             rounded
             size="sm"
@@ -448,6 +482,7 @@
           <div :class="$q.screen.lt.md ? 'q-px-sm q-pt-sm' : 'q-px-md q-pt-md'">
             <q-btn-group dense spread>
               <q-btn
+                v-if="!hideInternalRating"
                 flat
                 color="accent"
                 :class="activeTab === 'history' ? 'bg-accent text-white' : ''"
@@ -501,7 +536,7 @@
           </div>
 
           <div
-            v-if="activeTab === 'history'"
+            v-if="activeTab === 'history' && !hideInternalRating"
             :class="
               $q.screen.lt.md
                 ? 'q-px-sm q-pt-sm q-pb-sm'
@@ -666,7 +701,7 @@
                   <PlayerAvatar
                     :name="row.name"
                     :username="row.username"
-                    :color="getRatingColor(row.rating ?? 1450)"
+                    :color="ringColor(row.rating)"
                     :image-url="row.avatar"
                     :dupr-id="row.duprId"
                     size="32px"
@@ -767,7 +802,7 @@
                   <PlayerAvatar
                     :name="row.name"
                     :username="row.username"
-                    :color="getRatingColor(row.rating ?? 1450)"
+                    :color="ringColor(row.rating)"
                     :image-url="row.avatar"
                     :dupr-id="row.duprId"
                     size="32px"
@@ -1128,7 +1163,7 @@
                     <PlayerAvatar
                       :name="player.firstName"
                       :username="player.username"
-                      :color="getRatingColor(player.rating || 1450)"
+                      :color="ringColor(player.rating)"
                       :image-url="player.avatar"
                       size="32px"
                       :masked="
@@ -1180,6 +1215,7 @@
                 </q-item-section>
                 <q-item-section side class="text-right">
                   <q-chip
+                    v-if="!hideInternalRating"
                     :color="getRatingColor(player.rating || 1450)"
                     text-color="white"
                     size="sm"
@@ -1328,18 +1364,33 @@
                     </div>
                   </div>
                 </q-banner>
-                <q-btn
-                  color="negative"
-                  icon="link_off"
-                  label="Disconnect DUPR"
-                  size="sm"
-                  dense
-                  outline
-                  rounded
-                  no-caps
-                  :loading="Dupr.state.connecting"
-                  @click="handleDisconnectDupr"
-                />
+                <div class="row q-gutter-xs">
+                  <q-btn
+                    color="primary"
+                    icon="open_in_new"
+                    label="Open DUPR"
+                    size="sm"
+                    dense
+                    outline
+                    rounded
+                    no-caps
+                    class="col"
+                    @click="openDuprApp"
+                  />
+                  <q-btn
+                    color="negative"
+                    icon="link_off"
+                    label="Disconnect DUPR"
+                    size="sm"
+                    dense
+                    outline
+                    rounded
+                    no-caps
+                    class="col"
+                    :loading="Dupr.state.connecting"
+                    @click="handleDisconnectDupr"
+                  />
+                </div>
               </div>
 
               <!-- Not connected state -->
@@ -1492,6 +1543,16 @@ const currentUserId = computed(() => PlayerProfile.state.id);
 const isSsoUser = computed(() => PlayerProfile.state.provider === 'google');
 const { isPaymentExpired, maskNum, maskText } = useProFeatures();
 const Dupr = useDupr();
+
+// DUPR compliance — when the partner workspace sets
+// dupr_settings.hide_internal_rating, internal ratings and the tier colors
+// that leak them must not render anywhere on this page.
+const hideInternalRating = computed(() => Dupr.hideInternalRating);
+const ringColor = (rating?: number) =>
+  hideInternalRating.value ? 'grey-6' : getRatingColor(rating ?? 1450);
+watch(hideInternalRating, (hidden) => {
+  if (hidden && activeTab.value === 'history') activeTab.value = 'matches';
+});
 
 // Primary indicator: directus_users.dupr_id (survives refresh via fetchProfile)
 // Detailed state: dupr_connection (ratings, status, tokens)
@@ -2489,6 +2550,10 @@ const handleConnectDupr = async () => {
       notify({ color: 'negative', message: err });
     },
   );
+};
+
+const openDuprApp = () => {
+  window.open(Dupr.duprAppUrl, '_blank', 'noopener,noreferrer');
 };
 
 const handleDisconnectDupr = async () => {

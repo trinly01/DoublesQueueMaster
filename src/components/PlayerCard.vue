@@ -26,7 +26,7 @@
           v-if="!player.avatar || avatarLoadError"
           :name="player.firstName"
           :username="player.username"
-          :color="getRatingColor(player.rating)"
+          :color="avatarColor"
           :user-id="player.userId"
           :dupr-id="player.duprId"
           size="md"
@@ -37,7 +37,7 @@
           v-else
           :name="player.firstName"
           :username="player.username"
-          :color="getRatingColor(player.rating)"
+          :color="avatarColor"
           :user-id="player.userId"
           :dupr-id="player.duprId"
           :image-url="player.avatar"
@@ -143,7 +143,7 @@
           }}%</span
         >
         <q-chip
-          v-if="!sortBy || sortBy !== 'winRate'"
+          v-if="(!sortBy || sortBy !== 'winRate') && !hideInternalRating"
           :label="player.rating"
           :color="getRatingColor(player.rating ?? 1450)"
           text-color="white"
@@ -272,6 +272,7 @@
 import { computed, ref, watch } from 'vue';
 import PlayerAvatar from './PlayerAvatar.vue';
 import { getRatingColor, linkPairColor } from '../utils/playerHelpers';
+import { useDupr } from '../composables/useDupr';
 import type { Player as BasePlayer } from '../services/matchmaking';
 type Player = BasePlayer & {
   enteredAt?: number;
@@ -333,6 +334,15 @@ defineEmits<{
   linkToggle: [username: string];
   avoidToggle: [username: string];
 }>();
+
+// DUPR compliance — when the partner workspace hides internal ratings, the
+// ring falls back to a neutral color so it can't leak the skill tier either.
+const hideInternalRating = computed(() => useDupr().hideInternalRating);
+const avatarColor = computed(() =>
+  hideInternalRating.value
+    ? 'grey-6'
+    : getRatingColor(props.player.rating),
+);
 
 const isSelf = computed(() => {
   return (

@@ -39,6 +39,9 @@ interface DuprSettings {
   reactivate_flow_url: string | null;
   client_key: string;
   user_api_base_url?: string;
+  // DUPR partner requirement: when true, the app must not surface the
+  // internal DinkMatch rating (directus_users.rating) anywhere user-facing.
+  hide_internal_rating?: boolean | null;
 }
 
 interface DuprState {
@@ -53,6 +56,10 @@ interface DuprState {
 
 const DUPR_CACHE_KEY = 'dupr_connection_cache';
 const SUBMISSIONS_CACHE_KEY = 'dupr_submissions_cache';
+// Settings are workspace-level (not secret) — caching them prevents internal
+// ratings from flashing before fetchSettings resolves when
+// hide_internal_rating is on.
+const SETTINGS_CACHE_KEY = 'dupr_settings_cache';
 
 class DuprService {
   public state: DuprState;
@@ -66,10 +73,13 @@ class DuprService {
     const cachedSubmissions = LocalStorage.getItem(
       SUBMISSIONS_CACHE_KEY,
     ) as DuprSubmissionStatus[];
+    const cachedSettings = LocalStorage.getItem(
+      SETTINGS_CACHE_KEY,
+    ) as DuprSettings | null;
 
     this.state = reactive({
       connection: cachedConnection,
-      settings: null,
+      settings: cachedSettings,
       submissions: cachedSubmissions || [],
       loading: false,
       connecting: false,
@@ -116,11 +126,13 @@ class DuprService {
             'reactivate_flow_url',
             'client_key',
             'user_api_base_url',
+            'hide_internal_rating',
           ],
         }),
       );
       console.log('[DUPR] Settings loaded:', result);
       this.state.settings = result as DuprSettings;
+      LocalStorage.set(SETTINGS_CACHE_KEY, this.state.settings);
       return this.state.settings;
     } catch (err) {
       console.error('[DUPR] Failed to fetch settings:', err);
@@ -683,6 +695,26 @@ class DuprService {
     } finally {
       this.state.connecting = false;
     }
+  }
+
+  /**
+   * DUPR compliance flag: when the partner workspace sets
+   * dupr_settings.hide_internal_rating, every user-facing surface must hide
+   * the internal rating (chips, badges, leaderboard scores, tier colors).
+   */
+  get hideInternalRating(): boolean {
+    return !!this.state.settings?.hide_internal_rating;
+  }
+
+  /**
+   * Where "Open DUPR" should take the user — the DUPR app for the active
+   * environment. No numeric DUPR user id is stored, so we land on the
+   * dashboard rather than deep-linking a player profile.
+   */
+  get duprAppUrl(): string {
+    return this.state.settings?.environment === 'production'
+      ? 'https://dashboard.dupr.com'
+      : 'https://uat.dupr.gg';
   }
 
   /**

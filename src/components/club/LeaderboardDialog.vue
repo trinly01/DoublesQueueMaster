@@ -271,7 +271,7 @@
                 <PlayerAvatar
                   :name="player.firstName"
                   :username="player.username"
-                  :color="getRatingColor(player.rating || 1450)"
+                  :color="ratingColor(player.rating)"
                   :image-url="player.avatar"
                   size="32px"
                   :masked="
@@ -316,6 +316,7 @@
             <q-item-section side class="text-right" style="min-width: 0">
               <div class="row items-center justify-end no-wrap">
                 <q-chip
+                  v-if="!hideInternalRating"
                   :color="getRatingColor(player.rating || 1450)"
                   text-color="white"
                   size="sm"
@@ -438,7 +439,7 @@
                 <PlayerAvatar
                   :name="duo.player1.firstName"
                   :username="duo.player1.username"
-                  :color="getRatingColor(duo.player1.rating || 1450)"
+                  :color="ratingColor(duo.player1.rating)"
                   :image-url="duo.player1.avatar"
                   size="18px"
                   :index="idx * 2"
@@ -450,7 +451,7 @@
                 <PlayerAvatar
                   :name="duo.player2.firstName"
                   :username="duo.player2.username"
-                  :color="getRatingColor(duo.player2.rating || 1450)"
+                  :color="ratingColor(duo.player2.rating)"
                   :image-url="duo.player2.avatar"
                   size="18px"
                   :index="idx * 2 + 1"
@@ -489,7 +490,11 @@
                 >
               </div>
             </q-item-section>
-            <q-item-section side class="text-right duo-rating-col">
+            <q-item-section
+              v-if="!hideInternalRating"
+              side
+              class="text-right duo-rating-col"
+            >
               <q-chip
                 :color="getRatingColor(duo.duoScore)"
                 text-color="white"
@@ -538,8 +543,15 @@ import PlayerAvatar from '../PlayerAvatar.vue';
 import PayBanner from '../PayBanner.vue';
 import { getRatingColor } from '../../utils/playerHelpers';
 import { useProFeatures } from '../../composables/useProFeatures';
+import { useDupr } from '../../composables/useDupr';
 
 defineOptions({ name: 'LeaderboardDialog' });
+
+// DUPR compliance — hide internal rating numbers/tier colors when the
+// partner workspace sets dupr_settings.hide_internal_rating.
+const hideInternalRating = computed(() => useDupr().hideInternalRating);
+const ratingColor = (rating?: number) =>
+  hideInternalRating.value ? 'grey-6' : getRatingColor(rating || 1450);
 
 const props = defineProps<{
   modelValue: boolean;

@@ -32,7 +32,7 @@
             @{{ blurText(player.username, player.username) }}
           </span>
           <q-chip
-            v-if="player.rating !== undefined"
+            v-if="player.rating !== undefined && !hideInternalRating"
             :label="player.rating"
             :color="getRatingColor(player.rating)"
             text-color="white"
@@ -198,7 +198,7 @@
             @{{ blurText(player.username, player.username) }}
           </span>
           <q-chip
-            v-if="player.rating !== undefined"
+            v-if="player.rating !== undefined && !hideInternalRating"
             :label="player.rating"
             :color="getRatingColor(player.rating)"
             text-color="white"
@@ -254,7 +254,10 @@ import type { QInput } from 'quasar';
 import type { MatchMeta } from '../types/matchMeta';
 import type { TeamPlayer } from '../types/player';
 import { getRatingColor, formatDate } from '../utils/playerHelpers';
+import { useDupr } from '../composables/useDupr';
 import MatchMetaChips from './MatchMetaChips.vue';
+
+const hideInternalRating = computed(() => useDupr().hideInternalRating);
 
 const props = withDefaults(
   defineProps<{

@@ -382,7 +382,7 @@
                   <q-icon name="queue" class="q-mr-sm" />
                   Queue ({{ queue.length }})
                 </q-toolbar-title>
-                <div class="queue-stats">
+                <div v-if="!hideInternalRating" class="queue-stats">
                   <q-chip
                     v-for="cat in queueStats.categories"
                     :key="cat.label"
@@ -1038,7 +1038,7 @@
             <q-card-section class="q-pa-none">
               <div class="card-content mobile-card-content">
                 <!-- Mobile queue stats -->
-                <div class="q-pa-md q-pb-sm">
+                <div v-if="!hideInternalRating" class="q-pa-md q-pb-sm">
                   <div class="row items-center justify-between">
                     <div class="queue-stats">
                       <q-chip
@@ -1790,6 +1790,9 @@ const { notify } = useNotify();
 
 // DUPR composable instance
 const Dupr = useDupr();
+// DUPR compliance — hides internal rating UI (chips, tier colors, score
+// columns) when dupr_settings.hide_internal_rating is set by the partner.
+const hideInternalRating = computed(() => Dupr.hideInternalRating);
 
 // Map of matchId → match_key for DUPR submission (fetched from completed_match collection)
 const completedMatchKeyMap = ref<Record<string, string>>({});
