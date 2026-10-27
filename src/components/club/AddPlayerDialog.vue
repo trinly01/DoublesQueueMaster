@@ -537,6 +537,23 @@ const notify = ctxNotify as (opts: {
   timeout?: number;
 }) => void;
 const { handleAuthError: ctxHandleAuthError } = useAuth();
+const Dupr = useDupr();
+
+/**
+ * After a dupr_plus_required denial, re-pull the player's DUPR subscription
+ * server-side — covers "just upgraded mid-session", which the connect-time
+ * snapshot would otherwise miss. The Refresh DUPR Entitlement flow rotates
+ * the stored user token, calls subscription/active, and rewrites
+ * directus_users.dupr_entitlements + dupr_connection.eligibility.
+ * Returns true when the player now holds PREMIUM_L1 — callers then retry
+ * check-in once with duprPlus: true.
+ */
+const reverifyDuprPlus = async (duprId?: string | null): Promise<boolean> => {
+  if (!duprId) return false;
+  notify({ type: 'info', message: 'Verifying DUPR+ status…', timeout: 2500 });
+  const res = await Dupr.refreshEntitlement(duprId);
+  return res?.plus === true;
+};
 const handleAuthError = ctxHandleAuthError as (
   err: unknown,
   router: ReturnType<typeof useRouter>,
@@ -769,7 +786,7 @@ const onScanSuccess = async (decodedText: string) => {
   if (member) {
     const memberLevel = member.level ?? 2;
     const memberRating = member.rating ?? levelSeedRating(memberLevel);
-    const result = MatchmakingApp.checkInPlayer(
+    let result = MatchmakingApp.checkInPlayer(
       member.username || scannedUsername,
       memberLevel as 1 | 2 | 3,
       {
@@ -781,6 +798,23 @@ const onScanSuccess = async (decodedText: string) => {
         rating: memberRating,
       },
     );
+    // Stale-entitlement recovery: a player who upgraded to DUPR+ after their
+    // last SSO connect is denied by the old snapshot — reverify live, then
+    // retry once if the fresh pull says PREMIUM_L1.
+    if (result === 'dupr_plus_required' && (await reverifyDuprPlus(member.duprId))) {
+      result = MatchmakingApp.checkInPlayer(
+        member.username || scannedUsername,
+        memberLevel as 1 | 2 | 3,
+        {
+          firstName: member.firstName,
+          avatar: member.avatar,
+          userId: member.id,
+          duprId: member.duprId,
+          duprPlus: true,
+          rating: memberRating,
+        },
+      );
+    }
     if (result === 'dupr_required') {
       notify({
         type: 'warning',
@@ -872,7 +906,7 @@ const onScanSuccess = async (decodedText: string) => {
       : undefined;
     const memberLevel = 2;
     const memberRating = userRating ?? 1500;
-    const checkInResult = MatchmakingApp.checkInPlayer(
+    let checkInResult = MatchmakingApp.checkInPlayer(
       scannedUsername,
       memberLevel,
       {
@@ -884,6 +918,23 @@ const onScanSuccess = async (decodedText: string) => {
         rating: memberRating,
       },
     );
+    if (
+      checkInResult === 'dupr_plus_required' &&
+      (await reverifyDuprPlus(userDuprId))
+    ) {
+      checkInResult = MatchmakingApp.checkInPlayer(
+        scannedUsername,
+        memberLevel,
+        {
+          firstName,
+          avatar: avatarUrl,
+          userId,
+          duprId: userDuprId,
+          duprPlus: true,
+          rating: memberRating,
+        },
+      );
+    }
 
     if (checkInResult === 'dupr_required') {
       notify({
@@ -994,7 +1045,7 @@ watch(addPlayerMode, (mode, oldMode) => {
   }
 });
 
-const addClubMembers = () => {
+const addClubMembers = async () => {
   if (selectedClubMembers.value.length === 0) return;
 
   const added: string[] = [];
@@ -1003,9 +1054,9 @@ const addClubMembers = () => {
   const duprBlocked: string[] = [];
   const duprPlusBlocked: string[] = [];
 
-  selectedClubMembers.value.forEach((memberId) => {
+  for (const memberId of selectedClubMembers.value) {
     const member = clubMembers.value.find((m) => m.id === memberId);
-    if (!member) return;
+    if (!member) continue;
 
     // Key by account username when present; fall back to the member's user
     // UUID — never a shared literal like 'Unknown', which would collapse all
@@ -1015,14 +1066,23 @@ const addClubMembers = () => {
 
     const memberLevel = member.level ?? 2;
     const memberRating = member.rating ?? levelSeedRating(memberLevel);
-    const result = MatchmakingApp.checkInPlayer(username, memberLevel, {
+    const extra = {
       firstName: member.firstName,
       avatar: member.avatar,
       userId: member.id,
       duprId: member.duprId,
       duprPlus: member.duprPlus,
       rating: memberRating,
-    });
+    };
+    let result = MatchmakingApp.checkInPlayer(username, memberLevel, extra);
+
+    // Stale-entitlement recovery: reverify live, then retry once.
+    if (result === 'dupr_plus_required' && (await reverifyDuprPlus(member.duprId))) {
+      result = MatchmakingApp.checkInPlayer(username, memberLevel, {
+        ...extra,
+        duprPlus: true,
+      });
+    }
 
     if (result === 'added') {
       added.push(username);
@@ -1036,7 +1096,7 @@ const addClubMembers = () => {
     } else if (result === 'dupr_plus_required') {
       duprPlusBlocked.push(username);
     }
-  });
+  }
 
   if (added.length > 0) {
     notify({

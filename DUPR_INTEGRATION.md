@@ -38,6 +38,7 @@ DinkMatch integrates with DUPR (Dynamic Universal Pickleball Rating) as a **PART
 | Register webhook         | `POST {api}/v1.0/webhook`                                          | `Bearer <partnerToken>`                             | ✅ registered for RATING                  |
 | Subscribe user to RATING | `POST {api}/user/v1.0/subscribe/webhook-event`                     | `Bearer <partnerToken>`                             | ✅ wired into Connect                     |
 | **User entitlements**    | `POST {user_api}/subscription/active`                              | `Bearer <userToken>`                                | ✅ wired into Connect → `eligibility` col |
+| **User token refresh**   | `GET {user_api}/auth/v2.0/refresh`                                 | `x-refresh-token: <refresh>` + `Bearer <access>`    | ✅ verified live in Entitlement flow      |
 | Unsubscribe              | `DELETE {api}/user/v1.0/subscribe/webhook-event`                   | `Bearer <partnerToken>`                             | ✅ in spec                                |
 | User detail batch        | `POST {api}/user/v1.0/batch`                                       | `Bearer <partnerToken>`                             | ✅ in spec                                |
 | User search              | `POST {api}/user/v1.0/search`                                      | `Bearer <partnerToken>`                             | ✅ in spec (SSO-connected only)           |
@@ -54,6 +55,7 @@ DinkMatch integrates with DUPR (Dynamic Universal Pickleball Rating) as a **PART
 | `POST /user/v1.0/details`                   | `POST /user/v1.0/batch`                   |
 | `POST /v1.0/webhook/subscribe`              | `POST /user/v1.0/subscribe/webhook-event` |
 | `GET /subscription/v1.0/subscriptions`      | `POST {user_api}/subscription/active`     |
+| `POST {api}/auth/v1.0/refresh-token` (403)  | `GET {user_api}/auth/v2.0/refresh`        |
 
 Note: the live OpenAPI uses operationIds like `saveMatch`/`saveMatchInBulk` while
 the _paths_ are `/create`/`/batch` — this mismatch caused the original submit bug.
@@ -119,7 +121,10 @@ Partner token: ~1 hour. User tokens are **read-only**. Refresh tokens rotate on 
 | `delete_flow_url`              | `…/flows/trigger/2e234c53-fba4-4dec-9683-5a84da8265c7` _(new)_   |
 | `rating_flow_url`              | removed 2026-10-20 (broken flow deleted — webhooks supersede it) |
 | `ratings_flow_url`             | `…/flows/trigger/8d268ff9-45d5-4ccf-8a03-45bbb19266bb` _(new 2026-10-28)_ |
+| `entitlement_flow_url`         | `…/flows/trigger/964e6174-941d-4f08-97e0-cbe09437d9e0` _(new 2026-10-28)_ |
 | `hide_internal_rating`         | bool — DUPR review flag: when true the app hides every internal `directus_users.rating` surface and shows real DUPR ratings instead _(new 2026-10-28)_ |
+
+> Authenticated-role read permission on `dupr_settings` is a **field whitelist** (`directus_permissions` id 70) — any new settings field must be added there or clients silently get `undefined`.
 
 ### `dupr_connection`
 
@@ -141,7 +146,7 @@ Verified DUPR ID on the user record → synced to local `Player.duprId` → capt
 
 JSON summary written by the Connect flow (same payload as `dupr_connection.eligibility`: `{entitlements: {<category>: [...]}, eligible}`); cleared by Disconnect. Readable by club members via the existing `["*"]` player read policy — this is what lets **other people's** entitlements gate check-in (a client can't read another user's `dupr_connection` row). Hydrated to `Player.duprPlus` / `ClubMember.duprPlus` via `hasPremiumL1()`.
 
-**Staleness caveat:** entitlements are only refreshed at SSO connect. A player whose DUPR+ lapses keeps `duprPlus: true` until they disconnect/reconnect. Acceptable for the review; a periodic entitlement-refresh op (stored user tokens in `dupr_credentials`) would close it.
+**Freshness (2026-10-28):** entitlements refresh at SSO connect **plus two live paths** — (a) the `Receive DUPR Rating` webhook piggybacks a refresh on every `RATING`/`RATING_SEED` event for that user, and (b) the client fires `Refresh DUPR Entitlement` whenever a check-in is denied by the DUPR+ gate (stale-snapshot recovery: a player who just upgraded mid-session is reverified and retried automatically). A mid-session lapse still lingers until the next rating event or next connect — DUPR offers no entitlement webhook topic, so that residual window is inherent.
 
 ### `directus_users.dupr_singles_rating` / `dupr_doubles_rating` — new 2026-10-28
 
@@ -222,9 +227,10 @@ Clears connection, deletes credentials, nulls `directus_users.dupr_id` **and `du
 
 Registered with DUPR UAT for `RATING` topic (2026-10-16, handshake OK). `parse_webhook` handles `RATING` + `RATING_SEED` + tolerates handshake/unknown events; `update_rating` writes **only** `dupr_connection.singles_rating/doubles_rating` — never `directus_users.rating`.
 
-Chain: `parse_webhook → update_rating (dupr_connection) → update_user_rating (directus_users projection, new 2026-10-28) → safe_response`
+Chain: `parse_webhook → update_rating (dupr_connection) → update_user_rating (directus_users projection, new 2026-10-28) → refresh_entitlement (piggyback, new 2026-10-28) → safe_response`
 
 - `update_user_rating` _(new)_: `UPDATE directus_users SET dupr_singles_rating=?, dupr_doubles_rating=? WHERE dupr_id=?` — public projection powering DUPR chips for other players.
+- `refresh_entitlement` _(new)_: `POST /flows/trigger/964e6174-…` with `{duprId}` — every `RATING`/`RATING_SEED` event also refreshes that user's entitlements, keeping `dupr_entitlements` near-realtime for active players. **Non-fatal**: resolve and reject both go to `safe_response`, so a subscription-lookup failure never breaks rating intake.
 
 ### Get DUPR Ratings — `8d268ff9-45d5-4ccf-8a03-45bbb19266bb` (webhook POST, new 2026-10-28)
 
@@ -235,9 +241,23 @@ Chain: `parse_webhook → update_rating (dupr_connection) → update_user_rating
 - Response: `{status, ratings: {duprId: {singles, doubles, singlesReliable, doublesReliable, fullName}}, notFound, count}`
 - Purpose: **backfill** ratings the webhook hasn't delivered yet (e.g. `QNQRW4` was null in `dupr_connection` but returned d:3.788) and ids added after seeding. Verified live 2026-10-28: `R4Q0MM → d:3.212`, `2D2JO7 → d:4.746`, `QNQRW4 → d:3.788`.
 
-### Refresh DUPR Token — `5d5cbeea-4589-468b-a9c8-78e1eef4e114` (operation, internal)
+### Refresh DUPR Entitlement — `964e6174-941d-4f08-97e0-cbe09437d9e0` (webhook POST, new 2026-10-28)
 
-User-token refresh for other flows. 0 runs.
+`read_settings → find_creds → gate_creds → refresh_req → prepare_tokens → update_credentials → fetch_entitlements → prepare_ent → update_user_ent → update_conn_ent → safe_response`
+
+- Client body `{duprId}` (public — response carries only `{refreshed, plus, eligible, duprId}`, never tokens)
+- `find_creds`: `item-read dupr_credentials` deep-filtered on `connection.dupr_id` — picks the connection row that actually has tokens (a duprId can map to multiple `dupr_connection` rows)
+- `gate_creds`: rejects (`no_credentials` / `no_refresh_token` / `refresh_expired` / `credential_orphaned`) before any DUPR call
+- `refresh_req`: `GET {user_api_base_url}/auth/v2.0/refresh` with `x-refresh-token` + `Bearer <access_token>` — **NOT** `POST {api}/auth/v1.0/refresh-token` (403s; v1 refresh path returns 410 "no longer supported")
+- `prepare_tokens`/`update_credentials`: stores the rotated pair with env-aware expiries (UAT 7d/30d, prod 30d/90d); update failure is non-fatal (`reject` → `fetch_entitlements`)
+- `fetch_entitlements`: `POST {user_api_base_url}/subscription/active` with the fresh user token
+- `prepare_ent`: merges `subscriptions[].entitlements` → `{entitlements, eligible}` (`eligible` = `tournaments` contains `BASIC_L1`); `plus` = any category contains `PREMIUM_L1`
+- `update_user_ent` → `directus_users.dupr_entitlements`; `update_conn_ent` → `dupr_connection.eligibility`
+- Verified live 2026-10-28: `R4Q0MM → {refreshed:true, eligible:true, plus:false}` (BASIC_L1 only); unknown duprId → `{refreshed:false, step:"noconn"}`
+
+### Refresh DUPR Token — `5d5cbeea-4589-468b-a9c8-78e1eef4e114` — DELETED 2026-10-28
+
+Was never invoked (no `operation`-type callers) and targeted the dead `POST {api}/auth/v1.0/refresh-token` path via `fetch` in exec (unsupported). The Entitlement flow above does user-token refresh inline via request ops.
 
 ### Fetch DUPR Rating — `7e6e70b0-22c6-4a83-9cf2-4105e5c9e097` — DELETED 2026-10-20
 
@@ -251,14 +271,14 @@ for the DUPR review.
 
 | File                                      | Role                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/composables/useDupr.ts`              | Service: SSO iframe, connect/disconnect, `submitMatches`, `updateMatch`/`deleteMatch`, settings, submissions fetch + **realtime subscription** (`startSubmissionRealtime`/`stopSubmissionRealtime`, self-healing on stream drop). **Compliance:** `hideInternalRating` getter (from `dupr_settings.hide_internal_rating`), `duprAppUrl` (env-aware "Open DUPR"), in-memory `ratingsMap` (`seedRatings`/`ensureRatings`/`duprDoublesOf`/`duprSinglesOf`) — display-only, never persisted to matchmaking state                                                                 |
+| `src/composables/useDupr.ts`              | Service: SSO iframe, connect/disconnect, `submitMatches`, `updateMatch`/`deleteMatch`, settings, submissions fetch + **realtime subscription** (`startSubmissionRealtime`/`stopSubmissionRealtime`, self-healing on stream drop). **Compliance:** `hideInternalRating` getter (from `dupr_settings.hide_internal_rating`), `duprAppUrl` (env-aware "Open DUPR"), in-memory `ratingsMap` (`seedRatings`/`ensureRatings`/`duprDoublesOf`/`duprSinglesOf`) — display-only, never persisted to matchmaking state. `refreshEntitlement(duprId)` calls the Refresh DUPR Entitlement flow and returns `{plus, eligible, refreshed}` |
 | `src/utils/playerHelpers.ts`              | `displayRatingColor` (neutral grey when hiding) + `duprChipRating` (doubles rating for chips). All rating chips fall back to a green-8 `DUPR Doubles` chip when the flag is on; all rating-tier avatar rings neutralize |
 | `src/pages/PlayerPage.vue`                | Profile connect/disconnect/**Open DUPR** UI; internal "Dink Points" badge + replay rating + Rating-history tab + leaderboard score chips hidden under the flag, replaced by a DUPR Doubles badge (singles in the caption) when connected |
 | `src/pages/PlayerPage.vue`                | Profile connect/disconnect UI, ratings display                                                                                                                                                                                                                                                                                                                                                                                  |
 | `src/pages/ClubPage.vue`                  | Single + bulk submit (club-name confirm), status→chip mapping, submit hidden when `submitted`, "Retry" for failures, readiness via **live-roster fallback**, key-map + submissions refetch on new completions and on reconnect; admin-only **"Correct score on DUPR"** dialog (updates local record + `updateMatch` in one path) and **"Remove from DUPR"** on submitted matches; `duprPlusOnly` session flag bound to Settings |
 | `src/components/club/SettingsDialog.vue`  | "Queue requirement" select (`duprGate`: anyone / linked / plus) mapping onto `duprOnly` + `duprPlusOnly` — synced club settings; both fields appear in `settings_change` action logs                                                                                                                                                                                                                                                                              |
-| `src/components/club/AddPlayerDialog.vue` | Every `checkInPlayer` path passes `duprId`/`duprPlus` and surfaces `dupr_required` ("DUPR-only session, link DUPR") + `dupr_plus_required` ("session requires DUPR+"); members tab filters to linked members when `duprOnly`                                                                                                                                                                                                        |
-| `src/composables/usePlayerActions.ts`     | Requeue + add-all handle `dupr_required` + `dupr_plus_required`                                                                                                                                                                                                                                                                                                                                                                 |
+| `src/components/club/AddPlayerDialog.vue` | Every `checkInPlayer` path passes `duprId`/`duprPlus` and surfaces `dupr_required` ("DUPR-only session, link DUPR") + `dupr_plus_required` ("session requires DUPR+"); members tab filters to linked members when `duprOnly`. `dupr_plus_required` triggers `reverifyDuprPlus` → live entitlement refresh → one retry with `duprPlus: true`                                                                                                                                                  |
+| `src/composables/usePlayerActions.ts`     | Requeue + add-all handle `dupr_required` + `dupr_plus_required`; both auto-reverify via `refreshEntitlement` (add-all runs the per-player refreshes in parallel, then retries the recovered ones)                                                                                                                                                                                                                                 |
 | `src/components/MatchMetaChips.vue`       | `submitted`/failed(`update_failed`,`delete_failed`)+error tooltip/pending chips                                                                                                                                                                                                                                                                                                                                                 |
 | `src/types/matchMeta.ts`                  | `duprStatus`, `duprError`                                                                                                                                                                                                                                                                                                                                                                                                       |
 
@@ -269,7 +289,8 @@ DUPR review requirement: the platform must be able to offer events restricted to
 - Settings → "DUPR+ event — queue requires DUPR+ membership" sets `MatchmakingApp.state.duprPlusOnly` — a `CLUB_SETTINGS` descriptor field, so it seeds, resets, and merges per-field-LWW like every other synced setting (all devices agree).
 - `checkInPlayer` returns `'dupr_plus_required'` when the flag is on and the player's roster record lacks `duprPlus` (i.e. no `PREMIUM_L1` in `directus_users.dupr_entitlements`). The player is still rostered — only queue entry is refused.
 - Every check-in path handles the code with a "session requires DUPR+" notice: QR/member scan, username scan+join, multi-member add, manual new player, bulk import, requeue, add-all.
-- `duprPlus` is hydrated by `refreshPlayerRatings`/`refreshClubMembers` from `dupr_entitlements` (written by Connect, cleared by Disconnect).
+- `duprPlus` is hydrated by `refreshPlayerRatings`/`refreshClubMembers` from `dupr_entitlements` (written by Connect + Refresh DUPR Entitlement, cleared by Disconnect).
+- **Realtime freshness:** on `dupr_plus_required` the client calls the Refresh DUPR Entitlement flow and retries the check-in once if the fresh pull shows `PREMIUM_L1` — a player who just bought DUPR+ gets in on the spot instead of staying blocked until reconnect. The rating-webhook piggyback refreshes entitlements for active players between denials.
 - Admin bypass is intentionally **not** implemented — an override would defeat the audit trail.
 
 ### DUPR-only event gate (`duprOnly`)
