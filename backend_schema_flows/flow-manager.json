@@ -1,5 +1,138 @@
 [
   {
+    "id": "033a37a7-9f3e-4b33-8361-5b679ff4f822",
+    "name": "Register DUPR Webhook",
+    "icon": "webhook",
+    "color": "#764BA2",
+    "description": "Registers the Receive DUPR Rating trigger URL as the partner RATING webhook (prod cutover step). Re-runnable — 409 already-registered is treated as success.",
+    "trigger": "webhook",
+    "options": {
+      "method": "POST",
+      "async": false
+    },
+    "operation": "6fb7cdeb-2e97-4375-9d4b-eb14f0adecdd",
+    "operations": [
+      {
+        "id": "1d2e55e6-111b-48e3-9d39-8bae32c7486b",
+        "name": "get_partner_token",
+        "key": "get_partner_token",
+        "type": "request",
+        "position_x": 20,
+        "position_y": 10,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_settings[0].api_base_url }}/auth/v1.0/token",
+          "headers": [
+            {
+              "header": "x-authorization",
+              "value": "{{ gen_auth.authHeader }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "resolve": "9f2c18e5-7b0a-4c21-98ac-f42b025c65a5",
+        "reject": null
+      },
+      {
+        "id": "6fb7cdeb-2e97-4375-9d4b-eb14f0adecdd",
+        "name": "read_settings",
+        "key": "read_settings",
+        "type": "item-read",
+        "position_x": 0,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "dupr_settings"
+        },
+        "resolve": "961b0987-adca-43a4-990a-d4d23fe9e47d",
+        "reject": null
+      },
+      {
+        "id": "7e68af56-da13-4819-911d-9e5e08fc1a98",
+        "name": "fail_register",
+        "key": "fail_register",
+        "type": "exec",
+        "position_x": 60,
+        "position_y": 20,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const err = data.$last || {};\n  let status = null, detail = null;\n  try {\n    const env = typeof err === 'string' ? JSON.parse(err) : (err.data || err);\n    status = env.status || null; detail = env.data || env.message || env;\n  } catch(e) { detail = String(err).slice(0,400); }\n  return {\n    registered: false,\n    already_registered: status === 409,\n    status: status,\n    step: 'register_webhook',\n    reason: detail\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "961b0987-adca-43a4-990a-d4d23fe9e47d",
+        "name": "gen_auth",
+        "key": "gen_auth",
+        "type": "exec",
+        "position_x": 10,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const s = data.read_settings[0];\n  const str = s.client_key + ':' + s.client_secret;\n  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';\n  let out = '';\n  for (let i = 0; i < str.length; i += 3) {\n    const a = str.charCodeAt(i) & 0xff;\n    const b = i + 1 < str.length ? str.charCodeAt(i + 1) & 0xff : NaN;\n    const c = i + 2 < str.length ? str.charCodeAt(i + 2) & 0xff : NaN;\n    const t = (a << 16) | ((b || 0) << 8) | (c || 0);\n    out += chars[(t >> 18) & 63]; out += chars[(t >> 12) & 63];\n    out += isNaN(b) ? '=' : chars[(t >> 6) & 63];\n    out += isNaN(c) ? '=' : chars[t & 63];\n  }\n  return { authHeader: out };\n}"
+        },
+        "resolve": "1d2e55e6-111b-48e3-9d39-8bae32c7486b",
+        "reject": null
+      },
+      {
+        "id": "9be88ba0-41c9-4696-be30-3566d87c10e5",
+        "name": "register_webhook",
+        "key": "register_webhook",
+        "type": "request",
+        "position_x": 40,
+        "position_y": 10,
+        "options": {
+          "method": "POST",
+          "url": "{{ read_settings[0].api_base_url }}/v1.0/webhook",
+          "headers": [
+            {
+              "header": "Authorization",
+              "value": "Bearer {{ get_partner_token.data.result.token }}"
+            },
+            {
+              "header": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\"webhookUrl\":\"{{ prepare.webhookUrl }}\",\"topics\":[\"RATING\"]}"
+        },
+        "resolve": "ca17fa22-128e-4871-9964-39fc67a7be86",
+        "reject": "7e68af56-da13-4819-911d-9e5e08fc1a98"
+      },
+      {
+        "id": "9f2c18e5-7b0a-4c21-98ac-f42b025c65a5",
+        "name": "prepare",
+        "key": "prepare",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const url = (data.$trigger.body || {}).webhookUrl\n    || 'https://api.dinkmatch.club/flows/trigger/664e9ba0-589e-4a38-a757-cf73a7307a70';\n  return { webhookUrl: url };\n}"
+        },
+        "resolve": "9be88ba0-41c9-4696-be30-3566d87c10e5",
+        "reject": null
+      },
+      {
+        "id": "ca17fa22-128e-4871-9964-39fc67a7be86",
+        "name": "safe_response",
+        "key": "safe_response",
+        "type": "exec",
+        "position_x": 60,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const env = data.register_webhook || {};\n  const body = env.data || env;\n  return {\n    registered: true,\n    status: env.status || 200,\n    dupr: body,\n    webhookUrl: data.prepare.webhookUrl,\n    topics: ['RATING']\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "25a05e7d-3755-445d-a040-00077da126b4",
     "name": "Generate Task Code",
     "icon": "bolt",
@@ -968,114 +1101,6 @@
           ]
         },
         "resolve": "0cff3dcc-4ac3-4b77-bfb5-83448a2b530a",
-        "reject": null
-      }
-    ],
-    "flow_manager_category": null,
-    "accountability": "all"
-  },
-  {
-    "id": "5d5cbeea-4589-468b-a9c8-78e1eef4e114",
-    "name": "Refresh DUPR Token",
-    "icon": "bolt",
-    "color": null,
-    "description": null,
-    "trigger": "operation",
-    "options": {
-      "return": "$last"
-    },
-    "operation": "0e0db599-34e2-4940-9780-009f6e58795f",
-    "operations": [
-      {
-        "id": "05edc6aa-78ba-4378-aa4b-2d8da127dbbf",
-        "name": "safe_response",
-        "key": "safe_response",
-        "type": "exec",
-        "position_x": 39,
-        "position_y": 20,
-        "options": {
-          "code": "module.exports = async function(data) {\n  return {\n    refreshed: data.refresh_token.refreshed,\n    accessToken: data.refresh_token.accessToken,\n    connectionId: data.refresh_token.connectionId\n  };\n}"
-        },
-        "resolve": null,
-        "reject": null
-      },
-      {
-        "id": "0e0db599-34e2-4940-9780-009f6e58795f",
-        "name": "read_settings",
-        "key": "read_settings",
-        "type": "item-read",
-        "position_x": 19,
-        "position_y": 1,
-        "options": {
-          "permissions": "$full",
-          "emitEvents": false,
-          "collection": "dupr_settings"
-        },
-        "resolve": "a84d064e-3a48-4c35-b199-d3900dbeb02f",
-        "reject": null
-      },
-      {
-        "id": "a84d064e-3a48-4c35-b199-d3900dbeb02f",
-        "name": "read_credentials",
-        "key": "read_credentials",
-        "type": "item-read",
-        "position_x": 37,
-        "position_y": 1,
-        "options": {
-          "permissions": "$full",
-          "emitEvents": false,
-          "collection": "dupr_credentials",
-          "query": {
-            "filter": {
-              "connection": {
-                "_eq": "{{ $trigger.body.connectionId }}"
-              }
-            },
-            "fields": [
-              "id",
-              "access_token",
-              "refresh_token",
-              "access_expires_at",
-              "refresh_expires_at",
-              "connection"
-            ],
-            "limit": 1
-          }
-        },
-        "resolve": "eb306b32-47cb-4c77-bd78-4a7ec6843566",
-        "reject": null
-      },
-      {
-        "id": "de841f8a-ccf3-456b-8f6e-ca7c38734c68",
-        "name": "update_credentials",
-        "key": "update_credentials",
-        "type": "likha_sql",
-        "position_x": 21,
-        "position_y": 20,
-        "options": {
-          "sql": "UPDATE dupr_credentials \nSET access_token = ?, \n    refresh_token = ?, \n    access_expires_at = ?::timestamptz, \n    refresh_expires_at = ?::timestamptz, \n    updated_at = NOW() \nWHERE id = ?::uuid;",
-          "binding": [
-            "{{ refresh_token.accessToken }}",
-            "{{ refresh_token.refreshToken }}",
-            "{{ refresh_token.accessExpiresAt }}",
-            "{{ refresh_token.refreshExpiresAt }}",
-            "{{ refresh_token.credentialId }}"
-          ]
-        },
-        "resolve": "05edc6aa-78ba-4378-aa4b-2d8da127dbbf",
-        "reject": null
-      },
-      {
-        "id": "eb306b32-47cb-4c77-bd78-4a7ec6843566",
-        "name": "refresh_token",
-        "key": "refresh_token",
-        "type": "exec",
-        "position_x": 3,
-        "position_y": 20,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const creds = data.read_credentials;\n  if (!creds || !creds[0]) {\n    throw new Error('No credentials found for connection');\n  }\n  const c = creds[0];\n  const settings = data.read_settings[0];\n  const apiBase = settings.api_base_url;\n  \n  // Check if access token is still valid\n  const now = new Date();\n  const accessExpires = new Date(c.access_expires_at);\n  if (accessExpires > now) {\n    return {\n      refreshed: false,\n      accessToken: c.access_token,\n      credentialId: c.id,\n      connectionId: c.connection\n    };\n  }\n  \n  // Check if refresh token is still valid\n  const refreshExpires = new Date(c.refresh_expires_at);\n  if (refreshExpires <= now) {\n    throw new Error('Refresh token expired — user must re-authenticate via SSO');\n  }\n  \n  // Call DUPR refresh endpoint\n  const response = await fetch(apiBase + '/auth/v1.0/refresh-token', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({\n      refreshToken: c.refresh_token\n    })\n  });\n  \n  if (!response.ok) {\n    throw new Error('DUPR refresh failed: ' + response.status);\n  }\n  \n  const result = await response.json();\n  const newAccessToken = result.accessToken || result.access_token || result.result?.accessToken;\n  const newRefreshToken = result.refreshToken || result.refresh_token || result.result?.refreshToken;\n  \n  if (!newAccessToken || !newRefreshToken) {\n    throw new Error('DUPR refresh returned no tokens');\n  }\n  \n  // UAT: access=7days, refresh=30days. Production: access=30days, refresh=90days\n  const env = settings.environment || 'uat';\n  const accessDays = env === 'production' ? 30 : 7;\n  const refreshDays = env === 'production' ? 90 : 30;\n  \n  return {\n    refreshed: true,\n    accessToken: newAccessToken,\n    refreshToken: newRefreshToken,\n    accessExpiresAt: new Date(Date.now() + accessDays * 24 * 60 * 60 * 1000).toISOString(),\n    refreshExpiresAt: new Date(Date.now() + refreshDays * 24 * 60 * 60 * 1000).toISOString(),\n    credentialId: c.id,\n    connectionId: c.connection\n  };\n}"
-        },
-        "resolve": "de841f8a-ccf3-456b-8f6e-ca7c38734c68",
         "reject": null
       }
     ],
