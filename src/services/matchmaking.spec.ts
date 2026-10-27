@@ -3963,13 +3963,21 @@ describe('checkInPlayer — DUPR session gates', () => {
     expect(sys.state.queues).toHaveLength(1);
   });
 
-  it('duprPlusOnly blocks players without the entitlement', () => {
+  it('duprPlusOnly also requires a linked account first', () => {
     const sys = new LocalMatchmakingSystem(1);
     sys.state.duprPlusOnly = true;
 
-    expect(sys.checkInPlayer('no-plus')).toBe('dupr_plus_required');
+    // No duprId → actionable "link DUPR" error, not "requires DUPR+".
+    expect(sys.checkInPlayer('unlinked')).toBe('dupr_required');
+    // Linked but no DUPR+ entitlement → dupr_plus_required.
     expect(
-      sys.checkInPlayer('plus-player', 2, { duprPlus: true }),
+      sys.checkInPlayer('linked-no-plus', 2, { duprId: 'ABC123' }),
+    ).toBe('dupr_plus_required');
+    expect(
+      sys.checkInPlayer('plus-player', 2, {
+        duprId: 'DEF456',
+        duprPlus: true,
+      }),
     ).toBe('added');
   });
 

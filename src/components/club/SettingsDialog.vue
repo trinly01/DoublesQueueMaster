@@ -246,24 +246,27 @@
                 </q-select>
               </div>
               <div class="col-12">
-                <q-toggle
-                  v-model="duprOnly"
-                  label="DUPR-only event — queue requires a linked DUPR account"
-                  color="accent"
-                />
-                <div class="text-caption text-grey-6 q-ml-xl">
-                  Only players who linked DUPR to their account can join the
-                  queue.
-                </div>
-              </div>
-              <div class="col-12">
-                <q-toggle
-                  v-model="duprPlusOnly"
-                  label="DUPR+ event — queue requires DUPR+ membership"
-                  color="accent"
-                />
-                <div class="text-caption text-grey-6 q-ml-xl">
-                  Only players whose DUPR account has DUPR+ can join the queue.
+                <q-select
+                  v-model="duprGate"
+                  :options="duprGateOptions"
+                  label="Queue requirement"
+                  outlined
+                  dense
+                  emit-value
+                  map-options
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="verified_user" />
+                  </template>
+                </q-select>
+                <div class="text-caption text-grey-6 q-mt-xs">
+                  {{
+                    duprGate === 'linked'
+                      ? 'Only players who linked DUPR to their account can join the queue.'
+                      : duprGate === 'plus'
+                        ? 'Only players whose DUPR account has DUPR+ can join the queue.'
+                        : 'Any player can join the queue.'
+                  }}
                 </div>
               </div>
               <div class="col-auto">
@@ -1213,6 +1216,24 @@ const duprOnly = defineModel<boolean>('duprOnly', {
 });
 const duprPlusOnly = defineModel<boolean>('duprPlusOnly', {
   required: true,
+});
+
+// One ladder, not two independent flags: DUPR+ implies a linked account.
+// 'plus' sets duprPlusOnly only — the check-in gate already verifies duprId
+// first whenever either flag is on, so unlinked players get the actionable
+// "link DUPR" error rather than "requires DUPR+".
+const duprGateOptions = [
+  { label: 'Anyone can join', value: 'anyone' },
+  { label: 'Linked DUPR account required', value: 'linked' },
+  { label: 'DUPR+ membership required', value: 'plus' },
+];
+const duprGate = computed<string>({
+  get: () =>
+    duprPlusOnly.value ? 'plus' : duprOnly.value ? 'linked' : 'anyone',
+  set: (val) => {
+    duprOnly.value = val === 'linked';
+    duprPlusOnly.value = val === 'plus';
+  },
 });
 const scoreType = defineModel<string>('scoreType', { required: true });
 const editClubName = defineModel<string>('editClubName', { required: true });

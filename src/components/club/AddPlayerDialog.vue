@@ -23,6 +23,7 @@
         <div class="q-pb-md">
           <q-btn-group spread class="full-width">
             <q-btn
+              v-if="!duprGateActive"
               flat
               color="accent"
               :class="addPlayerMode === 'single' ? 'bg-accent text-white' : ''"
@@ -33,6 +34,7 @@
               @click="addPlayerMode = 'single'"
             />
             <q-btn
+              v-if="!duprGateActive"
               flat
               color="accent"
               :class="addPlayerMode === 'bulk' ? 'bg-accent text-white' : ''"
@@ -66,6 +68,22 @@
             />
           </q-btn-group>
         </div>
+
+        <q-banner
+          v-if="duprGateActive"
+          dense
+          rounded
+          class="bg-green-1 text-green-10 q-mt-sm q-mb-md"
+        >
+          <template v-slot:avatar>
+            <q-icon name="verified_user" />
+          </template>
+          {{
+            duprPlusOnly
+              ? 'DUPR+ session — only members with a linked DUPR+ account can join.'
+              : 'DUPR-only session — only members with a linked DUPR account can join.'
+          }}
+        </q-banner>
 
         <!-- Single Player Mode -->
         <div v-if="addPlayerMode === 'single'" class="q-gutter-y-md">
@@ -202,18 +220,6 @@
 
         <!-- Club Members Mode -->
         <div v-else-if="addPlayerMode === 'club'" class="q-gutter-y-md">
-          <q-banner
-            v-if="duprOnly"
-            dense
-            rounded
-            class="bg-green-1 text-green-10"
-          >
-            <template v-slot:avatar>
-              <q-icon name="link" />
-            </template>
-            DUPR-only session — only members with a linked DUPR account are
-            shown.
-          </q-banner>
           <!-- Search & Sort -->
           <div class="row q-col-gutter-x-sm">
             <div class="col-12 col-sm-6">
@@ -480,6 +486,15 @@ const hideInternalRating = computed(() => useDupr().hideInternalRating);
 // DUPR-only session — club-synced flag; check-in denies anyone without a
 // linked DUPR account, and the member picker only lists linked members.
 const duprOnly = computed(() => MatchmakingApp.state.duprOnly ?? false);
+const duprPlusOnly = computed(
+  () => MatchmakingApp.state.duprPlusOnly ?? false,
+);
+// Either gate makes guest/bulk check-ins impossible — a typed name can never
+// carry a duprId/entitlement — so those entry points hide proactively instead
+// of letting the admin fill a form that always fails at check-in.
+const duprGateActive = computed(
+  () => duprOnly.value || duprPlusOnly.value,
+);
 
 interface ClubMember {
   id: string;
@@ -936,7 +951,12 @@ watch(showAddPlayerDialog, (open) => {
       | 'qr'
       | null;
     const wasQr = addPlayerMode.value === 'qr';
-    addPlayerMode.value = savedMode || 'single';
+    addPlayerMode.value =
+      savedMode && !(duprGateActive.value && ['single', 'bulk'].includes(savedMode))
+        ? savedMode
+        : duprGateActive.value
+          ? 'club'
+          : 'single';
     selectedClubMembers.value = [];
     clubMemberSearch.value = '';
     newPlayerName.value = null;
@@ -950,6 +970,14 @@ watch(showAddPlayerDialog, (open) => {
     }
   } else {
     void stopScan();
+  }
+});
+
+// If a gate is toggled on while the dialog sits on a guest path, jump to the
+// member tab — 'single'/'bulk' can never satisfy a DUPR requirement.
+watch(duprGateActive, (active) => {
+  if (active && ['single', 'bulk'].includes(addPlayerMode.value)) {
+    addPlayerMode.value = 'club';
   }
 });
 

@@ -3638,6 +3638,8 @@ const _settingsFields = [
   'autoAdvanceMatches',
   'ttsEnabled',
   'scoreType',
+  'duprOnly',
+  'duprPlusOnly',
 ] as const;
 
 watch(
