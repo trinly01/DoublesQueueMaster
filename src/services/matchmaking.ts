@@ -1576,24 +1576,24 @@ export class LocalMatchmakingSystem {
       return 'already_in_queue';
     }
 
-    // DUPR-only session gate — the player is still rostered above, they just
-    // can't join the queue without a linked DUPR account.
-    if (this.state.duprOnly) {
-      const p = this.state.players[normalizedUsername];
-      if (!p?.duprId) {
-        this.saveState();
-        return 'dupr_required';
-      }
+    // DUPR session gates — the player is still rostered above, they just
+    // can't join the queue. One ladder: linked account first (duprOnly or
+    // duprPlusOnly — DUPR+ requires a linked account anyway), then the
+    // PREMIUM_L1 entitlement. Checking linked first yields the actionable
+    // error ("link DUPR") instead of "requires DUPR+" for unlinked players.
+    if (
+      (this.state.duprOnly || this.state.duprPlusOnly) &&
+      !this.state.players[normalizedUsername]?.duprId
+    ) {
+      this.saveState();
+      return 'dupr_required';
     }
-
-    // DUPR+ session gate — the player is still rostered above, they just
-    // can't join the queue without the PREMIUM_L1 entitlement.
-    if (this.state.duprPlusOnly) {
-      const p = this.state.players[normalizedUsername];
-      if (!p?.duprPlus) {
-        this.saveState();
-        return 'dupr_plus_required';
-      }
+    if (
+      this.state.duprPlusOnly &&
+      !this.state.players[normalizedUsername]?.duprPlus
+    ) {
+      this.saveState();
+      return 'dupr_plus_required';
     }
 
     this.state.queues.push({
