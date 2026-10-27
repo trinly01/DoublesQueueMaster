@@ -2,7 +2,7 @@
 
 Post-ready captions for each ad video in `public/ads/`.
 Render files: `WalkingPaddle-*`, `ZeroPolitics-*`, `EveryGameCounts-*`,
-`QueueGuide-*` (player-onboarding tutorial, not a promo ad).
+`QueueGuide-*` (player-onboarding tutorial, not a promo ad), `DuprOfficial-*`.
 
 ---
 
@@ -96,7 +96,57 @@ Every game counts → dinkmatch.club
 
 ---
 
-## Tutorial — QueueGuide (`QueueGuide-9x16.mp4`)
+## Ad 4 — DuprOfficial (`DuprOfficial-9x16.mp4`)
+
+Launch announcement — the DUPR sync going live on prod. Lead with the
+partnership, not the feature list.
+
+### TikTok / Reels / Shorts
+
+```text
+Your open-play games count toward your DUPR now 🎯🏓
+
+Link once → play → your Queue Master taps one button.
+Rating updates itself.
+
+Every game counts — officially → dinkmatch.club
+
+#pickleball #dupr #pickleballrating #openplay #pickleballlife
+```
+
+### Facebook / IG Feed
+
+```text
+Big one for open-play players: DinkMatch now syncs with DUPR. ⚡
+
+Link your DUPR once — takes ten seconds. Play open play like normal,
+and when the match is done your Queue Master submits the score in
+one tap. Your DUPR rating updates automatically.
+
+No clipboards. No spreadsheets. No "did that game count?"
+Every game counts → dinkmatch.club
+```
+
+### YouTube Shorts
+
+- Title: `Open Play That Counts — DinkMatch × DUPR`
+- Description: `Link your DUPR once. Play open play. Your rating updates itself. Free for players → dinkmatch.club`
+
+### Club group chat (Viber / Messenger / WhatsApp)
+
+```text
+📢 DUPR PLAYERS — GOOD NEWS
+
+Our open-play games now report to DUPR through DinkMatch.
+
+1️⃣ Link your DUPR once in your profile (10 seconds)
+2️⃣ Play open play like normal
+3️⃣ Your rating updates after reported matches — automatically
+
+See me at the admin table if you need help linking. 🏓
+```
+
+---
 
 Player-onboarding video — for clubs to share with members, and for us to
 post as an explainer. Tone is instructional, not promotional.
