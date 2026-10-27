@@ -98,7 +98,7 @@ const HandshakeScene: React.FC<{ aspect: AdProps["aspect"] }> = ({
           letterSpacing: 2,
         }}
       >
-        ⚡ OFFICIAL
+        ⚡ NEW
       </div>
       <div
         style={{
@@ -108,7 +108,7 @@ const HandshakeScene: React.FC<{ aspect: AdProps["aspect"] }> = ({
           flexDirection: lay.isVertical ? "column" : "row",
         }}
       >
-        {pill("DinkMatch", BRAND.purpleTo, leftIn, -1)}
+        {pill("dinkmatch.club", BRAND.purpleTo, leftIn, -1)}
         <div
           style={{
             fontFamily: FONT_STACK,
