@@ -347,6 +347,8 @@
                   :show-requeue-button="canManageSession"
                   :show-feedback-button="!canManageSession"
                   :can-delete="isCurrentUserAdmin"
+                  :can-pair-avoid="isCurrentUserAdmin"
+                  :pair-avoid-locked="isClubSubscriptionExpired"
                   :empty-icon="'people'"
                   :empty-title="
                     searchPlayers
@@ -417,6 +419,8 @@
                   :remove-color="'warning'"
                   :link-source-username="pendingLinkUsername"
                   :avoid-source-username="pendingAvoidUsername"
+                  :can-pair-avoid="isCurrentUserAdmin"
+                  :pair-avoid-locked="isClubSubscriptionExpired"
                   :empty-icon="'queue'"
                   :empty-title="'Queue is empty'"
                   :empty-subtitle="'Add players to start generating matches'"
@@ -1006,6 +1010,8 @@
                   :show-requeue-button="canManageSession"
                   :show-feedback-button="!canManageSession"
                   :can-delete="isCurrentUserAdmin"
+                  :can-pair-avoid="isCurrentUserAdmin"
+                  :pair-avoid-locked="isClubSubscriptionExpired"
                   :empty-icon="'people'"
                   :empty-title="
                     searchPlayers
@@ -1073,6 +1079,8 @@
                   :remove-color="'warning'"
                   :link-source-username="pendingLinkUsername"
                   :avoid-source-username="pendingAvoidUsername"
+                  :can-pair-avoid="isCurrentUserAdmin"
+                  :pair-avoid-locked="isClubSubscriptionExpired"
                   :empty-icon="'queue'"
                   :empty-title="'Queue is empty'"
                   :empty-subtitle="'Add players to start generating matches'"
@@ -1883,6 +1891,11 @@ const {
   pickAvoidTarget,
 } = usePlayerActions({
   players,
+  // Pair/avoid is admin-only + Pro — refs read lazily, safe to reference
+  // the computeds declared further down (evaluated on user interaction).
+  canUsePairAvoid: computed(
+    () => isCurrentUserAdmin.value && !isClubSubscriptionExpired.value,
+  ),
 });
 
 // Queue-row taps are intercepted while link-mode is armed — pickLinkPartner

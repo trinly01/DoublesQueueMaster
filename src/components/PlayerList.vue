@@ -20,6 +20,7 @@
         :remove-icon="removeIcon"
         :remove-color="removeColor"
         :can-delete="canDelete"
+        :can-pair-avoid="canPairAvoid && !pairAvoidLocked"
         @click="$emit('playerClick', player)"
         @avatarClick="$emit('playerAvatarClick', $event)"
         @commend="$emit('playerCommend', $event)"
@@ -60,8 +61,9 @@
                 <q-list style="min-width: 170px">
                   <q-item
                     v-if="
-                      linkSourceUsername === playerItem.username ||
-                      avoidSourceUsername === playerItem.username
+                      canPairAvoid &&
+                      (linkSourceUsername === playerItem.username ||
+                        avoidSourceUsername === playerItem.username)
                     "
                     clickable
                     class="text-warning"
@@ -109,23 +111,61 @@
                       !avoidSourceUsername
                     "
                     clickable
+                    :disable="pairAvoidDisabled"
                     @click="$emit('playerLinkToggle', playerItem.username)"
                   >
                     <q-item-section avatar>
                       <q-icon name="link" color="teal" />
                     </q-item-section>
-                    <q-item-section>Pair duo…</q-item-section>
+                    <q-item-section>
+                      <q-item-label>
+                        Pair duo…
+                        <q-badge
+                          v-if="pairAvoidLocked"
+                          color="amber"
+                          text-color="white"
+                          label="Pro"
+                          class="q-ml-xs"
+                          dense
+                        />
+                      </q-item-label>
+                      <q-item-label
+                        v-if="pairAvoidHint"
+                        caption
+                        class="text-grey-6"
+                        >{{ pairAvoidHint }}</q-item-label
+                      >
+                    </q-item-section>
                   </q-item>
 
                   <q-item
                     v-if="!linkSourceUsername && !avoidSourceUsername"
                     clickable
+                    :disable="pairAvoidDisabled"
                     @click="$emit('playerAvoidToggle', playerItem.username)"
                   >
                     <q-item-section avatar>
                       <q-icon name="person_off" color="deep-orange" />
                     </q-item-section>
-                    <q-item-section>Avoid player…</q-item-section>
+                    <q-item-section>
+                      <q-item-label>
+                        Avoid player…
+                        <q-badge
+                          v-if="pairAvoidLocked"
+                          color="amber"
+                          text-color="white"
+                          label="Pro"
+                          class="q-ml-xs"
+                          dense
+                        />
+                      </q-item-label>
+                      <q-item-label
+                        v-if="pairAvoidHint"
+                        caption
+                        class="text-grey-6"
+                        >{{ pairAvoidHint }}</q-item-label
+                      >
+                    </q-item-section>
                   </q-item>
 
                   <q-item
@@ -135,12 +175,31 @@
                       !avoidSourceUsername
                     "
                     clickable
+                    :disable="pairAvoidDisabled"
                     @click="$emit('playerAvoidManage', playerItem.username)"
                   >
                     <q-item-section avatar>
                       <q-icon name="manage_accounts" color="deep-orange" />
                     </q-item-section>
-                    <q-item-section>Manage avoids</q-item-section>
+                    <q-item-section>
+                      <q-item-label>
+                        Manage avoids
+                        <q-badge
+                          v-if="pairAvoidLocked"
+                          color="amber"
+                          text-color="white"
+                          label="Pro"
+                          class="q-ml-xs"
+                          dense
+                        />
+                      </q-item-label>
+                      <q-item-label
+                        v-if="pairAvoidHint"
+                        caption
+                        class="text-grey-6"
+                        >{{ pairAvoidHint }}</q-item-label
+                      >
+                    </q-item-section>
                   </q-item>
 
                   <q-separator
@@ -256,6 +315,10 @@ interface Props {
   removeIcon?: string;
   removeColor?: string;
   canDelete?: boolean;
+  /** Admin role gate — pair/avoid menu items hidden entirely for mods. */
+  canPairAvoid?: boolean;
+  /** Pro subscription gate — items stay visible but disabled with a Pro badge. */
+  pairAvoidLocked?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -273,6 +336,8 @@ const props = withDefaults(defineProps<Props>(), {
   removeIcon: 'delete',
   removeColor: 'negative',
   canDelete: true,
+  canPairAvoid: false,
+  pairAvoidLocked: false,
   showFeedbackButton: true,
   emptyIcon: 'people',
   emptyTitle: 'No players found',
@@ -395,6 +460,20 @@ const avoidStateFor = (
 
 const hasAvoids = (player: Player): boolean =>
   !!player.avoids && Object.keys(player.avoids).length > 0;
+
+// Pair/avoid stay visible but disabled with an explainer — mods see
+// "Admin only", admins on an expired club see the Pro gate.
+const pairAvoidDisabled = computed(
+  () => !props.canPairAvoid || props.pairAvoidLocked,
+);
+const pairAvoidHint = computed(() =>
+  [
+    !props.canPairAvoid ? 'Admin only' : '',
+    props.pairAvoidLocked ? 'Pro feature' : '',
+  ]
+    .filter(Boolean)
+    .join(' · '),
+);
 
 // Precompute queue positions once per list change — the per-row filter+findIndex
 // version was O(n²) (queue of 50 = 2,500 iterations per render).

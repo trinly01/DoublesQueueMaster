@@ -64,13 +64,17 @@
           rounded
           :color="linkColor"
           class="queue-link-badge"
-          :class="{ 'cursor-pointer': showActions }"
-          @click.stop="showActions && $emit('linkToggle', player.username)"
+          :class="{ 'cursor-pointer': showActions && canPairAvoid }"
+          @click.stop="
+            showActions && canPairAvoid && $emit('linkToggle', player.username)
+          "
         >
           <q-icon name="link" size="10px" color="white" />
           <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
             >Paired with {{ linkedPartnerName }}
-            {{ showActions ? '— tap to unpair' : '' }}</q-tooltip
+            {{
+              showActions && canPairAvoid ? '— tap to unpair' : ''
+            }}</q-tooltip
           >
         </q-badge>
         <q-badge
@@ -83,8 +87,10 @@
           rounded
           color="deep-orange"
           class="queue-avoid-badge"
-          :class="{ 'cursor-pointer': showActions }"
-          @click.stop="showActions && $emit('avoidToggle', player.username)"
+          :class="{ 'cursor-pointer': showActions && canPairAvoid }"
+          @click.stop="
+            showActions && canPairAvoid && $emit('avoidToggle', player.username)
+          "
         >
           <q-icon name="person_off" size="10px" color="white" />
           <span
@@ -95,7 +101,9 @@
           >
           <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
             >Avoids: {{ player.avoidSummary
-            }}{{ showActions ? ' — tap to manage' : '' }}</q-tooltip
+            }}{{
+              showActions && canPairAvoid ? ' — tap to manage' : ''
+            }}</q-tooltip
           >
         </q-badge>
         <q-badge
@@ -326,6 +334,8 @@ interface Props {
   removeIcon?: string;
   removeColor?: string;
   canDelete?: boolean;
+  /** Admin+Pro gate for pair/avoid badge taps — badges stay visible either way. */
+  canPairAvoid?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -343,6 +353,7 @@ const props = withDefaults(defineProps<Props>(), {
   removeIcon: 'delete',
   removeColor: 'negative',
   canDelete: true,
+  canPairAvoid: true,
 });
 
 defineEmits<{
