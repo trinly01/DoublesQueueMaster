@@ -255,6 +255,15 @@ Chain: `parse_webhook → update_rating (dupr_connection) → update_user_rating
 - `update_user_ent` → `directus_users.dupr_entitlements`; `update_conn_ent` → `dupr_connection.eligibility`
 - Verified live 2026-10-28: `R4Q0MM → {refreshed:true, eligible:true, plus:false}` (BASIC_L1 only); unknown duprId → `{refreshed:false, step:"noconn"}`
 
+### Register DUPR Webhook — `033a37a7-9f3e-4b33-8361-5b679ff4f822` (webhook POST, new 2026-10-28)
+
+`read_settings → gen_auth → get_partner_token → prepare → register_webhook → safe_response`
+
+- One-shot ops tool for the production cutover — POSTs `POST {api_base}/v1.0/webhook` (`ClientHookRequest`: `{webhookUrl, topics:["RATING"]}`) with a partner token minted from the env's `client_key`/`client_secret`
+- `prepare` accepts an optional `{"webhookUrl": "…"}` override; defaults to the Receive DUPR Rating trigger URL
+- Response `{registered, status, webhookUrl}`; on failure `{registered:false, already_registered(=status 409), reason}` — re-runnable
+- Verified live on UAT 2026-10-28: `registered:true`, DUPR replied `Client Hook [test-ck-…] registered ok`
+
 ### Refresh DUPR Token — `5d5cbeea-4589-468b-a9c8-78e1eef4e114` — DELETED 2026-10-28
 
 Was never invoked (no `operation`-type callers) and targeted the dead `POST {api}/auth/v1.0/refresh-token` path via `fetch` in exec (unsupported). The Entitlement flow above does user-token refresh inline via request ops.
@@ -392,21 +401,17 @@ The `dupr_settings` singleton is the central switch — everything keys off it.
 
 No client changes needed: the SSO iframe already switches by `environment` (`uat.dupr.gg` → `dashboard.dupr.com/login-external-app`), and `read_connections` + `fetchSubmissions` now filter by env (2026-10-21) so UAT connections/submissions become invisible automatically — players simply re-connect via SSO on prod (their prod DUPR IDs differ from UAT test IDs). Rollback = set `environment` back to `uat`; nothing else is persisted per-env client-side.
 
-**Step 2 — webhook re-registration** (one call, prod partner token):
+**Step 2 — webhook re-registration** (triggerable flow — after Step 1 flips settings to prod):
 
 ```bash
-# 1. prod partner token
-TOKEN=$(curl -s -X POST https://prod.mydupr.com/api/auth/v1.0/token \
-  -H "x-authorization: $(echo -n "$PROD_KEY:$PROD_SECRET" | base64)" \
-  | python -c "import sys,json;print(json.load(sys.stdin)['result']['token'])")
-
-# 2. register our Directus webhook for RATING events
-#    body shape = same as the 2026-10-16 UAT registration (see partner docs);
-#    if the body schema changed, ask the account manager to register it instead
-curl -X POST https://prod.mydupr.com/api/v1.0/webhook \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"url":"https://api.dinkmatch.club/flows/trigger/664e9ba0-589e-4a38-a757-cf73a7307a70","topics":["RATING"]}'
+curl -X POST https://api.dinkmatch.club/flows/trigger/033a37a7-9f3e-4b33-8361-5b679ff4f822 \
+  -H "Content-Type: application/json" -d '{}'
+# → {"registered":true,"status":200,…} — the flow mints a prod partner token
+#   from the updated client_key/secret and registers the Receive DUPR Rating
+#   trigger URL for the RATING topic (verified live on UAT 2026-10-28).
 ```
+
+Manual fallback (or if the flow errors — `registered:false` + `already_registered`/`status`): ask the DUPR account manager to register `https://api.dinkmatch.club/flows/trigger/664e9ba0-589e-4a38-a757-cf73a7307a70` for topic `RATING`. If hand-rolling instead, the spec body is `{"webhookUrl":"…","topics":["RATING"]}` (`ClientHookRequest`), `Bearer <prod partner token>` — 409 means already registered.
 
 Per-user `RATING` subscriptions happen automatically — Connect DUPR flow already calls `user/v1.0/subscribe/webhook-event` on every connect.
 
