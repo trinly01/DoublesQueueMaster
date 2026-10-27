@@ -402,14 +402,29 @@
                                         ? 'remove_circle'
                                         : log.action === 'remove_player'
                                           ? 'person_remove'
-                                          : 'settings'
+                                          : log.action === 'pair_players'
+                                            ? 'link'
+                                            : log.action === 'unpair_players'
+                                              ? 'link_off'
+                                              : log.action === 'set_avoid' ||
+                                                  log.action === 'remove_avoid'
+                                                ? 'person_off'
+                                                : log.action === 'lock_player'
+                                                  ? 'lock'
+                                                  : log.action ===
+                                                      'unlock_player'
+                                                    ? 'lock_open'
+                                                    : 'settings'
                       "
                       :color="
                         log.action.startsWith('reset') ||
                         log.action.startsWith('clear') ||
-                        log.action === 'remove_player'
+                        log.action === 'remove_player' ||
+                        log.action === 'remove_avoid' ||
+                        log.action === 'unpair_players'
                           ? 'negative'
-                          : log.action === 'check_out'
+                          : log.action === 'check_out' ||
+                              log.action === 'lock_player'
                             ? 'warning'
                             : 'primary'
                       "

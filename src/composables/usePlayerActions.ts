@@ -14,10 +14,15 @@ type NotifyFn = (opts: QNotifyCreateOptions) => (() => void) | void;
 
 export interface UsePlayerActionsContext {
   players: ComputedRef<(Player & { name: string })[]>;
+  /**
+   * Pair-duo/avoid gate — admin role AND active Pro club subscription.
+   * Optional so specs can omit it (defaults to allowed).
+   */
+  canUsePairAvoid?: ComputedRef<boolean>;
 }
 
 export function usePlayerActions(context: UsePlayerActionsContext) {
-  const { players } = context;
+  const { players, canUsePairAvoid } = context;
   const $q = useQuasar();
   const { notify: ctxNotify } = useNotify();
   const notify = ctxNotify as NotifyFn;
@@ -133,6 +138,18 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
     });
   };
 
+  // Pair/avoid is an admin-only Pro feature — callers hide the UI, but the
+  // composable hard-blocks too so nothing slips through another entry point.
+  const pairAvoidBlocked = (): boolean =>
+    canUsePairAvoid !== undefined && !canUsePairAvoid.value;
+
+  const denyPairAvoid = () =>
+    notify({
+      type: 'warning',
+      message: 'Pair duo & Avoid player need an admin with an active Pro plan',
+      timeout: 4000,
+    });
+
   // --- Fixed-duo linking (tap-to-pair) ---
   const pendingLinkUsername = ref<string | null>(null);
   let linkModeDismiss: (() => void) | void | null = null;
@@ -165,6 +182,10 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
   };
 
   const togglePlayerLink = (username: string) => {
+    if (pairAvoidBlocked()) {
+      denyPairAvoid();
+      return;
+    }
     // Tapping the source's button again cancels pairing mode.
     if (pendingLinkUsername.value === username) {
       cancelLinkMode();
@@ -201,6 +222,7 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
    * consumed by link-mode (callers should skip their normal click behavior).
    */
   const pickLinkPartner = (partnerUsername: string): boolean => {
+    if (pairAvoidBlocked()) return false;
     const source = pendingLinkUsername.value;
     if (!source) return false;
 
@@ -291,6 +313,10 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
 
   /** Card action button: arm (or cancel) avoid tap-mode to ADD an avoid. */
   const togglePlayerAvoid = (username: string) => {
+    if (pairAvoidBlocked()) {
+      denyPairAvoid();
+      return;
+    }
     if (pendingAvoidUsername.value === username) {
       cancelAvoidMode();
       return;
@@ -300,6 +326,10 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
 
   /** Badge tap: manage this player's existing avoids (checkbox remove list). */
   const managePlayerAvoids = (username: string) => {
+    if (pairAvoidBlocked()) {
+      denyPairAvoid();
+      return;
+    }
     const entries = Object.entries(MatchmakingApp.getPlayerAvoids(username));
     if (entries.length === 0) {
       armAvoidMode(username);
@@ -341,6 +371,7 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
    * consumed by avoid-mode (callers should skip their normal click behavior).
    */
   const pickAvoidTarget = (targetUsername: string): boolean => {
+    if (pairAvoidBlocked()) return false;
     const source = pendingAvoidUsername.value;
     if (!source) return false;
 
@@ -453,7 +484,10 @@ export function usePlayerActions(context: UsePlayerActionsContext) {
       let result = MatchmakingApp.checkInPlayer(p.username, p.level);
 
       // Stale-entitlement recovery: reverify live, then retry once.
-      if (result === 'dupr_plus_required' && (await reverifyDuprPlus(p.duprId))) {
+      if (
+        result === 'dupr_plus_required' &&
+        (await reverifyDuprPlus(p.duprId))
+      ) {
         result = MatchmakingApp.checkInPlayer(p.username, p.level, {
           duprId: p.duprId,
           duprPlus: true,
