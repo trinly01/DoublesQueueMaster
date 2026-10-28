@@ -367,7 +367,9 @@
                   <q-card-section class="q-pb-md">
                     <div class="lb-tooltip-title row items-center">
                       <q-icon name="info" size="18px" class="q-mr-xs" />
-                      <span v-if="activeTab === 'history'">Rating history</span>
+                      <span v-if="activeTab === 'history'">{{
+                        hideInternalRating ? 'Results history' : 'Rating history'
+                      }}</span>
                       <span v-else-if="activeTab === 'matches'"
                         >Match history</span
                       >
@@ -482,12 +484,11 @@
           <div :class="$q.screen.lt.md ? 'q-px-sm q-pt-sm' : 'q-px-md q-pt-md'">
             <q-btn-group dense spread>
               <q-btn
-                v-if="!hideInternalRating"
                 flat
                 color="accent"
                 :class="activeTab === 'history' ? 'bg-accent text-white' : ''"
                 icon="trending_up"
-                label="Rating"
+                :label="hideInternalRating ? 'Results' : 'Rating'"
                 dense
                 size="sm"
                 @click="activeTab = 'history'"
@@ -536,7 +537,7 @@
           </div>
 
           <div
-            v-if="activeTab === 'history' && !hideInternalRating"
+            v-if="activeTab === 'history'"
             :class="
               $q.screen.lt.md
                 ? 'q-px-sm q-pt-sm q-pb-sm'
@@ -544,7 +545,10 @@
             "
             style="max-height: 78vh; overflow-y: auto; overflow-x: hidden"
           >
-            <div v-if="ratingVelocity" class="row q-col-gutter-sm q-mb-md">
+            <div
+              v-if="ratingVelocity && !hideInternalRating"
+              class="row q-col-gutter-sm q-mb-md"
+            >
               <div class="col-6">
                 <q-card flat bordered class="text-center q-pa-sm">
                   <div class="text-h6 text-weight-bold">
@@ -573,7 +577,7 @@
             <div
               ref="chartRef"
               class="chart-container"
-              v-if="sortedEvents.length"
+              v-if="sortedEvents.length && !hideInternalRating"
             ></div>
             <q-list separator v-if="sortedEvents.length">
               <template v-for="(event, idx) in sortedEvents" :key="event.day">
@@ -601,7 +605,7 @@
                       <span class="text-negative">{{ event.losses }}L</span>
                     </q-item-label>
                   </q-item-section>
-                  <q-item-section side>
+                  <q-item-section side v-if="!hideInternalRating">
                     <q-chip
                       class="history-rating text-weight-bold"
                       text-color="white"
@@ -614,7 +618,7 @@
               </template>
             </q-list>
             <div v-else class="text-center text-grey q-py-md">
-              No rating history available.
+              No results yet.
             </div>
           </div>
 
@@ -1551,7 +1555,10 @@ const hideInternalRating = computed(() => Dupr.hideInternalRating);
 const ringColor = (rating?: number) =>
   hideInternalRating.value ? 'grey-6' : getRatingColor(rating ?? 1450);
 watch(hideInternalRating, (hidden) => {
-  if (hidden && activeTab.value === 'history') activeTab.value = 'matches';
+  if (hidden) {
+    chartInstance?.dispose();
+    chartInstance = null;
+  }
 });
 
 // Primary indicator: directus_users.dupr_id (survives refresh via fetchProfile)
@@ -1658,7 +1665,7 @@ const showHistoryDialog = ref(false);
 // the history tab is hidden under hide_internal_rating, so a cached-true flag
 // would otherwise leave the panel blank until another tab is tapped.
 const activeTab = ref<'history' | 'matches' | 'partners' | 'rivals' | 'clutch'>(
-  hideInternalRating.value ? 'matches' : 'history',
+  'history',
 );
 
 const showLeaderboardDialog = ref(false);
