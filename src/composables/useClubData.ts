@@ -594,24 +594,35 @@ export function useClubData(context: UseClubDataContext) {
             (m) => m.directus_users_id?.id === currentUserId.value,
           );
           const isPrivilegedFromData = isAdminFromData || isModeratorFromData;
+          // A privileged device with no local writes since its last cloud
+          // push holds nothing worth preserving — routing it to the
+          // server-wins overwrite prevents stale persisted entities (e.g. a
+          // device reopened after days) from union-merging back into shared
+          // state and being re-pushed. lastModified is stamped by saveState()
+          // on every local mutation; persistSilently() does not stamp, so a
+          // server-merged state never masquerades as a local edit.
+          const mergeEligible =
+            isPrivilegedFromData &&
+            (MatchmakingApp.state.lastModified ?? 0) >
+              lastSyncedServerTimestamp.value;
 
           // Suppress settings_change logs during programmatic merge —
           // server-driven settings changes should not be attributed to the
           // local admin in the action log.
           MatchmakingApp.suppressSettingsLog = true;
           if (serverMatchmaking) {
-            if (isPrivilegedFromData) {
+            if (mergeEligible) {
               // Admins/Moderators: only merge settings that are missing locally — never overwrite existing
               copyServerSettings(serverMatchmaking, SETTINGS_SEED_FIELDS, true);
             }
-            // Non-privileged: settings are overwritten directly in the non-privileged block below
+            // Non-privileged / clean device: settings are overwritten directly below
           } else {
             // Cloud appState is blank/null — clear local data so UI starts fresh
             MatchmakingApp.resetState();
             MatchmakingApp.state.clubId = clubId;
           }
           if (serverMatchmaking) {
-            if (isPrivilegedFromData) {
+            if (mergeEligible) {
               // Admins/Moderators: smart-merge so a refresh picks up other admins' newly created
               //   queues/matches (latest-writer-wins) while preserving player stats.
               // Detect remote reset: another admin cleared all data (full reset).
@@ -935,10 +946,11 @@ export function useClubData(context: UseClubDataContext) {
             });
           }
 
-          // Privileged (admins/moderators): persist() fires onStateChange → debounced cloud sync (push).
-          // Non-privileged: persistSilently() saves to LocalStorage without arming a
-          // cloud push — non-privileged users never write to the server.
-          if (isPrivilegedFromData) {
+          // Dirty privileged devices: persist() fires onStateChange → debounced cloud sync (push)
+          // so merged edits propagate. Clean devices (and non-privileged users):
+          // persistSilently() saves to LocalStorage without arming a push — a
+          // server-wins overwrite holds nothing new to send back.
+          if (mergeEligible) {
             MatchmakingApp.persist();
           } else {
             MatchmakingApp.persistSilently();
