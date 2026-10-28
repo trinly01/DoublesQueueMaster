@@ -159,9 +159,9 @@
           dense
           class="q-ml-xs"
         />
-        <!-- DUPR rating replaces the internal chip while ratings are hidden -->
+        <!-- DUPR rating chip — always shown for linked players -->
         <q-chip
-          v-else-if="hideInternalRating && duprChipRating(player) !== null"
+          v-if="duprChipRating(player) !== null"
           :label="duprChipRating(player)!.toFixed(3)"
           color="green-8"
           text-color="white"

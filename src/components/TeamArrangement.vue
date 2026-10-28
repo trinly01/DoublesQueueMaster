@@ -110,7 +110,7 @@
             dense
           />
           <q-chip
-            v-else-if="duprChipRating(player) !== null"
+            v-if="duprChipRating(player) !== null"
             :label="duprChipRating(player)!.toFixed(3)"
             color="green-8"
             text-color="white"
@@ -207,7 +207,7 @@
             dense
           />
           <q-chip
-            v-else-if="duprChipRating(player) !== null"
+            v-if="duprChipRating(player) !== null"
             :label="duprChipRating(player)!.toFixed(3)"
             color="green-8"
             text-color="white"
