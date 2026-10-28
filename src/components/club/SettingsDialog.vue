@@ -614,7 +614,7 @@
                       class="q-ml-xs"
                     />
                     <q-chip
-                      v-else-if="duprChipRating(member) !== null"
+                      v-if="duprChipRating(member) !== null"
                       :label="duprChipRating(member)!.toFixed(3)"
                       color="green-8"
                       text-color="white"
@@ -715,7 +715,7 @@
                       class="q-ml-xs"
                     />
                     <q-chip
-                      v-else-if="duprChipRating(member) !== null"
+                      v-if="duprChipRating(member) !== null"
                       :label="duprChipRating(member)!.toFixed(3)"
                       color="green-8"
                       text-color="white"
@@ -834,7 +834,7 @@
                       class="q-ml-xs"
                     />
                     <q-chip
-                      v-else-if="duprChipRating(member) !== null"
+                      v-if="duprChipRating(member) !== null"
                       :label="duprChipRating(member)!.toFixed(3)"
                       color="green-8"
                       text-color="white"

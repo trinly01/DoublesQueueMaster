@@ -140,26 +140,9 @@
             @click="router.push('/play')"
           />
 
-          <!-- Internal rating — hidden when dupr_settings.hide_internal_rating -->
+          <!-- DUPR badge — primary; always shown for linked players -->
           <div
-            v-if="!hideInternalRating"
-            class="rating-badge"
-            :style="{
-              background: getRatingGradient(ratingColor),
-              width: '100%',
-              display: 'flex',
-            }"
-          >
-            <div class="column items-center">
-              <span class="text-h4 text-weight-bold text-white">{{
-                playerRating
-              }}</span>
-              <span class="text-caption text-white">Dink Points</span>
-            </div>
-          </div>
-          <!-- DUPR replaces the internal badge while ratings are hidden -->
-          <div
-            v-else-if="duprConnected"
+            v-if="duprConnected"
             class="rating-badge"
             :style="{
               background: 'linear-gradient(135deg,#1c7a3f,#0f5132)',
@@ -181,6 +164,23 @@
                   >· S {{ duprSinglesRating.toFixed(3) }}</template
                 >
               </span>
+            </div>
+          </div>
+          <!-- Internal rating — hidden when dupr_settings.hide_internal_rating -->
+          <div
+            v-if="!hideInternalRating"
+            class="rating-badge"
+            :style="{
+              background: getRatingGradient(ratingColor),
+              width: '100%',
+              display: 'flex',
+            }"
+          >
+            <div class="column items-center">
+              <span class="text-h4 text-weight-bold text-white">{{
+                playerRating
+              }}</span>
+              <span class="text-caption text-white">Dink Points</span>
             </div>
           </div>
 
@@ -577,7 +577,7 @@
             <div
               ref="chartRef"
               class="chart-container"
-              v-if="sortedEvents.length && !hideInternalRating"
+              v-if="sortedEvents.length"
             ></div>
             <q-list separator v-if="sortedEvents.length">
               <template v-for="(event, idx) in sortedEvents" :key="event.day">
@@ -1554,12 +1554,7 @@ const Dupr = useDupr();
 const hideInternalRating = computed(() => Dupr.hideInternalRating);
 const ringColor = (rating?: number) =>
   hideInternalRating.value ? 'grey-6' : getRatingColor(rating ?? 1450);
-watch(hideInternalRating, (hidden) => {
-  if (hidden) {
-    chartInstance?.dispose();
-    chartInstance = null;
-  }
-});
+
 
 // Primary indicator: directus_users.dupr_id (survives refresh via fetchProfile)
 // Detailed state: dupr_connection (ratings, status, tokens)
@@ -2304,11 +2299,12 @@ const initChart = () => {
   const losses = chronological.map((e) => e.losses);
   const ratings = chronological.map((e) => e.rating);
 
+  const hidden = hideInternalRating.value;
   chartInstance = echarts.init(chartRef.value);
   chartInstance.setOption({
     tooltip: { trigger: 'axis' },
     legend: {
-      data: ['Wins', 'Losses', 'Rating'],
+      data: hidden ? ['Wins', 'Losses'] : ['Wins', 'Losses', 'Rating'],
       bottom: 0,
       itemWidth: 12,
       itemHeight: 8,
@@ -2327,21 +2323,28 @@ const initChart = () => {
       data: days,
       axisLabel: { fontSize: 10 },
     },
-    yAxis: [
-      {
-        type: 'value',
-        name: 'W/L',
-        position: 'left',
-        nameTextStyle: { fontSize: 10 },
-      },
-      {
-        type: 'value',
-        name: 'Rating',
-        position: 'right',
-        nameTextStyle: { fontSize: 10 },
-        splitLine: { show: false },
-      },
-    ],
+    yAxis: hidden
+      ? {
+          type: 'value',
+          name: 'W/L',
+          position: 'left',
+          nameTextStyle: { fontSize: 10 },
+        }
+      : [
+          {
+            type: 'value',
+            name: 'W/L',
+            position: 'left',
+            nameTextStyle: { fontSize: 10 },
+          },
+          {
+            type: 'value',
+            name: 'Rating',
+            position: 'right',
+            nameTextStyle: { fontSize: 10 },
+            splitLine: { show: false },
+          },
+        ],
     series: [
       {
         name: 'Wins',
@@ -2359,32 +2362,36 @@ const initChart = () => {
         emphasis: { focus: 'series' },
         data: losses,
       },
-      {
-        name: 'Rating',
-        type: 'line',
-        smooth: true,
-        yAxisIndex: 1,
-        itemStyle: { color: '#9f7aea' },
-        lineStyle: { width: 3 },
-        emphasis: { focus: 'series' },
-        data: ratings,
-        markLine: {
-          silent: true,
-          symbol: 'none',
-          label: {
-            formatter: 'Seed (1450)',
-            position: 'insideStartTop',
-            fontSize: 10,
-            color: '#aaa',
-          },
-          lineStyle: {
-            type: 'dashed',
-            color: '#ccc',
-            width: 1,
-          },
-          data: [{ yAxis: 1450 }],
-        },
-      },
+      ...(hidden
+        ? []
+        : [
+            {
+              name: 'Rating',
+              type: 'line' as const,
+              smooth: true,
+              yAxisIndex: 1,
+              itemStyle: { color: '#9f7aea' },
+              lineStyle: { width: 3 },
+              emphasis: { focus: 'series' as const },
+              data: ratings,
+              markLine: {
+                silent: true,
+                symbol: 'none',
+                label: {
+                  formatter: 'Seed (1450)',
+                  position: 'insideStartTop' as const,
+                  fontSize: 10,
+                  color: '#aaa',
+                },
+                lineStyle: {
+                  type: 'dashed' as const,
+                  color: '#ccc',
+                  width: 1,
+                },
+                data: [{ yAxis: 1450 }],
+              },
+            },
+          ]),
     ],
   });
 };
@@ -2471,7 +2478,9 @@ const whenIdle = (fn: () => void) => {
   else setTimeout(fn, 0);
 };
 
-watch([showHistoryDialog, activeTab], ([dialogOpen, tab]) => {
+watch(
+  [showHistoryDialog, activeTab, hideInternalRating],
+  ([dialogOpen, tab]) => {
   console.log(
     '[PlayerPage] Dialog:',
     dialogOpen,
