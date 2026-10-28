@@ -432,8 +432,16 @@ export function useCloudSync(ctx: CloudSyncContext) {
     // local admin in the action log.
     MatchmakingApp.suppressSettingsLog = true;
     try {
-      if (isCurrentUserPrivilegedForSync) {
-        // Privileged (admins/moderators): smart-merge so local offline edits are preserved
+      // Only merge when this device actually has unsynced local writes —
+      // lastModified (stamped by saveState on every mutation, never by
+      // persistSilently) ahead of the last-synced server stamp. A clean
+      // device that only views data takes the server-wins overwrite so its
+      // stale persisted entities can't union-merge back and get re-pushed.
+      const localHasUnsyncedChanges =
+        (MatchmakingApp.state.lastModified ?? 0) >
+        lastSyncedServerTimestamp.value;
+      if (isCurrentUserPrivilegedForSync && localHasUnsyncedChanges) {
+        // Privileged + dirty: smart-merge so local offline edits are preserved
         const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
         // Assign only keys whose content actually changed — identical merges
         // keep their references and don't invalidate the page's computeds.
