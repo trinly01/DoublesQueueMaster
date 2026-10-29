@@ -157,7 +157,7 @@
                and the player has a real DUPR rating; DUPR-less players keep a
                converted chip so they aren't left rating-less -->
           <div
-            v-if="showRatingChip({ duprId })"
+            v-if="duprDoublesRating === null"
             class="rating-badge"
             :style="{
               background: getRatingGradient(ratingColor),
@@ -176,7 +176,7 @@
           </div>
 
           <q-btn
-            v-if="replayRating !== null && showRatingChip({ duprId })"
+            v-if="replayRating !== null && duprDoublesRating === null"
             no-caps
             rounded
             size="sm"
@@ -565,7 +565,7 @@
             style="max-height: 78vh; overflow-y: auto; overflow-x: hidden"
           >
             <div
-              v-if="ratingVelocity && showRatingChip({ duprId })"
+              v-if="ratingVelocity && duprDoublesRating === null"
               class="row q-col-gutter-sm q-mb-md"
             >
               <div class="col-6">
@@ -628,7 +628,7 @@
                       <span class="text-negative">{{ event.losses }}L</span>
                     </q-item-label>
                   </q-item-section>
-                  <q-item-section side v-if="showRatingChip({ duprId })">
+                  <q-item-section side v-if="duprDoublesRating === null">
                     <q-chip
                       class="history-rating text-weight-bold"
                       text-color="white"
