@@ -299,7 +299,7 @@ export function useDataManagement(context: UseDataManagementContext) {
 
   const resetAllData = () => {
     confirmWithClubId({
-      title: 'Delete Everything',
+      title: 'Delete All',
       message:
         'All players removed — everything is wiped from this session.<br><br>' +
         '• Players → ALL removed<br>' +
@@ -308,7 +308,7 @@ export function useDataManagement(context: UseDataManagementContext) {
         '• Match history → cleared from this session<br><br>' +
         'Match history in the cloud is not affected.' +
         duprPendingWarning(),
-      okLabel: 'Delete Everything',
+      okLabel: 'Delete All',
       okColor: 'negative',
       okIcon: 'delete_forever',
       onConfirm: () => {
