@@ -2310,6 +2310,16 @@ const initChart = () => {
 
   // The rating line stays in the chart even when hideInternalRating hides
   // the chip — the tab is still labeled "Results" for DUPR compliance.
+  // When hidden, display the internal rating on a DUPR-like scale instead:
+  // seed 1450 ≈ 3.5, ~250 Dink Points per rating point, clamped to 2.0–8.0.
+  const hidden = hideInternalRating.value;
+  const toDisplayRating = (r: number) =>
+    Math.min(8, Math.max(2, 3.5 + (r - 1450) / 250));
+  const chartRatings = hidden
+    ? ratings.map((r) => (r == null ? r : +toDisplayRating(r).toFixed(2)))
+    : ratings;
+  const seedLine = hidden ? 3.5 : 1450;
+
   chartInstance = echarts.init(chartRef.value);
   chartInstance.setOption({
     tooltip: { trigger: 'axis' },
@@ -2373,12 +2383,12 @@ const initChart = () => {
         itemStyle: { color: '#9f7aea' },
         lineStyle: { width: 3 },
         emphasis: { focus: 'series' as const },
-        data: ratings,
+        data: chartRatings,
         markLine: {
           silent: true,
           symbol: 'none',
           label: {
-            formatter: 'Seed (1450)',
+            formatter: hidden ? 'Seed (3.50)' : 'Seed (1450)',
             position: 'insideStartTop' as const,
             fontSize: 10,
             color: '#aaa',
@@ -2388,7 +2398,7 @@ const initChart = () => {
             color: '#ccc',
             width: 1,
           },
-          data: [{ yAxis: 1450 }],
+          data: [{ yAxis: seedLine }],
         },
       },
     ],
