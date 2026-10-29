@@ -53,6 +53,48 @@
       <TresMeshBasicMaterial color="#ffffff" />
     </TresMesh>
 
+    <!-- Kitchen zone tint (player side) — lightened brand periwinkle -->
+    <TresMesh
+      :rotation="[-Math.PI / 2, 0, 0]"
+      :position="[0, 0.01, KITCHEN_DEPTH / 2] as any"
+    >
+      <TresPlaneGeometry :args="[COURT_WIDTH, KITCHEN_DEPTH]" />
+      <TresMeshLambertMaterial color="#8b9cf5" />
+    </TresMesh>
+    <!-- Kitchen zone tint (AI side) -->
+    <TresMesh
+      :rotation="[-Math.PI / 2, 0, 0]"
+      :position="[0, 0.01, -KITCHEN_DEPTH / 2] as any"
+    >
+      <TresPlaneGeometry :args="[COURT_WIDTH, KITCHEN_DEPTH]" />
+      <TresMeshLambertMaterial color="#8b9cf5" />
+    </TresMesh>
+
+    <!-- Painted "dinkmatch.club" text in each kitchen, readable from its
+         own baseline like real court decals -->
+    <TresMesh
+      :rotation="[-Math.PI / 2, 0, 0]"
+      :position="[0, 0.015, KITCHEN_DEPTH / 2] as any"
+    >
+      <TresPlaneGeometry :args="[5.2, 1.3]" />
+      <TresMeshBasicMaterial
+        :map="kitchenTextTexture"
+        :transparent="true"
+        :opacity="0.55"
+      />
+    </TresMesh>
+    <TresMesh
+      :rotation="[-Math.PI / 2, 0, Math.PI]"
+      :position="[0, 0.015, -KITCHEN_DEPTH / 2] as any"
+    >
+      <TresPlaneGeometry :args="[5.2, 1.3]" />
+      <TresMeshBasicMaterial
+        :map="kitchenTextTexture"
+        :transparent="true"
+        :opacity="0.55"
+      />
+    </TresMesh>
+
     <!-- Kitchen lines (player side) -->
     <TresMesh
       :rotation="[-Math.PI / 2, 0, 0]"
@@ -91,7 +133,7 @@
     <!-- Net -->
     <TresMesh :position="[0, NET_HEIGHT / 2, 0] as any">
       <TresBoxGeometry :args="[COURT_WIDTH, NET_HEIGHT, 0.03]" />
-      <TresMeshLambertMaterial color="#1a1a2e" :opacity="0.35" transparent />
+      <TresMeshLambertMaterial color="#14142a" :opacity="0.5" transparent />
     </TresMesh>
     <!-- Net posts -->
     <TresMesh :position="[-COURT_WIDTH / 2, 0.5, 0] as any">
@@ -132,6 +174,7 @@
 
 <script setup lang="ts">
 import { TresCanvas } from '@tresjs/core';
+import * as THREE from 'three';
 import type { GameRefs } from 'src/composables/useGameEngine';
 import type { CharacterPalette } from 'src/composables/useRandomPalette';
 import GameActors from 'components/play/GameActors.vue';
@@ -148,4 +191,25 @@ const COURT_LENGTH = 13.41;
 const COURT_WIDTH = 6.1;
 const NET_HEIGHT = 0.86;
 const KITCHEN_DEPTH = 2.13;
+
+// Painted-court text decal (canvas → texture, no font assets needed)
+function makeCourtTextTexture(text: string) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#ffffff';
+  // Fit text to the canvas with padding — measure at 100px then scale
+  ctx.font = '700 100px Arial, sans-serif';
+  const fit = (canvas.width * 0.9) / ctx.measureText(text).width;
+  ctx.font = `700 ${Math.floor(Math.min(fit, 1) * 100)}px Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.anisotropy = 4;
+  return tex;
+}
+const kitchenTextTexture = makeCourtTextTexture('dinkmatch.club');
 </script>
