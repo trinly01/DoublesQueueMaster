@@ -202,12 +202,12 @@
                 <q-card-section class="q-pt-none">
                   <div class="lb-tooltip-body">
                     <p class="lb-line">
-                      Replayed from your last 30 days of competitive matches
-                      (Standard, Competitive, Pro Pick).
+                      Replayed from your last 30 days of matches (up to 500
+                      fetched), re-seeding everyone at 1450.
                     </p>
                     <p class="lb-line">
-                      May differ from your saved Dink Points due to the 45-day
-                      window and shrinkage.
+                      May differ from your saved Dink Points — the replay only
+                      sees this 30-day window.
                     </p>
                   </div>
                 </q-card-section>
@@ -1839,9 +1839,9 @@ const leaderboardData = computed(() => {
     : matchesLeaderboardCache.value;
 });
 
-// Replay rating from the user's last 500 competitive matches (same pool as
-// the "My Matches" leaderboard tab). May differ from the saved DB rating
-// because of the 500-window and shrinkage.
+// Replay rating from the user's last 30 days of matches (500-match fetch
+// cap, same pool as the "My Matches" leaderboard tab). Single-pass flat-1450
+// replay — may differ from the saved DB rating because of the window.
 const replayRating = computed(() => {
   const currentUsername = PlayerProfile.state.username;
   if (!currentUsername) return null;
