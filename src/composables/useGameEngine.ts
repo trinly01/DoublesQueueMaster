@@ -56,53 +56,56 @@ interface AIConfig {
   playerMagnet: number; // 0..1, gentle pull toward ball X for easier navigation
   aiMagnet: number; // 0..1, how tightly AI tracks ball X (hard = more)
   canJump: boolean; // can jump to reach high balls
-  advancedPos: boolean; // holds the NVZ line instead of camping baseline
+  advancedPos: number; // 0..1, how far home shifts from baseline to NVZ line
 }
 
 const PLAYER_MAX_SPEED = 3.5;
 
 const AI_CONFIGS: Record<Difficulty, AIConfig> = {
-  // Easy: slightly slower, moderate reaction, misses sometimes
+  // Easy: noticeably slower + sluggish reactions, heavy player assist —
+  // winnable on the first game, teaches positioning
   easy: {
-    speed: PLAYER_MAX_SPEED * 0.65,
-    reactionDelay: 0.25,
-    accuracy: 0.7,
-    dinkChance: 0.12,
+    speed: PLAYER_MAX_SPEED * 0.6,
+    reactionDelay: 0.3,
+    accuracy: 0.65,
+    dinkChance: 0.1,
     dinkBonusStanding: 0.25,
-    netFaultChance: 0.25,
+    netFaultChance: 0.3,
     targetBias: 0,
-    playerMagnet: 0.6,
+    playerMagnet: 0.7,
     aiMagnet: 0,
     canJump: false,
-    advancedPos: false,
+    advancedPos: 0,
   },
-  // Medium: close to player speed, good reaction, occasional misses
+  // Medium: the default fun — jumps for lobs, holds mid-court,
+  // real placement, still exploitable at the net
   medium: {
-    speed: PLAYER_MAX_SPEED * 0.85,
-    reactionDelay: 0.16,
-    accuracy: 0.83,
-    dinkChance: 0.2,
+    speed: PLAYER_MAX_SPEED * 0.8,
+    reactionDelay: 0.18,
+    accuracy: 0.8,
+    dinkChance: 0.18,
     dinkBonusStanding: 0.25,
     netFaultChance: 0.18,
-    targetBias: 0.8,
+    targetBias: 0.7,
     playerMagnet: 0.3,
     aiMagnet: 0.4,
     canJump: true,
-    advancedPos: false,
+    advancedPos: 0.55,
   },
-  // Hard: matches player speed, sharp reaction, rare misses
+  // Hard: real pickleball — kitchen line, overheads, tight tracking,
+  // small miss floor so elite placement still wins
   hard: {
-    speed: PLAYER_MAX_SPEED * 0.95,
-    reactionDelay: 0.08,
-    accuracy: 0.93,
+    speed: PLAYER_MAX_SPEED * 0.92,
+    reactionDelay: 0.09,
+    accuracy: 0.92,
     dinkChance: 0.3,
     dinkBonusStanding: 0.25,
-    netFaultChance: 0.1,
-    targetBias: 1.5,
-    playerMagnet: 0.06,
+    netFaultChance: 0.08,
+    targetBias: 1.4,
+    playerMagnet: 0.05,
     aiMagnet: 0.8,
     canJump: true,
-    advancedPos: true,
+    advancedPos: 1,
   },
 };
 
@@ -1619,10 +1622,13 @@ export function useGameEngine() {
     const mustLetBounce =
       !ballBouncedOnSide &&
       (rallyHitCount < 2 || (rallyHitCount < 3 && refs.ballVel.z < 0));
-    const homeZ =
-      cfg.advancedPos && !mustLetBounce
-        ? -KITCHEN_DEPTH - LINE_HALF - 0.35
-        : -COURT_LENGTH / 2 - 0.8;
+    // Home lerps from baseline (0) to just behind the NVZ line (1) —
+    // medium holds mid-court, hard holds the kitchen line
+    const baselineHome = -COURT_LENGTH / 2 - 0.8;
+    const nvzHome = -KITCHEN_DEPTH - LINE_HALF - 0.35;
+    const homeZ = mustLetBounce
+      ? baselineHome
+      : baselineHome + (nvzHome - baselineHome) * cfg.advancedPos;
     // Default: hold home position
     let aiTargetZ = homeZ;
 
