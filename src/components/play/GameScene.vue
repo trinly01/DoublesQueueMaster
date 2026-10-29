@@ -130,24 +130,25 @@
       <TresMeshBasicMaterial color="#ffffff" />
     </TresMesh>
 
-    <!-- Net -->
+    <!-- Net — official spec: 34in at center (NET_HEIGHT), 36in at posts,
+         posts stand ~1ft outside the sidelines (22ft apart) -->
     <TresMesh :position="[0, NET_HEIGHT / 2, 0] as any">
-      <TresBoxGeometry :args="[COURT_WIDTH, NET_HEIGHT, 0.03]" />
+      <TresBoxGeometry :args="[NET_SPAN, NET_HEIGHT, 0.03]" />
       <TresMeshLambertMaterial color="#14142a" :opacity="0.5" transparent />
     </TresMesh>
-    <!-- Net posts -->
-    <TresMesh :position="[-COURT_WIDTH / 2, 0.5, 0] as any">
-      <TresCylinderGeometry :args="[0.04, 0.04, 1, 8]" />
+    <!-- Net posts (1ft outside each sideline) -->
+    <TresMesh :position="[-POST_X, POST_HEIGHT / 2, 0] as any">
+      <TresCylinderGeometry :args="[0.04, 0.04, POST_HEIGHT, 8]" />
       <TresMeshLambertMaterial color="#e0e0e0" />
     </TresMesh>
-    <TresMesh :position="[COURT_WIDTH / 2, 0.5, 0] as any">
-      <TresCylinderGeometry :args="[0.04, 0.04, 1, 8]" />
+    <TresMesh :position="[POST_X, POST_HEIGHT / 2, 0] as any">
+      <TresCylinderGeometry :args="[0.04, 0.04, POST_HEIGHT, 8]" />
       <TresMeshLambertMaterial color="#e0e0e0" />
     </TresMesh>
 
     <!-- Transparent walls at net (prevent crossing within court) -->
     <TresMesh :position="[0, NET_HEIGHT / 2, 0] as any">
-      <TresBoxGeometry :args="[COURT_WIDTH, NET_HEIGHT, 0.02]" />
+      <TresBoxGeometry :args="[NET_SPAN, NET_HEIGHT, 0.02]" />
       <TresMeshBasicMaterial
         color="#667eea"
         :opacity="0.08"
@@ -157,7 +158,7 @@
     </TresMesh>
     <!-- Wall top edge highlight -->
     <TresMesh :position="[0, NET_HEIGHT, 0] as any">
-      <TresBoxGeometry :args="[COURT_WIDTH, 0.03, 0.03]" />
+      <TresBoxGeometry :args="[NET_SPAN, 0.03, 0.03]" />
       <TresMeshBasicMaterial color="#667eea" :opacity="0.3" transparent />
     </TresMesh>
 
@@ -189,7 +190,10 @@ defineProps<{
 
 const COURT_LENGTH = 13.41;
 const COURT_WIDTH = 6.1;
-const NET_HEIGHT = 0.86;
+const NET_HEIGHT = 0.86; // 34in at center
+const NET_SPAN = 6.71; // 22ft post-to-post
+const POST_X = COURT_WIDTH / 2 + 0.305; // ~1ft outside the sideline
+const POST_HEIGHT = 0.92; // ~36in at the posts
 const KITCHEN_DEPTH = 2.13;
 
 // Painted-court text decal (canvas → texture, no font assets needed)
