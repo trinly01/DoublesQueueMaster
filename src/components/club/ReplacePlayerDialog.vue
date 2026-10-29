@@ -81,7 +81,7 @@
                 <q-chip
                   v-if="duprChipRating(player) !== null"
                   :label="duprChipRating(player)!.toFixed(3)"
-                  color="green-8"
+                  color="blue-9"
                   text-color="white"
                   size="xs"
                   dense

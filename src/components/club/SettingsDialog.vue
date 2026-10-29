@@ -638,7 +638,7 @@
                     <q-chip
                       v-if="duprChipRating(member) !== null"
                       :label="duprChipRating(member)!.toFixed(3)"
-                      color="green-8"
+                      color="blue-9"
                       text-color="white"
                       size="xs"
                       dense
@@ -739,7 +739,7 @@
                     <q-chip
                       v-if="duprChipRating(member) !== null"
                       :label="duprChipRating(member)!.toFixed(3)"
-                      color="green-8"
+                      color="blue-9"
                       text-color="white"
                       size="xs"
                       dense
@@ -858,7 +858,7 @@
                     <q-chip
                       v-if="duprChipRating(member) !== null"
                       :label="duprChipRating(member)!.toFixed(3)"
-                      color="green-8"
+                      color="blue-9"
                       text-color="white"
                       size="xs"
                       dense
@@ -885,7 +885,7 @@
                     <q-btn
                       flat
                       dense
-                      color="green-8"
+                      color="blue-9"
                       size="sm"
                       icon="arrow_upward"
                       @click="
