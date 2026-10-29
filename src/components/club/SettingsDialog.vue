@@ -314,12 +314,12 @@
                     color="warning"
                     @click="$emit('clearMatches')"
                     icon="delete"
-                    class="full-width"
+                    class="full-width data-mgmt-btn"
                     stack
-                    style="min-height: 72px"
+                    style="min-height: 84px"
                   >
-                    <div>Clear Matches</div>
-                    <div class="data-mgmt-sub">ends games in progress</div>
+                    <div class="data-mgmt-title">Clear Matches</div>
+                    <div class="data-mgmt-sub">ends active games</div>
                   </q-btn>
                 </div>
                 <div class="col">
@@ -327,11 +327,11 @@
                     color="warning"
                     @click="$emit('clearQueue')"
                     icon="delete_outline"
-                    class="full-width"
+                    class="full-width data-mgmt-btn"
                     stack
-                    style="min-height: 72px"
+                    style="min-height: 84px"
                   >
-                    <div>Clear Queue</div>
+                    <div class="data-mgmt-title">Clear Queue</div>
                     <div class="data-mgmt-sub">everyone leaves the queue</div>
                   </q-btn>
                 </div>
@@ -343,12 +343,12 @@
                     color="negative"
                     @click="$emit('resetGamesPlayed')"
                     icon="refresh"
-                    class="full-width"
+                    class="full-width data-mgmt-btn"
                     stack
-                    style="min-height: 72px"
+                    style="min-height: 84px"
                   >
-                    <div>Reset Stats</div>
-                    <div class="data-mgmt-sub">wins &amp; losses back to 0</div>
+                    <div class="data-mgmt-title">Reset Stats</div>
+                    <div class="data-mgmt-sub">wins/losses to 0</div>
                   </q-btn>
                 </div>
                 <div class="col">
@@ -356,12 +356,12 @@
                     color="negative"
                     @click="$emit('resetSessionData')"
                     icon="restart_alt"
-                    class="full-width"
+                    class="full-width data-mgmt-btn"
                     stack
-                    style="min-height: 72px"
+                    style="min-height: 84px"
                   >
-                    <div>Restart Session</div>
-                    <div class="data-mgmt-sub">fresh start, players stay</div>
+                    <div class="data-mgmt-title">Restart Session</div>
+                    <div class="data-mgmt-sub">keeps players</div>
                   </q-btn>
                 </div>
                 <div class="col">
@@ -369,11 +369,11 @@
                     color="negative"
                     @click="$emit('resetAllData')"
                     icon="delete_forever"
-                    class="full-width"
+                    class="full-width data-mgmt-btn"
                     stack
-                    style="min-height: 72px"
+                    style="min-height: 84px"
                   >
-                    <div>Delete Everything</div>
+                    <div class="data-mgmt-title">Delete Everything</div>
                     <div class="data-mgmt-sub">removes all players</div>
                   </q-btn>
                 </div>
@@ -1295,13 +1295,23 @@ function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
   vertical-align: bottom;
 }
 
+.data-mgmt-btn :deep(.q-btn__content) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.data-mgmt-title {
+  line-height: 1.2;
+}
+
 .data-mgmt-sub {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 400;
   text-transform: none;
-  letter-spacing: 0.02em;
-  line-height: 1.25;
-  opacity: 0.7;
-  margin-top: 4px;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  opacity: 0.72;
 }
 </style>
