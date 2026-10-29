@@ -125,10 +125,11 @@ export const ratingChipText = (
 /**
  * Tier-name mapping on the DUPR-like 2.0–8.0 display scale — for values
  * already expressed on that scale (converted internals or a real DUPR
- * rating): Beginner <3, Intermediate <4, Advanced <5, Expert <6, Pro 6+.
+ * rating): Novice <3, Intermediate <4, Advanced <5, Expert <6, Pro 6+.
+ * "Novice" matches DUPR's own term for the 2.0–3.0 band.
  */
 export const duprScaleCategory = (d: number): string => {
-  if (d < 3) return 'Beginner';
+  if (d < 3) return 'Novice';
   if (d < 4) return 'Intermediate';
   if (d < 5) return 'Advanced';
   if (d < 6) return 'Expert';
@@ -151,10 +152,10 @@ export const ratingChipCategory = (
 
 /**
  * Get the category name for a player rating.
- * Tiers: Beginner, Intermediate, Advanced, Expert, Pro.
+ * Tiers: Novice, Intermediate, Advanced, Expert, Pro.
  */
 export const getRatingCategory = (rating: number): string => {
-  if (rating < 1400) return 'Beginner';
+  if (rating < 1400) return 'Novice';
   if (rating < 1700) return 'Intermediate';
   if (rating < 1900) return 'Advanced';
   if (rating < 2100) return 'Expert';

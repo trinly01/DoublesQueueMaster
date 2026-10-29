@@ -11,7 +11,7 @@
       <!-- Legend -->
       <div class="legend">
         <div class="legend-item">
-          <span class="skill-dot beginner"></span> Beginner
+          <span class="skill-dot beginner"></span> Novice
         </div>
         <div class="legend-item">
           <span class="skill-dot intermediate"></span> Intermediate

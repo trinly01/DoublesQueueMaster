@@ -133,7 +133,7 @@
       </q-card-section>
       <div class="row q-gutter-xs q-px-md q-pb-xs justify-center">
         <q-chip dense color="grey-6" text-color="white" size="xs">
-          Beginner
+          Novice
           <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
             >{{ hideInternalRating ? '< 3.00' : '< 1400' }}</q-tooltip
           >

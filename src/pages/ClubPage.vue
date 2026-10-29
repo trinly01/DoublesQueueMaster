@@ -3916,14 +3916,14 @@ const displayPlayers = computed(() => {
 
 const queueStats = computed(() => {
   const total = queue.value.length;
-  const categories = ['Beginner', 'Intermediate', 'Advanced', 'Expert', 'Pro'];
+  const categories = ['Novice', 'Intermediate', 'Advanced', 'Expert', 'Pro'];
   const counts = categories.map((cat) => ({
     label: cat,
     count: queue.value.filter(
       (p) => getRatingCategory(p.rating || 1450) === cat,
     ).length,
     color: getRatingColor(
-      cat === 'Beginner'
+      cat === 'Novice'
         ? 1300
         : cat === 'Intermediate'
           ? 1500
