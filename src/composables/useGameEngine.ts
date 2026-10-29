@@ -1967,6 +1967,23 @@ export function useGameEngine() {
     const moveBias = sideMove * 2.0;
     let targetXAdj: number;
 
+    // Contact-point deflection (Pong-style): ball hitting the paddle off-
+    // center deflects wider — ball right of body pushes target right.
+    const contactDeflect = usePlayerLogic
+      ? THREE.MathUtils.clamp(ballPos.x - pos.x, -0.6, 0.6) * 2.0
+      : 0;
+
+    // Held-stick aim (human players only): axis maps to a lane on the
+    // opponent's court. Guest axes arrive already mirrored to host frame.
+    let aimX = 0;
+    if (usePlayerLogic) {
+      aimX = isPlayer
+        ? input.axisX + (input.right ? 1 : 0) - (input.left ? 1 : 0)
+        : remoteInput.ax;
+      aimX = THREE.MathUtils.clamp(aimX, -1, 1);
+    }
+    const stickAiming = Math.abs(aimX) > 0.15;
+
     if (!usePlayerLogic && cfg.targetBias > 0) {
       // AI: bias toward opposite side of player based on difficulty
       const playerXSide = refs.playerPos.x > 0 ? -1 : 1;
@@ -1975,10 +1992,16 @@ export function useGameEngine() {
         targetCenter +
         (Math.random() - 0.5) * 2.0 +
         (Math.random() - 0.5) * errorRange;
+    } else if (stickAiming) {
+      // Intentional aim: stick maps directly to the target lane
+      const laneX = aimX * (COURT_WIDTH / 2 - 0.7);
+      targetXAdj =
+        laneX + contactDeflect + (Math.random() - 0.5) * errorRange;
     } else {
       targetXAdj =
         (Math.random() - 0.5) * baseXRange +
         moveBias +
+        contactDeflect +
         (Math.random() - 0.5) * errorRange;
     }
 
