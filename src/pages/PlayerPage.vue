@@ -185,7 +185,7 @@
             :style="{
               background: replayReliable
                 ? getRatingGradient(replayRatingColor)
-                : 'grey-6',
+                : 'linear-gradient(135deg, #9e9e9e, #757575)',
               borderRadius: '12px',
             }"
           >
