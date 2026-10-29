@@ -55,6 +55,8 @@ interface AIConfig {
   targetBias: number; // how far to target away from player (0 = random)
   playerMagnet: number; // 0..1, gentle pull toward ball X for easier navigation
   aiMagnet: number; // 0..1, how tightly AI tracks ball X (hard = more)
+  canJump: boolean; // can jump to reach high balls
+  advancedPos: boolean; // holds the NVZ line instead of camping baseline
 }
 
 const PLAYER_MAX_SPEED = 3.5;
@@ -71,10 +73,12 @@ const AI_CONFIGS: Record<Difficulty, AIConfig> = {
     targetBias: 0,
     playerMagnet: 0.6,
     aiMagnet: 0,
+    canJump: false,
+    advancedPos: false,
   },
   // Medium: close to player speed, good reaction, occasional misses
   medium: {
-    speed: PLAYER_MAX_SPEED * 0.82,
+    speed: PLAYER_MAX_SPEED * 0.85,
     reactionDelay: 0.16,
     accuracy: 0.83,
     dinkChance: 0.2,
@@ -83,6 +87,8 @@ const AI_CONFIGS: Record<Difficulty, AIConfig> = {
     targetBias: 0.8,
     playerMagnet: 0.3,
     aiMagnet: 0.4,
+    canJump: true,
+    advancedPos: false,
   },
   // Hard: matches player speed, sharp reaction, rare misses
   hard: {
@@ -95,6 +101,8 @@ const AI_CONFIGS: Record<Difficulty, AIConfig> = {
     targetBias: 1.5,
     playerMagnet: 0.06,
     aiMagnet: 0.8,
+    canJump: true,
+    advancedPos: true,
   },
 };
 
@@ -193,6 +201,13 @@ export function useGameEngine() {
   // Jump state
   let playerJumpVel: number = 0;
   let remoteJumpVel: number = 0;
+  let aiJumpVel: number = 0;
+  // Takeoff z for each jumper — while airborne, NVZ contact is judged from
+  // where the feet left the ground (you can't "be in" the kitchen mid-jump,
+  // but jumping from inside it is still a fault)
+  let playerTakeoffZ = 0;
+  let remoteTakeoffZ = 0;
+  let aiTakeoffZ = 0;
 
   // Post-volley momentum state — if a player volleys and momentum carries
   // them into the kitchen, it's a fault (real pickleball rule 9.B.1)
@@ -236,6 +251,7 @@ export function useGameEngine() {
     timer: ReturnType<typeof setTimeout> | null;
   } | null = null;
   let aiDinkRead: boolean | null = null; // null = not evaluated, true/false = committed
+  let aiOutRead: boolean | null = null; // AI's read on whether to let an out-ball go
 
   // Guest-side delayed "In" fault: when guest detects 2nd bounce, delay reporting
   // to allow collision detection to fire first. If guest hits ball during delay,
@@ -258,6 +274,12 @@ export function useGameEngine() {
   // Precomputed constants for hot loops
   const HALF_COURT_W = COURT_WIDTH / 2;
   const HALF_COURT_L = COURT_LENGTH / 2;
+  // White lines are 0.05m strips centered on the boundary; the line itself
+  // is in-bounds (and part of the kitchen), so faults use the outer edge.
+  const LINE_HALF = 0.025;
+  // Foot half-depth: NVZ faults test the foot edge nearest the net, not
+  // just the body center (a toe on the line is a fault)
+  const FOOT_HALF = 0.35;
   const CLAMP_HALF_W = HALF_COURT_W + 1;
   const CLAMP_BACK = HALF_COURT_L + 2;
   const CLAMP_AI_BACK = -HALF_COURT_L - 2;
@@ -1109,8 +1131,10 @@ export function useGameEngine() {
     ballClippedNet = false;
     currentSide = null;
     aiDinkRead = null;
+    aiOutRead = null;
     playerJumpVel = 0;
     remoteJumpVel = 0;
+    aiJumpVel = 0;
     postVolleyMomentum = null;
     lastFaultEventSeq = -1;
     lastBounceFaultSeq = -1;
@@ -1254,6 +1278,7 @@ export function useGameEngine() {
     ballClippedNet = false;
     currentSide = serveTo; // ball starts on server's side
     aiDinkRead = null;
+    aiOutRead = null;
     hostPlaySfx('serve');
     hostPlaySfx('paddleHit');
   }
@@ -1471,6 +1496,7 @@ export function useGameEngine() {
     // Jump physics
     if (input.jump && refs.playerPos.y <= 0.01) {
       playerJumpVel = JUMP_VELOCITY;
+      playerTakeoffZ = refs.playerPos.z;
       if (isPvP.value && isHost.value) hostPlaySfx('jump');
       else if (!isPvP.value) sound.jump();
     }
@@ -1541,7 +1567,10 @@ export function useGameEngine() {
       } else {
         const z = refs.playerPos.z;
         const inKitchen =
-          ps > 0 ? z > 0 && z < KITCHEN_DEPTH : z < 0 && z > -KITCHEN_DEPTH;
+          Math.abs(refs.playerPos.x) <= HALF_COURT_W &&
+          (ps > 0
+            ? z > 0 && z - FOOT_HALF < KITCHEN_DEPTH + LINE_HALF
+            : z < 0 && z + FOOT_HALF > -KITCHEN_DEPTH - LINE_HALF);
         if (inKitchen) {
           postVolleyMomentum = null;
           scorePoint('ai', 'Momentum fault!');
@@ -1582,8 +1611,16 @@ export function useGameEngine() {
     // Track previous position for velocity
     prevAiPos.copy(refs.aiPos);
 
-    // Default: hold position behind baseline (safe position)
-    let aiTargetZ = -COURT_LENGTH / 2 - 0.8;
+    // Home spot: advanced AI holds the NVZ line (the strong position) —
+    // but only once volleys are legal; during the two-bounce phase after
+    // its own serve it must stay back at the baseline like a real player
+    const mustLetBounce = !ballBouncedOnSide && rallyHitCount < 3;
+    const homeZ =
+      cfg.advancedPos && !mustLetBounce
+        ? -KITCHEN_DEPTH - LINE_HALF - 0.35
+        : -COURT_LENGTH / 2 - 0.8;
+    // Default: hold home position
+    let aiTargetZ = homeZ;
 
     // If ball already bounced on AI side, go hit it
     if (ballBouncedOnSide && refs.ballPos.z < 0) {
@@ -1654,12 +1691,37 @@ export function useGameEngine() {
               aiTargetZ = bounceZ - 0.5;
             }
           } else {
-            // Ball won't bounce on AI side (going out) — stay behind baseline
-            aiTargetZ = -COURT_LENGTH / 2 - 0.8;
+            // Ball won't bounce on AI side (going out) — hold home
+            aiTargetZ = homeZ;
           }
         } else {
           // Past double-bounce rule — can volley or hit after bounce
-          if (hittableZ !== null && (bounceZ === null || hittableZ < bounceZ)) {
+          // Is the ball going to land out (or not on AI's court)? A
+          // prediction landing wide counts as out; null = won't land in.
+          const landingOut =
+            bounceZ === null ||
+            bounceZ > 0 ||
+            Math.abs(bounceX) > HALF_COURT_W + LINE_HALF;
+          // Read the flight once per shot — smarter AI lets more out-balls go
+          if (aiOutRead === null) {
+            aiOutRead = Math.random() < cfg.accuracy;
+          }
+          const letItGo = landingOut && aiOutRead;
+          // Volley only when it's legal AND worthwhile: the ball reaches
+          // hittable height before the bounce point (travels in -z, so the
+          // hittable spot sits closer to the net than the bounce), and the
+          // intercept is behind the NVZ so the AI doesn't volley while
+          // standing in the kitchen
+          const volleySpot =
+            hittableZ !== null &&
+            (bounceZ === null || hittableZ > bounceZ) &&
+            hittableZ < -KITCHEN_DEPTH - LINE_HALF - 0.3;
+          if (letItGo) {
+            // Out-ball — sidestep off the ball's line and let it sail
+            aiTargetX =
+              refs.aiPos.x + (refs.aiPos.x >= refs.ballPos.x ? 1.2 : -1.2);
+            aiTargetZ = homeZ;
+          } else if (volleySpot && hittableZ !== null) {
             // Ball reaches hittable height before bouncing — go volley it
             aiTargetX = hittableX;
             aiTargetZ = hittableZ;
@@ -1668,7 +1730,7 @@ export function useGameEngine() {
             aiTargetX = bounceX;
             aiTargetZ = bounceZ;
           } else {
-            aiTargetZ = -COURT_LENGTH / 2 - 0.8;
+            aiTargetZ = homeZ;
           }
         }
 
@@ -1689,26 +1751,31 @@ export function useGameEngine() {
             aiTargetZ = refs.aiPos.z; // hold current Z, don't move forward
           }
         }
-        // Dodge ball only when it's truly about to hit AI body
-        const distZ = Math.abs(refs.aiPos.z - refs.ballPos.z);
-        const distX = Math.abs(refs.aiPos.x - refs.ballPos.x);
-        if (
-          distZ < 0.8 &&
-          distX < 0.8 &&
-          refs.ballPos.y > 0.3 &&
-          refs.ballPos.y < 1.2
-        ) {
-          // Push AI behind the ball
-          aiTargetZ = refs.ballPos.z - 1.0;
-          // Dodge in X away from ball
-          const xDiff = refs.aiPos.x - refs.ballPos.x;
-          aiTargetX = refs.aiPos.x + (xDiff >= 0 ? 0.8 : -0.8);
+        // Predictive dodge: compute where the ball crosses the AI's
+        // z-plane and get off the flight line early — a fast return beats
+        // the old 0.8m proximity trigger
+        if (refs.ballVel.z < 0 && refs.ballPos.z > refs.aiPos.z) {
+          const t = (refs.aiPos.z - refs.ballPos.z) / refs.ballVel.z;
+          if (t > 0 && t < 0.8) {
+            const xAtAI = refs.ballPos.x + refs.ballVel.x * t;
+            const yAtAI =
+              refs.ballPos.y + refs.ballVel.y * t + 0.5 * GRAVITY * t * t;
+            // Ball will arrive at body height aimed at the AI — sidestep
+            if (
+              yAtAI > 0.2 &&
+              yAtAI < 1.4 &&
+              Math.abs(xAtAI - refs.aiPos.x) < 1.0
+            ) {
+              aiTargetX =
+                refs.aiPos.x + (xAtAI > refs.aiPos.x ? -1.0 : 1.0);
+            }
+          }
         }
       }
     } else if (refs.ballVel.z > 0 && refs.ballPos.z > 0) {
       // Ball on player's side moving away — drift toward neutral position
       aiTargetX *= 0.9; // ease toward center
-      aiTargetZ = -COURT_LENGTH / 2 - 0.8; // back behind baseline
+      aiTargetZ = homeZ;
     }
 
     // Move toward target X with acceleration (but not during serve)
@@ -1760,6 +1827,45 @@ export function useGameEngine() {
     );
     refs.aiPos.z = THREE.MathUtils.clamp(refs.aiPos.z, CLAMP_AI_BACK, -0.3);
 
+    // AI jump — only when the ball arrives over head height inside lateral
+    // reach and the AI is outside the NVZ (jumping into the kitchen mid-
+    // volley would be a 9.B fault anyway)
+    if (
+      cfg.canJump &&
+      refs.aiPos.y <= 0.01 &&
+      aiJumpVel === 0 &&
+      refs.ballVel.z < 0 &&
+      refs.aiPos.z < -KITCHEN_DEPTH - LINE_HALF &&
+      // Two-bounce rule: while the return must still bounce, any mid-air
+      // contact is a volley fault — never jump then
+      (rallyHitCount >= 3 || ballBouncedOnSide)
+    ) {
+      const t = (refs.aiPos.z - refs.ballPos.z) / refs.ballVel.z;
+      if (t > 0 && t < 0.42) {
+        const yAtAI =
+          refs.ballPos.y + refs.ballVel.y * t + 0.5 * GRAVITY * t * t;
+        const xAtAI = refs.ballPos.x + refs.ballVel.x * t;
+        if (
+          yAtAI > 1.3 &&
+          yAtAI < 1.95 &&
+          Math.abs(xAtAI - refs.aiPos.x) < 0.9
+        ) {
+          aiJumpVel = JUMP_VELOCITY;
+          aiTakeoffZ = refs.aiPos.z;
+          if (isPvP.value) hostPlaySfx('jump');
+          else sound.jump();
+        }
+      }
+    }
+    if (aiJumpVel !== 0 || refs.aiPos.y > 0) {
+      aiJumpVel += JUMP_GRAVITY * dt;
+      refs.aiPos.y += aiJumpVel * dt;
+      if (refs.aiPos.y <= 0) {
+        refs.aiPos.y = 0;
+        aiJumpVel = 0;
+      }
+    }
+
     // Post-volley momentum kitchen fault check (AI, only when grounded)
     if (
       postVolleyMomentum &&
@@ -1771,7 +1877,11 @@ export function useGameEngine() {
         postVolleyMomentum = null;
       } else {
         const z = refs.aiPos.z;
-        if (z < 0 && z > -KITCHEN_DEPTH) {
+        if (
+          z < 0 &&
+          z + FOOT_HALF > -KITCHEN_DEPTH - LINE_HALF &&
+          Math.abs(refs.aiPos.x) <= HALF_COURT_W
+        ) {
           postVolleyMomentum = null;
           scorePoint('player', 'Momentum fault!');
           return;
@@ -1891,11 +2001,24 @@ export function useGameEngine() {
     }
 
     // Kitchen volley fault: if ball hasn't bounced and player is in kitchen
+    // (the NVZ line itself is part of the kitchen). Contact is judged by
+    // the foot edge nearest the net — a toe over the line is a fault —
+    // and while airborne we use the takeoff spot, since you can't be "in"
+    // the kitchen mid-jump (but jumping from inside it is still a fault).
     if (!ballBouncedOnSide) {
-      const z = pos.z;
-      const inKitchen = isPlayer
-        ? z > 0 && z < KITCHEN_DEPTH
-        : z < 0 && z > -KITCHEN_DEPTH;
+      const effZ =
+        pos.y > 0.01
+          ? isPlayer
+            ? playerTakeoffZ
+            : isRemotePlayer
+              ? remoteTakeoffZ
+              : aiTakeoffZ
+          : pos.z;
+      const inKitchen =
+        Math.abs(pos.x) <= HALF_COURT_W &&
+        (isPlayer
+          ? effZ - FOOT_HALF < KITCHEN_DEPTH + LINE_HALF && effZ > 0
+          : effZ + FOOT_HALF > -KITCHEN_DEPTH - LINE_HALF && effZ < 0);
       if (inKitchen) {
         scorePoint(isPlayer ? 'ai' : 'player', 'Kitchen fault!');
         return true;
@@ -2043,6 +2166,7 @@ export function useGameEngine() {
     ballClippedNet = false;
     currentSide = isPlayer ? 'ai' : 'player';
     aiDinkRead = null;
+    aiOutRead = null;
 
     if (wasVolley) {
       postVolleyMomentum = {
@@ -2249,9 +2373,12 @@ export function useGameEngine() {
       ballBouncedOnSide = true;
       hostPlaySfx('ballBounce');
 
-      // Check if bounce is in or out of bounds
-      const bounceOutX = Math.abs(refs.ballPos.x) > HALF_COURT_W;
-      const bounceOutZ = Math.abs(refs.ballPos.z) > HALF_COURT_L;
+      // Check if bounce is in or out of bounds — the line is in, so a ball
+      // is out only when it fully clears the line's outer edge
+      const bounceOutX =
+        Math.abs(refs.ballPos.x) > HALF_COURT_W + LINE_HALF + BALL_RADIUS;
+      const bounceOutZ =
+        Math.abs(refs.ballPos.z) > HALF_COURT_L + LINE_HALF + BALL_RADIUS;
       const bounceIsOut = bounceOutX || bounceOutZ;
 
       // In PvP, host scores faults on its own side immediately via scorePoint.
@@ -2320,20 +2447,22 @@ export function useGameEngine() {
           else delayedBounceFault(opponentSide, 'Short serve!', faultOnGuest);
           return;
         }
-        // Check if serve landed out of bounds
+        // Check if serve landed out of bounds (line is in)
         if (
-          Math.abs(refs.ballPos.x) > HALF_COURT_W ||
-          Math.abs(refs.ballPos.z) > HALF_COURT_L
+          Math.abs(refs.ballPos.x) > HALF_COURT_W + LINE_HALF + BALL_RADIUS ||
+          Math.abs(refs.ballPos.z) > HALF_COURT_L + LINE_HALF + BALL_RADIUS
         ) {
           if (hostOwnsFaults) scorePoint(opponentSide, 'Serve out!');
           else delayedBounceFault(opponentSide, 'Serve out!', faultOnGuest);
           return;
         }
-        // Check if serve landed in kitchen
+        // Check if serve landed in kitchen — the kitchen line belongs to
+        // the NVZ, so a serve touching it is a fault
         const inKitchen =
           opponentSide === 'player'
-            ? refs.ballPos.z > 0 && refs.ballPos.z < KITCHEN_DEPTH
-            : refs.ballPos.z < 0 && refs.ballPos.z > -KITCHEN_DEPTH;
+            ? refs.ballPos.z > 0 && refs.ballPos.z < KITCHEN_DEPTH + LINE_HALF
+            : refs.ballPos.z < 0 &&
+              refs.ballPos.z > -KITCHEN_DEPTH - LINE_HALF;
         if (inKitchen) {
           if (hostOwnsFaults) scorePoint(opponentSide, 'Serve into kitchen!');
           else
@@ -2367,8 +2496,13 @@ export function useGameEngine() {
               );
             return;
           }
-          // Ball must land diagonally (opposite X side from server)
-          const landedSameXSide = refs.ballPos.x > 0 === serveFromX > 0;
+          // Ball must land diagonally (opposite X side from server).
+          // The center service line belongs to both boxes — a serve
+          // touching it is in.
+          const landedSameXSide =
+            serveFromX > 0
+              ? refs.ballPos.x > LINE_HALF
+              : refs.ballPos.x < -LINE_HALF;
           if (landedSameXSide) {
             if (hostOwnsFaults) scorePoint(opponentSide, 'Wrong court!');
             else delayedBounceFault(opponentSide, 'Wrong court!', faultOnGuest);
@@ -2495,6 +2629,7 @@ export function useGameEngine() {
       bounceCountThisSide = 0;
       ballBouncedOnSide = false;
       aiDinkRead = null;
+      aiOutRead = null;
     }
 
     // Try hits — enforce pickleball rules (volley fault if ball hits body before bounce)
@@ -2752,6 +2887,7 @@ export function useGameEngine() {
     // Jump physics (remote player)
     if (remoteInput.jump && refs.aiPos.y <= 0.01) {
       remoteJumpVel = JUMP_VELOCITY;
+      remoteTakeoffZ = refs.aiPos.z;
       if (isPvP.value) hostPlaySfx('jump');
     }
     remoteInput.jump = false; // consume jump request
@@ -2784,7 +2920,11 @@ export function useGameEngine() {
         postVolleyMomentum = null;
       } else {
         const z = refs.aiPos.z;
-        if (z < 0 && z > -KITCHEN_DEPTH) {
+        if (
+          z < 0 &&
+          z + FOOT_HALF > -KITCHEN_DEPTH - LINE_HALF &&
+          Math.abs(refs.aiPos.x) <= HALF_COURT_W
+        ) {
           postVolleyMomentum = null;
           scorePoint('player', 'Momentum fault!');
           return;
