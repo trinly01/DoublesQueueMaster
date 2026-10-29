@@ -135,31 +135,31 @@
         <q-chip dense color="grey-6" text-color="white" size="xs">
           Beginner
           <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-            >&lt; 1400</q-tooltip
+            >{{ hideInternalRating ? '< 3.00' : '< 1400' }}</q-tooltip
           >
         </q-chip>
         <q-chip dense color="blue-6" text-color="white" size="xs">
           Intermediate
           <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-            >1400–1699</q-tooltip
+            >{{ hideInternalRating ? '3.00–3.99' : '1400–1699' }}</q-tooltip
           >
         </q-chip>
         <q-chip dense color="green-6" text-color="white" size="xs">
           Advanced
           <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-            >1700–1899</q-tooltip
+            >{{ hideInternalRating ? '4.00–4.99' : '1700–1899' }}</q-tooltip
           >
         </q-chip>
         <q-chip dense color="amber-7" text-color="white" size="xs">
           Expert
           <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-            >1900–2099</q-tooltip
+            >{{ hideInternalRating ? '5.00–5.99' : '1900–2099' }}</q-tooltip
           >
         </q-chip>
         <q-chip dense color="red-7" text-color="white" size="xs">
           Pro
           <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
-            >2100+</q-tooltip
+            >{{ hideInternalRating ? '6.00+' : '2100+' }}</q-tooltip
           >
         </q-chip>
       </div>
@@ -348,6 +348,15 @@
                     </template>
                   </q-tooltip>
                 </q-chip>
+                <q-chip
+                  v-if="duprChipRating(player) !== null"
+                  :label="duprChipRating(player)!.toFixed(3)"
+                  color="blue-9"
+                  text-color="white"
+                  size="sm"
+                  dense
+                  class="text-weight-bold q-mb-xs q-ml-xs"
+                />
               </div>
               <div class="text-caption">
                 <span
@@ -545,6 +554,7 @@ import {
   getRatingColor,
   showRatingChip,
   ratingChipText,
+  duprChipRating,
 } from '../../utils/playerHelpers';
 import { useProFeatures } from '../../composables/useProFeatures';
 import { useDupr } from '../../composables/useDupr';

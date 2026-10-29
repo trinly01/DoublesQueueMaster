@@ -99,22 +99,14 @@ export const toDuprScale = (rating: number): number =>
   Math.min(8, Math.max(2, 3.0 + (rating - 1400) / 220));
 
 /**
- * Player has no usable DUPR identity — no linked DUPR id, or linked but no
- * rating on record (doubles or singles). Such players would otherwise show
- * no rating at all while hide_internal_rating is set.
- */
-export const lacksDuprRating = (p: { duprId?: string | null }): boolean =>
-  !p.duprId ||
-  (DuprServiceInstance.duprDoublesOf(p.duprId) === null &&
-    DuprServiceInstance.duprSinglesOf(p.duprId) === null);
-
-/**
- * Should the internal-rating chip render for this player? Yes when internal
- * ratings aren't hidden, or when the player has no DUPR rating to show
- * instead — in that case the chip shows the converted DUPR-like value.
+ * Should the internal-rating chip render for this player? Only when they
+ * have no DUPR doubles rating to show instead — the blue DUPR chip covers
+ * those players, so each player displays exactly one rating. When
+ * hide_internal_rating is set, the chip shows the converted DUPR-like
+ * value; otherwise it shows raw Dink Points.
  */
 export const showRatingChip = (p: { duprId?: string | null }): boolean =>
-  !DuprServiceInstance.hideInternalRating || lacksDuprRating(p);
+  duprChipRating(p) === null;
 
 /**
  * Text to render inside the chip: raw Dink Points while ratings are visible,
@@ -128,6 +120,33 @@ export const ratingChipText = (
   return DuprServiceInstance.hideInternalRating
     ? toDuprScale(r).toFixed(2)
     : String(Math.round(r));
+};
+
+/**
+ * Tier-name mapping on the DUPR-like 2.0–8.0 display scale — for values
+ * already expressed on that scale (converted internals or a real DUPR
+ * rating): Beginner <3, Intermediate <4, Advanced <5, Expert <6, Pro 6+.
+ */
+export const duprScaleCategory = (d: number): string => {
+  if (d < 3) return 'Beginner';
+  if (d < 4) return 'Intermediate';
+  if (d < 5) return 'Advanced';
+  if (d < 6) return 'Expert';
+  return 'Pro';
+};
+
+/**
+ * Tier name for the displayed rating. When internal ratings are hidden the
+ * chip shows the converted 2.0–8.0 value, so the tier is read on that
+ * scale's bands — otherwise the internal bands apply.
+ */
+export const ratingChipCategory = (
+  rating: number | undefined | null,
+): string => {
+  const r = rating ?? 1450;
+  return DuprServiceInstance.hideInternalRating
+    ? duprScaleCategory(toDuprScale(r))
+    : getRatingCategory(r);
 };
 
 /**
