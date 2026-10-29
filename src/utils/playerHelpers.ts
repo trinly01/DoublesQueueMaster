@@ -90,6 +90,47 @@ export const duprSinglesRating = (p: {
 }): number | null => DuprServiceInstance.duprSinglesOf(p.duprId);
 
 /**
+ * Internal rating mapped onto a DUPR-like 2.0–8.0 display scale. Anchored to
+ * the skill tiers so they land on familiar bands: beginner seed 1400 -> 3.0,
+ * ~220 Dink Points per rating point. Display-only — never used for
+ * matchmaking or persisted anywhere.
+ */
+export const toDuprScale = (rating: number): number =>
+  Math.min(8, Math.max(2, 3.0 + (rating - 1400) / 220));
+
+/**
+ * Player has no usable DUPR identity — no linked DUPR id, or linked but no
+ * rating on record (doubles or singles). Such players would otherwise show
+ * no rating at all while hide_internal_rating is set.
+ */
+export const lacksDuprRating = (p: { duprId?: string | null }): boolean =>
+  !p.duprId ||
+  (DuprServiceInstance.duprDoublesOf(p.duprId) === null &&
+    DuprServiceInstance.duprSinglesOf(p.duprId) === null);
+
+/**
+ * Should the internal-rating chip render for this player? Yes when internal
+ * ratings aren't hidden, or when the player has no DUPR rating to show
+ * instead — in that case the chip shows the converted DUPR-like value.
+ */
+export const showRatingChip = (p: { duprId?: string | null }): boolean =>
+  !DuprServiceInstance.hideInternalRating || lacksDuprRating(p);
+
+/**
+ * Text to render inside the chip: raw Dink Points while ratings are visible,
+ * the converted 2.0–8.0 value when they're hidden (no-DUPR players only —
+ * players with a real DUPR rating don't reach this chip).
+ */
+export const ratingChipText = (
+  rating: number | undefined | null,
+): string => {
+  const r = rating ?? 1450;
+  return DuprServiceInstance.hideInternalRating
+    ? toDuprScale(r).toFixed(2)
+    : String(Math.round(r));
+};
+
+/**
  * Get the category name for a player rating.
  * Tiers: Beginner, Intermediate, Advanced, Expert, Pro.
  */

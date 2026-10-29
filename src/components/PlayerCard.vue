@@ -151,8 +151,8 @@
           }}%</span
         >
         <q-chip
-          v-if="(!sortBy || sortBy !== 'winRate') && !hideInternalRating"
-          :label="player.rating"
+          v-if="(!sortBy || sortBy !== 'winRate') && showRatingChip(player)"
+          :label="ratingChipText(player.rating)"
           :color="getRatingColor(player.rating ?? 1450)"
           text-color="white"
           size="xs"
@@ -301,6 +301,8 @@ import {
   linkPairColor,
   duprChipRating,
   duprSinglesRating,
+  showRatingChip,
+  ratingChipText,
 } from '../utils/playerHelpers';
 import { useDupr } from '../composables/useDupr';
 import type { Player as BasePlayer } from '../services/matchmaking';

@@ -627,8 +627,8 @@
                       member.firstName || member.username || 'Unknown'
                     }}</q-item-label>
                     <q-chip
-                      v-if="!hideInternalRating"
-                      :label="member.rating ?? 1450"
+                      v-if="showRatingChip(member)"
+                      :label="ratingChipText(member.rating ?? 1450)"
                       :color="getRatingColor(member.rating ?? 1450)"
                       text-color="white"
                       size="xs"
@@ -728,8 +728,8 @@
                       member.firstName || member.username || 'Unknown'
                     }}</q-item-label>
                     <q-chip
-                      v-if="!hideInternalRating"
-                      :label="member.rating ?? 1450"
+                      v-if="showRatingChip(member)"
+                      :label="ratingChipText(member.rating ?? 1450)"
                       :color="getRatingColor(member.rating ?? 1450)"
                       text-color="white"
                       size="xs"
@@ -847,8 +847,8 @@
                       member.firstName || member.username || 'Unknown'
                     }}</q-item-label>
                     <q-chip
-                      v-if="!hideInternalRating"
-                      :label="member.rating ?? 1450"
+                      v-if="showRatingChip(member)"
+                      :label="ratingChipText(member.rating ?? 1450)"
                       :color="getRatingColor(member.rating ?? 1450)"
                       text-color="white"
                       size="xs"
@@ -1050,8 +1050,9 @@ import {
   formatDateOnly,
   duprChipRating,
   duprSinglesRating,
+  showRatingChip,
+  ratingChipText,
 } from '../../utils/playerHelpers';
-import { useDupr } from '../../composables/useDupr';
 import {
   COMMEND_ITEMS,
   REPORT_ITEMS,
@@ -1059,7 +1060,6 @@ import {
   type ReportItem,
 } from '../../services/playerReport';
 
-const hideInternalRating = computed(() => useDupr().hideInternalRating);
 
 interface ActionLog {
   id: string;

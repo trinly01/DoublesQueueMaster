@@ -316,7 +316,7 @@
             <q-item-section side class="text-right" style="min-width: 0">
               <div class="row items-center justify-end no-wrap">
                 <q-chip
-                  v-if="!hideInternalRating"
+                  v-if="showRatingChip(player)"
                   :color="getRatingColor(player.rating || 1450)"
                   text-color="white"
                   size="sm"
@@ -328,7 +328,7 @@
                     class="provisional-dot q-mr-xs"
                     ><span class="provisional-dot-inner"
                   /></span>
-                  {{ player.score }}
+                  {{ ratingChipText(player.score) }}
                   <q-tooltip
                     v-if="player.provisional !== undefined"
                     anchor="center left"
@@ -491,7 +491,7 @@
               </div>
             </q-item-section>
             <q-item-section
-              v-if="!hideInternalRating"
+              v-if="showRatingChip(duo)"
               side
               class="text-right duo-rating-col"
             >
@@ -502,7 +502,7 @@
                 dense
                 class="text-weight-bold"
               >
-                {{ Math.round(duo.duoScore) }}
+                {{ ratingChipText(duo.duoScore) }}
                 <q-tooltip
                   anchor="center left"
                   self="center right"
@@ -541,7 +541,11 @@
 import { ref, computed, watch } from 'vue';
 import PlayerAvatar from '../PlayerAvatar.vue';
 import PayBanner from '../PayBanner.vue';
-import { getRatingColor } from '../../utils/playerHelpers';
+import {
+  getRatingColor,
+  showRatingChip,
+  ratingChipText,
+} from '../../utils/playerHelpers';
 import { useProFeatures } from '../../composables/useProFeatures';
 import { useDupr } from '../../composables/useDupr';
 
@@ -561,6 +565,7 @@ const props = defineProps<{
     firstName?: string;
     avatar?: string;
     rating?: number;
+    duprId?: string;
     score: number;
     games: number;
     wins?: number;
@@ -577,6 +582,7 @@ const props = defineProps<{
     lastName?: string;
     avatar?: string;
     rating: number;
+    duprId?: string;
     score?: number;
     games?: number;
     wins?: number;
@@ -595,6 +601,7 @@ const props = defineProps<{
     lastName?: string;
     avatar?: string;
     rating: number;
+    duprId?: string;
     score?: number;
     games?: number;
     wins?: number;

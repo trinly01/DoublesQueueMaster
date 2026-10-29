@@ -32,8 +32,8 @@
             @{{ blurText(player.username, player.username) }}
           </span>
           <q-chip
-            v-if="player.rating !== undefined && !hideInternalRating"
-            :label="player.rating"
+            v-if="player.rating !== undefined && showRatingChip(player)"
+            :label="ratingChipText(player.rating)"
             :color="getRatingColor(player.rating)"
             text-color="white"
             size="xs"
@@ -213,8 +213,8 @@
             @{{ blurText(player.username, player.username) }}
           </span>
           <q-chip
-            v-if="player.rating !== undefined && !hideInternalRating"
-            :label="player.rating"
+            v-if="player.rating !== undefined && showRatingChip(player)"
+            :label="ratingChipText(player.rating)"
             :color="getRatingColor(player.rating)"
             text-color="white"
             size="xs"
@@ -288,11 +288,11 @@ import {
   formatDate,
   duprChipRating,
   duprSinglesRating,
+  showRatingChip,
+  ratingChipText,
 } from '../utils/playerHelpers';
-import { useDupr } from '../composables/useDupr';
 import MatchMetaChips from './MatchMetaChips.vue';
 
-const hideInternalRating = computed(() => useDupr().hideInternalRating);
 
 const props = withDefaults(
   defineProps<{

@@ -49,8 +49,8 @@
               @{{ player.username }}
             </span>
             <q-chip
-              v-if="!hideInternalRating"
-              :label="player.rating"
+              v-if="showRatingChip(player)"
+              :label="ratingChipText(player.rating)"
               :color="getRatingColor(player.rating)"
               text-color="white"
               size="xs"
@@ -175,8 +175,8 @@
               @{{ player.username }}
             </span>
             <q-chip
-              v-if="!hideInternalRating"
-              :label="player.rating"
+              v-if="showRatingChip(player)"
+              :label="ratingChipText(player.rating)"
               :color="getRatingColor(player.rating)"
               text-color="white"
               size="xs"
@@ -333,19 +333,19 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
 import { useNowTicker } from '../composables/useNowTicker';
-import { useDupr } from '../composables/useDupr';
 import {
   getRatingColor,
   getMatchStatusLabel,
   formatDate,
   duprChipRating,
   duprSinglesRating,
+  showRatingChip,
+  ratingChipText,
 } from '../utils/playerHelpers';
 import type { Player } from '../services/matchmaking';
 import MatchMetaChips from './MatchMetaChips.vue';
 
 const isReadOnlyMode = inject('isReadOnlyMode', false);
-const hideInternalRating = computed(() => useDupr().hideInternalRating);
 
 interface Match {
   id: string;
