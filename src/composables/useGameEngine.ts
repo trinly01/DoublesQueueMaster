@@ -1731,10 +1731,18 @@ export function useGameEngine() {
             (bounceZ === null || hittableZ > bounceZ) &&
             hittableZ < -KITCHEN_DEPTH - LINE_HALF - 0.3;
           if (letItGo) {
-            // Out-ball — sidestep off the ball's line and let it sail
-            aiTargetX =
-              refs.aiPos.x + (refs.aiPos.x >= refs.ballPos.x ? 1.2 : -1.2);
+            // Out-ball — let it sail, but only get off the line if the
+            // flight would actually cross the AI's body
             aiTargetZ = homeZ;
+            aiTargetX = refs.aiPos.x; // hold ground unless ball hits the lane
+            const tDodge = (refs.aiPos.z - refs.ballPos.z) / refs.ballVel.z;
+            if (tDodge > 0 && tDodge < 1.0) {
+              const xAtAI = refs.ballPos.x + refs.ballVel.x * tDodge;
+              if (Math.abs(xAtAI - refs.aiPos.x) < 0.9) {
+                aiTargetX =
+                  refs.aiPos.x + (xAtAI > refs.aiPos.x ? -1.2 : 1.2);
+              }
+            }
           } else if (volleySpot && hittableZ !== null) {
             // Ball reaches hittable height before bouncing — go volley it
             aiTargetX = hittableX;
