@@ -160,17 +160,23 @@
             v-if="duprDoublesRating === null"
             class="rating-badge"
             :style="{
-              background: getRatingGradient(ratingColor),
+              background: isRated
+                ? getRatingGradient(ratingColor)
+                : 'linear-gradient(135deg, #9e9e9e, #757575)',
               width: '100%',
               display: 'flex',
             }"
           >
             <div class="column items-center">
               <span class="text-h4 text-weight-bold text-white">{{
-                ratingChipText(playerRating)
+                isRated ? ratingChipText(playerRating) : 'NR'
               }}</span>
               <span class="text-caption text-white">{{
-                hideInternalRating ? 'Rating' : 'Dink Points'
+                isRated
+                  ? hideInternalRating
+                    ? 'Rating'
+                    : 'Dink Points'
+                  : 'Not Rated'
               }}</span>
             </div>
           </div>
@@ -1936,6 +1942,15 @@ const replayGames = computed(() => {
     matchesLeaderboard.value.find((p) => p.username === u)?.games ?? 0
   );
 });
+// Lifetime games (all fetched matches, not just the 30-day window) decides
+// whether the identity badge shows a rating at all — under the threshold the
+// stored value is still just the seed, so the badge shows NR like DUPR does.
+const lifetimeGames = computed(
+  () => PlayerProfile.state.completedMatches?.length ?? 0,
+);
+const isRated = computed(
+  () => lifetimeGames.value >= CLUB_RANKING_CONFIG.provisionalThreshold,
+);
 const replayReliable = computed(
   () => replayGames.value >= CLUB_RANKING_CONFIG.provisionalThreshold,
 );
