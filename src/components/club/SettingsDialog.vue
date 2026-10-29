@@ -320,7 +320,7 @@
                   >
                     <div class="data-mgmt-text">
                       <div class="data-mgmt-title">Clear Matches</div>
-                      <div class="data-mgmt-sub">ends active games</div>
+                      <div class="data-mgmt-sub">ends live games</div>
                     </div>
                   </q-btn>
                 </div>
@@ -335,7 +335,7 @@
                   >
                     <div class="data-mgmt-text">
                       <div class="data-mgmt-title">Clear Queue</div>
-                      <div class="data-mgmt-sub">everyone leaves the queue</div>
+                      <div class="data-mgmt-sub">all leave queue</div>
                     </div>
                   </q-btn>
                 </div>
@@ -353,7 +353,7 @@
                   >
                     <div class="data-mgmt-text">
                       <div class="data-mgmt-title">Reset Stats</div>
-                      <div class="data-mgmt-sub">wins/losses to 0</div>
+                      <div class="data-mgmt-sub">W/L to 0</div>
                     </div>
                   </q-btn>
                 </div>
@@ -368,7 +368,7 @@
                   >
                     <div class="data-mgmt-text">
                       <div class="data-mgmt-title">Restart Session</div>
-                      <div class="data-mgmt-sub">keeps players</div>
+                      <div class="data-mgmt-sub">players stay</div>
                     </div>
                   </q-btn>
                 </div>
@@ -382,8 +382,8 @@
                     style="min-height: 84px"
                   >
                     <div class="data-mgmt-text">
-                      <div class="data-mgmt-title">Delete Everything</div>
-                      <div class="data-mgmt-sub">removes all players</div>
+                      <div class="data-mgmt-title">Delete All</div>
+                      <div class="data-mgmt-sub">removes players</div>
                     </div>
                   </q-btn>
                 </div>
@@ -1331,36 +1331,4 @@ function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
   opacity: 0.72;
 }
 
-@media (max-width: 599px) {
-  .data-mgmt-grid > .col {
-    flex: 0 0 100%;
-    max-width: 100%;
-  }
-
-  .data-mgmt-btn {
-    min-height: 0 !important;
-  }
-
-  .data-mgmt-btn :deep(.q-btn__content) {
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 10px;
-    padding: 10px 14px;
-    text-align: left;
-  }
-
-  .data-mgmt-text {
-    align-items: flex-start;
-    gap: 2px;
-  }
-
-  .data-mgmt-title {
-    font-size: 0.8rem;
-    font-weight: 600;
-  }
-
-  .data-mgmt-sub {
-    font-size: 0.7rem;
-  }
-}
 </style>
