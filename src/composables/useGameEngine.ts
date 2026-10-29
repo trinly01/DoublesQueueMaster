@@ -57,6 +57,7 @@ interface AIConfig {
   aiMagnet: number; // 0..1, how tightly AI tracks ball X (hard = more)
   canJump: boolean; // can jump to reach high balls
   advancedPos: number; // 0..1, how far home shifts from baseline to NVZ line
+  chaseBoost: number; // max lateral speed multiplier when chasing wide shots
 }
 
 const PLAYER_MAX_SPEED = 3.5;
@@ -76,6 +77,7 @@ const AI_CONFIGS: Record<Difficulty, AIConfig> = {
     aiMagnet: 0,
     canJump: false,
     advancedPos: 0,
+    chaseBoost: 1.3,
   },
   // Medium: the default fun — jumps for lobs, holds mid-court,
   // real placement, still exploitable at the net
@@ -91,6 +93,7 @@ const AI_CONFIGS: Record<Difficulty, AIConfig> = {
     aiMagnet: 0.4,
     canJump: true,
     advancedPos: 0.55,
+    chaseBoost: 1.6,
   },
   // Hard: real pickleball — kitchen line, overheads, tight tracking,
   // small miss floor so elite placement still wins
@@ -106,6 +109,7 @@ const AI_CONFIGS: Record<Difficulty, AIConfig> = {
     aiMagnet: 0.8,
     canJump: true,
     advancedPos: 1,
+    chaseBoost: 1.9,
   },
 };
 
@@ -1798,11 +1802,18 @@ export function useGameEngine() {
       refs.ballPos.z < 0 &&
       Math.abs(refs.ballPos.z) < KITCHEN_DEPTH + 1;
     const speedMul = chasingDink ? 1.8 : approachingDink ? 1.4 : 1;
+    // Wide-shot chase: the further the target lane from the AI, the
+    // harder it runs laterally (diagonal retrieval), capped per tier
+    const dxNeed = Math.abs(aiTargetX - refs.aiPos.x);
+    const wideMul =
+      refs.ballVel.z < 0 && dxNeed > 1.0
+        ? Math.min(1 + dxNeed * 0.25, cfg.chaseBoost)
+        : 1;
     if (!servePending.value) {
       const targetVx = THREE.MathUtils.clamp(
         (aiTargetX - refs.aiPos.x) * 3,
-        -cfg.speed * speedMul,
-        cfg.speed * speedMul,
+        -cfg.speed * speedMul * wideMul,
+        cfg.speed * speedMul * wideMul,
       );
       aiCurrentVel.x = THREE.MathUtils.damp(
         aiCurrentVel.x,
