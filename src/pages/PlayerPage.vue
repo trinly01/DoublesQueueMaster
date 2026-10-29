@@ -160,23 +160,17 @@
             v-if="duprDoublesRating === null"
             class="rating-badge"
             :style="{
-              background: isRated
-                ? getRatingGradient(ratingColor)
-                : 'linear-gradient(135deg, #9e9e9e, #757575)',
+              background: getRatingGradient(ratingColor),
               width: '100%',
               display: 'flex',
             }"
           >
             <div class="column items-center">
               <span class="text-h4 text-weight-bold text-white">{{
-                isRated ? ratingChipText(playerRating) : 'NR'
+                ratingChipText(playerRating)
               }}</span>
               <span class="text-caption text-white">{{
-                isRated
-                  ? hideInternalRating
-                    ? 'Rating'
-                    : 'Dink Points'
-                  : 'Not Rated'
+                hideInternalRating ? 'Rating' : 'Dink Points'
               }}</span>
             </div>
           </div>
@@ -228,12 +222,14 @@
             </q-popup-proxy>
             <q-icon name="analytics" size="16px" class="q-mr-xs text-white" />
             <span class="replay-rating-value">{{
-              replayReliable ? ratingChipText(replayRating) : 'NR'
+              replayRating !== null ? ratingChipText(replayRating) : 'NR'
             }}</span>
             <span class="replay-rating-label">{{
               replayReliable
                 ? replayRatingCategory
-                : `Not Rated · ${replayGames}/${CLUB_RANKING_CONFIG.provisionalThreshold}`
+                : replayRating !== null
+                  ? `Provisional · ${replayGames}/${CLUB_RANKING_CONFIG.provisionalThreshold}`
+                  : 'Not Rated'
             }}</span>
           </q-btn>
 
@@ -1942,15 +1938,7 @@ const replayGames = computed(() => {
     matchesLeaderboard.value.find((p) => p.username === u)?.games ?? 0
   );
 });
-// Lifetime games (all fetched matches, not just the 30-day window) decides
-// whether the identity badge shows a rating at all — under the threshold the
-// stored value is still just the seed, so the badge shows NR like DUPR does.
-const lifetimeGames = computed(
-  () => PlayerProfile.state.completedMatches?.length ?? 0,
-);
-const isRated = computed(
-  () => lifetimeGames.value >= CLUB_RANKING_CONFIG.provisionalThreshold,
-);
+
 const replayReliable = computed(
   () => replayGames.value >= CLUB_RANKING_CONFIG.provisionalThreshold,
 );
