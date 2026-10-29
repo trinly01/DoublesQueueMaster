@@ -409,8 +409,8 @@
                         <div class="lb-row">
                           <span class="lb-label">Daily events</span>
                           <span class="lb-desc"
-                            >wins, losses, and end-of-day rating (last 10 active
-                            days)</span
+                            >wins, losses, and end-of-day computed rating
+                            (last 10 active days)</span
                           >
                         </div>
                         <div class="lb-row">
@@ -685,6 +685,9 @@
                       size="md"
                     >
                       {{ ratingChipText(event.rating) }}
+                      <q-tooltip v-if="duprDoublesRating !== null"
+                        >Computed rating</q-tooltip
+                      >
                     </q-chip>
                   </q-item-section>
                 </q-item>
@@ -2388,12 +2391,16 @@ const initChart = () => {
     ? ratings.map((r) => (r == null ? r : +toDuprScale(r).toFixed(2)))
     : ratings;
   const seedLine = hidden ? toDuprScale(1450) : 1450;
+  // When the player has a real DUPR rating, the line is our engine's estimate,
+  // not their rating — label it "Computed" to match the stat cards.
+  const ratingName =
+    duprDoublesRating.value !== null ? 'Computed' : 'Rating';
 
   chartInstance = echarts.init(chartRef.value);
   chartInstance.setOption({
     tooltip: { trigger: 'axis' },
     legend: {
-      data: ['Wins', 'Losses', 'Rating'],
+      data: ['Wins', 'Losses', ratingName],
       bottom: 0,
       itemWidth: 12,
       itemHeight: 8,
@@ -2421,7 +2428,7 @@ const initChart = () => {
       },
       {
         type: 'value',
-        name: 'Rating',
+        name: ratingName,
         position: 'right',
         nameTextStyle: { fontSize: 10 },
         splitLine: { show: false },
@@ -2445,7 +2452,7 @@ const initChart = () => {
         data: losses,
       },
       {
-        name: 'Rating',
+        name: ratingName,
         type: 'line' as const,
         smooth: true,
         yAxisIndex: 1,
