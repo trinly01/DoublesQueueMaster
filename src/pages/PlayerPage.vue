@@ -127,19 +127,6 @@
             </q-tooltip>
           </q-btn>
 
-          <q-btn
-            color="amber-7"
-            text-color="purple-9"
-            icon="sports_esports"
-            label="Play 3D Game"
-            size="sm"
-            dense
-            rounded
-            class="full-width play-game-btn"
-            style="border-radius: 12px"
-            @click="router.push('/play')"
-          />
-
           <!-- DUPR badge — primary; always shown for linked players -->
           <div
             v-if="duprConnected"
@@ -268,6 +255,19 @@
             unelevated
             @click="router.push('/clubs')"
           />
+          <q-btn
+            label="Play 3D"
+            icon="sports_esports"
+            color="amber-8"
+            rounded
+            outline
+            class="play-game-btn"
+            @click="router.push('/play')"
+          >
+            <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+              >Play the 3D game</q-tooltip
+            >
+          </q-btn>
           <q-btn
             round
             outline
