@@ -2310,15 +2310,16 @@ const initChart = () => {
 
   // The rating line stays in the chart even when hideInternalRating hides
   // the chip — the tab is still labeled "Results" for DUPR compliance.
-  // When hidden, display the internal rating on a DUPR-like scale instead:
-  // seed 1450 ≈ 3.5, ~250 Dink Points per rating point, clamped to 2.0–8.0.
+  // When hidden, display the internal rating on a DUPR-like scale aligned
+  // to the skill tiers: beginner seed 1400 -> 3.0, ~220 Dink Points per
+  // rating point, clamped to 2.0-8.0.
   const hidden = hideInternalRating.value;
   const toDisplayRating = (r: number) =>
-    Math.min(8, Math.max(2, 3.5 + (r - 1450) / 250));
+    Math.min(8, Math.max(2, 3.0 + (r - 1400) / 220));
   const chartRatings = hidden
     ? ratings.map((r) => (r == null ? r : +toDisplayRating(r).toFixed(2)))
     : ratings;
-  const seedLine = hidden ? 3.5 : 1450;
+  const seedLine = hidden ? toDisplayRating(1450) : 1450;
 
   chartInstance = echarts.init(chartRef.value);
   chartInstance.setOption({
@@ -2388,7 +2389,7 @@ const initChart = () => {
           silent: true,
           symbol: 'none',
           label: {
-            formatter: hidden ? 'Seed (3.50)' : 'Seed (1450)',
+            formatter: hidden ? 'Seed (3.23)' : 'Seed (1450)',
             position: 'insideStartTop' as const,
             fontSize: 10,
             color: '#aaa',
