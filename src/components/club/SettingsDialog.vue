@@ -1305,11 +1305,17 @@ function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
   vertical-align: bottom;
 }
 
+.data-mgmt-btn {
+  height: 100%;
+}
+
 .data-mgmt-btn :deep(.q-btn__content) {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 4px;
+  height: 100%;
 }
 
 .data-mgmt-text {
