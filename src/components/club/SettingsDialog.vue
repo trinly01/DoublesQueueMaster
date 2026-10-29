@@ -367,7 +367,7 @@
                     style="min-height: 84px"
                   >
                     <div class="data-mgmt-text">
-                      <div class="data-mgmt-title">Restart Session</div>
+                      <div class="data-mgmt-title">New Session</div>
                       <div class="data-mgmt-sub">players stay</div>
                     </div>
                   </q-btn>
@@ -1319,6 +1319,8 @@ function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
 }
 
 .data-mgmt-title {
+  font-size: 0.8rem;
+  font-weight: 600;
   line-height: 1.2;
 }
 

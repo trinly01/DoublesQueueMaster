@@ -2142,6 +2142,20 @@ const duprExportableMatches = computed(() => {
 });
 
 /**
+ * Completed matches that could still be submitted to DUPR: every player has
+ * a DUPR ID and the match isn't already submitted/deleted. Used to warn
+ * before destructive ops that would lose them.
+ */
+const duprPendingSubmitMatches = computed(() =>
+  duprExportableMatches.value.filter(
+    (m) =>
+      isMatchDuprReady(m) &&
+      getDuprStatus(m.matchId) !== 'submitted' &&
+      getDuprStatus(m.matchId) !== 'deleted',
+  ),
+);
+
+/**
  * Fetch completed_match records from Directus to map matchId → match_key.
  * Also fetches DUPR submission statuses for the current club.
  */
@@ -3634,6 +3648,7 @@ const {
   resetAllData,
 } = useDataManagement({
   duprExportableMatches,
+  duprPendingSubmitMatches,
   clubName,
   routeParamsId,
   showSettingsDialog,

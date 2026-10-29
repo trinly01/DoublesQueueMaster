@@ -9,6 +9,8 @@ type NotifyFn = (opts: QNotifyCreateOptions) => void;
 
 export interface UseDataManagementContext {
   duprExportableMatches: ComputedRef<CompletedMatch[]> | Ref<CompletedMatch[]>;
+  /** Completed matches that are DUPR-eligible (all players have duprId) and not yet submitted. */
+  duprPendingSubmitMatches?: ComputedRef<CompletedMatch[]> | Ref<CompletedMatch[]>;
   clubName: ComputedRef<string> | Ref<string>;
   routeParamsId: ComputedRef<string | string[]> | Ref<string | string[]>;
   showSettingsDialog: Ref<boolean>;
@@ -20,6 +22,7 @@ export interface UseDataManagementContext {
 export function useDataManagement(context: UseDataManagementContext) {
   const {
     duprExportableMatches,
+    duprPendingSubmitMatches,
     clubName,
     routeParamsId,
     showSettingsDialog,
@@ -33,12 +36,14 @@ export function useDataManagement(context: UseDataManagementContext) {
 
   const clubId = computed(() => clubIdRef.value || '');
 
-  // Warn inside destructive-op dialogs when completed matches exist that
-  // haven't been submitted to DUPR yet — wiping them loses the export data.
+  // Warn inside destructive-op dialogs when DUPR-eligible matches (all
+  // players have DUPR IDs) haven't been submitted — wiping them loses them.
   const duprPendingWarning = () => {
-    const n = duprExportableMatches.value.length;
+    const n = (
+      duprPendingSubmitMatches ?? duprExportableMatches
+    ).value.length;
     return n > 0
-      ? `<br><br><span class="text-negative"><b>⚠ ${n} completed match${n === 1 ? '' : 'es'}</b> not yet submitted to DUPR — export the DUPR CSV first if you need them.</span>`
+      ? `<br><br><span class="text-negative"><b>⚠ ${n} DUPR-eligible match${n === 1 ? '' : 'es'}</b> not yet submitted — export the DUPR CSV or submit first.</span>`
       : '';
   };
 
@@ -233,7 +238,7 @@ export function useDataManagement(context: UseDataManagementContext) {
 
   const resetSessionData = () => {
     confirmWithClubId({
-      title: 'Restart Session',
+      title: 'New Session',
       message:
         'Same players stay — stats, matches, queue, and match history are cleared.<br><br>' +
         '• Player stats → reset to 0<br>' +
@@ -243,7 +248,7 @@ export function useDataManagement(context: UseDataManagementContext) {
         '• Match history → cleared from this session<br><br>' +
         'Players and ratings are kept. Match history in the cloud is not affected.' +
         duprPendingWarning(),
-      okLabel: 'Restart Session',
+      okLabel: 'New Session',
       okColor: 'negative',
       okIcon: 'restart_alt',
       onConfirm: () => {
