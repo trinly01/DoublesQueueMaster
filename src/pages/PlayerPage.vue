@@ -1539,12 +1539,12 @@ import QRCode from 'qrcode';
 import {
   resolveAvatarUrl,
   getRatingColor,
-  getRatingCategory,
   formatDate,
   formatDateOnly,
   wilsonLowerBound,
   showRatingChip,
   ratingChipText,
+  ratingChipCategory,
   toDuprScale,
 } from 'src/utils/playerHelpers';
 import {
@@ -1854,7 +1854,7 @@ const replayRatingColor = computed(() =>
   replayRating.value !== null ? getRatingColor(replayRating.value) : '',
 );
 const replayRatingCategory = computed(() =>
-  replayRating.value !== null ? getRatingCategory(replayRating.value) : '',
+  replayRating.value !== null ? ratingChipCategory(replayRating.value) : '',
 );
 
 const playerEvents = computed(() => PlayerProfile.state.events || []);
