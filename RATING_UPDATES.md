@@ -1,0 +1,76 @@
+# Rating Update Pipeline
+
+How a completed match turns into a rating change — and when it deliberately doesn't.
+
+## The rule
+
+A match updates **persisted ratings** only when ALL of these hold:
+
+| Gate | Where enforced |
+|---|---|
+| Mode is rated — Standard (`balanced_variety`), Competitive (`balance_first`), or Pro Pick (`strict_balance`) | Frontend + backend flow |
+| Score is decisive (no tie) | Frontend `completeMatch` blocks ties before submission; flow re-checks |
+| **Every** player has a linked account (`userId`) | Frontend + backend flow |
+
+Casual (`fair_balance`) and Social (`variety_first`) never update ratings — in
+any layer. A match with even one guest/manual player produces **no** rating
+writes for anyone — linked players are never partially updated. In all cases
+the completed match itself is still saved.
+
+## The layers
+
+```
+score entry → reportMatchScore (local state)
+            → cloud sync → save-completed-match flow
+            → directus_users.rating (LWW, via rating_updated_at)
+```
+
+### Frontend (`src/services/matchmaking.ts` → `reportMatchScore`)
+
+Runs `RatingEngine.calculateShift` for every completed match:
+
+- **Unrated mode** → `applyRatingChange=false`: wins/losses/matchesPlayed
+  increment, ratings untouched.
+- **Rated mode, all linked** → full local shift. The flow will persist the
+  same result to `directus_users`.
+- **Rated mode, mixed (≥1 unlinked player)** → guests keep the local shift
+  (a guest's local rating is the only rating they have — it feeds
+  matchmaking), but linked players' `rating`/`ratingUpdatedAt` are reverted
+  to pre-match values. Without this revert the scoring device would hold a
+  "phantom" rating newer than `directus_users`, diverging from every other
+  device until the player's next officially-rated match.
+
+The completed-match record stores the outcome in `meta`:
+
+```ts
+meta.ratingApplied:        boolean
+meta.ratingSkippedReason:  'unrated_mode' | 'unlinked_players'  // when false
+```
+
+This flows through to the backend record unchanged (`meta` is passed
+through), so the reason is inspectable anywhere the match is viewed.
+
+### Backend (Directus flow `daa0ffa5`, run-script op `77006b79`)
+
+Same gates, same constants, same allocation math. Returns:
+
+- `completedMatch` — **always** built and saved (score, teams, `meta`).
+- `newPlayersRatings` — `[]` when any gate fails, so the downstream
+  update-users step no-ops.
+
+`directus_users.rating` is only written by this flow. The frontend never
+PATCHes ratings; devices adopt them via LWW on `rating_updated_at`
+(`mergePlayerFromDB`).
+
+## Admin-facing signals
+
+| Surface | Signal |
+|---|---|
+| Score-entry dialog (`MatchResultDialog`) | Amber banner: "Ratings won't update — \<names\> have no linked account. Guests still get local rating movement." Grey banner on Casual/Social: "…mode doesn't update ratings." |
+| Completed-match card (`MatchMetaChips`) | Grey `Unrated` chip; tooltip states the reason (unlinked players vs. unrated mode) |
+
+## Constants (shared)
+
+`K=64` doubles / `36` singles · margin `0.15·log(1+margin)` · partner-gap
+factor `0.5` · underdog loss blend `1.0` · floor `100` · max partner
+allocation ratio `2.0`.

@@ -781,6 +781,8 @@
                             updatedAt: match.updatedAt,
                             duprStatus: getDuprStatus(match.id),
                             duprError: getDuprError(match.id),
+                            ratingApplied: match.ratingApplied,
+                            ratingSkippedReason: match.ratingSkippedReason,
                           }"
                         />
                       </q-item-section>
@@ -1397,6 +1399,8 @@
                             updatedAt: match.updatedAt,
                             duprStatus: getDuprStatus(match.id),
                             duprError: getDuprError(match.id),
+                            ratingApplied: match.ratingApplied,
+                            ratingSkippedReason: match.ratingSkippedReason,
                           }"
                         />
                       </q-item-section>
@@ -2130,6 +2134,11 @@ const matches = computed(() => {
         teamAScore: undefined as number | undefined,
         teamBScore: undefined as number | undefined,
         completedAt: undefined as string | undefined,
+        ratingApplied: undefined as boolean | undefined,
+        ratingSkippedReason: undefined as
+          | 'unrated_mode'
+          | 'unlinked_players'
+          | undefined,
       };
     });
 });
@@ -4039,6 +4048,8 @@ const completedMatchViewModels = computed(() => {
       originalMatchup: m.meta?.originalMatchup,
       originalTeamA: m.meta?.originalTeamA,
       originalTeamB: m.meta?.originalTeamB,
+      ratingApplied: m.meta?.ratingApplied,
+      ratingSkippedReason: m.meta?.ratingSkippedReason,
     };
   });
 });

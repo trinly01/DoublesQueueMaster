@@ -218,6 +218,8 @@
           originalTeamB: match.originalTeamB,
           createdAt: match.createdAt,
           updatedAt: match.updatedAt,
+          ratingApplied: match.ratingApplied,
+          ratingSkippedReason: match.ratingSkippedReason,
         }"
       />
       <!-- <div
@@ -373,6 +375,8 @@ interface Match {
   originalTeamA?: string;
   originalTeamB?: string;
   updatedAt?: Date | string | number;
+  ratingApplied?: boolean;
+  ratingSkippedReason?: 'unrated_mode' | 'unlinked_players';
 }
 
 interface Props {

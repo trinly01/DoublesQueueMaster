@@ -6,4 +6,5 @@ export interface TeamPlayer {
   level?: number;
   rating?: number;
   duprId?: string;
+  userId?: string;
 }
