@@ -145,7 +145,7 @@
             v-if="duprConnected"
             class="rating-badge"
             :style="{
-              background: 'linear-gradient(135deg,#1c7a3f,#0f5132)',
+              background: 'linear-gradient(135deg,#3a7be0,#1e3fa8)',
               width: '100%',
               display: 'flex',
             }"
@@ -1354,9 +1354,9 @@
 
               <!-- Connected state -->
               <div v-if="duprConnected" class="column q-gutter-xs">
-                <q-banner dense class="bg-green-1 text-green-8 rounded-borders">
+                <q-banner dense class="bg-blue-1 text-blue-9 rounded-borders">
                   <template v-slot:avatar>
-                    <q-icon name="verified" color="green" />
+                    <q-icon name="verified" color="blue" />
                   </template>
                   <div class="text-caption">
                     <div>DUPR ID: {{ duprId }}</div>
