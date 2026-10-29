@@ -572,34 +572,80 @@
               v-if="ratingVelocity"
               class="row q-col-gutter-sm q-mb-md"
             >
-              <div class="col-6">
-                <q-card flat bordered class="text-center q-pa-sm">
-                  <div class="text-h6 text-weight-bold">
-                    {{ ratingChipText(ratingVelocity.current) }}
-                  </div>
-                  <div class="text-caption text-grey-8">Current Rating</div>
-                </q-card>
-              </div>
-              <div class="col-6">
-                <q-card flat bordered class="text-center q-pa-sm">
-                  <div
-                    class="text-h6 text-weight-bold"
-                    :class="
-                      ratingVelocity.change >= 0
-                        ? 'text-positive'
-                        : 'text-negative'
-                    "
-                  >
-                    {{ ratingVelocity.change >= 0 ? '+' : ''
-                    }}{{
-                      hideInternalRating
-                        ? (ratingVelocity.change / 220).toFixed(2)
-                        : ratingVelocity.change
-                    }}
-                  </div>
-                  <div class="text-caption text-grey-8">Rating Change</div>
-                </q-card>
-              </div>
+              <template v-if="duprDoublesRating !== null">
+                <div class="col-4">
+                  <q-card flat bordered class="text-center q-pa-sm">
+                    <div class="text-h6 text-weight-bold">
+                      {{ duprDoublesRating.toFixed(2) }}
+                    </div>
+                    <div class="text-caption text-grey-8 ellipsis">
+                      DUPR<template v-if="duprSinglesRating !== null"
+                        > · S {{ duprSinglesRating.toFixed(2) }}</template
+                      >
+                    </div>
+                  </q-card>
+                </div>
+                <div class="col-4">
+                  <q-card flat bordered class="text-center q-pa-sm">
+                    <div class="text-h6 text-weight-bold">
+                      {{
+                        ratingChipText(replayRating ?? ratingVelocity.current)
+                      }}
+                    </div>
+                    <div class="text-caption text-grey-8">Computed (30d)</div>
+                  </q-card>
+                </div>
+                <div class="col-4">
+                  <q-card flat bordered class="text-center q-pa-sm">
+                    <div
+                      class="text-h6 text-weight-bold"
+                      :class="
+                        ratingVelocity.change >= 0
+                          ? 'text-positive'
+                          : 'text-negative'
+                      "
+                    >
+                      {{ ratingVelocity.change >= 0 ? '+' : ''
+                      }}{{
+                        hideInternalRating
+                          ? (ratingVelocity.change / 220).toFixed(2)
+                          : ratingVelocity.change
+                      }}
+                    </div>
+                    <div class="text-caption text-grey-8">Change (30d)</div>
+                  </q-card>
+                </div>
+              </template>
+              <template v-else>
+                <div class="col-6">
+                  <q-card flat bordered class="text-center q-pa-sm">
+                    <div class="text-h6 text-weight-bold">
+                      {{ ratingChipText(ratingVelocity.current) }}
+                    </div>
+                    <div class="text-caption text-grey-8">Current Rating</div>
+                  </q-card>
+                </div>
+                <div class="col-6">
+                  <q-card flat bordered class="text-center q-pa-sm">
+                    <div
+                      class="text-h6 text-weight-bold"
+                      :class="
+                        ratingVelocity.change >= 0
+                          ? 'text-positive'
+                          : 'text-negative'
+                      "
+                    >
+                      {{ ratingVelocity.change >= 0 ? '+' : ''
+                      }}{{
+                        hideInternalRating
+                          ? (ratingVelocity.change / 220).toFixed(2)
+                          : ratingVelocity.change
+                      }}
+                    </div>
+                    <div class="text-caption text-grey-8">Rating Change</div>
+                  </q-card>
+                </div>
+              </template>
             </div>
             <div
               ref="chartRef"
