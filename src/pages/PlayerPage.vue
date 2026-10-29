@@ -246,7 +246,7 @@
       </q-card-section>
 
       <q-card-section class="q-px-lg q-mt-sm text-center">
-        <div class="column items-center" style="width: 100%; gap: 8px">
+        <div class="column items-center" style="width: 240px; gap: 8px">
           <q-btn
             label="Browse Clubs"
             icon="groups"
