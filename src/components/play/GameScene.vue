@@ -80,7 +80,7 @@
       <TresMeshBasicMaterial
         :map="kitchenTextTexture"
         :transparent="true"
-        :opacity="0.7"
+        :opacity="0.75"
       />
     </TresMesh>
     <TresMesh
@@ -91,7 +91,7 @@
       <TresMeshBasicMaterial
         :map="kitchenTextTexture"
         :transparent="true"
-        :opacity="1"
+        :opacity="0.3"
       />
     </TresMesh>
 
