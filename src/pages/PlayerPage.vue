@@ -176,7 +176,7 @@
           </div>
 
           <q-btn
-            v-if="replayRating !== null && duprDoublesRating === null"
+            v-if="replayRating !== null"
             no-caps
             rounded
             size="sm"
@@ -565,7 +565,7 @@
             style="max-height: 78vh; overflow-y: auto; overflow-x: hidden"
           >
             <div
-              v-if="ratingVelocity && duprDoublesRating === null"
+              v-if="ratingVelocity"
               class="row q-col-gutter-sm q-mb-md"
             >
               <div class="col-6">
@@ -628,7 +628,7 @@
                       <span class="text-negative">{{ event.losses }}L</span>
                     </q-item-label>
                   </q-item-section>
-                  <q-item-section side v-if="duprDoublesRating === null">
+                  <q-item-section side>
                     <q-chip
                       class="history-rating text-weight-bold"
                       text-color="white"
