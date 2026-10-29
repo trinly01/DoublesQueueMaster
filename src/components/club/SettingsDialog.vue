@@ -308,7 +308,7 @@
             class="q-mt-sm"
           >
             <div class="q-pa-sm">
-              <div class="row q-gutter-sm">
+              <div class="row q-gutter-sm data-mgmt-grid">
                 <div class="col">
                   <q-btn
                     color="warning"
@@ -318,8 +318,10 @@
                     stack
                     style="min-height: 84px"
                   >
-                    <div class="data-mgmt-title">Clear Matches</div>
-                    <div class="data-mgmt-sub">ends active games</div>
+                    <div class="data-mgmt-text">
+                      <div class="data-mgmt-title">Clear Matches</div>
+                      <div class="data-mgmt-sub">ends active games</div>
+                    </div>
                   </q-btn>
                 </div>
                 <div class="col">
@@ -331,13 +333,15 @@
                     stack
                     style="min-height: 84px"
                   >
-                    <div class="data-mgmt-title">Clear Queue</div>
-                    <div class="data-mgmt-sub">everyone leaves the queue</div>
+                    <div class="data-mgmt-text">
+                      <div class="data-mgmt-title">Clear Queue</div>
+                      <div class="data-mgmt-sub">everyone leaves the queue</div>
+                    </div>
                   </q-btn>
                 </div>
               </div>
 
-              <div class="q-mt-sm row q-gutter-sm">
+              <div class="q-mt-sm row q-gutter-sm data-mgmt-grid">
                 <div class="col">
                   <q-btn
                     color="negative"
@@ -347,8 +351,10 @@
                     stack
                     style="min-height: 84px"
                   >
-                    <div class="data-mgmt-title">Reset Stats</div>
-                    <div class="data-mgmt-sub">wins/losses to 0</div>
+                    <div class="data-mgmt-text">
+                      <div class="data-mgmt-title">Reset Stats</div>
+                      <div class="data-mgmt-sub">wins/losses to 0</div>
+                    </div>
                   </q-btn>
                 </div>
                 <div class="col">
@@ -360,8 +366,10 @@
                     stack
                     style="min-height: 84px"
                   >
-                    <div class="data-mgmt-title">Restart Session</div>
-                    <div class="data-mgmt-sub">keeps players</div>
+                    <div class="data-mgmt-text">
+                      <div class="data-mgmt-title">Restart Session</div>
+                      <div class="data-mgmt-sub">keeps players</div>
+                    </div>
                   </q-btn>
                 </div>
                 <div class="col">
@@ -373,8 +381,10 @@
                     stack
                     style="min-height: 84px"
                   >
-                    <div class="data-mgmt-title">Delete Everything</div>
-                    <div class="data-mgmt-sub">removes all players</div>
+                    <div class="data-mgmt-text">
+                      <div class="data-mgmt-title">Delete Everything</div>
+                      <div class="data-mgmt-sub">removes all players</div>
+                    </div>
                   </q-btn>
                 </div>
               </div>
@@ -1302,6 +1312,12 @@ function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
   gap: 4px;
 }
 
+.data-mgmt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .data-mgmt-title {
   line-height: 1.2;
 }
@@ -1313,5 +1329,38 @@ function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
   letter-spacing: 0.01em;
   line-height: 1.15;
   opacity: 0.72;
+}
+
+@media (max-width: 599px) {
+  .data-mgmt-grid > .col {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  .data-mgmt-btn {
+    min-height: 0 !important;
+  }
+
+  .data-mgmt-btn :deep(.q-btn__content) {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    text-align: left;
+  }
+
+  .data-mgmt-text {
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .data-mgmt-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .data-mgmt-sub {
+    font-size: 0.7rem;
+  }
 }
 </style>

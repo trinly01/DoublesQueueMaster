@@ -33,6 +33,15 @@ export function useDataManagement(context: UseDataManagementContext) {
 
   const clubId = computed(() => clubIdRef.value || '');
 
+  // Warn inside destructive-op dialogs when completed matches exist that
+  // haven't been submitted to DUPR yet — wiping them loses the export data.
+  const duprPendingWarning = () => {
+    const n = duprExportableMatches.value.length;
+    return n > 0
+      ? `<br><br><span class="text-negative"><b>⚠ ${n} completed match${n === 1 ? '' : 'es'}</b> not yet submitted to DUPR — export the DUPR CSV first if you need them.</span>`
+      : '';
+  };
+
   const confirmWithClubId = (opts: {
     title: string;
     message: string;
@@ -232,7 +241,8 @@ export function useDataManagement(context: UseDataManagementContext) {
         '• Queue → emptied<br>' +
         '• Duo pairs & avoids → cleared<br>' +
         '• Match history → cleared from this session<br><br>' +
-        'Players and ratings are kept. Match history in the cloud is not affected.',
+        'Players and ratings are kept. Match history in the cloud is not affected.' +
+        duprPendingWarning(),
       okLabel: 'Restart Session',
       okColor: 'negative',
       okIcon: 'restart_alt',
@@ -296,7 +306,8 @@ export function useDataManagement(context: UseDataManagementContext) {
         '• Stats & ratings → deleted<br>' +
         '• Matches & queue → cleared<br>' +
         '• Match history → cleared from this session<br><br>' +
-        'Match history in the cloud is not affected.',
+        'Match history in the cloud is not affected.' +
+        duprPendingWarning(),
       okLabel: 'Delete Everything',
       okColor: 'negative',
       okIcon: 'delete_forever',
