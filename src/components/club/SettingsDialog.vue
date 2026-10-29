@@ -274,24 +274,25 @@
                   color="positive"
                   @click="$emit('exportDuprCsv')"
                   icon="download"
-                  :label="$q.screen.gt.xs ? 'Export DUPR CSV' : undefined"
+                  label="Export DUPR CSV"
                   unelevated
                   no-caps
                   :disable="duprExportableMatches.length === 0"
                 >
+                  <q-badge
+                    v-if="duprExportableMatches.length > 0"
+                    color="dark"
+                    text-color="white"
+                    floating
+                    rounded
+                    :label="duprExportableMatches.length"
+                  />
                   <q-tooltip
                     v-if="duprExportableMatches.length === 0"
                     anchor="top middle"
                     self="bottom middle"
                   >
                     No completed matches to export
-                  </q-tooltip>
-                  <q-tooltip
-                    v-else-if="$q.screen.lt.sm"
-                    anchor="top middle"
-                    self="bottom middle"
-                  >
-                    Export DUPR CSV
                   </q-tooltip>
                 </q-btn>
               </div>
