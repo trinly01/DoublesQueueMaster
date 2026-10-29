@@ -246,7 +246,10 @@
       </q-card-section>
 
       <q-card-section class="q-px-lg q-mt-sm text-center">
-        <div class="column items-center" style="width: 240px; gap: 8px">
+        <div
+          class="column items-center"
+          style="width: 240px; gap: 8px; margin: 0 auto"
+        >
           <q-btn
             label="Browse Clubs"
             icon="groups"
@@ -1378,17 +1381,15 @@
                     </div>
                   </div>
                 </q-banner>
-                <div class="row q-gutter-xs">
+                <div class="row justify-between q-mt-md">
                   <q-btn
                     color="primary"
                     icon="open_in_new"
                     label="Open DUPR"
                     size="sm"
-                    dense
                     outline
                     rounded
                     no-caps
-                    class="col"
                     @click="openDuprApp"
                   />
                   <q-btn
@@ -1396,11 +1397,9 @@
                     icon="link_off"
                     label="Disconnect DUPR"
                     size="sm"
-                    dense
                     outline
                     rounded
                     no-caps
-                    class="col"
                     :loading="Dupr.state.connecting"
                     @click="handleDisconnectDupr"
                   />
