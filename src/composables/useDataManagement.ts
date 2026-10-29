@@ -230,6 +230,7 @@ export function useDataManagement(context: UseDataManagementContext) {
         '• Player stats → reset to 0<br>' +
         '• Active matches → cleared<br>' +
         '• Queue → emptied<br>' +
+        '• Duo pairs & avoids → cleared<br>' +
         '• Match history → cleared from this session<br><br>' +
         'Players and ratings are kept. Match history in the cloud is not affected.',
       okLabel: 'Restart Session',
@@ -263,6 +264,10 @@ export function useDataManagement(context: UseDataManagementContext) {
 
         // Epoch-based clear for completedMatches (multi-admin safe)
         MatchmakingApp.clearCompletedMatches();
+
+        // Session-scoped tags die with the session — stamps linkUpdatedAt/
+        // avoidUpdatedAt so the clear beats stale copies on other devices.
+        MatchmakingApp.clearSessionTags(now);
 
         MatchmakingApp.state.settingsUpdatedAt = now;
         MatchmakingApp.state.lastModified = now;

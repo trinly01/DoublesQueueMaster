@@ -515,6 +515,34 @@ describe('player linking (fixed duo)', () => {
     expect(sys.getLinkedPartner('a')).toBeUndefined();
   });
 
+  it('clearSession wipes queues/matches AND clears session tags (link, avoid, lock)', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }]);
+    sys.setPlayerLink('a', 'b');
+    sys.setPlayerAvoid('c', 'd');
+    sys.setQueueLock('d', true);
+    expect(sys.state.players.a.linkedTo).toBe('b');
+    expect(sys.state.players.c.avoids?.d).toBe('match');
+    expect(sys.isQueueLocked('d')).toBe(true);
+
+    sys.clearSession();
+
+    expect(sys.state.queues).toEqual([]);
+    expect(sys.state.activeMatches).toEqual([]);
+    // Session tags cleared on live players
+    expect(sys.state.players.a.linkedTo).toBeUndefined();
+    expect(sys.state.players.a.linkedAt).toBeUndefined();
+    expect(sys.state.players.b.linkedTo).toBeUndefined();
+    expect(sys.state.players.c.avoids).toBeUndefined();
+    expect(sys.state.players.d.avoids).toBeUndefined();
+    // LWW tokens stamped so the clear wins merges on other devices
+    expect(sys.state.players.a.linkUpdatedAt).toBeGreaterThan(0);
+    expect(sys.state.players.c.avoidUpdatedAt).toBeGreaterThan(0);
+    // Checkpoints stamped
+    expect(sys.state.queuesResetAt).toBeGreaterThan(0);
+    expect(sys.state.matchesResetAt).toBeGreaterThan(0);
+  });
+
   it('one-sided links are dormant — both players draft normally', () => {
     const sys = new LocalMatchmakingSystem(2);
     queueUp(sys, [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }]);

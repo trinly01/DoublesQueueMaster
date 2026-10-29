@@ -1375,9 +1375,30 @@ export class LocalMatchmakingSystem {
     this.state.activeMatches = [];
     this.state.queuesResetAt = now;
     this.state.matchesResetAt = now;
+    this.clearSessionTags(now);
     this.state.settingsUpdatedAt = now;
     this.state.lastModified = now;
     this.saveState();
+  }
+
+  /**
+   * Clear every live player's session-scoped tags: duo links and avoid maps.
+   * linkUpdatedAt/avoidUpdatedAt stamp the dedicated LWW tokens so the
+   * clearing beats stale copies syncing in from other devices.
+   */
+  public clearSessionTags(now = Date.now()) {
+    for (const p of Object.values(this.state.players)) {
+      if (p.deletedAt) continue;
+      if (p.linkedTo || p.linkedAt || p.linkUpdatedAt !== undefined) {
+        delete p.linkedTo;
+        delete p.linkedAt;
+        p.linkUpdatedAt = now;
+      }
+      if (p.avoids || p.avoidUpdatedAt !== undefined) {
+        delete p.avoids;
+        p.avoidUpdatedAt = now;
+      }
+    }
   }
 
   public hardResetEverything() {
