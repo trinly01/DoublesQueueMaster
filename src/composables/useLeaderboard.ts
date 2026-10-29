@@ -15,6 +15,7 @@ export type ClubLeaderboardEntry = {
   firstName?: string;
   lastName?: string;
   rating: number;
+  duprId?: string;
   avatar?: string;
   wins: number;
   losses: number;
@@ -144,6 +145,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
             firstName: member?.firstName || user?.firstName || p.firstName,
             lastName: member?.lastName || user?.lastName || p.lastName,
             rating: p.rating,
+            duprId: member?.duprId,
             avatar: resolveAvatarUrl(
               member?.avatar || user?.avatar || p.avatar,
             ),

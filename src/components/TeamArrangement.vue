@@ -102,8 +102,8 @@
             {{ player.firstName || player.username }}
           </span>
           <q-chip
-            v-if="!hideInternalRating"
-            :label="player.rating || 1450"
+            v-if="showRatingChip(player)"
+            :label="ratingChipText(player.rating || 1450)"
             :color="getRatingColor(player.rating || 1450)"
             text-color="white"
             size="xs"
@@ -199,8 +199,8 @@
             {{ player.firstName || player.username }}
           </span>
           <q-chip
-            v-if="!hideInternalRating"
-            :label="player.rating || 1450"
+            v-if="showRatingChip(player)"
+            :label="ratingChipText(player.rating || 1450)"
             :color="getRatingColor(player.rating || 1450)"
             text-color="white"
             size="xs"
@@ -245,6 +245,8 @@ import {
   getRatingColor,
   duprChipRating,
   duprSinglesRating,
+  showRatingChip,
+  ratingChipText,
 } from '../utils/playerHelpers';
 
 const hideInternalRating = computed(() => useDupr().hideInternalRating);

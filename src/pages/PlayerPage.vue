@@ -153,9 +153,11 @@
               </span>
             </div>
           </div>
-          <!-- Internal rating — hidden when dupr_settings.hide_internal_rating -->
+          <!-- Internal rating — hidden when dupr_settings.hide_internal_rating
+               and the player has a real DUPR rating; DUPR-less players keep a
+               converted chip so they aren't left rating-less -->
           <div
-            v-if="!hideInternalRating"
+            v-if="showRatingChip({ duprId })"
             class="rating-badge"
             :style="{
               background: getRatingGradient(ratingColor),
@@ -165,14 +167,16 @@
           >
             <div class="column items-center">
               <span class="text-h4 text-weight-bold text-white">{{
-                playerRating
+                ratingChipText(playerRating)
               }}</span>
-              <span class="text-caption text-white">Dink Points</span>
+              <span class="text-caption text-white">{{
+                hideInternalRating ? 'Rating' : 'Dink Points'
+              }}</span>
             </div>
           </div>
 
           <q-btn
-            v-if="replayRating !== null && !hideInternalRating"
+            v-if="replayRating !== null && showRatingChip({ duprId })"
             no-caps
             rounded
             size="sm"
@@ -210,7 +214,9 @@
               </q-card>
             </q-popup-proxy>
             <q-icon name="analytics" size="16px" class="q-mr-xs text-white" />
-            <span class="replay-rating-value">{{ replayRating }}</span>
+            <span class="replay-rating-value">{{
+              ratingChipText(replayRating)
+            }}</span>
             <span class="replay-rating-label">{{ replayRatingCategory }}</span>
           </q-btn>
 
@@ -559,13 +565,13 @@
             style="max-height: 78vh; overflow-y: auto; overflow-x: hidden"
           >
             <div
-              v-if="ratingVelocity && !hideInternalRating"
+              v-if="ratingVelocity && showRatingChip({ duprId })"
               class="row q-col-gutter-sm q-mb-md"
             >
               <div class="col-6">
                 <q-card flat bordered class="text-center q-pa-sm">
                   <div class="text-h6 text-weight-bold">
-                    {{ ratingVelocity.current }}
+                    {{ ratingChipText(ratingVelocity.current) }}
                   </div>
                   <div class="text-caption text-grey-8">Current Rating</div>
                 </q-card>
@@ -581,7 +587,11 @@
                     "
                   >
                     {{ ratingVelocity.change >= 0 ? '+' : ''
-                    }}{{ ratingVelocity.change }}
+                    }}{{
+                      hideInternalRating
+                        ? (ratingVelocity.change / 220).toFixed(2)
+                        : ratingVelocity.change
+                    }}
                   </div>
                   <div class="text-caption text-grey-8">Rating Change</div>
                 </q-card>
@@ -618,13 +628,13 @@
                       <span class="text-negative">{{ event.losses }}L</span>
                     </q-item-label>
                   </q-item-section>
-                  <q-item-section side v-if="!hideInternalRating">
+                  <q-item-section side v-if="showRatingChip({ duprId })">
                     <q-chip
                       class="history-rating text-weight-bold"
                       text-color="white"
                       size="md"
                     >
-                      {{ event.rating }}
+                      {{ ratingChipText(event.rating) }}
                     </q-chip>
                   </q-item-section>
                 </q-item>
@@ -1232,14 +1242,14 @@
                 </q-item-section>
                 <q-item-section side class="text-right">
                   <q-chip
-                    v-if="!hideInternalRating"
+                    v-if="showRatingChip(player)"
                     :color="getRatingColor(player.rating || 1450)"
                     text-color="white"
                     size="sm"
                     dense
                     class="text-weight-bold q-mb-xs"
                   >
-                    {{ player.score ?? (player.rating || 1450) }}
+                    {{ ratingChipText(player.score ?? (player.rating || 1450)) }}
                     <q-tooltip
                       anchor="center left"
                       self="center right"
@@ -1533,6 +1543,9 @@ import {
   formatDate,
   formatDateOnly,
   wilsonLowerBound,
+  showRatingChip,
+  ratingChipText,
+  toDuprScale,
 } from 'src/utils/playerHelpers';
 import {
   replayMatches,
@@ -1708,6 +1721,7 @@ type LeaderboardEntry = {
   username: string;
   rating: number;
   avatar?: string;
+  duprId?: string;
   score?: number;
   wins?: number;
   losses?: number;
@@ -2314,12 +2328,10 @@ const initChart = () => {
   // to the skill tiers: beginner seed 1400 -> 3.0, ~220 Dink Points per
   // rating point, clamped to 2.0-8.0.
   const hidden = hideInternalRating.value;
-  const toDisplayRating = (r: number) =>
-    Math.min(8, Math.max(2, 3.0 + (r - 1400) / 220));
   const chartRatings = hidden
-    ? ratings.map((r) => (r == null ? r : +toDisplayRating(r).toFixed(2)))
+    ? ratings.map((r) => (r == null ? r : +toDuprScale(r).toFixed(2)))
     : ratings;
-  const seedLine = hidden ? toDisplayRating(1450) : 1450;
+  const seedLine = hidden ? toDuprScale(1450) : 1450;
 
   chartInstance = echarts.init(chartRef.value);
   chartInstance.setOption({

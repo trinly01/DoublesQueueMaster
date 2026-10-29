@@ -295,8 +295,8 @@
                       }}
                     </q-item-label>
                     <q-chip
-                      v-if="!hideInternalRating"
-                      :label="member.rating || 1450"
+                      v-if="showRatingChip(member)"
+                      :label="ratingChipText(member.rating || 1450)"
                       :color="getRatingColor(member.rating || 1450)"
                       text-color="white"
                       size="xs"
@@ -477,12 +477,13 @@ import {
   getRatingColor,
   duprChipRating,
   duprSinglesRating,
+  showRatingChip,
+  ratingChipText,
 } from '../../utils/playerHelpers';
 import { useDupr } from '../../composables/useDupr';
 
 defineOptions({ name: 'AddPlayerDialog' });
 
-const hideInternalRating = computed(() => useDupr().hideInternalRating);
 // DUPR-only session — club-synced flag; check-in denies anyone without a
 // linked DUPR account, and the member picker only lists linked members.
 const duprOnly = computed(() => MatchmakingApp.state.duprOnly ?? false);

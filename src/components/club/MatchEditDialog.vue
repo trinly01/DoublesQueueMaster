@@ -93,8 +93,8 @@
                       >L:{{ player.losses || 0 }}</span
                     >
                     <q-chip
-                      v-if="!hideInternalRating"
-                      :label="player.rating"
+                      v-if="showRatingChip(player)"
+                      :label="ratingChipText(player.rating)"
                       :color="getRatingColor(player.rating ?? 1450)"
                       text-color="white"
                       size="xs"
@@ -221,8 +221,8 @@
                       >L:{{ player.losses || 0 }}</span
                     >
                     <q-chip
-                      v-if="!hideInternalRating"
-                      :label="player.rating"
+                      v-if="showRatingChip(player)"
+                      :label="ratingChipText(player.rating)"
                       :color="getRatingColor(player.rating ?? 1450)"
                       text-color="white"
                       size="xs"
@@ -399,6 +399,8 @@ import {
   getRatingColor,
   duprChipRating,
   duprSinglesRating,
+  showRatingChip,
+  ratingChipText,
 } from '../../utils/playerHelpers';
 import { useDupr } from '../../composables/useDupr';
 import type { Player } from '../../services/matchmaking';
