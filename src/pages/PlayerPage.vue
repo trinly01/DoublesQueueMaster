@@ -176,14 +176,16 @@
           </div>
 
           <q-btn
-            v-if="replayRating !== null"
+            v-if="showReplayChip"
             no-caps
             rounded
             size="sm"
             dense
             class="full-width replay-rating-btn"
             :style="{
-              background: getRatingGradient(replayRatingColor),
+              background: replayReliable
+                ? getRatingGradient(replayRatingColor)
+                : 'grey-6',
               borderRadius: '12px',
             }"
           >
@@ -209,7 +211,10 @@
                     <p class="lb-line">
                       May differ from your saved
                       {{ hideInternalRating ? 'rating' : 'Dink Points' }} — the
-                      replay only sees this 30-day window.
+                      replay only sees this 30-day window. Shows NR until you
+                      reach
+                      {{ CLUB_RANKING_CONFIG.provisionalThreshold }} matches in
+                      the window.
                     </p>
                   </div>
                 </q-card-section>
@@ -217,9 +222,13 @@
             </q-popup-proxy>
             <q-icon name="analytics" size="16px" class="q-mr-xs text-white" />
             <span class="replay-rating-value">{{
-              ratingChipText(replayRating)
+              replayReliable ? ratingChipText(replayRating) : 'NR'
             }}</span>
-            <span class="replay-rating-label">{{ replayRatingCategory }}</span>
+            <span class="replay-rating-label">{{
+              replayReliable
+                ? replayRatingCategory
+                : `Not Rated · ${replayGames}/${CLUB_RANKING_CONFIG.provisionalThreshold}`
+            }}</span>
           </q-btn>
 
           <div class="row" style="width: 240px; gap: 8px">
@@ -589,7 +598,11 @@
                   <q-card flat bordered class="text-center q-pa-sm">
                     <div class="text-h6 text-weight-bold">
                       {{
-                        ratingChipText(replayRating ?? ratingVelocity.current)
+                        replayReliable
+                          ? ratingChipText(
+                              replayRating ?? ratingVelocity.current,
+                            )
+                          : 'NR'
                       }}
                     </div>
                     <div class="text-caption text-grey-8">Computed (30d)</div>
@@ -1122,7 +1135,7 @@
 
           <div class="row q-gutter-xs q-px-md q-pb-xs justify-center">
             <q-chip dense color="grey-6" text-color="white" size="xs">
-              Beginner
+              Novice
               <q-tooltip
                 anchor="top middle"
                 self="bottom middle"
@@ -1610,6 +1623,7 @@ import {
   replayMatches,
   replayMatchesForRanking,
   rankClubPlayers,
+  CLUB_RANKING_CONFIG,
 } from 'src/utils/ratingReplay';
 import { useRecentClubs } from 'src/composables/useRecentClubs';
 import { useDupr } from 'src/composables/useDupr';
@@ -1911,6 +1925,24 @@ const replayRating = computed(() => {
 });
 const replayRatingColor = computed(() =>
   replayRating.value !== null ? getRatingColor(replayRating.value) : '',
+);
+// Provisional rule mirrors the leaderboard: <12 matches in the window = NR.
+// With a real DUPR rating the chip is hidden below threshold (DUPR is the
+// identity); past the threshold the computed chip shows regardless of DUPR.
+const replayGames = computed(() => {
+  const u = PlayerProfile.state.username;
+  if (!u) return 0;
+  return (
+    matchesLeaderboard.value.find((p) => p.username === u)?.games ?? 0
+  );
+});
+const replayReliable = computed(
+  () => replayGames.value >= CLUB_RANKING_CONFIG.provisionalThreshold,
+);
+const showReplayChip = computed(() =>
+  replayReliable.value
+    ? replayRating.value !== null
+    : duprDoublesRating.value === null,
 );
 const replayRatingCategory = computed(() =>
   replayRating.value !== null ? ratingChipCategory(replayRating.value) : '',
