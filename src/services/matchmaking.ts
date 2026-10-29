@@ -318,15 +318,19 @@ function getStorageKey(clubId?: string): string {
 // Standalone helper: enforce one-match-per-player on any AppState.
 // Losing matches are tombstoned and their players returned to queue.
 export function gcTombstones(state: AppState, now: number) {
-  const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+  // Tombstones are the only durable record that a deletion happened — once
+  // they age out, a stale device that never saw the delete can push a live
+  // copy that merges back in and resurrects the entity. 30 days keeps the
+  // resurrection window small; live entries are never dropped here.
+  const TOMBSTONE_RETENTION = 30 * 24 * 60 * 60 * 1000;
   // Assign only when entries were actually dropped — a fresh array with
   // identical content would needlessly invalidate every dependent computed.
   const queues = state.queues.filter(
-    (q) => !q.deletedAt || now - q.deletedAt < SEVEN_DAYS,
+    (q) => !q.deletedAt || now - q.deletedAt < TOMBSTONE_RETENTION,
   );
   if (queues.length !== state.queues.length) state.queues = queues;
   const matches = state.activeMatches.filter(
-    (m) => !m.deletedAt || now - m.deletedAt < SEVEN_DAYS,
+    (m) => !m.deletedAt || now - m.deletedAt < TOMBSTONE_RETENTION,
   );
   if (matches.length !== state.activeMatches.length)
     state.activeMatches = matches;
@@ -2678,6 +2682,28 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     guardFutureCheckpoint('statsResetAt', server.statsResetAt ?? 0),
   );
 
+  // Entity-timestamp clock-skew guards. Reset checkpoints already reject
+  // future dates, but per-entity stamps (deletedAt / queuedAt / updatedAt /
+  // ratingUpdatedAt / ...) previously had no guard — a device with a fast
+  // clock could write a tombstone or queue stamp "in the future" that beats
+  // every legitimate write forever, or a stale ghost live entry could beat a
+  // real deletion. Real skew is minutes, so 5 min is a safe allowance.
+  const skewNow = Date.now();
+  const SKEW_ALLOWANCE = 5 * 60 * 1000;
+  const isFuture = (t?: number) => !!t && t > skewNow + SKEW_ALLOWANCE;
+  // Tombstones & generic LWW stamps: clamp to now — a future-dated delete is
+  // still a delete (intent preserved), just not "newer than everything".
+  const clampFuture = (t?: number): number =>
+    isFuture(t) ? skewNow : (t ?? 0);
+  // Live-entry ordering stamps (queuedAt / addedAt): a future-dated stamp on
+  // an entity whose own createdAt is sane is a corrupt re-stamp — fall back
+  // to the entity's real creation time so a ghost can't jump the line over a
+  // legitimate tombstone.
+  const liveStamp = (primary?: number, fallback?: number): number =>
+    isFuture(primary) && !!fallback && !isFuture(fallback)
+      ? fallback
+      : clampFuture(primary);
+
   // Pre-filter collections: drop any entity created before the effective checkpoint
   const filterPlayers = (
     players: Record<string, Player>,
@@ -2691,12 +2717,12 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     const filtered: Record<string, Player> = {};
     for (const [key, p] of Object.entries(players)) {
       const effectiveTime = Math.max(
-        p.createdAt ?? 0,
-        p.updatedAt ?? 0,
-        p.deletedAt ?? 0,
-        p.statsUpdatedAt ?? 0,
-        p.linkUpdatedAt ?? 0,
-        p.avoidUpdatedAt ?? 0,
+        clampFuture(p.createdAt),
+        clampFuture(p.updatedAt),
+        clampFuture(p.deletedAt),
+        clampFuture(p.statsUpdatedAt),
+        clampFuture(p.linkUpdatedAt),
+        clampFuture(p.avoidUpdatedAt),
       );
       if (effectiveTime >= checkpoint) {
         filtered[key] = p;
@@ -2742,10 +2768,10 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     // survive so the tombstone can win over stale live copies on other admins.
     return queues.filter((q) => {
       const effectiveTime = Math.max(
-        q.createdAt ?? 0,
-        q.updatedAt ?? 0,
-        q.deletedAt ?? 0,
-        q.lockUpdatedAt ?? 0,
+        clampFuture(q.createdAt),
+        clampFuture(q.updatedAt),
+        clampFuture(q.deletedAt),
+        clampFuture(q.lockUpdatedAt),
       );
       return effectiveTime >= checkpoint;
     });
@@ -2757,9 +2783,9 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     // survive so the tombstone can win over stale active copies on other admins.
     return matches.filter((m) => {
       const effectiveTime = Math.max(
-        m.createdAt ?? 0,
-        m.updatedAt ?? 0,
-        m.deletedAt ?? 0,
+        clampFuture(m.createdAt),
+        clampFuture(m.updatedAt),
+        clampFuture(m.deletedAt),
       );
       return effectiveTime >= checkpoint;
     });
@@ -2801,8 +2827,8 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     }
 
     // Step 1: pick the base winner by overall updatedAt (or matchesPlayed fallback)
-    const lpTime = lp.updatedAt ?? 0;
-    const spTime = sp.updatedAt ?? 0;
+    const lpTime = clampFuture(lp.updatedAt);
+    const spTime = clampFuture(sp.updatedAt);
     // winnerIsLp = which side's object provides the merged base content.
     // Reusing the winning side's object (instead of always copying) keeps
     // refs stable so applyMergedState can detect "unchanged" by reference
@@ -2813,12 +2839,16 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     } else {
       const lpGames = lp.matchesPlayed ?? 0;
       const spGames = sp.matchesPlayed ?? 0;
-      // No entity-level timestamps and identical stats: prefer server as
-      // source of truth. Never use whole-state lastModified for entity-level
-      // conflict resolution — an offline admin's unrelated local activity
-      // (e.g., queue changes) can make localTime newer even though this
-      // specific player was never touched locally.
-      winnerIsLp = lpGames > spGames;
+      // No entity-level timestamps and identical stats: never use whole-state
+      // lastModified for entity-level conflict resolution — an offline admin's
+      // unrelated local activity (e.g., queue changes) can make localTime
+      // newer even though this specific player was never touched locally.
+      // Exact ties break on content so both devices pick the same winner —
+      // a "prefer server" fallback would pick a different side per device.
+      winnerIsLp =
+        lpGames !== spGames
+          ? lpGames > spGames
+          : JSON.stringify(lp) > JSON.stringify(sp);
     }
     let baseWinner: Player = winnerIsLp ? lp : sp;
 
@@ -2826,20 +2856,20 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     // baseIsLocal mirrors the timestamp comparison that selected the winner.
     const baseIsLocal = lpTime > spTime;
     const other = baseIsLocal ? sp : lp;
-    const baseStatsAt = baseWinner.statsUpdatedAt ?? 0;
-    const otherStatsAt = other.statsUpdatedAt ?? 0;
+    const baseStatsAt = clampFuture(baseWinner.statsUpdatedAt);
+    const otherStatsAt = clampFuture(other.statsUpdatedAt);
     const overlayStats = otherStatsAt > baseStatsAt;
-    const baseRatingAt = baseWinner.ratingUpdatedAt ?? 0;
-    const otherRatingAt = other.ratingUpdatedAt ?? 0;
+    const baseRatingAt = clampFuture(baseWinner.ratingUpdatedAt);
+    const otherRatingAt = clampFuture(other.ratingUpdatedAt);
     const overlayRating = otherRatingAt > baseRatingAt;
     // Link state has its own LWW token so a concurrent non-stat edit (level,
     // avatar) on the winning side can't clobber a newer link/unlink.
-    const baseLinkAt = baseWinner.linkUpdatedAt ?? 0;
-    const otherLinkAt = other.linkUpdatedAt ?? 0;
+    const baseLinkAt = clampFuture(baseWinner.linkUpdatedAt);
+    const otherLinkAt = clampFuture(other.linkUpdatedAt);
     const overlayLink = otherLinkAt > baseLinkAt;
     // Avoid preferences get the same dedicated-token treatment.
-    const baseAvoidAt = baseWinner.avoidUpdatedAt ?? 0;
-    const otherAvoidAt = other.avoidUpdatedAt ?? 0;
+    const baseAvoidAt = clampFuture(baseWinner.avoidUpdatedAt);
+    const otherAvoidAt = clampFuture(other.avoidUpdatedAt);
     const overlayAvoid = otherAvoidAt > baseAvoidAt;
 
     // Copy only when an overlay will actually mutate — otherwise the merged
@@ -2880,12 +2910,12 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   for (const username of Object.keys(mergedPlayers)) {
     const lp = localPlayers[username];
     const sp = serverPlayers[username];
-    const localDeleted = lp?.deletedAt ?? 0;
-    const serverDeleted = sp?.deletedAt ?? 0;
+    const localDeleted = clampFuture(lp?.deletedAt);
+    const serverDeleted = clampFuture(sp?.deletedAt);
     if (localDeleted > 0 || serverDeleted > 0) {
       const liveAddedAt = Math.max(
-        lp && !lp.deletedAt ? (lp.addedAt ?? lp.createdAt ?? 0) : 0,
-        sp && !sp.deletedAt ? (sp.addedAt ?? sp.createdAt ?? 0) : 0,
+        lp && !lp.deletedAt ? liveStamp(lp.addedAt, lp.createdAt) : 0,
+        sp && !sp.deletedAt ? liveStamp(sp.addedAt, sp.createdAt) : 0,
       );
       const tombDeletedAt = Math.max(localDeleted, serverDeleted);
 
@@ -2913,8 +2943,8 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
 
       // Even if the tombstone/liveness winner is chosen by addedAt/deletedAt,
       // still overlay fresher stats from the loser if available.
-      const winnerStatsAt = winner.statsUpdatedAt ?? 0;
-      const loserStatsAt = loser?.statsUpdatedAt ?? 0;
+      const winnerStatsAt = clampFuture(winner.statsUpdatedAt);
+      const loserStatsAt = clampFuture(loser?.statsUpdatedAt);
       if (loser && loserStatsAt > winnerStatsAt) {
         winner.matchesPlayed = loser.matchesPlayed;
         winner.wins = loser.wins;
@@ -2922,21 +2952,21 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
         winner.history = loser.history ? { ...loser.history } : undefined;
         winner.statsUpdatedAt = loserStatsAt;
       }
-      const winnerRatingAt = winner.ratingUpdatedAt ?? 0;
-      const loserRatingAt = loser?.ratingUpdatedAt ?? 0;
+      const winnerRatingAt = clampFuture(winner.ratingUpdatedAt);
+      const loserRatingAt = clampFuture(loser?.ratingUpdatedAt);
       if (loser && loserRatingAt > winnerRatingAt) {
         winner.rating = loser.rating;
         winner.ratingUpdatedAt = loserRatingAt;
       }
-      const winnerLinkAt = winner.linkUpdatedAt ?? 0;
-      const loserLinkAt = loser?.linkUpdatedAt ?? 0;
+      const winnerLinkAt = clampFuture(winner.linkUpdatedAt);
+      const loserLinkAt = clampFuture(loser?.linkUpdatedAt);
       if (loser && loserLinkAt > winnerLinkAt) {
         winner.linkedTo = loser.linkedTo;
         winner.linkedAt = loser.linkedAt;
         winner.linkUpdatedAt = loserLinkAt;
       }
-      const winnerAvoidAt = winner.avoidUpdatedAt ?? 0;
-      const loserAvoidAt = loser?.avoidUpdatedAt ?? 0;
+      const winnerAvoidAt = clampFuture(winner.avoidUpdatedAt);
+      const loserAvoidAt = clampFuture(loser?.avoidUpdatedAt);
       if (loser && loserAvoidAt > winnerAvoidAt) {
         winner.avoids = loser.avoids ? { ...loser.avoids } : undefined;
         winner.avoidUpdatedAt = loserAvoidAt;
@@ -2974,12 +3004,14 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     const maxLiveQueuedAt =
       live.length > 0
         ? Math.max(
-            ...live.map((e) => e.queuedAt ?? e.createdAt ?? e.updatedAt ?? 0),
+            ...live.map((e) =>
+              liveStamp(e.queuedAt, e.createdAt ?? e.updatedAt),
+            ),
           )
         : 0;
     const maxTombstoneDeletedAt =
       tombstones.length > 0
-        ? Math.max(...tombstones.map((e) => e.deletedAt ?? 0))
+        ? Math.max(...tombstones.map((e) => clampFuture(e.deletedAt)))
         : 0;
 
     let candidates: QueueEntry[];
@@ -2998,14 +3030,17 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     // then updatedAt / createdAt fallback. This prevents a stale live entry
     // with a coincidentally high updatedAt (e.g. wrong clock on offline admin)
     // from resurrecting over a more recently queued live entry.
+    // Final tiebreak is content-based so both devices pick the SAME winner —
+    // an order-dependent fallback would let each device prefer its own copy.
     const winner = candidates.reduce((best, e) => {
-      const bestQueued = best.queuedAt ?? best.createdAt ?? 0;
-      const eQueued = e.queuedAt ?? e.createdAt ?? 0;
+      const bestQueued = liveStamp(best.queuedAt, best.createdAt);
+      const eQueued = liveStamp(e.queuedAt, e.createdAt);
       if (eQueued !== bestQueued) return eQueued > bestQueued ? e : best;
 
-      const bestTime = best.updatedAt ?? best.createdAt ?? 0;
-      const eTime = e.updatedAt ?? e.createdAt ?? 0;
-      return eTime > bestTime ? e : best;
+      const bestTime = clampFuture(best.updatedAt ?? best.createdAt);
+      const eTime = clampFuture(e.updatedAt ?? e.createdAt);
+      if (eTime !== bestTime) return eTime > bestTime ? e : best;
+      return JSON.stringify(e) > JSON.stringify(best) ? e : best;
     }, candidates[0]!);
 
     // Overlay the freshest lock write — lockUpdatedAt isolates lock state
@@ -3013,7 +3048,9 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     let mergedEntry = winner;
     if (!winner.deletedAt) {
       for (const e of candidates) {
-        if ((e.lockUpdatedAt ?? 0) > (mergedEntry.lockUpdatedAt ?? 0)) {
+        if (
+          clampFuture(e.lockUpdatedAt) > clampFuture(mergedEntry.lockUpdatedAt)
+        ) {
           mergedEntry = {
             ...mergedEntry,
             lockedAt: e.lockedAt,
@@ -3043,11 +3080,18 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     if (!existing) {
       allMatches.set(m.matchId, { match: m, source: 'server' });
     } else {
-      // Both have this match - use updatedAt LWW
-      const localTime =
-        existing.match.updatedAt ?? existing.match.createdAt ?? 0;
-      const serverTime = m.updatedAt ?? m.createdAt ?? 0;
-      if (serverTime > localTime) {
+      // Both have this match - use updatedAt LWW, with a content-based
+      // tiebreak so two devices converge on the same winner instead of each
+      // preferring its own copy.
+      const localTime = clampFuture(
+        existing.match.updatedAt ?? existing.match.createdAt,
+      );
+      const serverTime = clampFuture(m.updatedAt ?? m.createdAt);
+      if (
+        serverTime > localTime ||
+        (serverTime === localTime &&
+          JSON.stringify(m) > JSON.stringify(existing.match))
+      ) {
         allMatches.set(m.matchId, { match: m, source: 'server' });
       }
     }
@@ -3059,8 +3103,8 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   for (const matchId of allMatches.keys()) {
     const lm = localMatches.find((m) => m.matchId === matchId);
     const sm = serverMatches.find((m) => m.matchId === matchId);
-    const localDeleted = lm?.deletedAt ?? 0;
-    const serverDeleted = sm?.deletedAt ?? 0;
+    const localDeleted = clampFuture(lm?.deletedAt);
+    const serverDeleted = clampFuture(sm?.deletedAt);
     if (localDeleted > 0 || serverDeleted > 0) {
       // At least one side deleted: the later deletion wins
       allMatches.set(
@@ -3133,8 +3177,31 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     const existing = allCompleted.get(m.matchId);
     if (!existing) {
       allCompleted.set(m.matchId, { match: m, source: 'server' });
-    } else if (m.updatedAt > existing.match.updatedAt) {
-      allCompleted.set(m.matchId, { match: m, source: 'server' });
+    } else {
+      const localT = clampFuture(existing.match.updatedAt);
+      const serverT = clampFuture(m.updatedAt);
+      // Content tiebreak so both devices converge on the same record when
+      // two admins completed the same matchId at the same timestamp.
+      if (
+        serverT > localT ||
+        (serverT === localT &&
+          JSON.stringify(m) > JSON.stringify(existing.match))
+      ) {
+        allCompleted.set(m.matchId, { match: m, source: 'server' });
+      }
+    }
+  });
+
+  // A matchId tombstoned as *cancelled* (cancelledBy set) with a deletion
+  // later than a completion's timestamp means the cancel is the newer event
+  // — e.g. a stale offline device completed a match another admin had
+  // already cancelled. The cancel wins; drop that completed record so it
+  // can't resurrect as "completed". A completion newer than the cancel
+  // survives — the cancel was earlier in wall-clock order.
+  const cancelTombstones = new Map<string, number>();
+  allMatches.forEach(({ match }) => {
+    if (match.deletedAt && match.cancelledBy) {
+      cancelTombstones.set(match.matchId, clampFuture(match.deletedAt));
     }
   });
 
@@ -3173,11 +3240,22 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   }
 
   let droppedCount = 0;
+  let droppedByCancelCount = 0;
   let droppedMinCompletedAt = Infinity;
   let droppedMaxCompletedAt = 0;
   const droppedByResetIds: string[] = [];
   allCompleted.forEach(({ match }) => {
-    if (match.completedAt > winningResetAt) {
+    const cancelledAt = cancelTombstones.get(match.matchId);
+    if (
+      cancelledAt !== undefined &&
+      cancelledAt > clampFuture(match.completedAt)
+    ) {
+      // Cancellation is the newer event — drop this stale completion so the
+      // match keeps classifying as cancelled, not completed.
+      droppedByCancelCount++;
+      return;
+    }
+    if (clampFuture(match.completedAt) > winningResetAt) {
       mergedCompletedMatches.push(match);
     } else {
       droppedCount++;
@@ -3194,6 +3272,13 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       );
     }
   });
+  if (droppedByCancelCount > 0) {
+    console.warn(
+      '[mergeAppState] dropped',
+      droppedByCancelCount,
+      'completed matches superseded by a later cancellation',
+    );
+  }
   if (droppedCount > 0) {
     console.warn(
       '[mergeAppState] dropped',

@@ -3910,21 +3910,21 @@ describe('mergeAppState — pure state enforcement helpers', () => {
     assertInvariants(state);
   });
 
-  it('gcTombstones removes only tombstones older than 7 days', () => {
+  it('gcTombstones removes only tombstones older than 30 days', () => {
     const now = 1000000000000;
-    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    const retention = 30 * 24 * 60 * 60 * 1000;
     const state = makeState({
       queues: [
-        makeQueueEntry('old', { deletedAt: now - sevenDays - 1 }),
-        makeQueueEntry('recent', { deletedAt: now - sevenDays + 1 }),
+        makeQueueEntry('old', { deletedAt: now - retention - 1 }),
+        makeQueueEntry('recent', { deletedAt: now - retention + 1 }),
         makeQueueEntry('live', { deletedAt: undefined }),
       ],
       activeMatches: [
         makeMatch('oldM', ['alice'], ['bob'], {
-          deletedAt: now - sevenDays - 1,
+          deletedAt: now - retention - 1,
         }),
         makeMatch('recentM', ['alice'], ['bob'], {
-          deletedAt: now - sevenDays + 1,
+          deletedAt: now - retention + 1,
         }),
         makeMatch('liveM', ['alice'], ['bob'], { deletedAt: undefined }),
       ],
@@ -3935,6 +3935,115 @@ describe('mergeAppState — pure state enforcement helpers', () => {
       'recentM',
       'liveM',
     ]);
+  });
+});
+
+describe('mergeAppState stale-write guards', () => {
+  it('drops a stale completion when the cancel tombstone is newer', () => {
+    // Offline device completed m1 locally; another admin had already
+    // cancelled it on the server. The later event (cancel) must win.
+    const server = makeState({
+      activeMatches: [
+        makeMatch('m1', ['a'], ['b'], {
+          deletedAt: 3000,
+          cancelledBy: 'admin-b',
+          updatedAt: 3000,
+        }),
+      ],
+      completedMatches: [],
+    });
+    const local = makeState({
+      activeMatches: [
+        makeMatch('m1', ['a'], ['b'], { deletedAt: 2000, updatedAt: 2000 }),
+      ],
+      completedMatches: [
+        makeCompletedMatch('m1', { completedAt: 2000, updatedAt: 4000 }),
+      ],
+    });
+    const merged = mergeAppState(local, server);
+    expect(
+      merged.completedMatches.find((m) => m.matchId === 'm1'),
+    ).toBeUndefined();
+    const tomb = merged.activeMatches.find((m) => m.matchId === 'm1');
+    expect(tomb?.deletedAt).toBeTruthy();
+    expect(tomb?.cancelledBy).toBe('admin-b');
+  });
+
+  it('keeps a completion that is newer than the cancellation', () => {
+    const server = makeState({
+      activeMatches: [
+        makeMatch('m1', ['a'], ['b'], {
+          deletedAt: 2000,
+          cancelledBy: 'admin-b',
+          updatedAt: 2000,
+        }),
+      ],
+      completedMatches: [],
+    });
+    const local = makeState({
+      activeMatches: [
+        makeMatch('m1', ['a'], ['b'], { deletedAt: 3000, updatedAt: 3000 }),
+      ],
+      completedMatches: [
+        makeCompletedMatch('m1', { completedAt: 3000, updatedAt: 3000 }),
+      ],
+    });
+    const merged = mergeAppState(local, server);
+    expect(
+      merged.completedMatches.find((m) => m.matchId === 'm1'),
+    ).toBeDefined();
+  });
+
+  it('a future-dated queuedAt cannot resurrect a checked-out player', () => {
+    const future = Date.now() + 24 * 60 * 60 * 1000;
+    const server = makeState({
+      queues: [
+        makeQueueEntry('alice', { deletedAt: 5000, queuedAt: 1000 }),
+      ],
+    });
+    const local = makeState({
+      queues: [
+        // Skewed clock wrote a future queuedAt, but createdAt is sane —
+        // the ghost must not beat the real deletion.
+        makeQueueEntry('alice', { queuedAt: future, createdAt: 1000 }),
+      ],
+    });
+    const merged = mergeAppState(local, server);
+    expect(
+      merged.queues.some((q) => !q.deletedAt && q.username === 'alice'),
+    ).toBe(false);
+  });
+
+  it('a future-dated tombstone still deletes (clamped, not ignored)', () => {
+    const future = Date.now() + 24 * 60 * 60 * 1000;
+    const server = makeState({
+      queues: [makeQueueEntry('alice', { deletedAt: future })],
+    });
+    const local = makeState({
+      queues: [makeQueueEntry('alice', { queuedAt: 1000 })],
+    });
+    const merged = mergeAppState(local, server);
+    expect(
+      merged.queues.some((q) => !q.deletedAt && q.username === 'alice'),
+    ).toBe(false);
+  });
+
+  it('completed-match record ties resolve deterministically on both devices', () => {
+    const recA = makeCompletedMatch('m1', {
+      teamAScore: 11,
+      teamBScore: 0,
+      updatedAt: 5000,
+    });
+    const recB = makeCompletedMatch('m1', {
+      teamAScore: 21,
+      teamBScore: 20,
+      updatedAt: 5000,
+    });
+    const a = makeState({ completedMatches: [recA] });
+    const b = makeState({ completedMatches: [recB] });
+    const ab = mergeAppState(a, b).completedMatches[0];
+    const ba = mergeAppState(b, a).completedMatches[0];
+    expect(ab.teamAScore).toBe(ba.teamAScore);
   });
 });
 
