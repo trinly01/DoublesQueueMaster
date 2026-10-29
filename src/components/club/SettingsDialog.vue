@@ -319,7 +319,7 @@
                     style="min-height: 72px"
                   >
                     <div>Clear Matches</div>
-                    <div class="data-mgmt-sub">ends in-progress games</div>
+                    <div class="data-mgmt-sub">ends games in progress</div>
                   </q-btn>
                 </div>
                 <div class="col">
@@ -332,7 +332,7 @@
                     style="min-height: 72px"
                   >
                     <div>Clear Queue</div>
-                    <div class="data-mgmt-sub">duo pairs stay</div>
+                    <div class="data-mgmt-sub">everyone leaves the queue</div>
                   </q-btn>
                 </div>
               </div>
@@ -348,7 +348,7 @@
                     style="min-height: 72px"
                   >
                     <div>Reset Stats</div>
-                    <div class="data-mgmt-sub">zeroes W/L records</div>
+                    <div class="data-mgmt-sub">wins &amp; losses back to 0</div>
                   </q-btn>
                 </div>
                 <div class="col">
@@ -361,7 +361,7 @@
                     style="min-height: 72px"
                   >
                     <div>Restart Session</div>
-                    <div class="data-mgmt-sub">keeps players</div>
+                    <div class="data-mgmt-sub">fresh start, players stay</div>
                   </q-btn>
                 </div>
                 <div class="col">
@@ -1296,11 +1296,12 @@ function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
 }
 
 .data-mgmt-sub {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 400;
   text-transform: none;
-  letter-spacing: 0;
-  opacity: 0.75;
-  margin-top: 2px;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  opacity: 0.7;
+  margin-top: 4px;
 }
 </style>
