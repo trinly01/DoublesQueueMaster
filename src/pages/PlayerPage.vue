@@ -203,11 +203,13 @@
                   <div class="lb-tooltip-body">
                     <p class="lb-line">
                       Replayed from your last 30 days of matches (up to 500
-                      fetched), re-seeding everyone at 1450.
+                      fetched), re-seeding everyone at
+                      {{ ratingChipText(1450) }}.
                     </p>
                     <p class="lb-line">
-                      May differ from your saved Dink Points — the replay only
-                      sees this 30-day window.
+                      May differ from your saved
+                      {{ hideInternalRating ? 'rating' : 'Dink Points' }} — the
+                      replay only sees this 30-day window.
                     </p>
                   </div>
                 </q-card-section>
@@ -412,7 +414,9 @@
                           >
                         </div>
                         <div class="lb-row">
-                          <span class="lb-label">Seed (1450)</span>
+                          <span class="lb-label"
+                            >Seed ({{ ratingChipText(1450) }})</span
+                          >
                           <span class="lb-desc"
                             >dashed line — everyone starts here each
                             season</span
@@ -422,7 +426,7 @@
                           <span class="lb-label">Season reset</span>
                           <span class="lb-desc"
                             >divider marks when all ratings were reset to
-                            1450</span
+                            {{ ratingChipText(1450) }}</span
                           >
                         </div>
                       </div>
@@ -437,7 +441,7 @@
                           <span class="lb-label">Season reset</span>
                           <span class="lb-desc"
                             >divider marks when all ratings were reset to
-                            1450</span
+                            {{ ratingChipText(1450) }}</span
                           >
                         </div>
                       </div>
@@ -1074,7 +1078,7 @@
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
-                >Rating below 1400</q-tooltip
+                >{{ hideInternalRating ? '< 3.00' : '< 1400' }}</q-tooltip
               >
             </q-chip>
             <q-chip dense color="blue-6" text-color="white" size="xs">
@@ -1083,7 +1087,9 @@
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
-                >Rating 1400 – 1699</q-tooltip
+                >{{
+                  hideInternalRating ? '3.00–3.99' : '1400–1699'
+                }}</q-tooltip
               >
             </q-chip>
             <q-chip dense color="green-6" text-color="white" size="xs">
@@ -1092,7 +1098,9 @@
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
-                >Rating 1700 – 1899</q-tooltip
+                >{{
+                  hideInternalRating ? '4.00–4.99' : '1700–1899'
+                }}</q-tooltip
               >
             </q-chip>
             <q-chip dense color="amber-7" text-color="white" size="xs">
@@ -1101,7 +1109,9 @@
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
-                >Rating 1900 – 2099</q-tooltip
+                >{{
+                  hideInternalRating ? '5.00–5.99' : '1900–2099'
+                }}</q-tooltip
               >
             </q-chip>
             <q-chip dense color="red-7" text-color="white" size="xs">
@@ -1110,7 +1120,7 @@
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
-                >Rating 2100+</q-tooltip
+                >{{ hideInternalRating ? '6.00+' : '2100+' }}</q-tooltip
               >
             </q-chip>
           </div>
