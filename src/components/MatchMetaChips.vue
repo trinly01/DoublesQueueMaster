@@ -1,6 +1,12 @@
 <template>
   <div
-    v-if="meta && (meta.generationType || meta.generatedBy || meta.duprStatus)"
+    v-if="
+      meta &&
+      (meta.generationType ||
+        meta.generatedBy ||
+        meta.duprStatus ||
+        meta.ratingApplied === false)
+    "
     class="row justify-center q-gutter-xs q-mt-xs"
   >
     <q-chip
@@ -121,6 +127,26 @@
         >Cancelled by</q-tooltip
       >
       {{ meta.cancelledBy }}
+    </q-chip>
+    <q-chip
+      v-if="meta.ratingApplied === false"
+      color="grey-3"
+      text-color="grey-9"
+      size="xs"
+      dense
+      icon="block"
+    >
+      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]">
+        <template v-if="meta.ratingSkippedReason === 'unlinked_players'">
+          <div>Linked-player ratings not updated —</div>
+          <div>a player in this match has no linked account.</div>
+          <div>Guest players still moved locally.</div>
+        </template>
+        <template v-else>
+          <div>Ratings don't update in this matchmaking mode.</div>
+        </template>
+      </q-tooltip>
+      Unrated
     </q-chip>
     <q-chip
       v-if="meta.duprStatus === 'submitted'"

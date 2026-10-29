@@ -2413,6 +2413,22 @@ export class LocalMatchmakingSystem {
       match.matchmakingMode === 'fair_balance' ||
       match.matchmakingMode === 'variety_first';
 
+    // Mirrors the save-completed-match flow gate: the backend only writes
+    // linked-player ratings when EVERY player is account-linked. In a mixed
+    // match the local shift still applies to guests (their local rating is
+    // the only rating they have and it feeds matchmaking), but linked
+    // players get stats increments only — directus_users stays canonical.
+    const allLinked =
+      teamA.length > 0 &&
+      teamB.length > 0 &&
+      [...teamA, ...teamB].every((p) => p.userId);
+    const ratingApplied = !isNonCompetitive && allLinked;
+    const ratingSkippedReason = ratingApplied
+      ? undefined
+      : isNonCompetitive
+        ? ('unrated_mode' as const)
+        : ('unlinked_players' as const);
+
     const { updatedWinners, updatedLosers } = RatingEngine.calculateShift(
       winners,
       losers,
@@ -2420,6 +2436,22 @@ export class LocalMatchmakingSystem {
       scoreL,
       !isNonCompetitive,
     );
+
+    // Strip the rating shift from linked players in a partially-linked
+    // match — the flow won't persist it, so keeping it locally would make
+    // this device diverge from directus_users (and every other device).
+    if (!isNonCompetitive && !allLinked) {
+      const revertLinked = (updated: Player[], originals: Player[]) => {
+        updated.forEach((p, i) => {
+          if (originals[i].userId) {
+            p.rating = originals[i].rating;
+            p.ratingUpdatedAt = originals[i].ratingUpdatedAt;
+          }
+        });
+      };
+      revertLinked(updatedWinners, winners);
+      revertLinked(updatedLosers, losers);
+    }
 
     // Save new ratings to dictionary
     updatedWinners.forEach((p) => (this.state.players[p.username] = p));
@@ -2473,6 +2505,8 @@ export class LocalMatchmakingSystem {
         originalMatchup: match.originalMatchup,
         originalTeamA: match.originalTeamA,
         originalTeamB: match.originalTeamB,
+        ratingApplied,
+        ratingSkippedReason,
       },
     };
     console.log(

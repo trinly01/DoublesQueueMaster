@@ -14,4 +14,6 @@ export interface MatchMeta {
   updatedAt?: Date | string | number;
   duprStatus?: string | null;
   duprError?: string | null;
+  ratingApplied?: boolean;
+  ratingSkippedReason?: 'unrated_mode' | 'unlinked_players';
 }

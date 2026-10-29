@@ -28,6 +28,39 @@
             Enter match scores
           </div>
 
+          <q-banner
+            v-if="unlinkedNames.length > 0 && !isUnratedMode"
+            dense
+            rounded
+            class="bg-orange-1 text-orange-9"
+          >
+            <template v-slot:avatar>
+              <q-icon name="link_off" color="orange-9" />
+            </template>
+            <div class="text-weight-medium">
+              Ratings won't update — {{ unlinkedNames.join(', ') }}
+              {{ unlinkedNames.length === 1 ? 'has' : 'have' }} no linked
+              account.
+            </div>
+            <div class="text-caption">
+              Guests still get local rating movement for matchmaking.
+            </div>
+          </q-banner>
+          <q-banner
+            v-else-if="isUnratedMode"
+            dense
+            rounded
+            class="bg-grey-2 text-grey-9"
+          >
+            <template v-slot:avatar>
+              <q-icon name="block" color="grey-7" />
+            </template>
+            <div class="text-weight-medium">
+              {{ modeLabel }} mode doesn't update ratings — this match is
+              recorded for history only.
+            </div>
+          </q-banner>
+
           <MatchResult
             v-if="matchData"
             :teamA="matchData.teamA"
@@ -73,6 +106,7 @@
 import { computed } from 'vue';
 import { useQuasar } from 'quasar';
 import type { TeamPlayer } from '../../types/player';
+import { getMatchmakingModeLabel } from '../../composables/useMatchSettings';
 import DialogHeader from '../DialogHeader.vue';
 import MatchResult from '../MatchResult.vue';
 
@@ -104,6 +138,27 @@ const matchData = computed(() => {
     winProbability: m.winProbability as number,
     status: m.status as string,
     startedAt: m.startedAt as Date | undefined,
+    matchmakingMode: m.matchmakingMode as string | undefined,
   };
 });
+
+// Modes that never write ratings (Casual / Social). Mirrors the
+// save-completed-match flow's RATED_MODES allowlist.
+const UNRATED_MODES = new Set(['fair_balance', 'variety_first']);
+
+const isUnratedMode = computed(
+  () =>
+    !!matchData.value?.matchmakingMode &&
+    UNRATED_MODES.has(matchData.value.matchmakingMode),
+);
+
+const modeLabel = computed(() =>
+  getMatchmakingModeLabel(matchData.value?.matchmakingMode || ''),
+);
+
+const unlinkedNames = computed(() =>
+  [...(matchData.value?.teamA || []), ...(matchData.value?.teamB || [])]
+    .filter((p) => !p.userId)
+    .map((p) => p.firstName || p.username),
+);
 </script>
