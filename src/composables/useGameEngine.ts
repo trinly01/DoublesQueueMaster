@@ -1611,10 +1611,14 @@ export function useGameEngine() {
     // Track previous position for velocity
     prevAiPos.copy(refs.aiPos);
 
-    // Home spot: advanced AI holds the NVZ line (the strong position) —
-    // but only once volleys are legal; during the two-bounce phase after
-    // its own serve it must stay back at the baseline like a real player
-    const mustLetBounce = !ballBouncedOnSide && rallyHitCount < 3;
+    // Home spot: advanced AI holds the NVZ line (the strong position).
+    // But during the two-bounce phase it stays back only while it still
+    // owes a bounce — as receiver it's free the moment it returns (its
+    // next hit is a legal volley), while as server it waits for the
+    // return to bounce on its side first.
+    const mustLetBounce =
+      !ballBouncedOnSide &&
+      (rallyHitCount < 2 || (rallyHitCount < 3 && refs.ballVel.z < 0));
     const homeZ =
       cfg.advancedPos && !mustLetBounce
         ? -KITCHEN_DEPTH - LINE_HALF - 0.35
