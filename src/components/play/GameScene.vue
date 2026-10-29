@@ -80,7 +80,7 @@
       <TresMeshBasicMaterial
         :map="kitchenTextTexture"
         :transparent="true"
-        :opacity="0.55"
+        :opacity="0.7"
       />
     </TresMesh>
     <TresMesh
@@ -91,7 +91,7 @@
       <TresMeshBasicMaterial
         :map="kitchenTextTexture"
         :transparent="true"
-        :opacity="0.55"
+        :opacity="1"
       />
     </TresMesh>
 
@@ -176,6 +176,7 @@
 <script setup lang="ts">
 import { TresCanvas } from '@tresjs/core';
 import * as THREE from 'three';
+import logoUrl from 'src/assets/queue master logo.png';
 import type { GameRefs } from 'src/composables/useGameEngine';
 import type { CharacterPalette } from 'src/composables/useRandomPalette';
 import GameActors from 'components/play/GameActors.vue';
@@ -196,24 +197,57 @@ const POST_X = COURT_WIDTH / 2 + 0.305; // ~1ft outside the sideline
 const POST_HEIGHT = 0.92; // ~36in at the posts
 const KITCHEN_DEPTH = 2.13;
 
-// Painted-court text decal (canvas → texture, no font assets needed)
-function makeCourtTextTexture(text: string) {
+// Painted-court decal: logo + text composed on a canvas → texture
+function makeCourtDecalTexture(text: string, imgSrc: string) {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
   canvas.height = 256;
   const ctx = canvas.getContext('2d')!;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#ffffff';
-  // Fit text to the canvas with padding — measure at 100px then scale
-  ctx.font = '700 100px Arial, sans-serif';
-  const fit = (canvas.width * 0.9) / ctx.measureText(text).width;
-  ctx.font = `700 ${Math.floor(Math.min(fit, 1) * 100)}px Arial, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
   const tex = new THREE.CanvasTexture(canvas);
   tex.anisotropy = 4;
+  tex.colorSpace = THREE.SRGBColorSpace;
+
+  const paint = (img?: HTMLImageElement) => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#ffffff';
+    ctx.textBaseline = 'middle';
+
+    // Logo box on the left (square, fit height)
+    let logoW = 0;
+    const logoH = 170;
+    const gap = 36;
+    if (img) {
+      logoW = (img.width / img.height) * logoH;
+    }
+
+    // Fit the text into what's left after logo + gaps
+    const textZone = canvas.width * 0.9 - logoW - (img ? gap : 0);
+    ctx.font = '700 100px Arial, sans-serif';
+    const fit = textZone / ctx.measureText(text).width;
+    ctx.font = `700 ${Math.floor(Math.min(fit, 1) * 100)}px Arial, sans-serif`;
+    const textW = ctx.measureText(text).width;
+
+    // Center the logo+text group as one unit
+    const totalW = logoW + (img ? gap : 0) + textW;
+    let x = (canvas.width - totalW) / 2;
+    if (img) {
+      ctx.drawImage(img, x, (canvas.height - logoH) / 2, logoW, logoH);
+      x += logoW + gap;
+    }
+    // Logo stays fully opaque for its real colors; the text gets the
+    // faded painted-court look baked into its own alpha instead.
+    ctx.globalAlpha = 0.55;
+    ctx.textAlign = 'left';
+    ctx.fillText(text, x, canvas.height / 2);
+    ctx.globalAlpha = 1;
+    tex.needsUpdate = true;
+  };
+  paint();
+
+  const img = new Image();
+  img.onload = () => paint(img);
+  img.src = imgSrc;
   return tex;
 }
-const kitchenTextTexture = makeCourtTextTexture('dinkmatch.club');
+const kitchenTextTexture = makeCourtDecalTexture('dinkmatch.club', logoUrl);
 </script>
