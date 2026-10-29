@@ -246,39 +246,49 @@
       </q-card-section>
 
       <q-card-section class="q-px-lg q-mt-sm text-center">
-        <div class="row items-center justify-center q-gutter-sm">
+        <div class="column items-center" style="width: 100%; gap: 8px">
           <q-btn
             label="Browse Clubs"
             icon="groups"
             color="accent"
             rounded
             unelevated
+            class="full-width"
             @click="router.push('/clubs')"
           />
-          <q-btn
-            label="Play 3D"
-            icon="sports_esports"
-            color="amber-8"
-            rounded
-            outline
-            class="play-game-btn"
-            @click="router.push('/play')"
-          >
-            <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
-              >Play the 3D game</q-tooltip
+          <div class="row items-center full-width" style="gap: 8px">
+            <q-btn
+              label="Play 3D"
+              icon="sports_esports"
+              color="amber-8"
+              rounded
+              outline
+              class="play-game-btn"
+              style="flex: 1"
+              @click="router.push('/play')"
             >
-          </q-btn>
-          <q-btn
-            round
-            outline
-            color="accent"
-            icon="qr_code"
-            @click="openQrDialog"
-          >
-            <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
-              >My QR Code</q-tooltip
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[0, 8]"
+                >Play the 3D game</q-tooltip
+              >
+            </q-btn>
+            <q-btn
+              round
+              outline
+              color="accent"
+              icon="qr_code"
+              @click="openQrDialog"
             >
-          </q-btn>
+              <q-tooltip
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[0, 8]"
+                >My QR Code</q-tooltip
+              >
+            </q-btn>
+          </div>
         </div>
 
         <div
