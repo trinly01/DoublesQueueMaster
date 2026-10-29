@@ -2308,12 +2308,13 @@ const initChart = () => {
   const losses = chronological.map((e) => e.losses);
   const ratings = chronological.map((e) => e.rating);
 
-  const hidden = hideInternalRating.value;
+  // The rating line stays in the chart even when hideInternalRating hides
+  // the chip — the tab is still labeled "Results" for DUPR compliance.
   chartInstance = echarts.init(chartRef.value);
   chartInstance.setOption({
     tooltip: { trigger: 'axis' },
     legend: {
-      data: hidden ? ['Wins', 'Losses'] : ['Wins', 'Losses', 'Rating'],
+      data: ['Wins', 'Losses', 'Rating'],
       bottom: 0,
       itemWidth: 12,
       itemHeight: 8,
@@ -2332,28 +2333,21 @@ const initChart = () => {
       data: days,
       axisLabel: { fontSize: 10 },
     },
-    yAxis: hidden
-      ? {
-          type: 'value',
-          name: 'W/L',
-          position: 'left',
-          nameTextStyle: { fontSize: 10 },
-        }
-      : [
-          {
-            type: 'value',
-            name: 'W/L',
-            position: 'left',
-            nameTextStyle: { fontSize: 10 },
-          },
-          {
-            type: 'value',
-            name: 'Rating',
-            position: 'right',
-            nameTextStyle: { fontSize: 10 },
-            splitLine: { show: false },
-          },
-        ],
+    yAxis: [
+      {
+        type: 'value',
+        name: 'W/L',
+        position: 'left',
+        nameTextStyle: { fontSize: 10 },
+      },
+      {
+        type: 'value',
+        name: 'Rating',
+        position: 'right',
+        nameTextStyle: { fontSize: 10 },
+        splitLine: { show: false },
+      },
+    ],
     series: [
       {
         name: 'Wins',
@@ -2371,36 +2365,32 @@ const initChart = () => {
         emphasis: { focus: 'series' },
         data: losses,
       },
-      ...(hidden
-        ? []
-        : [
-            {
-              name: 'Rating',
-              type: 'line' as const,
-              smooth: true,
-              yAxisIndex: 1,
-              itemStyle: { color: '#9f7aea' },
-              lineStyle: { width: 3 },
-              emphasis: { focus: 'series' as const },
-              data: ratings,
-              markLine: {
-                silent: true,
-                symbol: 'none',
-                label: {
-                  formatter: 'Seed (1450)',
-                  position: 'insideStartTop' as const,
-                  fontSize: 10,
-                  color: '#aaa',
-                },
-                lineStyle: {
-                  type: 'dashed' as const,
-                  color: '#ccc',
-                  width: 1,
-                },
-                data: [{ yAxis: 1450 }],
-              },
-            },
-          ]),
+      {
+        name: 'Rating',
+        type: 'line' as const,
+        smooth: true,
+        yAxisIndex: 1,
+        itemStyle: { color: '#9f7aea' },
+        lineStyle: { width: 3 },
+        emphasis: { focus: 'series' as const },
+        data: ratings,
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          label: {
+            formatter: 'Seed (1450)',
+            position: 'insideStartTop' as const,
+            fontSize: 10,
+            color: '#aaa',
+          },
+          lineStyle: {
+            type: 'dashed' as const,
+            color: '#ccc',
+            width: 1,
+          },
+          data: [{ yAxis: 1450 }],
+        },
+      },
     ],
   });
 };
