@@ -269,16 +269,17 @@
                   }}
                 </div>
               </div>
-              <div class="col-auto">
+              <div class="col-auto q-ml-auto self-center">
                 <q-btn
-                  color="positive"
+                  color="primary"
+                  style="background: #1e56d8"
                   @click="$emit('exportDuprCsv')"
-                  icon="download"
-                  label="Export DUPR CSV"
                   unelevated
                   no-caps
                   :disable="duprExportableMatches.length === 0"
                 >
+                  <DuprLogo :size="18" class="q-mr-sm" />
+                  Export CSV
                   <q-badge
                     v-if="duprExportableMatches.length > 0"
                     color="dark"
@@ -1041,6 +1042,7 @@
 import { ref, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import DialogHeader from '../DialogHeader.vue';
+import DuprLogo from '../DuprLogo.vue';
 import MemberMatchStats from './MemberMatchStats.vue';
 import {
   getRatingColor,
