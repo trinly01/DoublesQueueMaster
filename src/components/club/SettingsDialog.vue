@@ -314,22 +314,26 @@
                     color="warning"
                     @click="$emit('clearMatches')"
                     icon="delete"
-                    label="Clear Matches"
                     class="full-width"
                     stack
                     style="min-height: 72px"
-                  />
+                  >
+                    <div>Clear Matches</div>
+                    <div class="data-mgmt-sub">ends in-progress games</div>
+                  </q-btn>
                 </div>
                 <div class="col">
                   <q-btn
                     color="warning"
                     @click="$emit('clearQueue')"
                     icon="delete_outline"
-                    label="Clear Queue"
                     class="full-width"
                     stack
                     style="min-height: 72px"
-                  />
+                  >
+                    <div>Clear Queue</div>
+                    <div class="data-mgmt-sub">duo pairs stay</div>
+                  </q-btn>
                 </div>
               </div>
 
@@ -339,33 +343,39 @@
                     color="negative"
                     @click="$emit('resetGamesPlayed')"
                     icon="refresh"
-                    label="Reset Stats"
                     class="full-width"
                     stack
                     style="min-height: 72px"
-                  />
+                  >
+                    <div>Reset Stats</div>
+                    <div class="data-mgmt-sub">zeroes W/L records</div>
+                  </q-btn>
                 </div>
                 <div class="col">
                   <q-btn
                     color="negative"
                     @click="$emit('resetSessionData')"
                     icon="restart_alt"
-                    label="Restart Session"
                     class="full-width"
                     stack
                     style="min-height: 72px"
-                  />
+                  >
+                    <div>Restart Session</div>
+                    <div class="data-mgmt-sub">keeps players</div>
+                  </q-btn>
                 </div>
                 <div class="col">
                   <q-btn
                     color="negative"
                     @click="$emit('resetAllData')"
                     icon="delete_forever"
-                    label="Clear Session"
                     class="full-width"
                     stack
                     style="min-height: 72px"
-                  />
+                  >
+                    <div>Delete Everything</div>
+                    <div class="data-mgmt-sub">removes all players</div>
+                  </q-btn>
                 </div>
               </div>
             </div>
@@ -1283,5 +1293,14 @@ function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
   display: inline-block;
   max-width: 120px;
   vertical-align: bottom;
+}
+
+.data-mgmt-sub {
+  font-size: 0.65rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.75;
+  margin-top: 2px;
 }
 </style>

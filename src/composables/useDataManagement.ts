@@ -289,7 +289,7 @@ export function useDataManagement(context: UseDataManagementContext) {
 
   const resetAllData = () => {
     confirmWithClubId({
-      title: 'Clear Session',
+      title: 'Delete Everything',
       message:
         'All players removed — everything is wiped from this session.<br><br>' +
         '• Players → ALL removed<br>' +
