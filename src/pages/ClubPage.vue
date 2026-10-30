@@ -3086,7 +3086,13 @@ const fetchGlobalLeaderboard = async () => {
 
     const competitiveMatches = matches.filter((m) => {
       const mode = m.meta?.matchmakingMode;
-      return mode !== 'fair_balance' && mode !== 'variety_first';
+      if (mode === 'fair_balance' || mode === 'variety_first') return false;
+      // Global board replays only fully-registered matches — the same set
+      // the backend officially rates (mixed/guest matches never write
+      // directus_users ratings, so they must not move replayed ones).
+      return [...(m.team_a || []), ...(m.team_b || [])].every(
+        (p) => !!p.userId,
+      );
     });
 
     const replayed = replayMatchesForRanking(
@@ -3306,6 +3312,7 @@ const fetchMyMatchesLeaderboard = async () => {
       [...competitiveMatches].reverse().map((m) => ({
         teamAScore: m.team_a_score,
         teamBScore: m.team_b_score,
+        completedAt: m.completed_at,
         teamA: (m.team_a || []).map((p) => ({
           username: p.username,
           name: p.firstName,
