@@ -3104,6 +3104,7 @@ const fetchGlobalLeaderboard = async () => {
           rating: p.rating,
           level: p.level,
           avatar: p.avatar,
+          linkedTo: p.linkedTo,
         })),
         teamB: (m.team_b || []).map((p) => ({
           userId: p.userId,
@@ -3113,6 +3114,7 @@ const fetchGlobalLeaderboard = async () => {
           rating: p.rating,
           level: p.level,
           avatar: p.avatar,
+          linkedTo: p.linkedTo,
         })),
       })),
     );
@@ -3311,6 +3313,7 @@ const fetchMyMatchesLeaderboard = async () => {
           lastName: p.lastName,
           rating: p.rating,
           avatar: p.avatar,
+          linkedTo: p.linkedTo,
         })),
         teamB: (m.team_b || []).map((p) => ({
           username: p.username,
@@ -3319,6 +3322,7 @@ const fetchMyMatchesLeaderboard = async () => {
           lastName: p.lastName,
           rating: p.rating,
           avatar: p.avatar,
+          linkedTo: p.linkedTo,
         })),
       })),
     );

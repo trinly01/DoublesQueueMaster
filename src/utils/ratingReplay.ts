@@ -7,6 +7,7 @@ export type ReplayPlayerInput = {
   level?: 1 | 2 | 3;
   rating?: number;
   avatar?: string;
+  linkedTo?: string;
 };
 
 export type ReplayMatchInput = {
@@ -37,6 +38,13 @@ export type ReplayPlayer = {
 
 // Modes that count W/L but don't update ratings (mirror matchmaking.ts:1492-1494).
 const NON_COMPETITIVE_MODES = new Set(['variety_first', 'fair_balance']);
+
+// Matches containing a fixed-duo (linked) partner are excluded from rating
+// leaderboards — a declared pairing isn't rotating-partner evidence. The
+// match still exists in history and in the Best Duos tab (which reads raw
+// inputs); it just doesn't move leaderboard ratings, W/L, or reliability.
+const hasLinkedPartner = (m: ReplayMatchInput) =>
+  m.teamA.concat(m.teamB).some((p) => !!p.linkedTo);
 
 const CONFIG = {
   kSingles: 36,
@@ -190,6 +198,8 @@ export function replayMatches(
     const tA = hydrate(m.teamA).filter(Boolean);
     const tB = hydrate(m.teamB).filter(Boolean);
     if (tA.length === 0 || tB.length === 0) continue;
+    // Fixed-duo matches don't count toward the replayed rating
+    if (hasLinkedPartner(m)) continue;
     const aWon = m.teamAScore > m.teamBScore;
     const winners = aWon ? tA : tB;
     const losers = aWon ? tB : tA;
@@ -352,6 +362,9 @@ function replayRankingPass(
 
     // Fix #2: skip tied matches (pickleball requires win-by-2)
     if (m.teamAScore === m.teamBScore) continue;
+
+    // Fixed-duo matches don't count toward leaderboard rating/W-L
+    if (hasLinkedPartner(m)) continue;
 
     const aWon = m.teamAScore > m.teamBScore;
     const winners = aWon ? tA : tB;

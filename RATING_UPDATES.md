@@ -69,6 +69,17 @@ PATCHes ratings; devices adopt them via LWW on `rating_updated_at`
 | Score-entry dialog (`MatchResultDialog`) | Amber banner: "Ratings won't update — \<names\> have no linked account. Guests still get local rating movement." Grey banner on Casual/Social: "…mode doesn't update ratings." |
 | Completed-match card (`MatchMetaChips`) | Grey `Unrated` chip; tooltip states the reason (unlinked players vs. unrated mode) |
 
+## Leaderboard exclusion: fixed-duo matches
+
+Replays (`replayMatches`, `replayMatchesForRanking` — club leaderboard,
+profile "Computed (30d)") skip any match containing a player with
+`linkedTo` set — a declared fixed-duo pairing isn't rotating-partner
+evidence. `linkedTo` is snapshotted into `CompletedMatchPlayer` at report
+time so the exclusion survives session resets and DB fetches; matches
+completed before this existed (no `linkedTo` on record) count normally.
+The **Best Duos** tab is unaffected — it reads raw match inputs and is
+literally about duo results.
+
 ## Constants (shared)
 
 `K=64` doubles / `36` singles · margin `0.15·log(1+margin)` · partner-gap

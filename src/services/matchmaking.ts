@@ -118,6 +118,7 @@ export interface CompletedMatchPlayer {
   level?: 1 | 2 | 3;
   rating?: number;
   avatar?: string;
+  linkedTo?: string; // Fixed-duo partner at completion — session tag, must be snapshotted so rating replays can exclude duo matches
 }
 
 export interface CompletedMatch {
@@ -2480,6 +2481,7 @@ export class LocalMatchmakingSystem {
         level: p.level,
         rating: p.rating,
         avatar: p.avatar,
+        linkedTo: p.linkedTo,
       })),
       teamB: teamB.map((p) => ({
         username: p.username,
@@ -2491,6 +2493,7 @@ export class LocalMatchmakingSystem {
         level: p.level,
         rating: p.rating,
         avatar: p.avatar,
+        linkedTo: p.linkedTo,
       })),
       teamAScore,
       teamBScore,

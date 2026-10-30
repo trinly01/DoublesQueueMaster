@@ -24,6 +24,7 @@ export interface DirectusCompletedMatch {
     rating?: number;
     avatar?: string;
     duprId?: string;
+    linkedTo?: string;
   }[];
   team_b: {
     username: string;
@@ -35,6 +36,7 @@ export interface DirectusCompletedMatch {
     rating?: number;
     avatar?: string;
     duprId?: string;
+    linkedTo?: string;
   }[];
   team_a_score: number;
   team_b_score: number;

@@ -43,6 +43,7 @@ export const toRankedInputs = (
       level: p.level,
       rating: p.rating,
       avatar: p.avatar,
+      linkedTo: p.linkedTo,
     })),
     teamB: (m.team_b || []).map((p) => ({
       userId: p.userId,
@@ -53,6 +54,7 @@ export const toRankedInputs = (
       level: p.level,
       rating: p.rating,
       avatar: p.avatar,
+      linkedTo: p.linkedTo,
     })),
   }));
 
