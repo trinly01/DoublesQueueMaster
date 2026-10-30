@@ -1833,6 +1833,7 @@ const matchesLeaderboard = computed<LeaderboardEntry[]>(() => {
         lastName: p.lastName,
         rating: p.rating,
         avatar: p.avatar,
+        linkedTo: p.linkedTo,
       })),
       teamB: (m.team_b || []).map((p) => ({
         username: p.username,
@@ -1841,6 +1842,7 @@ const matchesLeaderboard = computed<LeaderboardEntry[]>(() => {
         lastName: p.lastName,
         rating: p.rating,
         avatar: p.avatar,
+        linkedTo: p.linkedTo,
       })),
     })),
   );
@@ -2856,6 +2858,7 @@ const fetchLeaderboard = async () => {
           rating: p.rating,
           level: p.level,
           avatar: p.avatar,
+          linkedTo: p.linkedTo,
         })),
         teamB: (m.team_b || []).map((p) => ({
           userId: p.userId,
@@ -2865,6 +2868,7 @@ const fetchLeaderboard = async () => {
           rating: p.rating,
           level: p.level,
           avatar: p.avatar,
+          linkedTo: p.linkedTo,
         })),
       })),
     );
