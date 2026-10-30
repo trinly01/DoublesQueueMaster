@@ -1091,6 +1091,13 @@
                             feature</span
                           >
                         </div>
+                        <div class="lb-row">
+                          <span class="lb-label">Best Duo</span>
+                          <span class="lb-desc"
+                            >top partnerships everywhere (last 30 days, 2+
+                            games together)</span
+                          >
+                        </div>
                       </div>
                       <div class="lb-divider"></div>
                       <p class="lb-line">
@@ -1214,6 +1221,16 @@
                 size="sm"
                 @click="leaderboardTab = 'matches'"
               />
+              <q-btn
+                flat
+                color="accent"
+                :class="leaderboardTab === 'duo' ? 'bg-accent text-white' : ''"
+                icon="diversity_3"
+                label="Best Duo"
+                dense
+                size="sm"
+                @click="leaderboardTab = 'duo'"
+              />
             </q-btn-group>
           </div>
 
@@ -1228,12 +1245,108 @@
               @pay="callPayment({ playerId: username })"
             />
             <div
-              v-if="leaderboardLoading && !leaderboardData.length"
+              v-if="
+                leaderboardLoading &&
+                (leaderboardTab === 'duo'
+                  ? !globalDuoLeaderboard.length
+                  : !leaderboardData.length)
+              "
               class="flex flex-center q-py-md"
             >
               <q-spinner color="accent" size="32px" />
             </div>
-            <q-list separator v-else-if="leaderboardData.length">
+            <q-list
+              separator
+              v-else-if="leaderboardTab === 'duo' && globalDuoLeaderboard.length"
+            >
+              <q-item
+                v-for="(duo, idx) in globalDuoLeaderboard"
+                :key="duo.key"
+                :class="duo.winRate >= 50 ? 'bg-green-1' : 'bg-red-1'"
+              >
+                <q-item-section avatar>
+                  <div class="row items-center no-wrap" style="gap: 8px">
+                    <div
+                      class="text-h6 text-weight-bold text-grey-5 text-right"
+                      style="min-width: 24px"
+                    >
+                      {{ idx + 1 }}
+                    </div>
+                    <PlayerAvatar
+                      :name="duo.player1.firstName"
+                      :username="duo.player1.username"
+                      :color="ringColor(duo.player1.rating)"
+                      :image-url="duo.player1.avatar"
+                      size="26px"
+                      :index="idx * 2"
+                    />
+                    <PlayerAvatar
+                      :name="duo.player2.firstName"
+                      :username="duo.player2.username"
+                      :color="ringColor(duo.player2.rating)"
+                      :image-url="duo.player2.avatar"
+                      size="26px"
+                      :index="idx * 2 + 1"
+                    />
+                  </div>
+                </q-item-section>
+                <q-item-section class="col">
+                  <q-item-label class="text-weight-medium ellipsis">
+                    {{ duo.player1.firstName }} &amp; {{ duo.player2.firstName }}
+                  </q-item-label>
+                  <q-item-label caption class="ellipsis">
+                    {{ duo.games }}G ·
+                    <span class="text-green text-weight-bold"
+                      >{{ duo.wins }}W</span
+                    >
+                    · <span class="text-red-10">{{ duo.losses }}L</span> ·
+                    {{ duo.winRate }}%
+                    <span
+                      :class="
+                        duo.synergy >= 0 ? 'text-blue-6' : 'text-orange-8'
+                      "
+                    >
+                      {{ duo.synergy >= 0 ? '+' : '' }}{{ duo.synergy }}%
+                      synergy</span
+                    >
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side class="text-right">
+                  <q-chip
+                    :color="getRatingColor(duo.duoScore)"
+                    text-color="white"
+                    size="sm"
+                    dense
+                    class="text-weight-bold q-mb-xs"
+                  >
+                    {{ ratingChipText(duo.duoScore) }}
+                    <q-tooltip
+                      anchor="center left"
+                      self="center right"
+                      :offset="[8, 0]"
+                      class="text-no-wrap"
+                    >
+                      Duo rating — team strength + chemistry + form
+                    </q-tooltip>
+                  </q-chip>
+                  <div class="text-caption text-grey-6">
+                    {{ duo.combinedRating }}
+                    <q-tooltip
+                      anchor="center left"
+                      self="center right"
+                      :offset="[8, 0]"
+                      class="text-no-wrap"
+                    >
+                      Team rating — raw skill of both players
+                    </q-tooltip>
+                  </div>
+                </q-item-section>
+              </q-item>
+            </q-list>
+            <q-list
+              separator
+              v-else-if="leaderboardTab !== 'duo' && leaderboardData.length"
+            >
               <q-item
                 v-for="(player, idx) in leaderboardData"
                 :key="player.username"
@@ -1627,6 +1740,8 @@ import {
   rankClubPlayers,
   CLUB_RANKING_CONFIG,
 } from 'src/utils/ratingReplay';
+import { runDuoRanking } from 'src/utils/runLeaderboard';
+import type { DuoLeaderboardEntry } from 'src/composables/useDuoLeaderboard';
 import { useRecentClubs } from 'src/composables/useRecentClubs';
 import { useDupr } from 'src/composables/useDupr';
 
@@ -1705,6 +1820,7 @@ const loadLeaderboardCache = () => {
         playerId?: string;
         global?: LeaderboardEntry[];
         matches?: LeaderboardEntry[];
+        duos?: DuoLeaderboardEntry[];
       }
     | string
     | null;
@@ -1717,6 +1833,7 @@ const loadLeaderboardCache = () => {
     }
     if (data?.global) globalLeaderboard.value = data.global;
     if (data?.matches) matchesLeaderboardCache.value = data.matches;
+    if (data?.duos) globalDuoLeaderboard.value = data.duos;
     return true;
   } catch {
     return false;
@@ -1728,6 +1845,7 @@ const saveLeaderboardCache = () => {
     playerId: PlayerProfile.state.id,
     global: globalLeaderboard.value,
     matches: matchesLeaderboard.value,
+    duos: globalDuoLeaderboard.value,
   });
 };
 const dataFetchBar = ref<{ start: () => void; stop: () => void } | null>(null);
@@ -1806,9 +1924,10 @@ type LeaderboardEntry = {
   lastClubId?: string;
 };
 
-const leaderboardTab = ref<'global' | 'matches'>('global');
+const leaderboardTab = ref<'global' | 'matches' | 'duo'>('global');
 const leaderboardLoading = ref(false);
 const globalLeaderboard = ref<LeaderboardEntry[]>([]);
+const globalDuoLeaderboard = ref<DuoLeaderboardEntry[]>([]);
 const matchesLeaderboardCache = ref<LeaderboardEntry[]>([]);
 const matchesLeaderboard = computed<LeaderboardEntry[]>(() => {
   const allMatches = PlayerProfile.state.completedMatches || [];
@@ -1826,6 +1945,7 @@ const matchesLeaderboard = computed<LeaderboardEntry[]>(() => {
     [...matches].reverse().map((m) => ({
       teamAScore: m.team_a_score,
       teamBScore: m.team_b_score,
+      completedAt: m.completed_at,
       teamA: (m.team_a || []).map((p) => ({
         username: p.username,
         name: p.firstName,
@@ -2839,8 +2959,19 @@ const fetchLeaderboard = async () => {
     // Filter to competitive modes only (exclude Casual and Social)
     const competitiveMatches = matches.filter((m) => {
       const mode = m.meta?.matchmakingMode;
-      return mode !== 'fair_balance' && mode !== 'variety_first';
+      if (mode === 'fair_balance' || mode === 'variety_first') return false;
+      // Global board replays only fully-registered matches — the same set
+      // the backend officially rates (mixed/guest matches never write
+      // directus_users ratings, so they must not move replayed ones).
+      return [...(m.team_a || []), ...(m.team_b || [])].every(
+        (p) => !!p.userId,
+      );
     });
+
+    // Global Best Duos — worker-side replay + duo aggregation alongside
+    // the main replay. Includes all pairs (declared, detected, guests):
+    // the tab is informational, not a rating board.
+    const duoPromise = runDuoRanking(matches, false).catch(() => []);
 
     // Replay using the same ranking path as the club leaderboard
     const replayed = replayMatchesForRanking(
@@ -2971,6 +3102,25 @@ const fetchLeaderboard = async () => {
           lastClub: lastClubUuid ? (lastClubName ?? lastClubId) : undefined,
         };
       });
+
+    const duoEntries = await duoPromise;
+    globalDuoLeaderboard.value = duoEntries.slice(0, 50).map((e) => ({
+      ...e,
+      player1: {
+        username: e.player1.username || '',
+        firstName: e.player1.firstName || e.player1.username || '',
+        lastName: e.player1.lastName,
+        avatar: resolveAvatar(e.player1.avatar),
+        rating: e.player1.rating,
+      },
+      player2: {
+        username: e.player2.username || '',
+        firstName: e.player2.firstName || e.player2.username || '',
+        lastName: e.player2.lastName,
+        avatar: resolveAvatar(e.player2.avatar),
+        rating: e.player2.rating,
+      },
+    }));
 
     saveLeaderboardCache();
   } catch (err) {

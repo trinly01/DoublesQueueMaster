@@ -1,3 +1,5 @@
+import { detectFixedDuos, hasDetectedDuo } from 'src/utils/duoStats';
+
 export type ReplayPlayerInput = {
   username?: string;
   userId?: string;
@@ -15,11 +17,11 @@ export type ReplayMatchInput = {
   teamBScore: number;
   teamA: ReplayPlayerInput[];
   teamB: ReplayPlayerInput[];
+  completedAt?: string;
 };
 
 export type RankedMatchInput = ReplayMatchInput & {
   matchKey?: string;
-  completedAt?: string;
   matchmakingMode?: string;
 };
 
@@ -39,10 +41,12 @@ export type ReplayPlayer = {
 // Modes that count W/L but don't update ratings (mirror matchmaking.ts:1492-1494).
 const NON_COMPETITIVE_MODES = new Set(['variety_first', 'fair_balance']);
 
-// Matches containing a fixed-duo (linked) partner are excluded from rating
+// Matches containing a fixed-duo partner are excluded from rating
 // leaderboards — a declared pairing isn't rotating-partner evidence. The
 // match still exists in history and in the Best Duos tab (which reads raw
 // inputs); it just doesn't move leaderboard ratings, W/L, or reliability.
+// Declared pairs are caught by linkedTo; undeclared pairs are caught by
+// detectFixedDuos pattern analysis over the same match set.
 const hasLinkedPartner = (m: ReplayMatchInput) =>
   m.teamA.concat(m.teamB).some((p) => !!p.linkedTo);
 
@@ -168,6 +172,7 @@ function calculateShift(
 export function replayMatches(
   matches: ReplayMatchInput[],
 ): Record<string, ReplayPlayer> {
+  const detectedDuos = detectFixedDuos(matches);
   const players: Record<string, ReplayPlayer> = {};
 
   const hydrate = (arr: ReplayPlayerInput[]) =>
@@ -198,8 +203,9 @@ export function replayMatches(
     const tA = hydrate(m.teamA).filter(Boolean);
     const tB = hydrate(m.teamB).filter(Boolean);
     if (tA.length === 0 || tB.length === 0) continue;
-    // Fixed-duo matches don't count toward the replayed rating
-    if (hasLinkedPartner(m)) continue;
+    // Fixed-duo matches (declared or detected) don't count toward the
+    // replayed rating
+    if (hasLinkedPartner(m) || hasDetectedDuo(m, detectedDuos)) continue;
     const aWon = m.teamAScore > m.teamBScore;
     const winners = aWon ? tA : tB;
     const losers = aWon ? tB : tA;
@@ -318,6 +324,7 @@ function replayRankingPass(
   matches: RankedMatchInput[],
   seedOverrides?: Map<string, number>,
   includeNonCompetitive = false,
+  detectedDuos: Map<string, unknown> = new Map(),
 ): Record<string, RankedPlayer> {
   const players: Record<string, RankedPlayer> = {};
 
@@ -363,8 +370,9 @@ function replayRankingPass(
     // Fix #2: skip tied matches (pickleball requires win-by-2)
     if (m.teamAScore === m.teamBScore) continue;
 
-    // Fixed-duo matches don't count toward leaderboard rating/W-L
-    if (hasLinkedPartner(m)) continue;
+    // Fixed-duo matches (declared or detected) don't count toward
+    // leaderboard rating/W-L
+    if (hasLinkedPartner(m) || hasDetectedDuo(m, detectedDuos)) continue;
 
     const aWon = m.teamAScore > m.teamBScore;
     const winners = aWon ? tA : tB;
@@ -472,15 +480,29 @@ export function replayMatchesForRanking(
     return ka < kb ? -1 : ka > kb ? 1 : 0;
   });
 
+  // Detect undeclared fixed duos once over the whole set — detection is
+  // deterministic, so every pass and every device flags the same pairs.
+  const detectedDuos = detectFixedDuos(sorted);
+
   // Iterated convergence: repeat forward passes, feeding final ratings
   // back as seeds.
-  let result = replayRankingPass(sorted, undefined, includeNonCompetitive);
+  let result = replayRankingPass(
+    sorted,
+    undefined,
+    includeNonCompetitive,
+    detectedDuos,
+  );
   for (let pass = 1; pass < CONFIG.rankingPasses; pass++) {
     const seedOverrides = new Map<string, number>();
     for (const [key, p] of Object.entries(result)) {
       seedOverrides.set(key, p.rating);
     }
-    result = replayRankingPass(sorted, seedOverrides, includeNonCompetitive);
+    result = replayRankingPass(
+      sorted,
+      seedOverrides,
+      includeNonCompetitive,
+      detectedDuos,
+    );
   }
 
   // Apply Bayesian shrinkage: pull ratings toward seed by n/(n+C).

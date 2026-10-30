@@ -80,6 +80,39 @@ completed before this existed (no `linkedTo` on record) count normally.
 The **Best Duos** tab is unaffected — it reads raw match inputs and is
 literally about duo results.
 
+### Undeclared fixed duos (pattern detection)
+
+`linkedTo` only catches pairs that declared themselves. `detectFixedDuos`
+(`src/utils/duoStats.ts`) additionally scans the replayed match set for
+pairs that *behave* like a fixed duo, and replay excludes their matches
+the same way. Detection is deterministic — same match list → same flags
+on every device — and applies identically to club leaderboard, global
+leaderboard, and profile computed ratings.
+
+A pair is flagged at ≥4 games together when EITHER:
+
+- **Concentration** — mutual top partners AND each member spent ≥50% of
+  their games with the other, OR
+- **Corroborated lower share** — ≥40% share one direction AND one of:
+  - *persistence* — paired on ≥2 distinct days
+  - *carry* — intra-pair rating gap ≥200 AND the weaker member's win rate
+    with the partner is ≥15pts above their win rate without them
+  - *monoculture* — ≥60% of the pair's games vs the same opposing pair
+
+Thresholds live in `DUO_DETECT`. Only 2v2 matches feed detection (singles
+have no partner). Partners are keyed by `duoPlayerKey` — the same
+userId/username/guest identity used by the replay, so flags line up with
+replayed participants.
+
+### Global leaderboard: registered-only matches
+
+The global board (PlayerPage + ClubPage global tab) additionally drops any
+match containing a player without `userId` before replay — mirroring the
+backend rule that mixed/guest matches never write `directus_users`
+ratings. Replayed global ratings therefore move only on matches that were
+actually rated. Club-level boards still include guest matches (the club
+leaderboard is a local board where guests legitimately appear).
+
 ## Constants (shared)
 
 `K=64` doubles / `36` singles · margin `0.15·log(1+margin)` · partner-gap

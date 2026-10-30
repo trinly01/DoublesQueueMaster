@@ -352,3 +352,209 @@ export function buildDuoEntries(
   entries.sort((a, b) => b.duoScore - a.duoScore);
   return entries;
 }
+
+// ---------------------------------------------------------------------------
+// Undeclared fixed-duo detection
+//
+// Detects pairs that behave like a fixed duo without declaring linkedTo, so
+// leaderboard replay can exclude their matches (same treatment as declared
+// pairs). Deterministic: same match list -> same flagged pairs on every device.
+//
+// A pair {A,B} is flagged when it plays >= minPairGames together AND either:
+//   - concentration: mutual top partners AND partner share >= strongShare
+//     for BOTH members (share = games together / member's total games), OR
+//   - corroborated: share >= weakShare in at least one direction AND one of:
+//       * persistence — paired on >= minDays distinct days
+//       * carry — intra-pair rating gap >= carryGap AND the weaker member's
+//         win rate WITH the partner >= their win rate WITHOUT + carryWinDiff
+//       * monoculture — >= monoOppShare of the pair's games vs the same
+//         opposing pair
+// ---------------------------------------------------------------------------
+
+export const DUO_DETECT = {
+  minPairGames: 4,
+  strongShare: 0.5,
+  weakShare: 0.4,
+  minDays: 2,
+  carryGap: 200,
+  carryWinDiff: 0.15,
+  monoOppShare: 0.6,
+} as const;
+
+export type DetectedDuo = {
+  key: string;
+  games: number;
+  days: number;
+  share1: number;
+  share2: number;
+  mutual: boolean;
+  reason: 'concentration' | 'persistence' | 'carry' | 'monoculture';
+};
+
+export function detectFixedDuos(
+  matches: DuoMatchInput[],
+): Map<string, DetectedDuo> {
+  const playerGames = new Map<string, number>();
+  const playerWins = new Map<string, number>();
+  const playerRating = new Map<string, number>();
+  const partnerCounts = new Map<string, Map<string, number>>();
+  const pairStats = new Map<
+    string,
+    {
+      games: number;
+      wins: number;
+      days: Set<string>;
+      oppCounts: Map<string, number>;
+    }
+  >();
+
+  for (const m of matches) {
+    const ta = m.teamA || [];
+    const tb = m.teamB || [];
+    if (ta.length !== 2 || tb.length !== 2) continue;
+
+    const aWon = m.teamAScore > m.teamBScore;
+    const day = m.completedAt ? m.completedAt.slice(0, 10) : '';
+    const oppKey = (team: DuoPlayerInput[]) =>
+      team.map(duoPlayerKey).sort().join('|');
+
+    for (const p of [...ta, ...tb]) {
+      const k = duoPlayerKey(p);
+      playerGames.set(k, (playerGames.get(k) || 0) + 1);
+      if (p.rating !== undefined) playerRating.set(k, p.rating);
+    }
+    for (const p of aWon ? ta : tb) {
+      const k = duoPlayerKey(p);
+      playerWins.set(k, (playerWins.get(k) || 0) + 1);
+    }
+
+    const sides: Array<{
+      team: [DuoPlayerInput, DuoPlayerInput];
+      won: boolean;
+      opp: DuoPlayerInput[];
+    }> = [
+      { team: ta as [DuoPlayerInput, DuoPlayerInput], won: aWon, opp: tb },
+      { team: tb as [DuoPlayerInput, DuoPlayerInput], won: !aWon, opp: ta },
+    ];
+
+    for (const side of sides) {
+      const k1 = duoPlayerKey(side.team[0]);
+      const k2 = duoPlayerKey(side.team[1]);
+      for (const [a, b] of [
+        [k1, k2],
+        [k2, k1],
+      ] as const) {
+        let pc = partnerCounts.get(a);
+        if (!pc) partnerCounts.set(a, (pc = new Map()));
+        pc.set(b, (pc.get(b) || 0) + 1);
+      }
+
+      const key = [k1, k2].sort().join('|');
+      let st = pairStats.get(key);
+      if (!st) {
+        pairStats.set(
+          key,
+          (st = { games: 0, wins: 0, days: new Set(), oppCounts: new Map() }),
+        );
+      }
+      st.games++;
+      if (side.won) st.wins++;
+      if (day) st.days.add(day);
+      const ok = oppKey(side.opp);
+      st.oppCounts.set(ok, (st.oppCounts.get(ok) || 0) + 1);
+    }
+  }
+
+  // Most frequent partner per player; count ties broken by partner key so
+  // the result is deterministic across devices.
+  const topPartner = (k: string): string | undefined => {
+    const pc = partnerCounts.get(k);
+    if (!pc) return undefined;
+    let best: string | undefined;
+    let bestN = -1;
+    for (const [pk, n] of pc) {
+      if (n > bestN || (n === bestN && pk < (best ?? ''))) {
+        best = pk;
+        bestN = n;
+      }
+    }
+    return best;
+  };
+
+  const out = new Map<string, DetectedDuo>();
+  for (const [key, st] of pairStats) {
+    if (st.games < DUO_DETECT.minPairGames) continue;
+    const [k1, k2] = key.split('|');
+    const g1 = playerGames.get(k1) || 0;
+    const g2 = playerGames.get(k2) || 0;
+    if (!g1 || !g2) continue;
+
+    const share1 = st.games / g1;
+    const share2 = st.games / g2;
+    const mutual = topPartner(k1) === k2 && topPartner(k2) === k1;
+    const days = st.days.size;
+
+    let reason: DetectedDuo['reason'] | undefined;
+    if (
+      mutual &&
+      share1 >= DUO_DETECT.strongShare &&
+      share2 >= DUO_DETECT.strongShare
+    ) {
+      reason = 'concentration';
+    } else if (Math.max(share1, share2) >= DUO_DETECT.weakShare) {
+      if (days >= DUO_DETECT.minDays) {
+        reason = 'persistence';
+      } else {
+        const r1 = playerRating.get(k1);
+        const r2 = playerRating.get(k2);
+        if (
+          r1 !== undefined &&
+          r2 !== undefined &&
+          Math.abs(r1 - r2) >= DUO_DETECT.carryGap
+        ) {
+          const weak = r1 < r2 ? k1 : k2;
+          const soloGames = (playerGames.get(weak) || 0) - st.games;
+          if (soloGames > 0) {
+            const duoWR = st.wins / st.games;
+            const soloWR =
+              ((playerWins.get(weak) || 0) - st.wins) / soloGames;
+            if (duoWR >= soloWR + DUO_DETECT.carryWinDiff) reason = 'carry';
+          }
+        }
+        if (!reason) {
+          let topOpp = 0;
+          for (const n of st.oppCounts.values()) if (n > topOpp) topOpp = n;
+          if (topOpp / st.games >= DUO_DETECT.monoOppShare) {
+            reason = 'monoculture';
+          }
+        }
+      }
+    }
+
+    if (reason) {
+      out.set(key, { key, games: st.games, days, share1, share2, mutual, reason });
+    }
+  }
+  return out;
+}
+
+/**
+ * True when any pair of teammates in this match is a detected fixed duo.
+ * `detected` is the map returned by detectFixedDuos (or any key-keyed set).
+ */
+export function hasDetectedDuo(
+  m: { teamA: DuoPlayerInput[]; teamB: DuoPlayerInput[] },
+  detected: { has(key: string): boolean },
+): boolean {
+  for (const team of [m.teamA, m.teamB]) {
+    for (let i = 0; i < team.length; i++) {
+      for (let j = i + 1; j < team.length; j++) {
+        const key = [duoPlayerKey(team[i]!), duoPlayerKey(team[j]!)]
+          .sort()
+          .join('|');
+        if (detected.has(key)) return true;
+      }
+    }
+  }
+  return false;
+}

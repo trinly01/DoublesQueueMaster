@@ -411,6 +411,205 @@ describe('replayMatchesForRanking — mode filtering', () => {
   });
 });
 
+describe('fixed-duo exclusion — declared and detected', () => {
+  const dubs = (
+    a1: string,
+    a2: string,
+    b1: string,
+    b2: string,
+    aWon: boolean,
+    key: string,
+    day: string,
+    ratings: [number, number, number, number] = [1450, 1450, 1450, 1450],
+  ): RankedMatchInput => ({
+    teamAScore: aWon ? 11 : 5,
+    teamBScore: aWon ? 5 : 11,
+    matchKey: key,
+    completedAt: `${day}T00:00:00Z`,
+    teamA: [
+      { username: a1, rating: ratings[0] },
+      { username: a2, rating: ratings[1] },
+    ],
+    teamB: [
+      { username: b1, rating: ratings[2] },
+      { username: b2, rating: ratings[3] },
+    ],
+  });
+
+  it('excludes matches containing a declared linkedTo partner', () => {
+    const matches: RankedMatchInput[] = [
+      {
+        teamAScore: 11,
+        teamBScore: 5,
+        matchKey: 'm1',
+        completedAt: '2026-01-01T00:00:00Z',
+        teamA: [
+          { username: 'alice', linkedTo: 'bob' },
+          { username: 'bob', linkedTo: 'alice' },
+        ],
+        teamB: [{ username: 'carol' }, { username: 'dave' }],
+      },
+      {
+        teamAScore: 11,
+        teamBScore: 5,
+        matchKey: 'm2',
+        completedAt: '2026-01-01T01:00:00Z',
+        teamA: [{ username: 'erin' }, { username: 'fred' }],
+        teamB: [{ username: 'carol' }, { username: 'dave' }],
+      },
+    ];
+    const result = replayMatchesForRanking(matches);
+    // Linked match excluded — nobody in it earned rated games
+    expect(result['alice'].ratedMatchesPlayed).toBe(0);
+    expect(result['alice'].rating).toBe(1450);
+    // Unlinked match counted normally
+    expect(result['erin'].ratedMatchesPlayed).toBe(1);
+    expect(result['erin'].rating).toBeGreaterThan(1450);
+  });
+
+  it('excludes a detected undeclared duo via concentration (mutual top, >=50% share)', () => {
+    // alice+bob only ever play together: 5/5 games each, mutual top
+    const matches: RankedMatchInput[] = [
+      dubs('alice', 'bob', 'carol', 'dave', true, 'm1', '2026-01-01'),
+      dubs('alice', 'bob', 'erin', 'fred', true, 'm2', '2026-01-01'),
+      dubs('alice', 'bob', 'carol', 'fred', true, 'm3', '2026-01-02'),
+      dubs('alice', 'bob', 'dave', 'erin', true, 'm4', '2026-01-02'),
+      dubs('alice', 'bob', 'carol', 'erin', true, 'm5', '2026-01-02'),
+      // A legit rotating match that must still count
+      dubs('carol', 'dave', 'erin', 'fred', false, 'm6', '2026-01-03'),
+    ];
+    const result = replayMatchesForRanking(matches);
+    // All alice+bob matches excluded — they earned nothing
+    expect(result['alice'].ratedMatchesPlayed).toBe(0);
+    expect(result['bob'].ratedMatchesPlayed).toBe(0);
+    expect(result['alice'].rating).toBe(1450);
+    // The rotating match still counted for its participants
+    expect(result['erin'].ratedMatchesPlayed).toBe(1);
+    expect(result['fred'].rating).toBeGreaterThan(1450);
+  });
+
+  it('does not flag a rotating pool where everyone partners everyone', () => {
+    // 8-player rotation — partner changes every game, no pair repeats 4x
+    const pool = ['p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7'];
+    const matches: RankedMatchInput[] = [];
+    for (let i = 0; i < 12; i++) {
+      matches.push(
+        dubs(
+          pool[i % 8]!,
+          pool[(i + 1) % 8]!,
+          pool[(i + 3) % 8]!,
+          pool[(i + 5) % 8]!,
+          i % 2 === 0,
+          `r${i}`,
+          '2026-01-01',
+        ),
+      );
+    }
+    const result = replayMatchesForRanking(matches);
+    // Every match counted — no pair concentration
+    expect(result['p1'].ratedMatchesPlayed).toBeGreaterThan(0);
+  });
+
+  it('flags below-50% share when corroborated by multi-day persistence', () => {
+    // alice plays 12 games: 5 with bob (42%), 7 with distinct partners.
+    // bob likewise. Mutual top partners, spread over 2 days -> persistence.
+    const matches: RankedMatchInput[] = [
+      dubs('alice', 'bob', 'x1', 'x2', true, 'm1', '2026-01-01'),
+      dubs('alice', 'bob', 'x3', 'x4', true, 'm2', '2026-01-01'),
+      dubs('alice', 'bob', 'x5', 'x6', true, 'm3', '2026-01-02'),
+      dubs('alice', 'bob', 'x7', 'x8', true, 'm4', '2026-01-02'),
+      dubs('alice', 'bob', 'x9', 'x10', true, 'm5', '2026-01-02'),
+      // 7 more alice games each with a unique partner (never repeated)
+      ...Array.from({ length: 7 }, (_, i) =>
+        dubs(
+          'alice',
+          `ap${i}`,
+          `ao${i}a`,
+          `ao${i}b`,
+          i % 2 === 0,
+          `n${i}`,
+          '2026-01-03',
+        ),
+      ),
+      // 7 bob games with unique partners so bob's share is also 42%
+      ...Array.from({ length: 7 }, (_, i) =>
+        dubs(
+          'bob',
+          `bp${i}`,
+          `bo${i}a`,
+          `bo${i}b`,
+          i % 2 === 0,
+          `o${i}`,
+          '2026-01-04',
+        ),
+      ),
+    ];
+    const result = replayMatchesForRanking(matches);
+    // alice+bob pair flagged -> those 5 matches excluded; her other 7 counted
+    expect(result['alice'].ratedMatchesPlayed).toBe(7);
+    expect(result['bob'].ratedMatchesPlayed).toBe(7);
+  });
+
+  it('flags a carry pattern: big rating gap, weaker member only wins with partner', () => {
+    // weak (1300) plays 9 games: 4 with strong (1700, wins all 4),
+    // 5 with others (loses all 5). One day -> persistence off; carry fires.
+    const matches: RankedMatchInput[] = [
+      ...Array.from({ length: 4 }, (_, i) =>
+        dubs(
+          'weak',
+          'strong',
+          `w${i}a`,
+          `w${i}b`,
+          true,
+          `c${i}`,
+          '2026-01-01',
+          [1300, 1700, 1450, 1450],
+        ),
+      ),
+      ...Array.from({ length: 5 }, (_, i) =>
+        dubs(
+          'weak',
+          `ws${i}`,
+          `wo${i}a`,
+          `wo${i}b`,
+          false,
+          `s${i}`,
+          '2026-01-01',
+          [1300, 1450, 1450, 1450],
+        ),
+      ),
+      // strong also plays solo games so his share of weak-games is <50%
+      ...Array.from({ length: 6 }, (_, i) =>
+        dubs(
+          'strong',
+          `ss${i}`,
+          `so${i}a`,
+          `so${i}b`,
+          true,
+          `t${i}`,
+          '2026-01-01',
+          [1700, 1450, 1450, 1450],
+        ),
+      ),
+    ];
+    const result = replayMatchesForRanking(matches);
+    // weak+strong flagged as carry duo — those 4 matches excluded
+    expect(result['weak'].ratedMatchesPlayed).toBe(5);
+  });
+
+  it('applies the same detection in the legacy replayMatches path', () => {
+    const matches = [
+      dubs('alice', 'bob', 'carol', 'dave', true, 'm1', '2026-01-01'),
+      dubs('alice', 'bob', 'erin', 'fred', true, 'm2', '2026-01-02'),
+      dubs('alice', 'bob', 'carol', 'fred', true, 'm3', '2026-01-03'),
+      dubs('alice', 'bob', 'dave', 'erin', true, 'm4', '2026-01-04'),
+    ];
+    const result = replayMatches(matches);
+    expect(result['alice'].matchesPlayed).toBe(0);
+    expect(result['alice'].rating).toBe(1450);
+  });
+});
+
 // Helper
 function makeRankedPlayer(
   username: string,
