@@ -114,6 +114,7 @@ export function useRecentClubs(
               'players.id',
               'players.directus_users_id.id',
             ],
+            deep: { players: { _limit: -1 } },
           }),
         );
 
@@ -135,7 +136,9 @@ export function useRecentClubs(
         }
 
         // Keep only clubs the user is still a member of (sorted by recent match)
-        const filtered = sortedClubs.filter((c) => memberMap.has(c.id));
+        const filtered: RecentClub[] = sortedClubs
+          .filter((c) => memberMap.has(c.id))
+          .map((c) => ({ ...c, players: memberMap.get(c.id)!.players }));
 
         // Append member clubs with no matches (joined but never played)
         for (const [id, c] of memberMap) {

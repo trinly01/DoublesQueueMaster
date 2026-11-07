@@ -18,6 +18,7 @@ export async function checkClubMembership(
     readItems('club', {
       filter: { clubId: { _eq: clubId } },
       fields: ['id', 'players.directus_users_id.id'],
+      deep: { players: { _limit: -1 } },
     }),
   );
 

@@ -488,6 +488,7 @@ const onSearch = async (val: string | number | null) => {
           'players.id',
           'players.directus_users_id.id',
         ],
+        deep: { players: { _limit: -1 } },
         limit: 20,
       }),
     );
