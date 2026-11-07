@@ -326,6 +326,24 @@ describe('useClubMembers — removeClubMember', () => {
     await removeClubMember('u2', 'pj2');
     expect(likhaClient.request).not.toHaveBeenCalled();
   });
+
+  it('deletes all junction rows for members with duplicate memberships', async () => {
+    (likhaClient.request as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    const { context, clubMembers } = makeContext();
+    clubMembers.value = [
+      {
+        id: 'u2',
+        username: 'bob',
+        playerJunctionId: 'pj2',
+        playerJunctionIds: ['pj2', 'pj2b', 'pj2c'],
+      },
+    ];
+    const { removeClubMember } = useClubMembers(context);
+    await removeClubMember('u2', 'pj2');
+    expect(updateItem).toHaveBeenCalledWith('club', 'uuid-123', {
+      players: { delete: ['pj2', 'pj2b', 'pj2c'] },
+    });
+  });
 });
 
 describe('useClubMembers — promoteToAdmin', () => {
@@ -411,6 +429,37 @@ describe('useClubMembers — refreshClubMembers', () => {
     expect(clubMembers.value[0].playerJunctionId).toBe('pj1');
     expect(clubMembers.value[0].adminJunctionId).toBe('aj1');
     expect(clubAdminIds.value.has('u1')).toBe(true);
+  });
+
+  it('aggregates duplicate junction rows into playerJunctionIds', async () => {
+    (likhaClient.request as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        players: [
+          {
+            id: 'pj1',
+            directus_users_id: { id: 'u1', username: 'alice' },
+          },
+          {
+            id: 'pj1b',
+            directus_users_id: { id: 'u1', username: 'alice' },
+          },
+          {
+            id: 'pj2',
+            directus_users_id: { id: 'u2', username: 'bob' },
+          },
+        ],
+        admins: [],
+        moderators: [],
+      },
+    ]);
+    const { context, clubMembers } = makeContext();
+    const { refreshClubMembers } = useClubMembers(context);
+    await refreshClubMembers();
+    expect(clubMembers.value).toHaveLength(2);
+    const alice = clubMembers.value.find((m) => m.id === 'u1');
+    expect(alice?.playerJunctionIds).toEqual(['pj1', 'pj1b']);
+    const bob = clubMembers.value.find((m) => m.id === 'u2');
+    expect(bob?.playerJunctionIds).toEqual(['pj2']);
   });
 
   it('handles empty result', async () => {

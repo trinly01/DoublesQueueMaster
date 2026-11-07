@@ -29,8 +29,11 @@ export interface ClubMember {
   duprId?: string;
   duprPlus?: boolean;
   playerJunctionId?: string;
+  playerJunctionIds?: string[];
   adminJunctionId?: string;
+  adminJunctionIds?: string[];
   moderatorJunctionId?: string;
+  moderatorJunctionIds?: string[];
 }
 
 export interface UseClubMembersContext {
@@ -185,13 +188,17 @@ export function useClubMembers(context: UseClubMembersContext) {
   ) => {
     if (!currentClubUUID.value) return;
     try {
+      const member = clubMembers.value.find((m) => m.id === memberId);
+      const junctionIds =
+        member?.playerJunctionIds && member.playerJunctionIds.length > 0
+          ? member.playerJunctionIds
+          : [playerJunctionId];
       await likhaClient.request(
         updateItem('club', currentClubUUID.value, {
-          players: { delete: [playerJunctionId] },
+          players: { delete: junctionIds },
         }),
       );
       await refreshClubMembers();
-      const member = clubMembers.value.find((m) => m.id === memberId);
       MatchmakingApp.addActionLog(
         'remove_member',
         currentUserName.value,
@@ -207,6 +214,11 @@ export function useClubMembers(context: UseClubMembersContext) {
 
   const promoteToAdmin = async (memberId: string) => {
     if (!currentClubUUID.value) return;
+    const existing = clubMembers.value.find((m) => m.id === memberId);
+    if (existing?.isAdmin) {
+      notify({ type: 'info', message: 'Member is already an admin' });
+      return;
+    }
     try {
       await likhaClient.request(
         updateItem('club', currentClubUUID.value, {
@@ -231,13 +243,17 @@ export function useClubMembers(context: UseClubMembersContext) {
   const demoteAdmin = async (memberId: string, adminJunctionId: string) => {
     if (!currentClubUUID.value) return;
     try {
+      const member = clubMembers.value.find((m) => m.id === memberId);
+      const junctionIds =
+        member?.adminJunctionIds && member.adminJunctionIds.length > 0
+          ? member.adminJunctionIds
+          : [adminJunctionId];
       await likhaClient.request(
         updateItem('club', currentClubUUID.value, {
-          admins: { delete: [adminJunctionId] },
+          admins: { delete: junctionIds },
         }),
       );
       await refreshClubMembers();
-      const member = clubMembers.value.find((m) => m.id === memberId);
       MatchmakingApp.addActionLog(
         'demote_admin',
         currentUserName.value,
@@ -257,14 +273,21 @@ export function useClubMembers(context: UseClubMembersContext) {
   ) => {
     if (!currentClubUUID.value) return;
     try {
+      const member = clubMembers.value.find((m) => m.id === memberId);
+      const junctionIds =
+        member?.adminJunctionIds && member.adminJunctionIds.length > 0
+          ? member.adminJunctionIds
+          : [adminJunctionId];
+      const payload: Record<string, unknown> = {
+        admins: { delete: junctionIds },
+      };
+      if (!member?.isModerator) {
+        payload.moderators = { create: [{ directus_users_id: memberId }] };
+      }
       await likhaClient.request(
-        updateItem('club', currentClubUUID.value, {
-          admins: { delete: [adminJunctionId] },
-          moderators: { create: [{ directus_users_id: memberId }] },
-        }),
+        updateItem('club', currentClubUUID.value, payload),
       );
       await refreshClubMembers();
-      const member = clubMembers.value.find((m) => m.id === memberId);
       MatchmakingApp.addActionLog(
         'demote_admin_to_moderator',
         currentUserName.value,
@@ -280,6 +303,11 @@ export function useClubMembers(context: UseClubMembersContext) {
 
   const promoteToModerator = async (memberId: string) => {
     if (!currentClubUUID.value) return;
+    const existing = clubMembers.value.find((m) => m.id === memberId);
+    if (existing?.isModerator) {
+      notify({ type: 'info', message: 'Member is already a moderator' });
+      return;
+    }
     try {
       await likhaClient.request(
         updateItem('club', currentClubUUID.value, {
@@ -307,13 +335,17 @@ export function useClubMembers(context: UseClubMembersContext) {
   ) => {
     if (!currentClubUUID.value) return;
     try {
+      const member = clubMembers.value.find((m) => m.id === memberId);
+      const junctionIds =
+        member?.moderatorJunctionIds && member.moderatorJunctionIds.length > 0
+          ? member.moderatorJunctionIds
+          : [moderatorJunctionId];
       await likhaClient.request(
         updateItem('club', currentClubUUID.value, {
-          moderators: { delete: [moderatorJunctionId] },
+          moderators: { delete: junctionIds },
         }),
       );
       await refreshClubMembers();
-      const member = clubMembers.value.find((m) => m.id === memberId);
       MatchmakingApp.addActionLog(
         'demote_moderator',
         currentUserName.value,
@@ -333,14 +365,21 @@ export function useClubMembers(context: UseClubMembersContext) {
   ) => {
     if (!currentClubUUID.value) return;
     try {
+      const member = clubMembers.value.find((m) => m.id === memberId);
+      const junctionIds =
+        member?.moderatorJunctionIds && member.moderatorJunctionIds.length > 0
+          ? member.moderatorJunctionIds
+          : [moderatorJunctionId];
+      const payload: Record<string, unknown> = {
+        moderators: { delete: junctionIds },
+      };
+      if (!member?.isAdmin) {
+        payload.admins = { create: [{ directus_users_id: memberId }] };
+      }
       await likhaClient.request(
-        updateItem('club', currentClubUUID.value, {
-          moderators: { delete: [moderatorJunctionId] },
-          admins: { create: [{ directus_users_id: memberId }] },
-        }),
+        updateItem('club', currentClubUUID.value, payload),
       );
       await refreshClubMembers();
-      const member = clubMembers.value.find((m) => m.id === memberId);
       MatchmakingApp.addActionLog(
         'promote_moderator_to_admin',
         currentUserName.value,
@@ -498,20 +537,38 @@ export function useClubMembers(context: UseClubMembersContext) {
           .map((a) => a.directus_users_id?.id)
           .filter((id): id is string => !!id),
       );
-      const adminJunctionMap = new Map<string, string>();
+      const adminJunctionMap = new Map<string, string[]>();
       (club.admins || []).forEach((a) => {
         const uid = a.directus_users_id?.id;
-        if (uid && a.id) adminJunctionMap.set(uid, a.id);
+        if (uid && a.id) {
+          const ids = adminJunctionMap.get(uid) || [];
+          ids.push(a.id);
+          adminJunctionMap.set(uid, ids);
+        }
       });
       const moderatorIdSet = new Set<string>();
       (club.moderators || []).forEach((m) => {
         const uid = m.directus_users_id?.id;
         if (uid) moderatorIdSet.add(uid);
       });
-      const moderatorJunctionMap = new Map<string, string>();
+      const moderatorJunctionMap = new Map<string, string[]>();
       (club.moderators || []).forEach((m) => {
         const uid = m.directus_users_id?.id;
-        if (uid && m.id) moderatorJunctionMap.set(uid, m.id);
+        if (uid && m.id) {
+          const ids = moderatorJunctionMap.get(uid) || [];
+          ids.push(m.id);
+          moderatorJunctionMap.set(uid, ids);
+        }
+      });
+      const playerJunctionMap = new Map<string, string[]>();
+      (club.players || []).forEach((p) => {
+        const u = p.directus_users_id as Record<string, unknown> | null;
+        const uid = typeof u?.id === 'string' ? u.id : '';
+        if (uid && p.id) {
+          const ids = playerJunctionMap.get(uid) || [];
+          ids.push(p.id);
+          playerJunctionMap.set(uid, ids);
+        }
       });
       clubMembers.value =
         (club.players || [])
@@ -538,9 +595,11 @@ export function useClubMembers(context: UseClubMembersContext) {
                 ? `${likhaUrl.value}/assets/${avatarId}`
                 : undefined,
               playerJunctionId: p.id || undefined,
-              adminJunctionId: adminJunctionMap.get(userId) || undefined,
-              moderatorJunctionId:
-                moderatorJunctionMap.get(userId) || undefined,
+              playerJunctionIds: playerJunctionMap.get(userId) || [],
+              adminJunctionId: adminJunctionMap.get(userId)?.[0],
+              adminJunctionIds: adminJunctionMap.get(userId) || [],
+              moderatorJunctionId: moderatorJunctionMap.get(userId)?.[0],
+              moderatorJunctionIds: moderatorJunctionMap.get(userId) || [],
             };
           })
           .filter((m) => m.id)

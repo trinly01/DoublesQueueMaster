@@ -552,16 +552,18 @@ const handleLeaveClub = async () => {
   if (!club || !currentUserId.value) return;
   leavingClubId.value = club.id;
   try {
-    const playerEntry = club.players?.find(
-      (p) => p.directus_users_id?.id === currentUserId.value,
-    );
-    if (!playerEntry?.id) {
+    const junctionIds = (club.players || [])
+      .filter(
+        (p) => p.directus_users_id?.id === currentUserId.value && !!p.id,
+      )
+      .map((p) => p.id as string);
+    if (junctionIds.length === 0) {
       notify({ color: 'negative', message: 'Could not find your membership' });
       return;
     }
     await likhaClient.request(
       updateItem('club', club.id, {
-        players: { delete: [playerEntry.id] },
+        players: { delete: junctionIds },
       }),
     );
     myClubs.value = myClubs.value.filter((c) => c.id !== club.id);

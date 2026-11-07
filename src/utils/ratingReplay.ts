@@ -1,4 +1,4 @@
-import { detectFixedDuos, hasDetectedDuo } from 'src/utils/duoStats';
+import { detectFixedDuos, hasDetectedDuo } from './duoStats';
 
 export type ReplayPlayerInput = {
   username?: string;
