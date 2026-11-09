@@ -497,6 +497,7 @@
         v-else-if="settingsTab === 'club'"
         class="q-pa-md"
         style="flex: 1; overflow-y: auto"
+        @scroll="blurActiveElement"
       >
         <div class="q-gutter-y-md">
           <!-- Club Info Section (admin only) -->
@@ -1299,6 +1300,10 @@ function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
     .map((key) => source.find((i) => i.key === key))
     .filter((i): i is ReportItem => !!i);
 }
+
+const blurActiveElement = () => {
+  (document.activeElement as HTMLElement | null)?.blur?.();
+};
 </script>
 
 <style scoped>
