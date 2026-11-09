@@ -498,6 +498,8 @@
         class="q-pa-md"
         style="flex: 1; overflow-y: auto"
         @scroll="blurActiveElement"
+        @touchmove.passive="blurActiveElement"
+        @wheel.passive="blurActiveElement"
       >
         <div class="q-gutter-y-md">
           <!-- Club Info Section (admin only) -->
@@ -1301,8 +1303,12 @@ function getClubFeedbackReasons(item: ClubFeedbackEntry): ReportItem[] {
     .filter((i): i is ReportItem => !!i);
 }
 
-const blurActiveElement = () => {
-  (document.activeElement as HTMLElement | null)?.blur?.();
+const blurActiveElement = (e?: Event) => {
+  const target = e?.target as HTMLElement | null;
+  if (target?.closest?.('input, textarea, [contenteditable]')) return;
+  const el = document.activeElement as HTMLElement | null;
+  if (!el || el === document.body) return;
+  setTimeout(() => el.blur(), 0);
 };
 </script>
 
