@@ -2990,6 +2990,7 @@ const {
   currentClubId,
   currentClubUUID,
   clubAdminIds,
+  clubModeratorIds,
   clubMembers,
   likhaUrl,
   clubSettingsSearch,

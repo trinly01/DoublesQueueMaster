@@ -1,11 +1,18 @@
 import { computed, ref, type Ref } from 'vue';
 import { useQuasar } from 'quasar';
+import { LocalStorage } from 'quasar';
 import type { QNotifyCreateOptions } from 'quasar';
 import { readItems, updateItem } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
-import { MatchmakingApp, hasPremiumL1 } from 'src/services/matchmaking';
+import { MatchmakingApp } from 'src/services/matchmaking';
+import {
+  mapClubToMembers,
+  type ClubMember,
+} from 'src/services/clubMembersMapper';
 import { useNotify } from 'src/composables/useNotify';
 import { useDupr } from 'src/composables/useDupr';
+
+export type { ClubMember };
 
 type NotifyFn = (opts: QNotifyCreateOptions) => void;
 
@@ -15,31 +22,11 @@ export type ClubSettingsSort =
   | 'ratingDesc'
   | 'ratingAsc';
 
-export interface ClubMember {
-  id: string;
-  username?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  rating?: number;
-  level?: 1 | 2 | 3;
-  isAdmin?: boolean;
-  isModerator?: boolean;
-  avatar?: string;
-  duprId?: string;
-  duprPlus?: boolean;
-  playerJunctionId?: string;
-  playerJunctionIds?: string[];
-  adminJunctionId?: string;
-  adminJunctionIds?: string[];
-  moderatorJunctionId?: string;
-  moderatorJunctionIds?: string[];
-}
-
 export interface UseClubMembersContext {
   currentClubId: Ref<string>;
   currentClubUUID: Ref<string>;
   clubAdminIds: Ref<Set<string>>;
+  clubModeratorIds: Ref<Set<string>>;
   clubMembers: Ref<ClubMember[]>;
   likhaUrl: Ref<string>;
   clubSettingsSearch: Ref<string>;
@@ -53,6 +40,7 @@ export function useClubMembers(context: UseClubMembersContext) {
     currentClubId,
     currentClubUUID,
     clubAdminIds,
+    clubModeratorIds,
     clubMembers,
     likhaUrl,
     clubSettingsSearch,
@@ -578,82 +566,25 @@ export function useClubMembers(context: UseClubMembersContext) {
           directus_users_id?: { id?: string } | null;
         }>;
       };
-      clubAdminIds.value = new Set(
-        (club.admins || [])
-          .map((a) => a.directus_users_id?.id)
-          .filter((id): id is string => !!id),
-      );
-      const adminJunctionMap = new Map<string, string[]>();
-      (club.admins || []).forEach((a) => {
-        const uid = a.directus_users_id?.id;
-        if (uid && a.id) {
-          const ids = adminJunctionMap.get(uid) || [];
-          ids.push(a.id);
-          adminJunctionMap.set(uid, ids);
-        }
-      });
-      const moderatorIdSet = new Set<string>();
-      (club.moderators || []).forEach((m) => {
-        const uid = m.directus_users_id?.id;
-        if (uid) moderatorIdSet.add(uid);
-      });
-      const moderatorJunctionMap = new Map<string, string[]>();
-      (club.moderators || []).forEach((m) => {
-        const uid = m.directus_users_id?.id;
-        if (uid && m.id) {
-          const ids = moderatorJunctionMap.get(uid) || [];
-          ids.push(m.id);
-          moderatorJunctionMap.set(uid, ids);
-        }
-      });
-      const playerJunctionMap = new Map<string, string[]>();
-      (club.players || []).forEach((p) => {
-        const u = p.directus_users_id as Record<string, unknown> | null;
-        const uid = typeof u?.id === 'string' ? u.id : '';
-        if (uid && p.id) {
-          const ids = playerJunctionMap.get(uid) || [];
-          ids.push(p.id);
-          playerJunctionMap.set(uid, ids);
-        }
-      });
-      clubMembers.value =
-        (club.players || [])
-          .map((p) => {
-            const u = p.directus_users_id as Record<string, unknown> | null;
-            const userId = typeof u?.id === 'string' ? u.id : '';
-            const avatarId =
-              typeof u?.avatar === 'string' ? u.avatar : undefined;
-            return {
-              id: userId,
-              username:
-                typeof u?.username === 'string' ? u.username : undefined,
-              firstName:
-                typeof u?.first_name === 'string' ? u.first_name : undefined,
-              lastName:
-                typeof u?.last_name === 'string' ? u.last_name : undefined,
-              email: typeof u?.email === 'string' ? u.email : undefined,
-              rating: typeof u?.rating === 'number' ? u.rating : undefined,
-              duprId: typeof u?.dupr_id === 'string' ? u.dupr_id : undefined,
-              duprPlus: hasPremiumL1(u?.dupr_entitlements),
-              isAdmin: clubAdminIds.value.has(userId),
-              isModerator: moderatorIdSet.has(userId),
-              avatar: avatarId
-                ? `${likhaUrl.value}/assets/${avatarId}`
-                : undefined,
-              playerJunctionId: p.id || undefined,
-              playerJunctionIds: playerJunctionMap.get(userId) || [],
-              adminJunctionId: adminJunctionMap.get(userId)?.[0],
-              adminJunctionIds: adminJunctionMap.get(userId) || [],
-              moderatorJunctionId: moderatorJunctionMap.get(userId)?.[0],
-              moderatorJunctionIds: moderatorJunctionMap.get(userId) || [],
-            };
-          })
-          .filter((m) => m.id)
-          // Deduplicate by user ID — a user may have multiple junction records
-          .reduce((acc: ClubMember[], m) => {
-            if (!acc.some((x) => x.id === m.id)) acc.push(m);
-            return acc;
-          }, []) || [];
+      const mapped = mapClubToMembers(club, likhaUrl.value);
+      clubAdminIds.value = mapped.adminIds;
+      clubModeratorIds.value = mapped.moderatorIds;
+      clubMembers.value = mapped.members;
+
+      // Keep the offline club_meta cache in sync so member removals and
+      // role changes survive a reload without connectivity.
+      if (currentClubId.value) {
+        const metaKey = `club_meta_${currentClubId.value}`;
+        const existing =
+          (LocalStorage.getItem(metaKey) as Record<string, unknown> | null) ||
+          {};
+        LocalStorage.set(metaKey, {
+          ...existing,
+          members: clubMembers.value,
+          adminIds: Array.from(mapped.adminIds),
+          moderatorIds: Array.from(mapped.moderatorIds),
+        });
+      }
 
       // Seed the display-only DUPR ratings map from the webhook-projected
       // user fields, then backfill any duprIds still unrated locally.

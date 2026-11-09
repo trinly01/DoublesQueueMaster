@@ -74,6 +74,7 @@ function makeMembers(): ClubMember[] {
 function makeContext(overrides: Record<string, unknown> = {}) {
   const clubMembers = ref<ClubMember[]>(makeMembers());
   const clubAdminIds = ref<Set<string>>(new Set(['u1']));
+  const clubModeratorIds = ref<Set<string>>(new Set());
   const currentClubId = ref('club-123');
   const currentClubUUID = ref('uuid-123');
   const likhaUrl = ref('https://api.test');
@@ -87,6 +88,7 @@ function makeContext(overrides: Record<string, unknown> = {}) {
       currentClubId,
       currentClubUUID,
       clubAdminIds,
+      clubModeratorIds,
       clubMembers,
       likhaUrl,
       clubSettingsSearch,

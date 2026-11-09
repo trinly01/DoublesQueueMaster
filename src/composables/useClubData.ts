@@ -12,6 +12,10 @@ import {
 } from 'src/services/matchmaking';
 import type { AppState, ActionLog } from 'src/services/matchmaking';
 import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
+import {
+  mapClubToMembers,
+  type ClubMember,
+} from 'src/services/clubMembersMapper';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
 import { readItems, updateItem, uploadFiles } from '@likha-erp/likha-sdk';
 import {
@@ -83,24 +87,7 @@ export function useClubData(context: UseClubDataContext) {
   const isCurrentUserMember = ref(true);
   const clubAdminIds = ref<Set<string>>(new Set());
   const clubModeratorIds = ref<Set<string>>(new Set());
-  const clubMembers = ref<
-    Array<{
-      id: string;
-      username?: string;
-      firstName?: string;
-      lastName?: string;
-      email?: string;
-      rating?: number;
-      level?: 1 | 2 | 3;
-      isAdmin?: boolean;
-      isModerator?: boolean;
-      avatar?: string;
-      duprId?: string;
-      playerJunctionId?: string;
-      adminJunctionId?: string;
-      moderatorJunctionId?: string;
-    }>
-  >([]);
+  const clubMembers = ref<ClubMember[]>([]);
 
   const currentUserName = computed(() => {
     const member = clubMembers.value.find((m) => m.id === currentUserId.value);
@@ -420,6 +407,9 @@ export function useClubData(context: UseClubDataContext) {
               'players.directus_users_id.rating',
               'players.directus_users_id.rating_updated_at',
               'players.directus_users_id.dupr_id',
+              'players.directus_users_id.dupr_singles_rating',
+              'players.directus_users_id.dupr_doubles_rating',
+              'players.directus_users_id.dupr_entitlements',
               'players.directus_users_id.avatar',
               'admins.id',
               'admins.directus_users_id.id',
@@ -463,6 +453,9 @@ export function useClubData(context: UseClubDataContext) {
               'players.directus_users_id.rating',
               'players.directus_users_id.rating_updated_at',
               'players.directus_users_id.dupr_id',
+              'players.directus_users_id.dupr_singles_rating',
+              'players.directus_users_id.dupr_doubles_rating',
+              'players.directus_users_id.dupr_entitlements',
               'players.directus_users_id.avatar',
               'admins.id',
               'admins.directus_users_id.id',
@@ -965,68 +958,13 @@ export function useClubData(context: UseClubDataContext) {
             saveLastSyncedTimestamp(clubId, serverMatchmaking.lastModified);
           }
 
-          // Build admin set and clubMembers list
-          clubAdminIds.value = new Set(
-            (club.admins || [])
-              .map((a) => a.directus_users_id?.id)
-              .filter((id): id is string => !!id),
-          );
-          // Build admin junction ID lookup for member management
-          const adminJunctionMap = new Map<string, string>();
-          (club.admins || []).forEach((a) => {
-            const adminUserId = a.directus_users_id?.id;
-            if (adminUserId && a.id) {
-              adminJunctionMap.set(adminUserId, a.id);
-            }
-          });
-
-          // Build moderator set and junction ID lookup
-          clubModeratorIds.value = new Set(
-            (club.moderators || [])
-              .map((m) => m.directus_users_id?.id)
-              .filter((id): id is string => !!id),
-          );
-          const moderatorJunctionMap = new Map<string, string>();
-          (club.moderators || []).forEach((m) => {
-            const modUserId = m.directus_users_id?.id;
-            if (modUserId && m.id) {
-              moderatorJunctionMap.set(modUserId, m.id);
-            }
-          });
-
-          clubMembers.value =
-            (club.players || [])
-              .map((p) => {
-                const u = p.directus_users_id as Record<string, unknown> | null;
-                const userId = typeof u?.id === 'string' ? u.id : '';
-                const avatarId =
-                  typeof u?.avatar === 'string' ? u.avatar : undefined;
-                return {
-                  id: userId,
-                  username:
-                    typeof u?.username === 'string' ? u.username : undefined,
-                  firstName:
-                    typeof u?.first_name === 'string'
-                      ? u.first_name
-                      : undefined,
-                  lastName:
-                    typeof u?.last_name === 'string' ? u.last_name : undefined,
-                  email: typeof u?.email === 'string' ? u.email : undefined,
-                  rating: typeof u?.rating === 'number' ? u.rating : undefined,
-                  duprId:
-                    typeof u?.dupr_id === 'string' ? u.dupr_id : undefined,
-                  isAdmin: clubAdminIds.value.has(userId),
-                  isModerator: clubModeratorIds.value.has(userId),
-                  avatar: avatarId
-                    ? `${likhaUrl.value}/assets/${avatarId}`
-                    : undefined,
-                  playerJunctionId: p.id || undefined,
-                  adminJunctionId: adminJunctionMap.get(userId) || undefined,
-                  moderatorJunctionId:
-                    moderatorJunctionMap.get(userId) || undefined,
-                };
-              })
-              .filter((m) => m.id) || [];
+          // Build admin/moderator sets and the member list via the shared
+          // mapper — same dedup + junction-id handling as refreshClubMembers,
+          // so a slow cloud-sync merge can't clobber the list with degraded data.
+          const mapped = mapClubToMembers(club, likhaUrl.value);
+          clubAdminIds.value = mapped.adminIds;
+          clubModeratorIds.value = mapped.moderatorIds;
+          clubMembers.value = mapped.members;
 
           // Check if current user is a club member (skip for open play)
           isCurrentUserMember.value =
