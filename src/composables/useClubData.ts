@@ -285,7 +285,11 @@ export function useClubData(context: UseClubDataContext) {
       MatchmakingApp.state.clubUUID = meta.clubUUID || '';
       clubAdminIds.value = new Set(meta.adminIds || []);
       clubModeratorIds.value = new Set(meta.moderatorIds || []);
-      clubMembers.value = meta.members || [];
+      // Deduplicate cached members by user id — caches written before the
+      // shared mapper may contain rows for the same user twice.
+      clubMembers.value = (meta.members || []).filter(
+        (m, i, arr) => arr.findIndex((x) => x.id === m.id) === i,
+      );
       isCurrentUserMember.value =
         isOpenPlay.value ||
         clubMembers.value.some((m) => m.id === currentUserId.value);
