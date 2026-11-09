@@ -180,6 +180,10 @@ export default configure((/* ctx */) => {
         cfg.navigateFallbackDenylist = [
           /\.(?:html|xml|txt|json|png|ico|svg|webmanifest)$/,
         ];
+        // Activate new builds immediately instead of waiting for all
+        // clients to close — otherwise shipped fixes never reach users.
+        cfg.skipWaiting = true;
+        cfg.clientsClaim = true;
       },
       // extendInjectManifestOptions (cfg) {}
     },
