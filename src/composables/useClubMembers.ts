@@ -182,14 +182,14 @@ export function useClubMembers(context: UseClubMembersContext) {
     return stats;
   });
 
-  const removingMemberIds = ref<Set<string>>(new Set());
+  const busyMemberOps = ref(new Map<string, string>());
 
   const removeClubMember = async (
     memberId: string,
     playerJunctionId: string,
   ) => {
     if (!currentClubUUID.value) return;
-    removingMemberIds.value.add(memberId);
+    busyMemberOps.value.set(memberId, 'remove_member');
     try {
       const member = clubMembers.value.find((m) => m.id === memberId);
       const junctionIds =
@@ -201,7 +201,7 @@ export function useClubMembers(context: UseClubMembersContext) {
           players: { delete: junctionIds },
         }),
       );
-      await refreshClubMembers();
+      clubMembers.value = clubMembers.value.filter((m) => m.id !== memberId);
       MatchmakingApp.addActionLog(
         'remove_member',
         currentUserName.value,
@@ -209,11 +209,12 @@ export function useClubMembers(context: UseClubMembersContext) {
         { member: member?.firstName || member?.username || memberId },
       );
       notify({ type: 'positive', message: 'Member removed from club' });
+      void refreshClubMembers();
     } catch (err) {
       console.error('Failed to remove club member:', err);
       notify({ type: 'negative', message: 'Failed to remove member' });
     } finally {
-      removingMemberIds.value.delete(memberId);
+      busyMemberOps.value.delete(memberId);
     }
   };
 
@@ -224,14 +225,15 @@ export function useClubMembers(context: UseClubMembersContext) {
       notify({ type: 'info', message: 'Member is already an admin' });
       return;
     }
+    busyMemberOps.value.set(memberId, 'promote_admin');
     try {
       await likhaClient.request(
         updateItem('club', currentClubUUID.value, {
           admins: { create: [{ directus_users_id: memberId }] },
         }),
       );
-      await refreshClubMembers();
       const member = clubMembers.value.find((m) => m.id === memberId);
+      if (member) member.isAdmin = true;
       MatchmakingApp.addActionLog(
         'promote_admin',
         currentUserName.value,
@@ -239,26 +241,33 @@ export function useClubMembers(context: UseClubMembersContext) {
         { member: member?.firstName || member?.username || memberId },
       );
       notify({ type: 'positive', message: 'Member promoted to admin' });
+      void refreshClubMembers();
     } catch (err) {
       console.error('Failed to promote member:', err);
       notify({ type: 'negative', message: 'Failed to promote member' });
+    } finally {
+      busyMemberOps.value.delete(memberId);
     }
   };
 
   const demoteAdmin = async (memberId: string, adminJunctionId: string) => {
     if (!currentClubUUID.value) return;
+    busyMemberOps.value.set(memberId, 'demote_admin');
     try {
       const member = clubMembers.value.find((m) => m.id === memberId);
-      const junctionIds =
+      const junctionIds = (
         member?.adminJunctionIds && member.adminJunctionIds.length > 0
           ? member.adminJunctionIds
-          : [adminJunctionId];
-      await likhaClient.request(
-        updateItem('club', currentClubUUID.value, {
-          admins: { delete: junctionIds },
-        }),
-      );
-      await refreshClubMembers();
+          : [adminJunctionId]
+      ).filter((id): id is string => !!id);
+      if (junctionIds.length > 0) {
+        await likhaClient.request(
+          updateItem('club', currentClubUUID.value, {
+            admins: { delete: junctionIds },
+          }),
+        );
+      }
+      if (member) member.isAdmin = false;
       MatchmakingApp.addActionLog(
         'demote_admin',
         currentUserName.value,
@@ -266,9 +275,12 @@ export function useClubMembers(context: UseClubMembersContext) {
         { member: member?.firstName || member?.username || memberId },
       );
       notify({ type: 'positive', message: 'Admin demoted to member' });
+      void refreshClubMembers();
     } catch (err) {
       console.error('Failed to demote admin:', err);
       notify({ type: 'negative', message: 'Failed to demote admin' });
+    } finally {
+      busyMemberOps.value.delete(memberId);
     }
   };
 
@@ -277,22 +289,28 @@ export function useClubMembers(context: UseClubMembersContext) {
     adminJunctionId: string,
   ) => {
     if (!currentClubUUID.value) return;
+    busyMemberOps.value.set(memberId, 'demote_admin_to_moderator');
     try {
       const member = clubMembers.value.find((m) => m.id === memberId);
-      const junctionIds =
+      const junctionIds = (
         member?.adminJunctionIds && member.adminJunctionIds.length > 0
           ? member.adminJunctionIds
-          : [adminJunctionId];
-      const payload: Record<string, unknown> = {
-        admins: { delete: junctionIds },
-      };
+          : [adminJunctionId]
+      ).filter((id): id is string => !!id);
+      const payload: Record<string, unknown> = {};
+      if (junctionIds.length > 0) payload.admins = { delete: junctionIds };
       if (!member?.isModerator) {
         payload.moderators = { create: [{ directus_users_id: memberId }] };
       }
-      await likhaClient.request(
-        updateItem('club', currentClubUUID.value, payload),
-      );
-      await refreshClubMembers();
+      if (Object.keys(payload).length > 0) {
+        await likhaClient.request(
+          updateItem('club', currentClubUUID.value, payload),
+        );
+      }
+      if (member) {
+        member.isAdmin = false;
+        member.isModerator = true;
+      }
       MatchmakingApp.addActionLog(
         'demote_admin_to_moderator',
         currentUserName.value,
@@ -300,9 +318,12 @@ export function useClubMembers(context: UseClubMembersContext) {
         { member: member?.firstName || member?.username || memberId },
       );
       notify({ type: 'positive', message: 'Admin demoted to moderator' });
+      void refreshClubMembers();
     } catch (err) {
       console.error('Failed to demote admin to moderator:', err);
       notify({ type: 'negative', message: 'Failed to demote admin' });
+    } finally {
+      busyMemberOps.value.delete(memberId);
     }
   };
 
@@ -313,14 +334,15 @@ export function useClubMembers(context: UseClubMembersContext) {
       notify({ type: 'info', message: 'Member is already a moderator' });
       return;
     }
+    busyMemberOps.value.set(memberId, 'promote_moderator');
     try {
       await likhaClient.request(
         updateItem('club', currentClubUUID.value, {
           moderators: { create: [{ directus_users_id: memberId }] },
         }),
       );
-      await refreshClubMembers();
       const member = clubMembers.value.find((m) => m.id === memberId);
+      if (member) member.isModerator = true;
       MatchmakingApp.addActionLog(
         'promote_moderator',
         currentUserName.value,
@@ -328,9 +350,12 @@ export function useClubMembers(context: UseClubMembersContext) {
         { member: member?.firstName || member?.username || memberId },
       );
       notify({ type: 'positive', message: 'Member promoted to moderator' });
+      void refreshClubMembers();
     } catch (err) {
       console.error('Failed to promote member:', err);
       notify({ type: 'negative', message: 'Failed to promote member' });
+    } finally {
+      busyMemberOps.value.delete(memberId);
     }
   };
 
@@ -339,18 +364,22 @@ export function useClubMembers(context: UseClubMembersContext) {
     moderatorJunctionId: string,
   ) => {
     if (!currentClubUUID.value) return;
+    busyMemberOps.value.set(memberId, 'demote_moderator');
     try {
       const member = clubMembers.value.find((m) => m.id === memberId);
-      const junctionIds =
+      const junctionIds = (
         member?.moderatorJunctionIds && member.moderatorJunctionIds.length > 0
           ? member.moderatorJunctionIds
-          : [moderatorJunctionId];
-      await likhaClient.request(
-        updateItem('club', currentClubUUID.value, {
-          moderators: { delete: junctionIds },
-        }),
-      );
-      await refreshClubMembers();
+          : [moderatorJunctionId]
+      ).filter((id): id is string => !!id);
+      if (junctionIds.length > 0) {
+        await likhaClient.request(
+          updateItem('club', currentClubUUID.value, {
+            moderators: { delete: junctionIds },
+          }),
+        );
+      }
+      if (member) member.isModerator = false;
       MatchmakingApp.addActionLog(
         'demote_moderator',
         currentUserName.value,
@@ -358,9 +387,12 @@ export function useClubMembers(context: UseClubMembersContext) {
         { member: member?.firstName || member?.username || memberId },
       );
       notify({ type: 'positive', message: 'Moderator demoted to member' });
+      void refreshClubMembers();
     } catch (err) {
       console.error('Failed to demote moderator:', err);
       notify({ type: 'negative', message: 'Failed to demote moderator' });
+    } finally {
+      busyMemberOps.value.delete(memberId);
     }
   };
 
@@ -369,22 +401,28 @@ export function useClubMembers(context: UseClubMembersContext) {
     moderatorJunctionId: string,
   ) => {
     if (!currentClubUUID.value) return;
+    busyMemberOps.value.set(memberId, 'promote_moderator_to_admin');
     try {
       const member = clubMembers.value.find((m) => m.id === memberId);
-      const junctionIds =
+      const junctionIds = (
         member?.moderatorJunctionIds && member.moderatorJunctionIds.length > 0
           ? member.moderatorJunctionIds
-          : [moderatorJunctionId];
-      const payload: Record<string, unknown> = {
-        moderators: { delete: junctionIds },
-      };
+          : [moderatorJunctionId]
+      ).filter((id): id is string => !!id);
+      const payload: Record<string, unknown> = {};
+      if (junctionIds.length > 0) payload.moderators = { delete: junctionIds };
       if (!member?.isAdmin) {
         payload.admins = { create: [{ directus_users_id: memberId }] };
       }
-      await likhaClient.request(
-        updateItem('club', currentClubUUID.value, payload),
-      );
-      await refreshClubMembers();
+      if (Object.keys(payload).length > 0) {
+        await likhaClient.request(
+          updateItem('club', currentClubUUID.value, payload),
+        );
+      }
+      if (member) {
+        member.isModerator = false;
+        member.isAdmin = true;
+      }
       MatchmakingApp.addActionLog(
         'promote_moderator_to_admin',
         currentUserName.value,
@@ -392,9 +430,12 @@ export function useClubMembers(context: UseClubMembersContext) {
         { member: member?.firstName || member?.username || memberId },
       );
       notify({ type: 'positive', message: 'Moderator promoted to admin' });
+      void refreshClubMembers();
     } catch (err) {
       console.error('Failed to promote moderator to admin:', err);
       notify({ type: 'negative', message: 'Failed to promote moderator' });
+    } finally {
+      busyMemberOps.value.delete(memberId);
     }
   };
 
@@ -661,6 +702,6 @@ export function useClubMembers(context: UseClubMembersContext) {
     confirmPromoteModeratorToAdmin,
     confirmRemoveMember,
     refreshClubMembers,
-    removingMemberIds,
+    busyMemberOps,
   };
 }

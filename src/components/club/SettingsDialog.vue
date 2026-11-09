@@ -617,7 +617,11 @@
               Admins ({{ adminMembers.length }})
             </div>
             <q-list separator dense class="rounded-borders">
-              <q-item v-for="member in adminMembers" :key="member.id">
+              <q-item
+                v-for="member in adminMembers"
+                :key="member.id"
+                :class="{ 'member-removing': isMemberBusy(member.id) }"
+              >
                 <q-item-section avatar>
                   <q-avatar size="32px">
                     <img v-if="member.avatar" :src="member.avatar" />
@@ -675,7 +679,8 @@
                     color="green-8"
                     size="sm"
                     icon="arrow_downward"
-                    :disable="adminMembers.length <= 1"
+                    :disable="adminMembers.length <= 1 || isMemberBusy(member.id)"
+                    :loading="memberBusyOp(member.id) === 'demote_admin_to_moderator'"
                     @click="
                       $emit(
                         'confirmDemoteAdmin',
@@ -718,7 +723,11 @@
               Moderators ({{ moderatorMembers.length }})
             </div>
             <q-list separator dense class="rounded-borders">
-              <q-item v-for="member in moderatorMembers" :key="member.id">
+              <q-item
+                v-for="member in moderatorMembers"
+                :key="member.id"
+                :class="{ 'member-removing': isMemberBusy(member.id) }"
+              >
                 <q-item-section avatar>
                   <q-avatar size="32px">
                     <img v-if="member.avatar" :src="member.avatar" />
@@ -777,6 +786,10 @@
                       color="amber-8"
                       size="sm"
                       icon="arrow_upward"
+                      :disable="isMemberBusy(member.id)"
+                      :loading="
+                        memberBusyOp(member.id) === 'promote_moderator_to_admin'
+                      "
                       @click="
                         $emit(
                           'confirmPromoteModeratorToAdmin',
@@ -799,6 +812,8 @@
                       color="warning"
                       size="sm"
                       icon="arrow_downward"
+                      :disable="isMemberBusy(member.id)"
+                      :loading="memberBusyOp(member.id) === 'demote_moderator'"
                       @click="
                         $emit(
                           'confirmDemoteModerator',
@@ -840,7 +855,7 @@
               <q-item
                 v-for="member in regularMembers"
                 :key="member.id"
-                :class="{ 'member-removing': isRemovingMember(member.id) }"
+                :class="{ 'member-removing': isMemberBusy(member.id) }"
               >
                 <q-item-section avatar>
                   <q-avatar size="32px">
@@ -895,7 +910,8 @@
                       color="blue-9"
                       size="sm"
                       icon="arrow_upward"
-                      :disable="isRemovingMember(member.id)"
+                      :disable="isMemberBusy(member.id)"
+                      :loading="memberBusyOp(member.id) === 'promote_moderator'"
                       @click="
                         $emit(
                           'confirmPromoteToModerator',
@@ -917,7 +933,8 @@
                       color="negative"
                       size="sm"
                       icon="remove_circle"
-                      :loading="isRemovingMember(member.id)"
+                      :disable="isMemberBusy(member.id)"
+                      :loading="memberBusyOp(member.id) === 'remove_member'"
                       @click="
                         $emit(
                           'confirmRemoveMember',
@@ -1159,7 +1176,7 @@ const props = withDefaults(
       duprId?: string;
       playerJunctionId?: string;
     }>;
-    removingMemberIds?: Set<string>;
+    busyMemberOps?: Map<string, string>;
     adminMatchStats: Record<
       string,
       {
@@ -1318,8 +1335,8 @@ const blurActiveElement = (e?: Event) => {
   setTimeout(() => el.blur(), 0);
 };
 
-const isRemovingMember = (id: string) =>
-  props.removingMemberIds?.has(id) ?? false;
+const memberBusyOp = (id: string) => props.busyMemberOps?.get(id);
+const isMemberBusy = (id: string) => props.busyMemberOps?.has(id) ?? false;
 </script>
 
 <style scoped>
