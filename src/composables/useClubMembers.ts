@@ -1,4 +1,4 @@
-import { computed, type Ref } from 'vue';
+import { computed, ref, type Ref } from 'vue';
 import { useQuasar } from 'quasar';
 import type { QNotifyCreateOptions } from 'quasar';
 import { readItems, updateItem } from '@likha-erp/likha-sdk';
@@ -182,11 +182,14 @@ export function useClubMembers(context: UseClubMembersContext) {
     return stats;
   });
 
+  const removingMemberIds = ref<Set<string>>(new Set());
+
   const removeClubMember = async (
     memberId: string,
     playerJunctionId: string,
   ) => {
     if (!currentClubUUID.value) return;
+    removingMemberIds.value.add(memberId);
     try {
       const member = clubMembers.value.find((m) => m.id === memberId);
       const junctionIds =
@@ -209,6 +212,8 @@ export function useClubMembers(context: UseClubMembersContext) {
     } catch (err) {
       console.error('Failed to remove club member:', err);
       notify({ type: 'negative', message: 'Failed to remove member' });
+    } finally {
+      removingMemberIds.value.delete(memberId);
     }
   };
 
@@ -656,5 +661,6 @@ export function useClubMembers(context: UseClubMembersContext) {
     confirmPromoteModeratorToAdmin,
     confirmRemoveMember,
     refreshClubMembers,
+    removingMemberIds,
   };
 }

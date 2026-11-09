@@ -1615,6 +1615,7 @@
         :admin-members="adminMembers"
         :moderator-members="moderatorMembers"
         :regular-members="regularMembers"
+        :removing-member-ids="removingMemberIds"
         :admin-match-stats="adminMatchStats"
         :action-logs="MatchmakingApp.state.actionLogs"
         :club-feedback-loading="clubFeedbackLoading"
@@ -2984,6 +2985,7 @@ const {
   confirmPromoteModeratorToAdmin,
   confirmRemoveMember,
   refreshClubMembers,
+  removingMemberIds,
 } = useClubMembers({
   currentClubId,
   currentClubUUID,

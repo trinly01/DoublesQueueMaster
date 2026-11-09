@@ -837,7 +837,11 @@
               }})
             </div>
             <q-list separator dense class="rounded-borders">
-              <q-item v-for="member in regularMembers" :key="member.id">
+              <q-item
+                v-for="member in regularMembers"
+                :key="member.id"
+                :class="{ 'member-removing': isRemovingMember(member.id) }"
+              >
                 <q-item-section avatar>
                   <q-avatar size="32px">
                     <img v-if="member.avatar" :src="member.avatar" />
@@ -891,6 +895,7 @@
                       color="blue-9"
                       size="sm"
                       icon="arrow_upward"
+                      :disable="isRemovingMember(member.id)"
                       @click="
                         $emit(
                           'confirmPromoteToModerator',
@@ -912,6 +917,7 @@
                       color="negative"
                       size="sm"
                       icon="remove_circle"
+                      :loading="isRemovingMember(member.id)"
                       @click="
                         $emit(
                           'confirmRemoveMember',
@@ -1153,6 +1159,7 @@ const props = withDefaults(
       duprId?: string;
       playerJunctionId?: string;
     }>;
+    removingMemberIds?: Set<string>;
     adminMatchStats: Record<
       string,
       {
@@ -1310,9 +1317,20 @@ const blurActiveElement = (e?: Event) => {
   if (!el || el === document.body) return;
   setTimeout(() => el.blur(), 0);
 };
+
+const isRemovingMember = (id: string) =>
+  props.removingMemberIds?.has(id) ?? false;
 </script>
 
 <style scoped>
+.member-removing {
+  opacity: 0.5;
+  filter: blur(1.5px);
+  transition:
+    opacity 0.2s ease,
+    filter 0.2s ease;
+}
+
 .ellipsis {
   display: inline-block;
   max-width: 120px;
