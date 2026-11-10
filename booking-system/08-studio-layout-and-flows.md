@@ -38,11 +38,14 @@ Tabs:
 | **Location** | address `1` · latitude `½` · longitude `½` · contact_phone `½` · contact_email `½` |
 | **Payments** | gcash_name `½` · gcash_number `½` · bank_details `1` — note: "What customers pay via GCash" |
 | **Booking rules** | timezone `½` · currency `½` (readonly) · slot_minutes `½` · min_duration `½` · max_duration `½` · buffer_minutes `½` · cancel_cutoff_hours `½` · auto_confirm_payments `½` (toggle) |
+| **Billing** | subscription_plan `½` · max_courts `½` · subscription_status `½` · subscription_renews_at `½` · billing_email `½` — **all Zyberlab-only** (not in tenant update fields → read-only for tenants) |
 | **Advanced** | settings `1` (json — admin only, hidden from tenant) |
 
 Notes: `slot_minutes` → "Grid step customers pick from (30 or 60)";
 `buffer_minutes` → "Gap between bookings for turnover";
 `auto_confirm_payments` → "ON = bookings confirm instantly on proof upload (trust mode)".
+Billing tab is Zyberlab's subscription management surface — tenants see
+their plan/status for transparency but cannot edit (field-level perms).
 
 ### `book_courts` — tenant's most-used form
 
@@ -203,6 +206,12 @@ F8=booking_status_mail · F9=proof_pending · F13=collision_check ·
 F14=permission presets (no flow needed). **Not yet built:** F10/F11
 reminders (needs per-row mail loop — Directus flows can't iterate;
 needs custom endpoint), F12=no_show logic exists but unverified.
+
+**Also live (multi-venue):** `tenant_user_sync` — event on
+`book_tenant_users` [create|update|delete] → likha_sql recomputes
+`directus_users.book_tenant_ids` (json venue-id mirror) and repairs
+`book_tenant` if it points outside membership. Enables staff self-service
+venue switching (active-venue model, see `02`).
 
 Key implementation lessons (all in `.devin/skills/directus`):
 `$trigger.key`=new PK on create · `s.id<n.id` deterministic collision

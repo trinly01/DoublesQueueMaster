@@ -54,11 +54,17 @@ by permission item-filters, all verified live:
   multi-tenant aware (staff of 2 venues sees both).
 - **Create/Update:** item filters do NOT constrain writes (verified —
   a cross-tenant court WAS created before the fix). Guarded instead by
-  `validation: {tenant: {_eq: "$CURRENT_USER.book_tenant"}}` —
-  **deep-filter validation fails closed** ("Value is required"), so
-  writes are limited to the user's PRIMARY tenant (`directus_users.
-  book_tenant` field). Multi-tenant staff can READ all their venues but
-  only WRITE to their primary — documented limitation, acceptable MVP.
+  `validation: {tenant: {_eq: "$CURRENT_USER.book_tenant"}}`.
+- **Multi-venue staff (verified Nov 2026):** `directus_users.book_tenant`
+  is the staff member's **active venue** — the venue new records are
+  stamped into. Junction rows in `book_tenant_users` define ALL venues
+  they may access. Staff switch venues by editing their own profile
+  (`book_tenant` dropdown, self-update perm limited to that field,
+  validated by `{_in: "$CURRENT_USER.book_tenant_ids"}` — a json array
+  kept in sync from junctions by the `tenant_user_sync` flow; deep
+  membership filters fail closed in validation, `_in` on a json array
+  works). Reads/updates/deletes already span all member venues via the
+  deep item filters; creates always land in the active venue.
 - **Auto-stamp:** permission `presets` fill `tenant` and walk-in
   defaults (`source=walk_in, status=confirmed, payment_status=paid`)
   server-side — verified working.

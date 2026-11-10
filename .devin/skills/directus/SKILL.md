@@ -73,9 +73,18 @@ Pattern used for `book_*` collections (`book_tenant` role/policy):
   their venues.
 - **Create/update:** item `permissions` filters do NOT constrain writes
   (a cross-tenant row WAS created in testing). Must add `validation`:
-  `{tenant: {_eq: "$CURRENT_USER.book_tenant"}}` — requires a
-  `book_tenant` integer field on `directus_users` (primary tenant).
+  `{tenant: {_eq: "$CURRENT_USER.book_tenant"}}`.
   Deep-filter validation FAILS CLOSED ("Value is required") — don't use.
+- **Membership validation that DOES work:** store the user's allowed
+  values as a json array field (`book_tenant_ids` on directus_users,
+  synced from junctions by the `tenant_user_sync` flow) and validate
+  `{field: {_in: "$CURRENT_USER.<json array field>"}}` — verified live:
+  member value → 200, non-member → 400 listing valid ids.
+- **Active-venue model (multi-venue staff):** `book_tenant` = venue new
+  records stamp into; junctions = all accessible venues; staff switch
+  via self-update perm on own user row (fields=[book_tenant],
+  permissions={id eq $CURRENT_USER.id}, validation=the `_in` above).
+  `book_tenant` field meta: `select-dropdown-m2o` + `{{name}}` template.
 - **Auto-stamp:** permission `presets` resolve `$CURRENT_USER.<field>`
   server-side on create (e.g. `{tenant: "$CURRENT_USER.book_tenant"}`,
   plus walk-in defaults).
@@ -86,7 +95,10 @@ Pattern used for `book_*` collections (`book_tenant` role/policy):
 - Relations item-routes (`/relations/{id}`) are unreliable on this
   instance — set `one_field` at creation time instead.
 - Scripts: `scripts/setup-booking-schema.mjs`,
-  `setup-booking-permissions.mjs`, `patch-booking-validation.mjs`.
+  `setup-booking-permissions.mjs`, `patch-booking-validation.mjs`,
+  `setup-booking-multivenue.mjs` (active-venue picker + billing fields),
+  `setup-booking-tenant-sync.mjs` (`tenant_user_sync` flow + backfill),
+  `test-multivenue.mjs` (9-scenario multi-venue verification).
 
 ## Studio nav groups (VERIFIED)
 

@@ -7,8 +7,12 @@ Decisions to make before/while building. Ordered by "blocks the most."
 1. ~~**Tenant isolation: Option A or B?**~~ → **DECIDED & VERIFIED:
    Option A** — shared `book_tenant` role/policy + deep item filters for
    reads, `$CURRENT_USER.book_tenant` validation for writes, presets
-   for auto-stamp. Implemented + tested live. Known limit: multi-tenant
-   staff write only to primary tenant.
+   for auto-stamp. Implemented + tested live.
+   **Multi-venue staff: SUPPORTED** — `book_tenant` = active venue
+   (staff self-switch via profile, validated by
+   `{_in: "$CURRENT_USER.book_tenant_ids"}` json mirror synced by the
+   `tenant_user_sync` flow). Junctions define all accessible venues;
+   creates land in the active venue. Verified: `test-multivenue.mjs` 9/9.
 
 2. **Collision enforcement mechanism**
    Postgres exclusion constraint (needs DBA/migration access) vs
@@ -28,10 +32,15 @@ Decisions to make before/while building. Ordered by "blocks the most."
 
 ## Important (shape the build)
 
-5. **Subscription billing mechanics** (Model A locked; mechanics open)
-   - Price point? (benchmark ₱999/mo PlayServe) — free pilot period?
+5. **Subscription billing mechanics** (Model A locked; tiers added)
+   - ~~Price point?~~ → **tiers by court count added** to `book_tenants`
+     (`subscription_plan`/`max_courts`/`subscription_status`/
+     `subscription_renews_at`/`billing_email`): trial ₱0, starter ₱499
+     ≤2 courts, growth ₱999 ≤6, business ₱1,999 unlimited — see
+     `04-payments-and-fees.md`. Exact pricing still tunable.
    - **How do tenants pay?** Manual invoicing/remittance vs reuse the
      existing Xendit invoice-link pattern for subscription invoices.
+   - Enforcement: manual at MVP (admin vs `max_courts`); automate later.
    - Phase 2 prep (deferred): platform fee flat vs % vs hybrid;
      who absorbs Xendit fees — customer or split?
 

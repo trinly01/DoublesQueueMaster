@@ -62,8 +62,27 @@ The models below are kept for reference and for the Phase 2 design.
 
 ### Model A — Tenant subscription (simplest, recommended for MVP)
 
-- Tenants pay Zyberlab a monthly SaaS fee (benchmark: PlayServe ₱999/mo
-  per facility).
+- Tenants pay Zyberlab a monthly SaaS fee, **tiered by court count**
+  (benchmark: PlayServe ₱999/mo per facility). Suggested tiers:
+
+  | Plan | Price/mo | Courts | Notes |
+  |---|---|---|---|
+  | `trial` | ₱0 (30 days) | ≤2 | onboarding pilot; converts or suspends |
+  | `starter` | ₱499 | ≤2 | single-court venues, food stalls |
+  | `growth` | ₱999 | ≤6 | typical multi-court club — PlayServe parity |
+  | `business` | ₱1,999 | unlimited | arenas, multi-branch groups |
+
+- Stored per tenant in `book_tenants`: `subscription_plan`,
+  `max_courts`, `subscription_status` (`trialing`/`active`/
+  `past_due`/`cancelled`), `subscription_renews_at`, `billing_email` —
+  all Zyberlab-only fields (tenants see but can't edit; Billing tab).
+- **Enforcement (MVP):** manual — admin sees court count vs `max_courts`
+  in Studio and follows up / suspends (`status` or `subscription_status`).
+  A `court_count` Insights panel or flow-flag can automate the nudge
+  later; hard-blocking court creation isn't expressible in validation.
+- **Billing mechanics:** reuse the existing Xendit invoice-link pattern
+  (same one used for club activation) — monthly/annual invoice to
+  `billing_email`. Manual for first tenants; self-serve portal later.
 - Customers pay the **venue directly** (GCash proof upload). Zyberlab
   never touches booking money → zero payment ops, zero remittance,
   zero chargeback exposure.

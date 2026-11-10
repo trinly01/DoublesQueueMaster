@@ -38,7 +38,12 @@ book_sport_types (catalog: pickleball, basketball, ...)
 | buffer_minutes | integer | turnover gap between bookings (default 10) |
 | cancel_cutoff_hours | integer | free-cancel window (default 24) |
 | auto_confirm_payments | boolean | proof flow: false = tenant must verify |
-| status | string | `pending` / `active` / `suspended` |
+| status | string | `pending` / `active` / `suspended` — Zyberlab controls |
+| subscription_plan | string | `trial` / `starter` / `growth` / `business` — Zyberlab only |
+| max_courts | integer | plan court limit (blank = unlimited) — Zyberlab only |
+| subscription_status | string | `trialing` / `active` / `past_due` / `cancelled` — Zyberlab only |
+| subscription_renews_at | timestamp | next billing date — Zyberlab only |
+| billing_email | string | invoice email — may differ from venue contact |
 | settings | JSON | future knobs without migrations |
 
 ### `book_sport_types` — catalog (tiny)
@@ -162,11 +167,19 @@ On `approved` → flow sets `book_payments.status=paid` +
 (owner/manager/front_desk)` — needed when a venue has several staff
 accounts. Owner creates via Zyberlab admin or tenant owner invites.
 
-**`directus_users.book_tenant`** (integer → book_tenants, added during
-tenancy implementation): the staff member's PRIMARY tenant — used by
-permission presets (`tenant: "$CURRENT_USER.book_tenant"`) and write
-validation. Multi-tenant staff keep membership rows in
-`book_tenant_users` for read scope but write only to their primary.
+**`directus_users.book_tenant`** (integer → book_tenants): the staff
+member's **active venue** — permission presets stamp
+`tenant: "$CURRENT_USER.book_tenant"` on creates and write-validation
+requires it. Staff switch it via their own profile (self-update perm,
+membership-validated). Multi-venue staff keep ALL memberships in
+`book_tenant_users`; reads/updates span every member venue.
+
+**`directus_users.book_tenant_ids`** (json, hidden): mirror of the user's
+junction venue IDs, maintained by the `tenant_user_sync` flow on every
+`book_tenant_users` write. Drives the self-update validation
+`{book_tenant: {_in: "$CURRENT_USER.book_tenant_ids"}}` — the only
+membership check Directus validation can express (deep filters fail
+closed; `_in` on a json array works — verified).
 
 ## Status model
 
