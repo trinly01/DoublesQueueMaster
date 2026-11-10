@@ -1,0 +1,207 @@
+{
+  "admins": {
+    "collection": "club_directus_users",
+    "totalRows": 199,
+    "validRows": 113,
+    "dupGroups": 1,
+    "dupes": [
+      {
+        "club_id": "a9f5add0-0233-4abf-bd8e-78a07a2f9470",
+        "directus_users_id": "efdd01ac-b1c8-4fc7-a4da-93f3f8173e47",
+        "keep": 130,
+        "delete": [
+          131
+        ]
+      }
+    ]
+  },
+  "players": {
+    "collection": "club_directus_users_1",
+    "totalRows": 785,
+    "validRows": 703,
+    "dupGroups": 19,
+    "dupes": [
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "e84c5f9d-e237-4aa5-8af7-8c7b8d9b88e0",
+        "keep": 319,
+        "delete": [
+          367
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "35993b26-97f2-4eed-a951-6d0250cad836",
+        "keep": 322,
+        "delete": [
+          323
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "ae4630a9-2303-4efb-9d46-0829172416f5",
+        "keep": 326,
+        "delete": [
+          372,
+          373
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "402315b3-6366-4e3a-9d6d-127e75d7bc35",
+        "keep": 338,
+        "delete": [
+          374
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "9ca8b058-b417-4e45-900b-5e22d7985ac1",
+        "keep": 356,
+        "delete": [
+          524
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "ac068145-edeb-4f06-962b-770cb2d8a5ce",
+        "keep": 378,
+        "delete": [
+          379,
+          384
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "fd95860a-d0ee-4bf6-93c4-8f47b1bd076c",
+        "keep": 385,
+        "delete": [
+          781,
+          782
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "9283f05e-0a5f-4dbe-93f9-7484140013b3",
+        "keep": 421,
+        "delete": [
+          423
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "e4b410d8-ef07-4aff-835e-24464073f9f3",
+        "keep": 499,
+        "delete": [
+          502
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "9fcf1364-2f0d-4edd-8a32-973823f488e5",
+        "keep": 521,
+        "delete": [
+          769
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "71bacb6d-a948-453c-a565-4ea16caef239",
+        "keep": 533,
+        "delete": [
+          536
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "162ab192-ad84-44f9-a817-e37dc62f6598",
+        "keep": 572,
+        "delete": [
+          573
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "fe54110c-307a-43ce-a394-90e0f1bbdb96",
+        "keep": 608,
+        "delete": [
+          609
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "3b3d097f-c36e-432d-b67f-10a7cf6f6a90",
+        "keep": 615,
+        "delete": [
+          617
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "bdfca9e0-2157-4251-b4ae-2d1a806b0086",
+        "keep": 720,
+        "delete": [
+          721
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "784d53a4-a41c-4786-a855-82c5488ec7a4",
+        "keep": 731,
+        "delete": [
+          732
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "716c1749-0442-4557-b6dc-01a28369134f",
+        "keep": 754,
+        "delete": [
+          755,
+          756
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "21e80ed3-ba4b-4b1f-9189-1d950cd92c0e",
+        "keep": 765,
+        "delete": [
+          766
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "9b2cb067-5a95-4dd6-a0fa-f40b835a7c55",
+        "keep": 776,
+        "delete": [
+          777
+        ]
+      }
+    ]
+  },
+  "moderators": {
+    "collection": "club_directus_users_2",
+    "totalRows": 46,
+    "validRows": 20,
+    "dupGroups": 2,
+    "dupes": [
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "62a044eb-9bd1-43b2-86d3-b737ec6fd032",
+        "keep": 7,
+        "delete": [
+          18
+        ]
+      },
+      {
+        "club_id": "22e52ef0-bf60-4bd1-bea8-ef66193edf35",
+        "directus_users_id": "50fa4b39-9215-4158-b98e-1e53fde8bca1",
+        "keep": 43,
+        "delete": [
+          44,
+          45
+        ]
+      }
+    ]
+  }
+}

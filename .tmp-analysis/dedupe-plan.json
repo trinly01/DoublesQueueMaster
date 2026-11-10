@@ -1,0 +1,23 @@
+{
+  "admins": {
+    "collection": "club_directus_users",
+    "totalRows": 199,
+    "validRows": 112,
+    "dupGroups": 0,
+    "dupes": []
+  },
+  "players": {
+    "collection": "club_directus_users_1",
+    "totalRows": 785,
+    "validRows": 680,
+    "dupGroups": 0,
+    "dupes": []
+  },
+  "moderators": {
+    "collection": "club_directus_users_2",
+    "totalRows": 46,
+    "validRows": 17,
+    "dupGroups": 0,
+    "dupes": []
+  }
+}
