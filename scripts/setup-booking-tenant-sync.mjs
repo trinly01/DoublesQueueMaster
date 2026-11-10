@@ -36,7 +36,7 @@ async function api(method, path, body) {
 const SYNC_SQL = `
 UPDATE directus_users u
 SET book_tenant_ids = COALESCE((
-      SELECT json_agg(j.tenant ORDER BY j.tenant)
+      SELECT json_agg(j.tenant ORDER BY j.seq)
       FROM book_tenant_users j WHERE j."user" = u.id
     ), '[]'::json),
     book_tenant = CASE
@@ -45,7 +45,7 @@ SET book_tenant_ids = COALESCE((
                        WHERE j."user" = u.id AND j.tenant = u.book_tenant)
       THEN u.book_tenant
       ELSE (SELECT j.tenant FROM book_tenant_users j
-            WHERE j."user" = u.id ORDER BY j.id LIMIT 1)
+            WHERE j."user" = u.id ORDER BY j.seq LIMIT 1)
     END
 WHERE u.id IN (
   SELECT "user" FROM book_tenant_users
@@ -80,15 +80,16 @@ async function ensureFlow() {
 }
 
 async function backfill() {
-  const junctions = await api('GET', '/items/book_tenant_users?limit=-1&fields=user,tenant');
+  const junctions = await api('GET', '/items/book_tenant_users?limit=-1&fields=user,tenant,seq');
   const byUser = new Map();
   for (const j of junctions) {
     if (!byUser.has(j.user)) byUser.set(j.user, []);
-    byUser.get(j.user).push(j.tenant);
+    byUser.get(j.user).push(j);
   }
   let n = 0;
-  for (const [uid, tids] of byUser) {
-    const sorted = [...new Set(tids)].sort((a, b) => a - b);
+  for (const [uid, rows] of byUser) {
+    const sorted = [...new Set(rows.map((r) => r.tenant))]
+      .sort((a, b) => (rows.find((r) => r.tenant === a)?.seq ?? 0) - (rows.find((r) => r.tenant === b)?.seq ?? 0));
     const u = await api('GET', `/users/${uid}?fields=id,book_tenant`);
     const body = { book_tenant_ids: sorted };
     // repair book_tenant if it points outside membership

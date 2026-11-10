@@ -93,7 +93,7 @@ const FLOWS = [
            AND EXISTS (SELECT 1 FROM book_tenants t WHERE t.id = ? AND t.max_courts IS NOT NULL)
            AND (SELECT count(*) FROM book_courts x
                 WHERE x.tenant = c.tenant AND COALESCE(x.status, 'active') <> 'inactive'
-                  AND x.id <= c.id)
+                  AND x.seq <= c.seq)
                > (SELECT t.max_courts FROM book_tenants t WHERE t.id = c.tenant)`,
         [T('normalize.itemId'), T('normalize.itemId')]) },
     ],

@@ -278,6 +278,15 @@
             class="full-width"
             @click="router.push('/clubs')"
           />
+          <q-btn
+            label="Book a Court"
+            icon="event_available"
+            color="primary"
+            rounded
+            outline
+            class="full-width"
+            @click="router.push('/book')"
+          />
           <div class="row items-center full-width" style="gap: 8px">
             <q-btn
               label="Play 3D"

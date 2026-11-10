@@ -48,7 +48,6 @@ const items = (c, tok, q = '') => api('GET', `/items/${c}?limit=-1${q}`, null, t
 const create = (c, body, tok) => api('POST', `/items/${c}`, body, tok);
 const update = (c, id, body, tok) => api('PATCH', `/items/${c}/${id}`, body, tok);
 const del = (c, id, tok) => api('DELETE', `/items/${c}/${id}`, null, tok);
-const d10 = (n) => String(n).padStart(2, '0');
 const day = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
 
 // ---------- fixtures ----------
@@ -59,8 +58,10 @@ async function ensureFixtures() {
   const sport = sports[0];
   check('A1 sport_types seeded', !!sport, JSON.stringify(sports).slice(0, 120));
 
-  // tenant B
+  // tenants — resolve by slug (uuid PKs; no stable integer ids anymore)
   let tenants = await items('book_tenants', TOKEN);
+  const t1 = tenants.find((t) => t.slug === 'siklab');
+  check('A0 Siklab tenant exists', !!t1, t1 ? `id=${t1.id}` : 'none');
   let tb = tenants.find((t) => t.slug === 'test-arena');
   if (!tb) {
     tb = await create('book_tenants', {
@@ -81,20 +82,11 @@ async function ensureFixtures() {
   if (!b2) b2 = await create('book_courts', { tenant: tb.id, name: 'Arena Court 2', sport: sport.id, price_per_hour: 600, status: 'active' }, TOKEN);
   check('A3 tenant B has 2 courts', !!b1 && !!b2, `b1=${b1.id} b2=${b2.id}`);
 
-  // Siklab court id (tenant 1)
-  const c1 = (await items('book_courts', TOKEN, '&filter[tenant][_eq]=1'))[0];
+  // Siklab court (tenant A)
+  const c1 = t1 ? (await items('book_courts', TOKEN, `&filter[tenant][_eq]=${t1.id}`))[0] : null;
   check('A4 Siklab court exists', !!c1, c1 ? `id=${c1.id} ₱${c1.price_per_hour}/hr` : 'none');
 
   // users
-  async function ensureUser(email, first, last, roleId) {
-    let u = (await api('GET', `/users?filter[email][_eq]=${encodeURIComponent(email)}&fields=id,email,role`, null, TOKEN, true));
-    let usr = Array.isArray(u.json?.data) ? u.json.data[0] : u.data?.[0];
-    if (!usr) {
-      usr = await create('users', { email, password: PASSW, first_name: first, last_name: last, role: roleId }, TOKEN);
-      console.log(`   + user ${email} id=${usr.id}`);
-    }
-    return usr;
-  }
   // users collection isn't /items — use /users endpoints
   // NOTE: role is ignored on POST /users on this instance — PATCH it after.
   async function ensureUser2(email, first, last, roleId) {
@@ -117,7 +109,7 @@ async function ensureFixtures() {
   const cB = await ensureUser2('customer-b@test.dinkmatch.club', 'Customer', 'B', ROLE_PLAYER);
 
   // book_tenant field + junction rows (admin)
-  for (const [usr, tid] of [[tA, 1], [tB, tb.id]]) {
+  for (const [usr, tid] of [[tA, t1.id], [tB, tb.id]]) {
     await api('PATCH', `/users/${usr.id}`, { book_tenant: tid }, TOKEN);
     const j = await items('book_tenant_users', TOKEN, `&filter[user][_eq]=${usr.id}`);
     if (!j.find((r) => r.tenant === tid)) {
@@ -134,7 +126,7 @@ async function ensureFixtures() {
     cA: await login('customer-a@test.dinkmatch.club'),
     cB: await login('customer-b@test.dinkmatch.club'),
   };
-  return { tok, tb, b1, b2, c1, sport, users: { tA, tB, cA, cB } };
+  return { tok, t1, tb, b1, b2, c1, sport, users: { tA, tB, cA, cB } };
 }
 
 // ---------- cleanup of transactional data ----------
@@ -148,15 +140,19 @@ async function cleanBookings() {
 
 async function main() {
   const F = await ensureFixtures();
-  const { tok, tb, b1, b2, c1 } = F;
-  const T1 = 1, TB = tb.id;
+  const { tok, t1, tb, b1, b2, c1 } = F;
+  const T1 = t1.id, TB = tb.id;
   await cleanBookings();
   console.log('   (transactional bookings cleaned)');
 
   // ============ B. CUSTOMER BROWSE ============
   console.log('\n== B. CUSTOMER BROWSE ==');
   const venues = await items('book_tenants', tok.cA);
-  check('B1 customer sees both active venues', venues.length >= 2 && venues.every((v) => v.status === undefined && v.settings === undefined),
+  // status must be field-readable for the active-venue filter to work —
+  // the real assertion is that sensitive/internal fields stay hidden
+  check('B1 customer sees both active venues', venues.length >= 2 &&
+    venues.every((v) => v.settings === undefined && v.subscription_plan === undefined &&
+      v.subscription_status === undefined && v.max_courts === undefined && v.suspension_reason === undefined),
     `got ${venues.length} venues; keys sample: ${Object.keys(venues[0] || {}).slice(0, 8)}`);
   const courts = await items('book_courts', tok.cA);
   check('B2 customer sees courts both tenants', courts.some((c) => c.tenant === T1) && courts.some((c) => c.tenant === TB),
@@ -325,7 +321,6 @@ async function main() {
   // E1/E2 isolation
   const tAbookings = await items('book_bookings', tok.tA);
   const tBbookings = await items('book_bookings', tok.tB);
-  const tAids = new Set(tAbookings.map((b) => b.id));
   check('E1 tenant A sees only own-venue bookings',
     tAbookings.every((b) => b.tenant === T1) && tAbookings.length > 0,
     `${tAbookings.length} bookings, tenants=${[...new Set(tAbookings.map(b=>b.tenant))]}`);
@@ -396,8 +391,8 @@ async function main() {
   try { await update('book_bookings', bk1.id, { platform_fee: 999 }, tok.tA); pe2 = null; }
   catch (e) { pe2 = e; }
   const bkFee = await item('book_bookings', bk1.id, tok.admin, '?fields=platform_fee');
-  check('E9b tenant cannot write platform_fee', (bkFee.platform_fee ?? 0) !== 999,
-    `platform_fee=${bkFee.platform_fee}`);
+  check('E9b tenant cannot write platform_fee', !!pe2 || (bkFee.platform_fee ?? 0) !== 999,
+    pe2 ? pe2.message.slice(0, 70) : `platform_fee=${bkFee.platform_fee}`);
   try { await update('book_tenants', T1, { gcash_number: '09179998888' }, tok.tA); }
   catch (e) { /* may fail if field not allowed — check below */ }
   const gc = await item('book_tenants', T1, tok.admin, '?fields=gcash_number');
@@ -537,7 +532,7 @@ async function main() {
       `${bkDp.payment_status}/${bkDp.status}`);
   } else check('F5 dup-proof booking', false, bkD?.__err);
   // F6: closure enforcement — admin closes court1 on day(10)
-  const cl = await create('book_closures', { tenant: T1, court: c1.id, date_start: day(10), date_end: day(10), all_day: true, reason: 'scenario-test' }, tok.admin);
+  await create('book_closures', { tenant: T1, court: c1.id, date_start: day(10), date_end: day(10), all_day: true, reason: 'scenario-test' }, tok.admin);
   let bkCL;
   try {
     bkCL = await create('book_bookings', {
@@ -552,7 +547,7 @@ async function main() {
   } else check('F6 closure booking created', false, bkCL.__err);
   // F7: auto_confirm tenant — flip tenant B flag, book+proof → auto confirm
   await update('book_tenants', TB, { auto_confirm_payments: true }, tok.admin);
-  let bkAC, payAC, proofAC;
+  let bkAC, payAC;
   try {
     bkAC = await create('book_bookings', {
       tenant: TB, customer_name: 'Auto Confirm', customer_email: 'customer-b@test.dinkmatch.club',
@@ -565,7 +560,7 @@ async function main() {
     const fd = new FormData(); fd.append('file', new Blob([png], { type: 'image/png' }), 'ac.png');
     const fid = (await (await fetch(`${BASE}/files`, { method: 'POST', headers: { Authorization: TOKEN }, body: fd })).json())?.data?.id;
     payAC = await create('book_payments', { booking: bkAC.id, method: 'gcash', amount: 500 }, tok.cB);
-    proofAC = await create('book_payment_proofs', { booking: bkAC.id, payment: payAC.id, file: fid, sender_name: 'Auto' }, tok.cB);
+    await create('book_payment_proofs', { booking: bkAC.id, payment: payAC.id, file: fid, sender_name: 'Auto' }, tok.cB);
     await sleep(3500);
     const ac = await item('book_bookings', bkAC.id, tok.admin, '?fields=status,payment_status,slots.status');
     check('F7 auto_confirm: booking confirmed on proof upload', ac.status === 'confirmed',

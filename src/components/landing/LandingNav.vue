@@ -12,6 +12,15 @@
           flat
           no-caps
           color="white"
+          label="Book a Court"
+          icon="event_available"
+          class="book-court-btn"
+          @click="goBook"
+        />
+        <q-btn
+          flat
+          no-caps
+          color="white"
           label="Play 3D Game"
           icon="sports_esports"
           class="play-game-btn"
@@ -37,6 +46,7 @@ import logoUrl from 'src/assets/queue master logo.png';
 const router = useRouter();
 const goLogin = () => router.push('/login');
 const goPlay = () => router.push('/play');
+const goBook = () => router.push('/book');
 </script>
 
 <style lang="scss" scoped>

@@ -4,6 +4,14 @@ Naming: `book_` prefix + singular snake_case entity. Junctions:
 `book_{a}_{b}`. All money in **PHP numeric** (or integer centavos —
 decide once; numeric(10,2) is simpler for Directus forms).
 
+> **UUID PKs + `seq` ordering (post-migration):** every `book_*` collection
+> uses a **uuid primary key** (FKs are uuid too, incl.
+> `directus_users.book_tenant`). Ordering that used to rely on integer ids
+> (`id <`, `ORDER BY id`, "earliest N") now uses a monotonic **`seq`
+> bigInteger auto-increment** column present on `book_tenant_users`,
+> `book_courts`, `book_bookings`, `book_booking_slots` — flows compare and
+> sort by `seq`, and booking refs (`BK-YYYY-NNNN`) derive from it.
+
 ## Entity map
 
 ```
@@ -23,7 +31,7 @@ book_sport_types (catalog: pickleball, basketball, ...)
 |---|---|---|
 | id | uuid | |
 | name | string | "Siklab Pickleball Club" |
-| slug | string | URL-safe, unique — `/book/s/siklab` |
+| slug | string | URL-safe, unique — `/book/v/siklab` |
 | logo | file | directus_files |
 | description | text | |
 | address | string | |
@@ -38,6 +46,7 @@ book_sport_types (catalog: pickleball, basketball, ...)
 | buffer_minutes | integer | turnover gap between bookings (default 10) |
 | cancel_cutoff_hours | integer | free-cancel window (default 24) |
 | auto_confirm_payments | boolean | proof flow: false = tenant must verify |
+| allow_non_contiguous_slots | boolean | default `false` — when false, a booking's slots on one court+date must form one consecutive run (enforced in `slot_init`; UI does start→end range pick) |
 | status | string | `pending` / `active` / `suspended` — Zyberlab controls |
 | subscription_plan | string | `trial` / `starter` / `growth` / `business` — Zyberlab only |
 | max_courts | integer | plan court limit (blank = unlimited) — Zyberlab only |
@@ -58,12 +67,13 @@ a court could be multi-sport via `sports` M2M later — start single.
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid | |
+| seq | bigInteger | auto-increment — display/cap ordering (replaces int-id order) |
 | tenant | M2O → book_tenants | required |
 | name | string | "Court 1", "Arena A", "Table 3" |
 | sport | M2O → book_sport_types | |
 | surface | string | `indoor`/`outdoor`/`hard`/`grass`/`synthetic` |
 | description | text | |
-| photos | files (M2M) | |
+| photo | file | single image (directus_files) |
 | price_per_hour | decimal | base rate |
 | peak_multiplier | decimal | e.g. 1.5 for peak hours — or use time-based pricing table later |
 | status | string | `active` / `maintenance` / `inactive` |
@@ -73,11 +83,13 @@ a court could be multi-sport via `sports` M2M later — start single.
 (day_of_week, start_time, end_time, price). Keep `price_per_hour` as
 the flat fallback so MVP needs no extra table.
 
-### `book_opening_hours` — weekly schedule (tenant-level default)
+### `book_opening_hours` — weekly schedule
 
-`id, tenant M2O, day_of_week (0-6), open_time, close_time, closed bool`
-— one row per day per tenant. Courts inherit tenant hours in MVP;
-per-court overrides later via nullable `court` M2O on this table.
+`id, tenant M2O, court M2O (nullable = tenant-wide default),
+day_of_week (0-6), open_time, close_time, closed bool`
+— one row per day per tenant; court-specific rows override the
+tenant-wide row for that weekday (`hoursFor` picks court row first,
+else the `court=null` row).
 
 ### `book_closures` — exceptions
 
@@ -90,7 +102,8 @@ date_start/date_end, reason, all_day bool, start_time/end_time nullable`
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid | |
-| ref | string | human ref `BK-2026-0042` (flow-generated) |
+| seq | bigInteger | auto-increment — `BK-YYYY-NNNN` ref derives from this |
+| ref | string | human ref `BK-2026-0042` (flow-generated from seq) |
 | tenant | M2O → book_tenants | denormalized for filtering speed |
 | customer | M2O → directus_users | null for guest (phase 2) |
 | customer_name / customer_phone / customer_email | string | snapshot — survives account deletion |
@@ -112,6 +125,7 @@ same time" works**: a group booking = N slot rows under one header).
 | Field | Type | Notes |
 |---|---|---|
 | id | uuid | |
+| seq | bigInteger | auto-increment — creation order (collision/contiguity checks compare `seq`, not id) |
 | booking | M2O → book_bookings | required |
 | court | M2O → book_courts | required |
 | date | date | local venue date |
@@ -120,7 +134,6 @@ same time" works**: a group booking = N slot rows under one header).
 | price | decimal | locked at booking time (rate changes don't retro-price) |
 | status | string | `held` / `confirmed` / `released` / `cancelled` |
 | held_until | timestamp | hold expiry — set by flow at creation (~30 min), drives the sweeper |
-| tenant | integer → book_tenants | **denormalized** — stamped by preset/flow; enables direct tenant filters |
 
 > **Time representation decision:** store `date` + `time` in venue-local
 > terms (simpler Studio UX, matches how tenants think) AND derive
@@ -133,7 +146,6 @@ same time" works**: a group booking = N slot rows under one header).
 |---|---|---|
 | id | uuid | |
 | booking | M2O → book_bookings | |
-| tenant | integer → book_tenants | denormalized — same stamp pattern as slots |
 | method | string | `gcash`/`maya`/`qrph`/`card`/`bank`/`cash`/`xendit_invoice` |
 | amount | decimal | what customer paid |
 | platform_fee | decimal | Zyberlab cut (phase 2) |
@@ -151,8 +163,7 @@ same time" works**: a group booking = N slot rows under one header).
 | id | uuid | |
 | booking | M2O → book_bookings | |
 | payment | M2O → book_payments | nullable |
-| tenant | integer → book_tenants | denormalized — same stamp pattern |
-| file | file | directus_files — the screenshot |
+| file | file | directus_files — the screenshot/PDF |
 | sender_name / reference_no / sent_at | string | what customer typed |
 | status | string | `pending`/`approved`/`rejected` |
 | reviewed_by | M2O → directus_users | tenant staff who verified |
@@ -164,11 +175,11 @@ On `approved` → flow sets `book_payments.status=paid` +
 
 ### `book_tenant_users` — staff junction (multi-user venues)
 
-`id, tenant M2O, user M2O → directus_users, role string
+`id, seq, tenant M2O, user M2O → directus_users, role string
 (owner/manager/front_desk)` — needed when a venue has several staff
 accounts. Owner creates via Zyberlab admin or tenant owner invites.
 
-**`directus_users.book_tenant`** (integer → book_tenants): the staff
+**`directus_users.book_tenant`** (uuid → book_tenants): the staff
 member's **active venue** — permission presets stamp
 `tenant: "$CURRENT_USER.book_tenant"` on creates and write-validation
 requires it. Staff switch it via their own profile (self-update perm,

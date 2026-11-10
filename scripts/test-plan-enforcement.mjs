@@ -66,7 +66,7 @@ try {
   await sleep(800); // let limit guard settle (max_courts null → no-op)
   await must('PATCH', `/items/book_tenants/${t2.id}`, { max_courts: 2 });
   const dstatuses = await waitFor(async () => {
-    const rows = await must('GET', `/items/book_courts?filter[tenant][_eq]=${t2.id}&fields=id,status&sort=id`);
+    const rows = await must('GET', `/items/book_courts?filter[tenant][_eq]=${t2.id}&fields=id,status&sort=seq`);
     const inact = rows.filter((r) => r.status === 'inactive').length;
     return inact >= 1 ? rows : null;
   });

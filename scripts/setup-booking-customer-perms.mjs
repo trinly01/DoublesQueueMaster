@@ -22,6 +22,8 @@ async function api(method, path, body) {
 const ACTIVE_VENUE = { tenant: { status: { _eq: 'active' } } };
 const OWN_BOOKING = { customer: { _eq: '$CURRENT_USER.id' } };
 const OWN_VIA_BOOKING = { booking: { customer: { _eq: '$CURRENT_USER.id' } } };
+// availability read: own-booking slots OR any slot under an active venue
+const SLOTS_READ = { _or: [OWN_VIA_BOOKING, { booking: { tenant: { status: { _eq: 'active' } } } }] };
 
 const BOOKING_CUSTOMER_FIELDS = ['id', 'ref', 'tenant', 'customer', 'customer_name',
   'customer_phone', 'customer_email', 'status', 'payment_status', 'subtotal', 'total',
@@ -32,10 +34,11 @@ const BOOKING_CUSTOMER_FIELDS = ['id', 'ref', 'tenant', 'customer', 'customer_na
 const PERMS = [
   // --- public browsing (active venues only) ---
   ['book_tenants', 'read', { status: { _eq: 'active' } },
-    ['id', 'name', 'slug', 'logo', 'description', 'address', 'latitude', 'longitude',
+    ['id', 'name', 'slug', 'status', 'logo', 'description', 'address', 'latitude', 'longitude',
      'contact_phone', 'contact_email', 'gcash_name', 'gcash_number', 'bank_details',
      'timezone', 'currency', 'slot_minutes', 'min_duration', 'max_duration',
-     'buffer_minutes', 'cancel_cutoff_hours', 'auto_confirm_payments']],
+     'buffer_minutes', 'cancel_cutoff_hours', 'auto_confirm_payments',
+     'allow_non_contiguous_slots']],
   ['book_courts', 'read', { status: { _eq: 'active' }, ...ACTIVE_VENUE },
     ['id', 'tenant', 'name', 'sport', 'surface', 'description', 'photo',
      'price_per_hour', 'peak_multiplier', 'status', 'sort']],
@@ -51,18 +54,30 @@ const PERMS = [
     ['tenant', 'customer_name', 'customer_phone', 'customer_email', 'notes', 'slots'],
     { status: { _eq: 'pending_payment' }, payment_status: { _eq: 'unpaid' }, source: { _eq: 'app' } },
     { status: 'pending_payment', payment_status: 'unpaid', source: 'app', customer: '$CURRENT_USER.id' }],
+  // cancel only unpaid/pending: paid or verification-in-flight bookings need venue handling
+  ['book_bookings', 'update',
+    { _and: [OWN_BOOKING, { status: { _eq: 'pending_payment' } },
+             { payment_status: { _eq: 'unpaid' } }] },
+    ['status', 'cancel_reason'],
+    { status: { _eq: 'cancelled' } },
+    { status: 'cancelled' }],
   // --- slots: customers create held slots; price/duration/tenant are flow-owned ---
-  ['book_booking_slots', 'read', OWN_VIA_BOOKING,
+  ['book_booking_slots', 'read', SLOTS_READ,
     ['id', 'booking', 'court', 'date', 'start_time', 'end_time', 'duration_minutes',
      'price', 'status', 'held_until']],
   ['book_booking_slots', 'create', {},
     ['booking', 'court', 'date', 'start_time', 'end_time'],
     { status: { _eq: 'held' } },
     { status: 'held' }],
-  // --- payments: read own (status display); never customer-created ---
+  // --- payments: read own + create pending GCash payment on own booking ---
   ['book_payments', 'read', OWN_VIA_BOOKING,
     ['id', 'booking', 'tenant', 'method', 'amount', 'status', 'reference',
      'paid_at', 'receipt_file']],
+  // deep-filter validation fails closed on create — ownership enforced by child_record_guard flow
+  ['book_payments', 'create', OWN_VIA_BOOKING,
+    ['booking', 'method', 'amount', 'reference', 'receipt_file'],
+    { status: { _eq: 'pending' } },
+    { status: 'pending' }],
   // --- proofs: upload own; approve/reject is tenant-only ---
   ['book_payment_proofs', 'read', OWN_VIA_BOOKING,
     ['id', 'booking', 'payment', 'file', 'sender_name', 'reference_no', 'sent_at',
@@ -74,12 +89,24 @@ const PERMS = [
 ];
 
 async function main() {
-  const existing = await api('GET', '/permissions?limit=-1&fields=id,collection,action,policy');
-  const have = new Set(existing.filter((p) => p.policy === POLICY).map((p) => `${p.collection}:${p.action}`));
-  let created = 0, skipped = 0;
+  const existing = await api('GET', '/permissions?limit=-1&fields=id,collection,action,policy,fields,permissions,validation,presets');
+  const have = new Map(existing.filter((p) => p.policy === POLICY).map((p) => [`${p.collection}:${p.action}`, p]));
+  const eq = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  let created = 0, updated = 0, skipped = 0;
   for (const [collection, action, permissions, fields, validation, presets] of PERMS) {
     const key = `${collection}:${action}`;
-    if (have.has(key)) { skipped++; console.log(`= ${key}`); continue; }
+    const cur = have.get(key);
+    if (cur) {
+      const patch = {};
+      if (!eq([...(cur.fields || [])].sort(), [...(fields || [])].sort())) patch.fields = fields;
+      if (!eq(cur.permissions, permissions)) patch.permissions = permissions;
+      if (!eq(cur.validation, validation)) patch.validation = validation;
+      if (!eq(cur.presets, presets)) patch.presets = presets;
+      if (!Object.keys(patch).length) { skipped++; console.log(`= ${key}`); continue; }
+      await api('PATCH', `/permissions/${cur.id}`, patch);
+      updated++; console.log(`~ ${key} updated (${Object.keys(patch).join(',')})`);
+      continue;
+    }
     try {
       await api('POST', '/permissions', {
         policy: POLICY, collection, action,
@@ -88,6 +115,6 @@ async function main() {
       created++; console.log(`+ ${key}`);
     } catch (e) { console.log(`! ${key}: ${e.message}`); }
   }
-  console.log(`done — ${created} created, ${skipped} existed`);
+  console.log(`done — ${created} created, ${updated} updated, ${skipped} unchanged`);
 }
 main().catch((e) => { console.error('FATAL', e); process.exit(1); });

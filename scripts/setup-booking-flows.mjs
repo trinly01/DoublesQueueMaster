@@ -51,7 +51,7 @@ const normalizeId = (key = 'normalize') => ({
       ?? (p.item && p.item.id)
       ?? (Array.isArray(p) ? p[0] && p[0].id : null);
     if (id == null) throw new Error('no item id in trigger: ' + JSON.stringify(t).slice(0,300));
-    return { itemId: Number(id) };
+    return { itemId: id };
   };` },
 });
 
@@ -109,7 +109,7 @@ const FLOWS = [
     ops: [
       normalizeId(),
       { name: 'assign_ref', key: 'assign_ref', type: 'likha_sql', options: sql(
-        `UPDATE book_bookings SET ref = 'BK-' || to_char(now(),'YYYY') || '-' || lpad(id::text,4,'0')
+        `UPDATE book_bookings SET ref = 'BK-' || to_char(now(),'YYYY') || '-' || lpad(seq::text,4,'0')
          WHERE id = ? AND (ref IS NULL OR ref = '')`,
         [T('normalize.itemId')]) },
     ],
@@ -127,6 +127,14 @@ const FLOWS = [
              WHEN c.tenant <> b.tenant
                OR COALESCE(c.status, 'active') <> 'active'
                OR t.status IS DISTINCT FROM 'active'
+             THEN 'cancelled'
+             WHEN t.allow_non_contiguous_slots IS NOT TRUE
+               AND (SELECT MAX(p.end_time) FROM book_booking_slots p
+                    WHERE p.booking = s.booking AND p.court = s.court AND p.date = s.date
+                      AND p.seq < s.seq AND p.status IN ('held','confirmed')) IS NOT NULL
+               AND s.start_time <> (SELECT MAX(p.end_time) FROM book_booking_slots p
+                    WHERE p.booking = s.booking AND p.court = s.court AND p.date = s.date
+                      AND p.seq < s.seq AND p.status IN ('held','confirmed'))
              THEN 'cancelled'
              WHEN b.status = 'confirmed' AND s.status = 'held' THEN 'confirmed'
              ELSE s.status END,
@@ -152,7 +160,7 @@ const FLOWS = [
          WHERE n.id = ? AND n.status IN ('held','confirmed')
            AND (
              EXISTS (SELECT 1 FROM book_booking_slots s
-               WHERE s.court = n.court AND s.id < n.id
+               WHERE s.court = n.court AND s.seq < n.seq
                  AND s.status IN ('held','confirmed')
                  AND s.date = n.date
                  AND s.start_time < n.end_time AND s.end_time > n.start_time)
@@ -201,7 +209,7 @@ const FLOWS = [
           const p = t.payload || {};
           const id = (t.keys && t.keys[0]) ?? (p.keys && p.keys[0]) ?? p.id;
           if (p.status !== 'cancelled' || !id) throw new Error('skip: not a cancel');
-          return { bookingId: Number(id) };
+          return { bookingId: id };
         };` } },
       { name: 'release_slots', key: 'release_slots', type: 'likha_sql', options: sql(
         `UPDATE book_booking_slots SET status='released', held_until=NULL
@@ -274,7 +282,7 @@ const FLOWS = [
           collection: 'book_tenants',
           key: [`${T('read_tenant.tenant')}`],
           fields: ['name', 'contact_email'] } },
-      guardEmail(`data.read_venue && data.read_venue.contact_email`),
+      guardEmail('data.read_venue && data.read_venue.contact_email'),
       { name: 'alert_tenant', key: 'alert_tenant', type: 'mail', options: {
         type: 'markdown',
         to: [`${T('read_venue.contact_email')}`],
@@ -294,7 +302,7 @@ const FLOWS = [
           const keys = p.keys || t.keys || [];
           const id = keys[0] ?? p.id ?? (p.item && p.item.id);
           if (p.status !== 'approved' || !id) throw new Error('skip: not an approval');
-          return { proofId: Number(id) };
+          return { proofId: id };
         };` } },
       normalizeId('normalize_proof'),
       { name: 'apply_approval', key: 'apply_approval', type: 'likha_sql', options: sql(
@@ -331,7 +339,7 @@ const FLOWS = [
           const keys = p.keys || t.keys || [];
           const id = keys[0] ?? p.id ?? (p.item && p.item.id);
           if (p.status !== 'rejected' || !id) throw new Error('skip: not a rejection');
-          return { proofId: Number(id) };
+          return { proofId: id };
         };` } },
       normalizeId('normalize_proof'),
       { name: 'reset_payment', key: 'reset_payment', type: 'likha_sql', options: sql(
@@ -351,7 +359,7 @@ const FLOWS = [
           collection: 'book_payment_proofs',
           key: [`${T('normalize_proof.itemId')}`],
           fields: ['rejection_reason'] } },
-      guardEmail(`data.read_detail && data.read_detail.customer_email`),
+      guardEmail('data.read_detail && data.read_detail.customer_email'),
       { name: 'notify_customer', key: 'notify_customer', type: 'mail', options: {
         type: 'markdown',
         to: [`${T('read_detail.customer_email')}`],
@@ -400,18 +408,68 @@ const FLOWS = [
           const id = keys[0] ?? p.id;
           const ok = ['confirmed','cancelled','expired','no_show','completed'].includes(p.status);
           if (!ok || !id) throw new Error('skip: not a notifiable transition');
-          return { bookingId: Number(id) };
+          return { bookingId: id };
         };` } },
       { name: 'read_booking', key: 'read_booking', type: 'item-read',
         options: { permissions: '$full', emitEvents: false,
           collection: 'book_bookings', key: [`${T('guard.bookingId')}`],
           fields: ['ref', 'customer_email', 'customer_name', 'status'] } },
-      guardEmail(`data.read_booking && data.read_booking.customer_email`),
+      guardEmail('data.read_booking && data.read_booking.customer_email'),
       { name: 'notify', key: 'notify', type: 'mail', options: {
         type: 'markdown',
         to: [`${T('read_booking.customer_email')}`],
         subject: `Booking ${T('read_booking.ref')} — ${T('read_booking.status')}`,
         body: `Hi ${T('read_booking.customer_name')},\n\nYour booking **${T('read_booking.ref')}** is now **${T('read_booking.status')}**.\n\n— Zyberlab Booking` } },
+    ],
+  },
+  {
+    name: 'child_record_guard', icon: 'shield',
+    description: 'On slot/payment/proof create: delete rows attached to bookings the creator does not own (deep-filter validation cannot run on create)',
+    trigger: 'event', options: { type: 'action', scope: ['items.create'], collections: ['book_booking_slots', 'book_payments', 'book_payment_proofs'] },
+    ops: [
+      { name: 'guard_ctx', key: 'guard_ctx', type: 'exec', options: { code:
+        `module.exports = async function(data) {
+          const t = data.$trigger || {};
+          const p = t.payload || {};
+          const id = t.key ?? p.id ?? (p.item && p.item.id);
+          const acc = data.$accountability || {};
+          if (id == null) throw new Error('no item id in trigger');
+          return { itemId: id, uid: acc.user ?? null, isAdmin: !!acc.admin };
+        };` } },
+      { name: 'guard_sweep', key: 'guard_sweep', type: 'likha_sql', options: sql(
+        `WITH ctx AS (
+           SELECT ?::uuid AS id, ?::uuid AS uid, ?::boolean AS is_admin
+         ), bad AS (
+           SELECT id, uid FROM ctx WHERE uid IS NOT NULL AND NOT is_admin
+         ), d_slots AS (
+           DELETE FROM book_booking_slots s
+           USING book_bookings b, bad
+           WHERE s.id = bad.id AND b.id = s.booking
+             AND NOT (b.customer = bad.uid OR EXISTS (
+               SELECT 1 FROM book_tenant_users tu
+               WHERE tu.user = bad.uid AND tu.tenant = b.tenant))
+           RETURNING s.id
+         ), d_pay AS (
+           DELETE FROM book_payments s
+           USING book_bookings b, bad
+           WHERE s.id = bad.id AND b.id = s.booking
+             AND NOT (b.customer = bad.uid OR EXISTS (
+               SELECT 1 FROM book_tenant_users tu
+               WHERE tu.user = bad.uid AND tu.tenant = b.tenant))
+           RETURNING s.id
+         ), d_proof AS (
+           DELETE FROM book_payment_proofs s
+           USING book_bookings b, bad
+           WHERE s.id = bad.id AND b.id = s.booking
+             AND NOT (b.customer = bad.uid OR EXISTS (
+               SELECT 1 FROM book_tenant_users tu
+               WHERE tu.user = bad.uid AND tu.tenant = b.tenant))
+           RETURNING s.id
+         )
+         SELECT (SELECT count(*) FROM d_slots) AS slots,
+                (SELECT count(*) FROM d_pay) AS payments,
+                (SELECT count(*) FROM d_proof) AS proofs`,
+        [T('guard_ctx.itemId'), T('guard_ctx.uid'), T('guard_ctx.isAdmin')]) },
     ],
   },
 ];

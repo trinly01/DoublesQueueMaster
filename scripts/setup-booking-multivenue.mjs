@@ -62,11 +62,15 @@ async function api(method, path, body) {
   const perms = await api('GET', '/permissions?limit=-1&fields=id,policy,collection,action,permissions,fields');
   const mine = perms.filter((p) => String(p.policy) === POLICY || p.policy === POLICY);
 
-  // read perm must expose book_tenant or the picker renders empty
+  // read perm must expose book_tenant (+ membership mirror) or the picker renders empty
   const read = mine.find((p) => p.collection === 'directus_users' && p.action === 'read');
-  if (read && !read.fields.includes('book_tenant')) {
-    await api('PATCH', `/permissions/${read.id}`, { fields: [...read.fields, 'book_tenant'] });
-    console.log('+ directus_users read perm: +book_tenant');
+  if (read) {
+    const want = ['book_tenant', 'book_tenant_ids'];
+    const missing = want.filter((f) => !(read.fields || []).includes(f));
+    if (missing.length) {
+      await api('PATCH', `/permissions/${read.id}`, { fields: [...(read.fields || []), ...missing] });
+      console.log(`+ directus_users read perm: +${missing.join(',+')}`);
+    }
   }
 
   // self-update perm: staff may change ONLY book_tenant on their own user row.
@@ -83,9 +87,19 @@ async function api(method, path, body) {
     });
     console.log('+ directus_users self-update perm (book_tenant only)');
   } else {
-    if (JSON.stringify(upd.validation) !== JSON.stringify(MEMBER)) {
-      await api('PATCH', `/permissions/${upd.id}`, { validation: MEMBER });
-      console.log('~ directus_users update perm validation → membership _in');
+    // full upsert — a stale row may carry fields:null or old validation
+    const want = {
+      permissions: { id: { _eq: '$CURRENT_USER.id' } },
+      fields: ['book_tenant'], validation: MEMBER, presets: null,
+    };
+    const patch = {};
+    if (JSON.stringify(upd.permissions ?? null) !== JSON.stringify(want.permissions)) patch.permissions = want.permissions;
+    if (JSON.stringify([...(upd.fields || [])].sort()) !== JSON.stringify([...want.fields].sort())) patch.fields = want.fields;
+    if (JSON.stringify(upd.validation ?? null) !== JSON.stringify(MEMBER)) patch.validation = MEMBER;
+    if (upd.presets != null) patch.presets = null;
+    if (Object.keys(patch).length) {
+      await api('PATCH', `/permissions/${upd.id}`, patch);
+      console.log(`~ directus_users update perm fixed (${Object.keys(patch).join(',')})`);
     } else {
       console.log('= directus_users update perm already exists');
     }
@@ -101,7 +115,7 @@ async function api(method, path, body) {
     try { await api('GET', `/fields/book_tenants/${g}`); return true; } catch { return false; }
   };
 
-  const grpMeta = { interface: 'group-tabs', special: ['group'], width: 'full', hidden: false, translations: { 'en-US': 'Billing' } };
+  const grpMeta = { interface: 'group-tabs', special: ['alias', 'no-data', 'group'], width: 'full', hidden: false, translations: { 'en-US': 'Billing' } };
   if (!(await groupExists('g_billing'))) {
     await api('POST', '/fields/book_tenants', {
       field: 'g_billing', type: 'alias', meta: grpMeta, schema: null,

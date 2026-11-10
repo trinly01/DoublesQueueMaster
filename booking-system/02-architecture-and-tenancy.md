@@ -68,15 +68,32 @@ by permission item-filters, all verified live:
 - **Auto-stamp:** permission `presets` fill `tenant` and walk-in
   defaults (`source=walk_in, status=confirmed, payment_status=paid`)
   server-side — verified working.
+- **Create validation reality (verified Nov 2026):** relational
+  (deep) filters inside `validation` FAIL CLOSED on create —
+  `booking.tenant._in …` rejects every payload with
+  "Value is required" even when `booking` is present. Only flat-field
+  rules work on create (`tenant _eq $CURRENT_USER.book_tenant`,
+  `status _eq …`). Child-record ownership (`book_booking_slots`,
+  `book_payments`, `book_payment_proofs` attached to a foreign
+  booking) is therefore enforced by the **`child_record_guard` flow**:
+  on every create it deletes the row unless the creator is the
+  booking's customer, staff of the booking's venue
+  (`book_tenant_users`), or admin — using `$accountability`.
 - **Field-level:** `platform_fee`, `tenant_payout`, `status`,
   `settings`, `subtotal/total` excluded from tenant-writable fields.
 - **Supporting reads:** `directus_users` read limited to
-  `[id, first_name, last_name, avatar]`; `directus_files` read for
-  images; `book_sport_types` read-all.
+  `[id, first_name, last_name, avatar, book_tenant, book_tenant_ids]`;
+  `directus_files` read for images; `book_sport_types` read-all.
 
 Scripts: `scripts/setup-booking-schema.mjs`,
 `scripts/setup-booking-permissions.mjs`,
-`scripts/patch-booking-validation.mjs` (all idempotent).
+`scripts/setup-booking-customer-perms.mjs`,
+`scripts/setup-booking-multivenue.mjs`,
+`scripts/setup-booking-flows.mjs`,
+`scripts/migrate-book-uuids.mjs`,
+`scripts/add-booking-system-fields.mjs`,
+`scripts/fix-book-field-sorts.mjs`,
+`scripts/fix-book-group-fields.mjs` (all idempotent).
 
 ### Option B — Role per tenant (rejected for now)
 

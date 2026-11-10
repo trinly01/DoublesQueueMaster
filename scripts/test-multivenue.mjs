@@ -9,7 +9,6 @@
  */
 const ADMIN = process.env.BOOKING_ADMIN_TOKEN || 'Bearer ***REMOVED***';
 const BASE = 'https://api.dinkmatch.club';
-const POLICY = '6dae3bf8-8f04-4223-b011-c64c5c1c2da1';
 const ROLE = '29d2495d-c6a3-4ee8-a1ce-037191610e21'; // book_tenant
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${cond ? 'PASS' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`); };
@@ -33,7 +32,7 @@ const cleanup = { tenants: [], users: [], junctions: [], courts: [] };
 
 try {
   // ---- fixtures: tenant B + multi-venue user ----
-  const tenA = (await must('GET', '/items/book_tenants?filter[status][_eq]=active&sort=id&limit=1&fields=id,name'))[0];
+  const tenA = (await must('GET', '/items/book_tenants?filter[status][_eq]=active&sort=name&limit=1&fields=id,name'))[0];
   ok('fixture: active tenant A exists', !!tenA, tenA?.name);
 
   const tenB = await must('POST', '/items/book_tenants', {

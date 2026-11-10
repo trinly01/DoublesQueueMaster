@@ -59,6 +59,39 @@ const routes: RouteRecordRaw[] = [
         path: 'play',
         component: () => import('pages/PlayPage.vue'),
       },
+      // ── Court booking (/book) ──────────────────────────────
+      {
+        path: 'book',
+        component: () => import('pages/book/BookVenuesPage.vue'),
+      },
+      {
+        path: 'book/v/:slug',
+        component: () => import('pages/book/BookVenuePage.vue'),
+      },
+      {
+        path: 'book/v/:slug/book',
+        component: () => import('pages/book/BookSlotsPage.vue'),
+      },
+      {
+        path: 'book/checkout',
+        component: () => import('pages/book/BookCheckoutPage.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
+        path: 'book/confirmation/:id',
+        component: () => import('pages/book/BookConfirmationPage.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
+        path: 'book/my',
+        component: () => import('pages/book/BookMyPage.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
+        path: 'book/my/:id',
+        component: () => import('pages/book/BookBookingPage.vue'),
+        meta: { requiresAuth: true },
+      },
     ],
   },
 

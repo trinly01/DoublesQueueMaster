@@ -26,7 +26,9 @@ async function api(method, path, body) {
 }
 
 // ---------- field spec helpers ----------
-let sortCounter;
+// NOTE: SPECS is built at module load, so the counter must start here —
+// resetting inside the runner loop is too late (meta.sort is captured eagerly).
+let sortCounter = 1;
 function F(field, type, meta = {}, schema = {}) {
   return {
     field, type,
@@ -53,7 +55,7 @@ const dt = (includeTime = true) => ({
 const sel = (vals) => ({ interface: 'select-dropdown', options: choices(vals) });
 const grp = (name, interfaceName = 'group-detail') => ({
   field: name, type: 'alias',
-  meta: { interface: interfaceName, special: ['group'], width: 'full', sort: sortCounter++, hidden: false },
+  meta: { interface: interfaceName, special: ['alias', 'no-data', 'group'], width: 'full', sort: sortCounter++, hidden: false },
   schema: null,
 });
 const o2m = (field, template, extraMeta = {}) => ({
@@ -66,8 +68,19 @@ const o2m = (field, template, extraMeta = {}) => ({
 });
 
 // ---------- collection specs ----------
-// NOTE: id is integer PK (Directus API default). FKs to book_* = integer,
-// FKs to directus_users/directus_files = uuid.
+// NOTE: id is uuid PK (created via collection payload — Directus does not
+// auto-fill it unless schema.default_value is set). FKs to book_* = uuid,
+// FKs to directus_users/directus_files = uuid. `seq` bigInteger auto-increment
+// preserves creation ordering that integer ids used to give us (collision
+// checks, court caps, refs) — uuid v4 has no order.
+const UUID_PK = {
+  field: 'id', type: 'uuid',
+  meta: { interface: 'input', hidden: true, sort: 1 },
+  schema: { is_primary_key: true, has_auto_increment: false, is_nullable: false, default_value: 'gen_random_uuid()' },
+};
+const seqF = () => F('seq', 'bigInteger',
+  { hidden: true, readonly: true, note: 'Creation order — replaces int-id ordering' },
+  { has_auto_increment: true, is_nullable: false });
 const SPECS = [
   {
     collection: 'book_sport_types',
@@ -106,6 +119,7 @@ const SPECS = [
       F('buffer_minutes', 'integer', { ...half, group: 'g_rules', note: 'Gap between bookings' }, { default_value: 10 }),
       F('cancel_cutoff_hours', 'integer', { ...half, group: 'g_rules', note: 'Free-cancel window' }, { default_value: 24 }),
       F('auto_confirm_payments', 'boolean', { ...half, group: 'g_rules', interface: 'boolean', note: 'Trust mode: confirm on proof upload' }, { default_value: false }),
+      F('allow_non_contiguous_slots', 'boolean', { ...half, group: 'g_rules', interface: 'boolean', note: 'OFF = one continuous run per court per day; ON = customers may skip slots' }, { default_value: false }),
       F('settings', 'json', { group: 'g_advanced', interface: 'input-code', note: 'Future knobs — Zyberlab admin only' }),
       // O2M aliases
       o2m('courts', '{{name}}', { group: 'g_advanced', note: 'Managed in book_courts' }),
@@ -119,7 +133,8 @@ const SPECS = [
     collection: 'book_tenant_users',
     meta: { icon: 'group', note: 'Staff accounts linked to a tenant' },
     fields: [
-      F('tenant', 'integer', { ...half, ...m2o('{{name}}'), note: 'Venue this staff belongs to' }, req),
+      seqF(),
+      F('tenant', 'uuid', { ...half, ...m2o('{{name}}'), note: 'Venue this staff belongs to' }, req),
       F('user', 'uuid', { ...half, ...m2o('{{first_name}} {{last_name}} — {{email}}'), note: 'Directus login' }, req),
       F('role', 'string', { ...half, ...sel(['owner', 'manager', 'front_desk']), note: 'owner=full, manager=ops, front_desk=check-ins only' }),
     ],
@@ -128,9 +143,10 @@ const SPECS = [
     collection: 'book_courts',
     meta: { icon: 'sports_tennis', note: 'Bookable units — courts, tables, lanes' },
     fields: [
-      F('tenant', 'integer', { ...half, ...m2o('{{name}}') }, req),
+      seqF(),
+      F('tenant', 'uuid', { ...half, ...m2o('{{name}}') }, req),
       F('name', 'string', { ...half, note: 'Court 1, Arena A, Table 3' }, req),
-      F('sport', 'integer', { ...half, ...m2o('{{name}}'), note: 'Pick a sport type' }),
+      F('sport', 'uuid', { ...half, ...m2o('{{name}}'), note: 'Pick a sport type' }),
       F('surface', 'string', { ...half, ...sel(['indoor', 'outdoor', 'hard', 'grass', 'synthetic', 'other']) }),
       F('status', 'string', { ...half, ...sel(['active', 'maintenance', 'inactive']) }, { default_value: 'active' }),
       F('price_per_hour', 'decimal', { ...half, note: 'Per hour, PHP' }),
@@ -147,8 +163,8 @@ const SPECS = [
     collection: 'book_opening_hours',
     meta: { icon: 'schedule', note: 'Weekly opening hours per venue' },
     fields: [
-      F('tenant', 'integer', { ...half, ...m2o('{{name}}') }, req),
-      F('court', 'integer', { ...half, ...m2o('{{name}}'), note: 'Empty = venue-wide default' }),
+      F('tenant', 'uuid', { ...half, ...m2o('{{name}}') }, req),
+      F('court', 'uuid', { ...half, ...m2o('{{name}}'), note: 'Empty = venue-wide default' }),
       F('day_of_week', 'integer', { ...half, ...sel(['0', '1', '2', '3', '4', '5', '6']), note: '0=Sun … 6=Sat' }),
       F('open_time', 'time', half, {}),
       F('close_time', 'time', half, {}),
@@ -159,8 +175,8 @@ const SPECS = [
     collection: 'book_closures',
     meta: { icon: 'event_busy', note: 'Closures, maintenance, private events' },
     fields: [
-      F('tenant', 'integer', { ...half, ...m2o('{{name}}') }, req),
-      F('court', 'integer', { ...half, ...m2o('{{name}}'), note: 'Empty = whole venue' }),
+      F('tenant', 'uuid', { ...half, ...m2o('{{name}}') }, req),
+      F('court', 'uuid', { ...half, ...m2o('{{name}}'), note: 'Empty = whole venue' }),
       F('date', 'date', { ...half, ...dt(false) }),
       F('date_start', 'date', { ...half, ...dt(false) }),
       F('date_end', 'date', { ...half, ...dt(false) }),
@@ -174,6 +190,7 @@ const SPECS = [
     collection: 'book_bookings',
     meta: { icon: 'event_note', note: 'Reservation headers — slots/payments hang off these' },
     fields: [
+      seqF(),
       grp('g_booking', 'group-tabs'), grp('g_schedule', 'group-tabs'),
       grp('g_money', 'group-tabs'), grp('g_internal', 'group-tabs'),
       F('ref', 'string', { ...half, group: 'g_booking', readonly: true, note: 'Auto: BK-YYYY-NNNN' }),
@@ -192,7 +209,7 @@ const SPECS = [
       F('subtotal', 'decimal', { ...half, group: 'g_internal', readonly: true }),
       F('platform_fee', 'decimal', { ...half, group: 'g_internal', readonly: true, note: 'Zyberlab — admin only' }),
       F('total', 'decimal', { ...half, group: 'g_internal', readonly: true }),
-      F('tenant', 'integer', { ...half, group: 'g_internal', ...m2o('{{name}}'), readonly: true }),
+      F('tenant', 'uuid', { ...half, group: 'g_internal', ...m2o('{{name}}'), readonly: true }),
       F('checked_in_at', 'timestamp', { ...half, group: 'g_internal', ...dt(), readonly: true }),
       F('cancelled_at', 'timestamp', { ...half, group: 'g_internal', ...dt(), readonly: true }),
       F('cancel_reason', 'string', { ...half, group: 'g_internal' }),
@@ -202,8 +219,9 @@ const SPECS = [
     collection: 'book_booking_slots',
     meta: { icon: 'schedule', note: 'Per-court time pieces of a booking' },
     fields: [
-      F('booking', 'integer', { ...half, ...m2o('{{ref}}') }, req),
-      F('court', 'integer', { ...half, ...m2o('{{name}}') }, req),
+      seqF(),
+      F('booking', 'uuid', { ...half, ...m2o('{{ref}}') }, req),
+      F('court', 'uuid', { ...half, ...m2o('{{name}}') }, req),
       F('date', 'date', { ...half, ...dt(false) }, req),
       F('start_time', 'time', half, req),
       F('end_time', 'time', half, req),
@@ -217,13 +235,13 @@ const SPECS = [
     collection: 'book_payments',
     meta: { icon: 'payments', note: 'Money records per booking' },
     fields: [
-      F('booking', 'integer', { ...half, ...m2o('{{ref}}') }, req),
+      F('booking', 'uuid', { ...half, ...m2o('{{ref}}') }, req),
       F('method', 'string', { ...half, ...sel(['gcash', 'maya', 'qrph', 'card', 'bank', 'cash', 'xendit_invoice']) }, req),
       F('amount', 'decimal', { ...half, note: 'What customer paid, PHP' }, req),
       F('status', 'string', { ...half, ...sel(['pending', 'paid', 'failed', 'refunded', 'expired']) }, { default_value: 'pending' }),
       F('reference', 'string', { ...half, note: 'GCash ref no. / Xendit invoice id' }),
       F('paid_at', 'timestamp', { ...half, ...dt(), readonly: true }),
-      F('receipt_file', 'uuid', { ...half, interface: 'file-image', note: 'Receipt image' }),
+      F('receipt_file', 'uuid', { ...half, interface: 'file', note: 'Receipt image or PDF' }),
       F('platform_fee', 'decimal', { ...half, readonly: true, note: 'Zyberlab cut — admin only' }),
       F('tenant_payout', 'decimal', { ...half, readonly: true, note: 'What venue receives' }),
       F('xendit_invoice_id', 'string', { ...half, hidden: true, note: 'Phase 2' }),
@@ -236,9 +254,9 @@ const SPECS = [
     meta: { icon: 'receipt_long', note: 'Proof-of-payment uploads — tenant verification queue' },
     fields: [
       grp('g_proof', 'group-detail'), grp('g_details', 'group-detail'), grp('g_review', 'group-detail'),
-      F('booking', 'integer', { ...half, group: 'g_proof', ...m2o('{{ref}}') }, req),
-      F('payment', 'integer', { ...half, group: 'g_proof', ...m2o('₱{{amount}} · {{method}}') }),
-      F('file', 'uuid', { group: 'g_proof', interface: 'file-image', note: 'Screenshot of payment' }, req),
+      F('booking', 'uuid', { ...half, group: 'g_proof', ...m2o('{{ref}}') }, req),
+      F('payment', 'uuid', { ...half, group: 'g_proof', ...m2o('₱{{amount}} · {{method}}') }),
+      F('file', 'uuid', { group: 'g_proof', interface: 'file', note: 'Screenshot or PDF of payment' }, req),
       F('sender_name', 'string', { ...half, group: 'g_details' }),
       F('reference_no', 'string', { ...half, group: 'g_details', note: 'GCash reference number' }),
       F('sent_at', 'timestamp', { ...half, group: 'g_details', ...dt() }),
@@ -294,7 +312,6 @@ async function main() {
   catch (e) { console.log('probe cleanup:', e.message); }
 
   for (const spec of SPECS) {
-    sortCounter = 1;
     // collection
     try {
       await api('GET', `/collections/${spec.collection}`);
@@ -304,6 +321,9 @@ async function main() {
         collection: spec.collection,
         meta: { icon: spec.meta.icon, note: spec.meta.note, hidden: false, singleton: false },
         schema: {},
+        // seq must ride in the create payload — POST /fields treats
+        // has_auto_increment as a PK and fails on tables that already have one
+        fields: [UUID_PK, ...(spec.fields ?? []).filter((f) => f.field === 'seq')],
       });
       console.log(`+ ${spec.collection} created`);
     }
