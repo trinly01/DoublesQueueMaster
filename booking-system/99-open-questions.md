@@ -40,7 +40,9 @@ Decisions to make before/while building. Ordered by "blocks the most."
      `04-payments-and-fees.md`. Exact pricing still tunable.
    - **How do tenants pay?** Manual invoicing/remittance vs reuse the
      existing Xendit invoice-link pattern for subscription invoices.
-   - Enforcement: manual at MVP (admin vs `max_courts`); automate later.
+   - ~~Enforcement: manual at MVP~~ → **automated**: court_limit_guard,
+     plan_change_enforcer, subscription_lapse_guard, billing_grace_sweeper
+     + slot_init status gate (see `04` / `08`). Verified 11/11.
    - Phase 2 prep (deferred): platform fee flat vs % vs hybrid;
      who absorbs Xendit fees — customer or split?
 

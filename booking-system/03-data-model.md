@@ -44,6 +44,7 @@ book_sport_types (catalog: pickleball, basketball, ...)
 | subscription_status | string | `trialing` / `active` / `past_due` / `cancelled` — Zyberlab only |
 | subscription_renews_at | timestamp | next billing date — Zyberlab only |
 | billing_email | string | invoice email — may differ from venue contact |
+| suspension_reason | string | `billing` / `manual` — why suspended; billing suspensions auto-lift on renewal, manual never do |
 | settings | JSON | future knobs without migrations |
 
 ### `book_sport_types` — catalog (tiny)

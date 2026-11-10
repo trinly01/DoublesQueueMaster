@@ -124,14 +124,20 @@ const FLOWS = [
         `UPDATE book_booking_slots s SET
            duration_minutes = GREATEST(0, ROUND(EXTRACT(EPOCH FROM ((s.date + s.end_time) - (s.date + s.start_time))) / 60))::int,
            status = CASE
-             WHEN c.tenant <> b.tenant THEN 'cancelled'
+             WHEN c.tenant <> b.tenant
+               OR COALESCE(c.status, 'active') <> 'active'
+               OR t.status IS DISTINCT FROM 'active'
+             THEN 'cancelled'
              WHEN b.status = 'confirmed' AND s.status = 'held' THEN 'confirmed'
              ELSE s.status END,
-           held_until = CASE WHEN s.status = 'held' AND b.status <> 'confirmed' AND c.tenant = b.tenant
+           held_until = CASE WHEN s.status = 'held' AND b.status <> 'confirmed'
+                              AND c.tenant = b.tenant
+                              AND COALESCE(c.status, 'active') = 'active'
+                              AND t.status IS NOT DISTINCT FROM 'active'
                              THEN now() + interval '30 minutes' ELSE s.held_until END,
            price = COALESCE(s.price, ROUND(c.price_per_hour * EXTRACT(EPOCH FROM ((s.date + s.end_time) - (s.date + s.start_time))) / 3600, 2))
-         FROM book_bookings b, book_courts c
-         WHERE s.id = ? AND b.id = s.booking AND c.id = s.court`,
+         FROM book_bookings b, book_courts c, book_tenants t
+         WHERE s.id = ? AND b.id = s.booking AND c.id = s.court AND t.id = c.tenant`,
         [T('normalize.itemId')]) },
     ],
   },

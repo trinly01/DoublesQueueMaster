@@ -213,6 +213,15 @@ needs custom endpoint), F12=no_show logic exists but unverified.
 `book_tenant` if it points outside membership. Enables staff self-service
 venue switching (active-venue model, see `02`).
 
+**Plan enforcement (subscription security — `test-plan-enforcement.mjs` 11/11):**
+`court_limit_guard` (court create over `max_courts` → inactive) ·
+`plan_change_enforcer` (downgrade → excess courts inactive, earliest ids
+kept) · `subscription_lapse_guard` (cancelled→suspended/billing;
+active→reactivates billing suspensions only) · `billing_grace_sweeper`
+(daily: trial expiry→past_due, past_due+7d→suspended). Plus `slot_init`
+now cancels slots when court or tenant `status<>'active'` — suspended
+venues stop taking bookings instantly.
+
 Key implementation lessons (all in `.devin/skills/directus`):
 `$trigger.key`=new PK on create · `s.id<n.id` deterministic collision
 winner · data-modifying CTEs share one snapshot (check `held_until`

@@ -76,10 +76,19 @@ The models below are kept for reference and for the Phase 2 design.
   `max_courts`, `subscription_status` (`trialing`/`active`/
   `past_due`/`cancelled`), `subscription_renews_at`, `billing_email` —
   all Zyberlab-only fields (tenants see but can't edit; Billing tab).
-- **Enforcement (MVP):** manual — admin sees court count vs `max_courts`
-  in Studio and follows up / suspends (`status` or `subscription_status`).
-  A `court_count` Insights panel or flow-flag can automate the nudge
-  later; hard-blocking court creation isn't expressible in validation.
+- **Enforcement (automated — `setup-booking-plan-enforcement.mjs`):**
+  - `court_limit_guard`: court create beyond `max_courts` → `inactive`
+  - `plan_change_enforcer`: plan/downgrade → excess courts `inactive`
+    (earliest ids keep status; inactivated courts don't count toward cap)
+  - `subscription_lapse_guard`: `cancelled` → `status=suspended` +
+    `suspension_reason=billing`; `active`/`trialing` → auto-reactivates
+    billing suspensions only (manual suspensions untouched)
+  - `billing_grace_sweeper` (daily 09:30 PHT): trial past `renews_at` →
+    `past_due`; `past_due` past `renews_at`+7d → suspended/billing
+  - `slot_init` gate: court `status<>'active'` or tenant
+    `status<>'active'` → new slots `cancelled` — suspended venues stop
+    taking bookings immediately
+  - Verified: `test-plan-enforcement.mjs` 11/11
 - **Billing mechanics:** reuse the existing Xendit invoice-link pattern
   (same one used for club activation) — monthly/annual invoice to
   `billing_email`. Manual for first tenants; self-serve portal later.
