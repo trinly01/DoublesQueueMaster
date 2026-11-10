@@ -180,6 +180,39 @@ directly); tenant-facing flows can use item ops under tenant role but
 need `options.scope`=event names + `collections`; write-backs set
 `emitEvents:false`.
 
+### LIVE INVENTORY (verified by `scripts/test-booking-scenarios.mjs` — 63/63 PASS)
+
+| Flow | Trigger | Status |
+|---|---|---|
+| booking_ref | create book_bookings | ✅ BK-YYYY-NNNN |
+| slot_init | create book_booking_slots | ✅ duration/held_until/price/tenant-match/walk-in-sync |
+| collision_check | create book_booking_slots | ✅ cancel on overlap (`s.id<n.id` first-wins) + closures |
+| booking_totals | create/update book_booking_slots | ✅ subtotal/total (price fallback to court rate) |
+| booking_cancelled | update book_bookings | ✅ releases held/confirmed slots |
+| hold_expire_sweeper | cron */5 | ✅ releases holds, expires unpaid >35min |
+| no_show_sweeper | cron daily 15:00 UTC | ✅ created (untested — needs real elapsed time) |
+| proof_pending | create book_payment_proofs | ✅ payment_status→pending_verification + tenant mail |
+| proof_approved | update book_payment_proofs | ✅ guarded confirm chain + customer mail |
+| proof_rejected | update book_payment_proofs | ✅ payment_status→unpaid + customer mail |
+| proof_auto_confirm | create book_payment_proofs | ✅ auto_confirm tenants |
+| booking_status_mail | update book_bookings | ✅ status-change emails |
+
+Spec→impl mapping: F1=booking_ref · F2+F7=slot_init · F3=booking_totals ·
+F4=proof_approved · F5=proof_rejected · F6=hold_expire_sweeper ·
+F8=booking_status_mail · F9=proof_pending · F13=collision_check ·
+F14=permission presets (no flow needed). **Not yet built:** F10/F11
+reminders (needs per-row mail loop — Directus flows can't iterate;
+needs custom endpoint), F12=no_show logic exists but unverified.
+
+Key implementation lessons (all in `.devin/skills/directus`):
+`$trigger.key`=new PK on create · `s.id<n.id` deterministic collision
+winner · data-modifying CTEs share one snapshot (check `held_until`
+directly, don't rely on sibling CTE writes) · `all_day` closures still
+need date-range check · role `parent` inherits ALL role permissions
+(removed — caused Player/customs validation conflicts) · API-created
+collections lack `date_created` (added system fields) · `??` can't mix
+with `&&` unparenthesized in exec code.
+
 ### F1 `booking_ref_assign` — event: `items.create` on book_bookings — ✅ LIVE
 
 **Verified trigger shape** (`items.create`):

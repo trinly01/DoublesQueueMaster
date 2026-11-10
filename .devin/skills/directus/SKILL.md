@@ -102,6 +102,48 @@ Pattern used for `book_*` collections (`book_tenant` role/policy):
   opening_hours→tenant_users→tenants→sport_types (daily-use first).
 - Spec: `booking-system/08` Part 2b.
 
+## Booking system — scenario-verified (63/63 PASS)
+
+`scripts/test-booking-scenarios.mjs` exercises the full matrix against
+live Directus: browse, nested booking+slot create, holds, collisions,
+closures, multi-court, cross-tenant injection, payments, proofs,
+approve/reject, walk-ins, cancels, hold expiry, both-paid race, dup
+proofs, auto_confirm, concurrent race. Re-run anytime — fixtures are
+idempotent (tenant "Test Arena" id=3, users *-test@test.dinkmatch.club).
+
+### Hard-won traps from the simulation
+
+- **Role `parent` inherits ALL permissions.** `book_tenant` had
+  `parent: Player` → tenant users got Player validation on creates
+  (walk-ins 400'd) and union reads (saw all venues). REMOVED — keep
+  roles flat; grant app access via policy `app_access:true` instead.
+- **`app_access` on the POLICY gates Studio login** — book_tenant
+  policy was `app_access:false` → tenants couldn't open Studio at all.
+  Now true. Player stays false (customers use the PWA).
+- **API-created collections get NO system fields.** `schema:{}` skips
+  `date_created`/`date_updated`/`user_created`/`user_updated` → sweeper
+  SQL died on `b.date_created`. Added via
+  `scripts/add-booking-system-fields.mjs` (special flags auto-populate).
+- **Data-modifying CTEs share ONE snapshot.** Sibling CTE writes are
+  invisible to each other's subqueries — sweeper's `expired` CTE must
+  check `held_until` directly, not rely on `released` CTE output.
+- **Collision determinism:** cancel overlapping slot only when an
+  EARLIER slot exists (`s.id < n.id`) → lowest id always wins regardless
+  of flow timing; 3-way concurrent race → exactly 1 survivor.
+- **`all_day` closures must still check the date range** — `cl.all_day
+  OR (...)` let one closure block every future date.
+- **`POST /users` ignores `role`** on this fork — PATCH role after
+  create. (Customer perms script comment about "parent→Player"
+  inheritance was wrong — it's role.parent, now removed.)
+- **`??` cannot mix with `&&` unparenthesized** in exec op code —
+  `a ?? b && c` is a syntax error; always parenthesize.
+- **Guest trigger shapes:** create→`$trigger.key`=PK + payload=body;
+  update→`$trigger.keys[]` + payload=changed fields only (flat);
+  normalize exec covers all.
+- Mail ops: guard recipient email with exec before `mail` op or flows
+  error on null `to` (intentional "skip:" throws are fine — they mark
+  error counter but data is already committed).
+
 ## Flow trigger payloads (VERIFIED)
 
 - `items.create` → `$trigger = {event, payload: <request body — NO
@@ -117,13 +159,12 @@ Pattern used for `book_*` collections (`book_tenant` role/policy):
 - Flow op listing: `/operations?filter[flow][_eq]={flowId}` — the
   link field is `flow`, and `position` is NOT a queryable field.
 
-## Booking system (in progress)
+## Booking system — backend DONE, scenario-verified
 
-`book_*` collections LIVE: schema, permissions, nav folder `booking`,
-and flows (`booking_ref` ✅ verified `BK-YYYY-NNNN`; slot_init,
-collision_check, hold_expire_sweeper, proof_approved,
-proof_auto_confirm, booking_status_mail created — verify each before
-relying). Scripts: `setup-booking-{schema,permissions,customer-perms,
-flows}.mjs`, `patch-booking-validation.mjs`. Design docs in
-`booking-system/` — Model A locked. Remaining: customer /book routes,
-collision guard hardening, more notification flows.
+`book_*` collections LIVE and fully tested (63/63 scenario checks).
+Scripts: `setup-booking-{schema,permissions,customer-perms,flows}.mjs`,
+`patch-booking-validation.mjs`, `add-booking-system-fields.mjs`,
+`test-booking-scenarios.mjs`. Design docs in `booking-system/` —
+Model A locked. Remaining: customer `/book` routes in the Quasar app,
+reminder flows (need custom endpoint for per-row mail), tenant Studio
+UX polish pass, pre-launch cleanup of Test Arena venue + test users.
