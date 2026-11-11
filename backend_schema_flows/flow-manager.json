@@ -133,6 +133,252 @@
     "accountability": "all"
   },
   {
+    "id": "0512216f-538e-48ee-be78-67b5aa7bc6bb",
+    "name": "proof_approved",
+    "icon": "check_circle",
+    "color": null,
+    "description": "Proof approved → payment paid, booking+slots confirmed, customer emailed (guarded)",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.update"
+      ],
+      "collections": [
+        "book_payment_proofs"
+      ]
+    },
+    "operation": "1ba044e6-e5a8-40dd-a398-a54433bf5965",
+    "operations": [
+      {
+        "id": "163bee95-121e-4943-b005-810d19df9bcb",
+        "name": "require_confirmed",
+        "key": "require_confirmed",
+        "type": "exec",
+        "position_x": 150,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const s = data.read_status && data.read_status.status;\n    if (s !== 'confirmed') throw new Error('skip: booking not confirmed (' + s + ')');\n    return { bookingId: data.guard_confirmed.bookingId };\n  };"
+        },
+        "resolve": "aee91e39-32f5-4f72-ba5a-003f62edfeb4",
+        "reject": null
+      },
+      {
+        "id": "1ba044e6-e5a8-40dd-a398-a54433bf5965",
+        "name": "guard",
+        "key": "guard",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n          const t = data.$trigger || {};\n          const p = t.payload || {};\n          const keys = p.keys || t.keys || [];\n          const id = keys[0] ?? p.id ?? (p.item && p.item.id);\n          if (p.status !== 'approved' || !id) throw new Error('skip: not an approval');\n          return { proofId: id };\n        };"
+        },
+        "resolve": "4160395b-8374-4084-a73d-ce2c471b10c6",
+        "reject": null
+      },
+      {
+        "id": "39197f2d-a9a6-458c-9f93-699ce8897ba6",
+        "name": "read_status",
+        "key": "read_status",
+        "type": "item-read",
+        "position_x": 130,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "book_bookings",
+          "key": [
+            "{{guard_confirmed.bookingId}}"
+          ],
+          "fields": [
+            "status"
+          ]
+        },
+        "resolve": "163bee95-121e-4943-b005-810d19df9bcb",
+        "reject": null
+      },
+      {
+        "id": "4160395b-8374-4084-a73d-ce2c471b10c6",
+        "name": "normalize",
+        "key": "normalize_proof",
+        "type": "exec",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const id = t.key\n      ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n      ?? (p.keys && p.keys[0])\n      ?? p.id\n      ?? (p.item && p.item.id)\n      ?? (Array.isArray(p) ? p[0] && p[0].id : null);\n    if (id == null) throw new Error('no item id in trigger: ' + JSON.stringify(t).slice(0,300));\n    return { itemId: id };\n  };"
+        },
+        "resolve": "c762702a-08c4-4945-af9c-a6da0b3bc64b",
+        "reject": null
+      },
+      {
+        "id": "a4b95c84-6c87-4e0e-afe5-8013d0f9f745",
+        "name": "guard_confirmed",
+        "key": "guard_confirmed",
+        "type": "exec",
+        "position_x": 110,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const id = data.read_booking && data.read_booking.booking;\n    if (!id) throw new Error('skip: no booking');\n    return { bookingId: id };\n  };"
+        },
+        "resolve": "39197f2d-a9a6-458c-9f93-699ce8897ba6",
+        "reject": null
+      },
+      {
+        "id": "aee91e39-32f5-4f72-ba5a-003f62edfeb4",
+        "name": "touch_booking",
+        "key": "touch_booking",
+        "type": "item-update",
+        "position_x": 170,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": true,
+          "collection": "book_bookings",
+          "key": [
+            "{{require_confirmed.bookingId}}"
+          ],
+          "payload": {
+            "status": "confirmed"
+          }
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "c762702a-08c4-4945-af9c-a6da0b3bc64b",
+        "name": "apply_approval",
+        "key": "apply_approval",
+        "type": "likha_sql",
+        "position_x": 70,
+        "position_y": 10,
+        "options": {
+          "sql": "WITH p AS (SELECT * FROM book_payment_proofs WHERE id = ? AND status = 'approved'),\n         upd_book AS (\n           UPDATE book_bookings b SET payment_status='paid', status='confirmed'\n           FROM p WHERE b.id = p.booking AND b.status IN ('pending_payment','confirmed')\n           RETURNING b.id\n         ),\n         upd_pay AS (\n           UPDATE book_payments pay SET status='paid', paid_at=COALESCE(pay.paid_at, now())\n           FROM p JOIN upd_book ub ON ub.id = p.booking\n           WHERE pay.id = p.payment RETURNING pay.id\n         )\n         UPDATE book_booking_slots s SET status='confirmed'\n         FROM upd_book ub WHERE s.booking = ub.id AND s.status IN ('held','released')",
+          "binding": [
+            "{{normalize_proof.itemId}}"
+          ]
+        },
+        "resolve": "ed6427af-32c0-44a3-b068-8261b3af4c33",
+        "reject": null
+      },
+      {
+        "id": "ed6427af-32c0-44a3-b068-8261b3af4c33",
+        "name": "read_booking",
+        "key": "read_booking",
+        "type": "item-read",
+        "position_x": 90,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "book_payment_proofs",
+          "key": [
+            "{{normalize_proof.itemId}}"
+          ],
+          "fields": [
+            "booking"
+          ]
+        },
+        "resolve": "a4b95c84-6c87-4e0e-afe5-8013d0f9f745",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "0ccb5940-2352-43c1-93e2-fb626136216e",
+    "name": "booking_ref",
+    "icon": "tag",
+    "color": null,
+    "description": "Assign BK-YYYY-NNNN ref on booking create",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "book_bookings"
+      ]
+    },
+    "operation": "3135a328-7ac8-4601-8b04-07ede54583cd",
+    "operations": [
+      {
+        "id": "3135a328-7ac8-4601-8b04-07ede54583cd",
+        "name": "normalize",
+        "key": "normalize",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const id = t.key\n      ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n      ?? (p.keys && p.keys[0])\n      ?? p.id\n      ?? (p.item && p.item.id)\n      ?? (Array.isArray(p) ? p[0] && p[0].id : null);\n    if (id == null) throw new Error('no item id in trigger: ' + JSON.stringify(t).slice(0,300));\n    return { itemId: id };\n  };"
+        },
+        "resolve": "fa88f6df-d77f-4ddd-aa1f-548ae244ef6f",
+        "reject": null
+      },
+      {
+        "id": "fa88f6df-d77f-4ddd-aa1f-548ae244ef6f",
+        "name": "assign_ref",
+        "key": "assign_ref",
+        "type": "likha_sql",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE book_bookings SET ref = 'BK-' || to_char(now(),'YYYY') || '-' || lpad(seq::text,4,'0')\n         WHERE id = ? AND (ref IS NULL OR ref = '')",
+          "binding": [
+            "{{normalize.itemId}}"
+          ]
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "237d6617-836d-400a-a936-91ecb48c138e",
+    "name": "chart_hours_trend",
+    "icon": null,
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "error_on_reject": true
+    },
+    "operation": "4a1ed45e-85b5-472a-ba1f-b224dc32a4b7",
+    "operations": [
+      {
+        "id": "4a1ed45e-85b5-472a-ba1f-b224dc32a4b7",
+        "name": "gather",
+        "key": "gather",
+        "type": "likha_sql",
+        "position_x": 1,
+        "position_y": 1,
+        "options": {
+          "sql": "WITH days AS (\n  SELECT generate_series(\n    (now() AT TIME ZONE 'Asia/Manila')::date,\n    (now() AT TIME ZONE 'Asia/Manila')::date + 13,\n    interval '1 day'\n  )::date AS day\n),\nhrs AS (\n  SELECT s.date AS day, SUM(s.duration_minutes) / 60.0 AS hrs\n  FROM book_booking_slots s\n  JOIN book_bookings b ON b.id = s.booking\n  WHERE s.status = 'confirmed'\n    AND s.date BETWEEN (now() AT TIME ZONE 'Asia/Manila')::date\n                    AND (now() AT TIME ZONE 'Asia/Manila')::date + 13\n    AND (\n  '{{$accountability.admin}}' = 'true'\n  OR b.tenant::text IN (\n    SELECT tu.tenant::text FROM book_tenant_users tu\n    WHERE tu.user::text = '{{$accountability.user}}'\n    UNION\n    SELECT jsonb_array_elements_text((u.book_tenant_ids)::jsonb)\n    FROM directus_users u WHERE u.id::text = '{{$accountability.user}}'\n    UNION\n    SELECT u.book_tenant::text FROM directus_users u\n    WHERE u.id::text = '{{$accountability.user}}' AND u.book_tenant IS NOT NULL\n  )\n)\n  GROUP BY s.date\n)\nSELECT to_char(d.day, 'Mon DD') AS label, COALESCE(h.hrs, 0)::float AS value\nFROM days d LEFT JOIN hrs h ON h.day = d.day\nORDER BY d.day"
+        },
+        "resolve": "e763c6f5-2f03-4d1b-9609-0cfa53b9d30c",
+        "reject": null
+      },
+      {
+        "id": "e763c6f5-2f03-4d1b-9609-0cfa53b9d30c",
+        "name": "chart",
+        "key": "chart",
+        "type": "exec",
+        "position_x": 2,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const rows = (data.gather && data.gather.rows) || [];\n  if (!rows.length) return { title: { text: 'No court bookings in the next 14 days', left: 'center', top: 'middle', textStyle: { color: '#94a3b8', fontSize: 12 } } };\n  return {\n    grid: { left: 48, right: 16, top: 28, bottom: 28 },\n    tooltip: { trigger: 'axis', formatter: '{b}: {c} hrs' },\n    xAxis: { type: 'category', data: rows.map(r => r.label), axisLabel: { fontSize: 10, color: '#64748b' } },\n    yAxis: { type: 'value', name: 'court-hrs', nameTextStyle: { fontSize: 10, color: '#64748b' }, axisLabel: { fontSize: 10, color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },\n    series: [{ name: 'Court hours', type: 'line', smooth: 0.4, symbol: 'circle', symbolSize: 4,\n      data: rows.map(r => Number(r.value)),\n      lineStyle: { color: '#0ea5e9', width: 2.5 }, itemStyle: { color: '#0ea5e9' },\n      areaStyle: { color: 'rgba(14,165,233,0.15)' } }]\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "25a05e7d-3755-445d-a040-00077da126b4",
     "name": "Generate Task Code",
     "icon": "bolt",
@@ -189,53 +435,51 @@
     "accountability": "all"
   },
   {
-    "id": "25d47e94-fe7c-48c7-be04-1da5b4a1ad36",
-    "name": "expire club subscription",
-    "icon": "bolt",
+    "id": "286b365c-667d-4492-aa8f-f0ffd4a94cc1",
+    "name": "plan_change_enforcer",
+    "icon": "gavel",
     "color": null,
-    "description": null,
-    "trigger": "schedule",
+    "description": "On tenant plan/max_courts change: inactivate courts beyond the new cap",
+    "trigger": "event",
     "options": {
-      "cron": "0 3 * * *"
+      "type": "action",
+      "scope": [
+        "items.update"
+      ],
+      "collections": [
+        "book_tenants"
+      ]
     },
-    "operation": "6b061669-6d9c-4e57-8b22-0801017a4964",
+    "operation": "fc19cba7-432f-429f-bcbd-36726e887067",
     "operations": [
       {
-        "id": "6b061669-6d9c-4e57-8b22-0801017a4964",
-        "name": "target_date",
-        "key": "target_date",
-        "type": "exec",
-        "position_x": 37,
-        "position_y": 1,
+        "id": "6f72a2e3-1dfd-498d-b596-d726a5800b1d",
+        "name": "enforce_cap",
+        "key": "enforce_cap",
+        "type": "likha_sql",
+        "position_x": 50,
+        "position_y": 10,
         "options": {
-          "code": "module.exports = async function(data) {\n    const targetDate = new Date();\n    \n    // Subtract exactly 1 month from today's date\n    targetDate.setMonth(targetDate.getMonth() - 1);\n    \n    // Return standard ISO format (e.g., \"2026-05-05T01:53:05.000Z\")\n    return targetDate.toISOString(); \n};"
+          "sql": "UPDATE book_courts c SET status = 'inactive'\n         WHERE c.tenant = ?\n           AND COALESCE(c.status, 'active') <> 'inactive'\n           AND EXISTS (SELECT 1 FROM book_tenants t WHERE t.id = ? AND t.max_courts IS NOT NULL)\n           AND (SELECT count(*) FROM book_courts x\n                WHERE x.tenant = c.tenant AND COALESCE(x.status, 'active') <> 'inactive'\n                  AND x.seq <= c.seq)\n               > (SELECT t.max_courts FROM book_tenants t WHERE t.id = c.tenant)",
+          "binding": [
+            "{{normalize.itemId}}",
+            "{{normalize.itemId}}"
+          ]
         },
-        "resolve": "e9da0af2-f598-4d7e-b513-70599d878446",
+        "resolve": null,
         "reject": null
       },
       {
-        "id": "e9da0af2-f598-4d7e-b513-70599d878446",
-        "name": "Update Data",
-        "key": "item_update_s6c1f",
-        "type": "item-update",
-        "position_x": 29,
-        "position_y": 19,
+        "id": "fc19cba7-432f-429f-bcbd-36726e887067",
+        "name": "normalize",
+        "key": "normalize",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
         "options": {
-          "permissions": "$full",
-          "emitEvents": false,
-          "payload": {
-            "status": "draft"
-          },
-          "collection": "club",
-          "query": {
-            "filter": {
-              "last_payment": {
-                "_lt": "$NOW(-1 month)"
-              }
-            }
-          }
+          "code": "module.exports = async function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const id = t.key\n      ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n      ?? (p.keys && p.keys[0])\n      ?? p.id\n      ?? (p.item && p.item.id)\n      ?? (Array.isArray(p) ? p[0] && p[0].id : null);\n    if (id == null) throw new Error('no item id in trigger: ' + JSON.stringify(t).slice(0,300));\n    return { itemId: id };\n  };"
         },
-        "resolve": null,
+        "resolve": "6f72a2e3-1dfd-498d-b596-d726a5800b1d",
         "reject": null
       }
     ],
@@ -725,6 +969,95 @@
     "accountability": "all"
   },
   {
+    "id": "30d41479-8761-4c46-a37b-89078f46a16f",
+    "name": "tenant_user_sync",
+    "icon": "group",
+    "color": null,
+    "description": "Sync book_tenant_ids + repair book_tenant on junction writes (multi-venue staff)",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.create",
+        "items.update",
+        "items.delete"
+      ],
+      "collections": [
+        "book_tenant_users"
+      ]
+    },
+    "operation": "0c195ca9-13e2-4358-ac68-f1ebdc761913",
+    "operations": [
+      {
+        "id": "0c195ca9-13e2-4358-ac68-f1ebdc761913",
+        "name": "sync_staff_venues",
+        "key": "sync",
+        "type": "likha_sql",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "sql": "\nUPDATE directus_users u\nSET book_tenant_ids = COALESCE((\n      SELECT json_agg(j.tenant ORDER BY j.seq)\n      FROM book_tenant_users j WHERE j.\"user\" = u.id\n    ), '[]'::json),\n    book_tenant = CASE\n      WHEN u.book_tenant IS NOT NULL\n           AND EXISTS (SELECT 1 FROM book_tenant_users j\n                       WHERE j.\"user\" = u.id AND j.tenant = u.book_tenant)\n      THEN u.book_tenant\n      ELSE (SELECT j.tenant FROM book_tenant_users j\n            WHERE j.\"user\" = u.id ORDER BY j.seq LIMIT 1)\n    END\nWHERE u.id IN (\n  SELECT \"user\" FROM book_tenant_users\n  UNION\n  SELECT id FROM directus_users WHERE book_tenant_ids IS NOT NULL\n)",
+          "binding": []
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "3b77a598-a6ef-432c-be52-6c78ac2dfa70",
+    "name": "booking_cancelled",
+    "icon": "cancel",
+    "color": null,
+    "description": "On booking→cancelled: release held slots so the court reopens",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.update"
+      ],
+      "collections": [
+        "book_bookings"
+      ]
+    },
+    "operation": "a11d1ce0-ffdb-4cd1-9c87-24fb84401e8b",
+    "operations": [
+      {
+        "id": "5947e75a-026c-4f08-a593-6b27dc6985d3",
+        "name": "release_slots",
+        "key": "release_slots",
+        "type": "likha_sql",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE book_booking_slots SET status='released', held_until=NULL\n         WHERE booking = ? AND status IN ('held','confirmed')",
+          "binding": [
+            "{{guard.bookingId}}"
+          ]
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "a11d1ce0-ffdb-4cd1-9c87-24fb84401e8b",
+        "name": "guard",
+        "key": "guard",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n          const t = data.$trigger || {};\n          const p = t.payload || {};\n          const id = (t.keys && t.keys[0]) ?? (p.keys && p.keys[0]) ?? p.id;\n          if (p.status !== 'cancelled' || !id) throw new Error('skip: not a cancel');\n          return { bookingId: id };\n        };"
+        },
+        "resolve": "5947e75a-026c-4f08-a593-6b27dc6985d3",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "3c3ec3e3-c297-41fd-8059-2ff30332264b",
     "name": "manual rating_updated_at",
     "icon": "bolt",
@@ -770,55 +1103,6 @@
           },
           "collection": "directus_users",
           "key": "{{check_manual.userIds}}"
-        },
-        "resolve": null,
-        "reject": null
-      }
-    ],
-    "flow_manager_category": null,
-    "accountability": "all"
-  },
-  {
-    "id": "4132096c-69c5-4513-9aae-25079ecaee40",
-    "name": "club creation email notif",
-    "icon": "bolt",
-    "color": null,
-    "description": null,
-    "trigger": "event",
-    "options": {
-      "type": "action",
-      "scope": [
-        "items.create"
-      ],
-      "collections": [
-        "club"
-      ]
-    },
-    "operation": "3b4850e9-00fa-4818-a913-bd1a6158a002",
-    "operations": [
-      {
-        "id": "3b4850e9-00fa-4818-a913-bd1a6158a002",
-        "name": "Send Email",
-        "key": "mail_25jbh",
-        "type": "mail",
-        "position_x": 28,
-        "position_y": 1,
-        "options": {
-          "type": "markdown",
-          "to": [
-            "trinmar.boado@gmail.com"
-          ],
-          "subject": "DinkMatch New CLUB",
-          "cc": [
-            "trinmar.boado@gmail.com"
-          ],
-          "bcc": [
-            "trinmar.boado@gmail.com"
-          ],
-          "replyTo": [
-            "trinmar.boado@gmail.com"
-          ],
-          "body": "{{$trigger.payload}}"
         },
         "resolve": null,
         "reject": null
@@ -1101,6 +1385,383 @@
           ]
         },
         "resolve": "0cff3dcc-4ac3-4b77-bfb5-83448a2b530a",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "44718bd0-a022-4813-af48-403661dd7617",
+    "name": "booking_status_mail",
+    "icon": "mail",
+    "color": null,
+    "description": "Email customer on booking status changes (confirmed/cancelled/expired/no_show/completed)",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.update"
+      ],
+      "collections": [
+        "book_bookings"
+      ]
+    },
+    "operation": "64cd909c-2f55-454d-bb4f-bb442bf307b3",
+    "operations": [
+      {
+        "id": "454922e9-87e7-4ee4-a077-7c59c41faaa5",
+        "name": "read_booking",
+        "key": "read_booking",
+        "type": "item-read",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "book_bookings",
+          "key": [
+            "{{guard.bookingId}}"
+          ],
+          "fields": [
+            "ref",
+            "customer_email",
+            "customer_name",
+            "status"
+          ]
+        },
+        "resolve": "58f2c85f-3ea8-476f-bf7b-bd7d3022d41b",
+        "reject": null
+      },
+      {
+        "id": "58f2c85f-3ea8-476f-bf7b-bd7d3022d41b",
+        "name": "guard_email",
+        "key": "guard_email",
+        "type": "exec",
+        "position_x": 70,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const email = data.read_booking && data.read_booking.customer_email;\n    if (!email) throw new Error('skip: no recipient email');\n    return {};\n  };"
+        },
+        "resolve": "b5dc6d4e-e3af-4fc7-b32d-bf4539ac5f72",
+        "reject": null
+      },
+      {
+        "id": "64cd909c-2f55-454d-bb4f-bb442bf307b3",
+        "name": "guard",
+        "key": "guard",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n          const t = data.$trigger || {};\n          const p = t.payload || {};\n          const keys = p.keys || t.keys || [];\n          const id = keys[0] ?? p.id;\n          const ok = ['confirmed','cancelled','expired','no_show','completed'].includes(p.status);\n          if (!ok || !id) throw new Error('skip: not a notifiable transition');\n          return { bookingId: id };\n        };"
+        },
+        "resolve": "454922e9-87e7-4ee4-a077-7c59c41faaa5",
+        "reject": null
+      },
+      {
+        "id": "b5dc6d4e-e3af-4fc7-b32d-bf4539ac5f72",
+        "name": "notify",
+        "key": "notify",
+        "type": "mail",
+        "position_x": 90,
+        "position_y": 10,
+        "options": {
+          "type": "markdown",
+          "to": [
+            "{{read_booking.customer_email}}"
+          ],
+          "subject": "Booking {{read_booking.ref}} — {{read_booking.status}}",
+          "body": "Hi {{read_booking.customer_name}},\n\nYour booking **{{read_booking.ref}}** is now **{{read_booking.status}}**.\n\n— Zyberlab Booking"
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "45c01f39-6ba3-4caa-bbd9-25f6625cf478",
+    "name": "chart_revenue_14d",
+    "icon": null,
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "error_on_reject": true
+    },
+    "operation": "1fed4c5b-5ec5-42c0-95c4-f313d2e0a05b",
+    "operations": [
+      {
+        "id": "1fed4c5b-5ec5-42c0-95c4-f313d2e0a05b",
+        "name": "gather",
+        "key": "gather",
+        "type": "likha_sql",
+        "position_x": 1,
+        "position_y": 1,
+        "options": {
+          "sql": "WITH days AS (\n  SELECT generate_series(\n    ((now() AT TIME ZONE 'Asia/Manila')::date - 13),\n    (now() AT TIME ZONE 'Asia/Manila')::date,\n    interval '1 day'\n  )::date AS day\n),\nrev AS (\n  SELECT (p.paid_at AT TIME ZONE 'Asia/Manila')::date AS day, SUM(p.amount) AS total\n  FROM book_payments p\n  JOIN book_bookings b ON b.id = p.booking\n  WHERE p.status = 'paid'\n    AND (p.paid_at AT TIME ZONE 'Asia/Manila')::date >= (now() AT TIME ZONE 'Asia/Manila')::date - 13\n    AND (\n  '{{$accountability.admin}}' = 'true'\n  OR b.tenant::text IN (\n    SELECT tu.tenant::text FROM book_tenant_users tu\n    WHERE tu.user::text = '{{$accountability.user}}'\n    UNION\n    SELECT jsonb_array_elements_text((u.book_tenant_ids)::jsonb)\n    FROM directus_users u WHERE u.id::text = '{{$accountability.user}}'\n    UNION\n    SELECT u.book_tenant::text FROM directus_users u\n    WHERE u.id::text = '{{$accountability.user}}' AND u.book_tenant IS NOT NULL\n  )\n)\n  GROUP BY 1\n)\nSELECT to_char(d.day, 'Mon DD') AS label, COALESCE(r.total, 0)::float AS value\nFROM days d LEFT JOIN rev r ON r.day = d.day\nORDER BY d.day"
+        },
+        "resolve": "faad160a-b947-41db-9dfc-56efc18402ca",
+        "reject": null
+      },
+      {
+        "id": "faad160a-b947-41db-9dfc-56efc18402ca",
+        "name": "chart",
+        "key": "chart",
+        "type": "exec",
+        "position_x": 2,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const rows = (data.gather && data.gather.rows) || [];\n  if (!rows.length) return { title: { text: 'No revenue in the last 14 days', left: 'center', top: 'middle', textStyle: { color: '#94a3b8', fontSize: 12 } } };\n  return {\n    grid: { left: 48, right: 16, top: 28, bottom: 28 },\n    tooltip: { trigger: 'axis', formatter: '{b}: ₱{c}' },\n    xAxis: { type: 'category', data: rows.map(r => r.label), axisLabel: { fontSize: 10, color: '#64748b' } },\n    yAxis: { type: 'value', name: 'PHP', nameTextStyle: { fontSize: 10, color: '#64748b' }, axisLabel: { fontSize: 10, color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },\n    series: [{ name: 'Revenue', type: 'line', smooth: 0.4, symbol: 'circle', symbolSize: 4,\n      data: rows.map(r => Number(r.value)),\n      lineStyle: { color: '#7c3aed', width: 2.5 }, itemStyle: { color: '#7c3aed' },\n      areaStyle: { color: 'rgba(124,58,237,0.15)' } }]\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "57941998-ee72-4bf0-b8c1-9a58f0ef9312",
+    "name": "proof_pending",
+    "icon": "upload_file",
+    "color": null,
+    "description": "Proof uploaded → booking.payment_status=pending_verification + tenant email alert",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "book_payment_proofs"
+      ]
+    },
+    "operation": "35a89ea4-a253-45b0-87e0-374fc359605e",
+    "operations": [
+      {
+        "id": "0341e80f-b948-46e4-a150-1ace3a006ae3",
+        "name": "alert_tenant",
+        "key": "alert_tenant",
+        "type": "mail",
+        "position_x": 170,
+        "position_y": 10,
+        "options": {
+          "type": "markdown",
+          "to": [
+            "{{read_venue.contact_email}}"
+          ],
+          "subject": "Proof to verify — {{read_tenant.ref}} ({{read_venue.name}})",
+          "body": "A customer uploaded proof of payment for booking **{{read_tenant.ref}}** ({{read_tenant.customer_name}}).\n\nOpen Directus → Booking → Payment Proofs → filter status = pending.\n\n— Zyberlab Booking"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "0fb80acb-2252-42da-871d-0fa44649b67d",
+        "name": "extend_hold",
+        "key": "extend_hold",
+        "type": "likha_sql",
+        "position_x": 70,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE book_booking_slots s SET held_until = GREATEST(s.held_until, now() + interval '24 hours')\n         FROM book_payment_proofs p\n         WHERE p.id = ? AND s.booking = p.booking AND s.status = 'held'",
+          "binding": [
+            "{{normalize.itemId}}"
+          ]
+        },
+        "resolve": "6e1df7c8-6041-4c6f-af94-b25b85f93d7e",
+        "reject": null
+      },
+      {
+        "id": "35a89ea4-a253-45b0-87e0-374fc359605e",
+        "name": "normalize",
+        "key": "normalize",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const id = t.key\n      ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n      ?? (p.keys && p.keys[0])\n      ?? p.id\n      ?? (p.item && p.item.id)\n      ?? (Array.isArray(p) ? p[0] && p[0].id : null);\n    if (id == null) throw new Error('no item id in trigger: ' + JSON.stringify(t).slice(0,300));\n    return { itemId: id };\n  };"
+        },
+        "resolve": "6a8e05cf-7b10-49e8-9c35-0ad0e52657df",
+        "reject": null
+      },
+      {
+        "id": "6a8e05cf-7b10-49e8-9c35-0ad0e52657df",
+        "name": "mark_pending",
+        "key": "mark_pending",
+        "type": "likha_sql",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE book_bookings b SET payment_status='pending_verification'\n         FROM book_payment_proofs p\n         WHERE p.id = ? AND b.id = p.booking\n           AND b.payment_status IN ('unpaid','pending_verification')\n           AND b.status = 'pending_payment'",
+          "binding": [
+            "{{normalize.itemId}}"
+          ]
+        },
+        "resolve": "0fb80acb-2252-42da-871d-0fa44649b67d",
+        "reject": null
+      },
+      {
+        "id": "6e1df7c8-6041-4c6f-af94-b25b85f93d7e",
+        "name": "read_booking",
+        "key": "read_booking",
+        "type": "item-read",
+        "position_x": 90,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "book_payment_proofs",
+          "key": [
+            "{{normalize.itemId}}"
+          ],
+          "fields": [
+            "booking"
+          ]
+        },
+        "resolve": "a5243271-6623-4a10-bb5a-48d7237c98a6",
+        "reject": null
+      },
+      {
+        "id": "a5243271-6623-4a10-bb5a-48d7237c98a6",
+        "name": "read_tenant",
+        "key": "read_tenant",
+        "type": "item-read",
+        "position_x": 110,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "book_bookings",
+          "key": [
+            "{{read_booking.booking}}"
+          ],
+          "fields": [
+            "ref",
+            "tenant",
+            "customer_name"
+          ]
+        },
+        "resolve": "dca8f3b4-ab01-4b4a-9097-b5f15cc80bb4",
+        "reject": null
+      },
+      {
+        "id": "b7d92de1-459b-44c5-9b25-85b78257f129",
+        "name": "guard_email",
+        "key": "guard_email",
+        "type": "exec",
+        "position_x": 150,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const email = data.read_venue && data.read_venue.contact_email;\n    if (!email) throw new Error('skip: no recipient email');\n    return {};\n  };"
+        },
+        "resolve": "0341e80f-b948-46e4-a150-1ace3a006ae3",
+        "reject": null
+      },
+      {
+        "id": "dca8f3b4-ab01-4b4a-9097-b5f15cc80bb4",
+        "name": "read_venue",
+        "key": "read_venue",
+        "type": "item-read",
+        "position_x": 130,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "book_tenants",
+          "key": [
+            "{{read_tenant.tenant}}"
+          ],
+          "fields": [
+            "name",
+            "contact_email"
+          ]
+        },
+        "resolve": "b7d92de1-459b-44c5-9b25-85b78257f129",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "5ab3da7c-4d0a-447d-bb4d-1f584958f357",
+    "name": "collision_check",
+    "icon": "block",
+    "color": null,
+    "description": "On slot create: cancel if overlaps an EARLIER active slot (id<n.id = first-come wins, race-safe) or hits a closure",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "book_booking_slots"
+      ]
+    },
+    "operation": "7836a150-5d32-4e73-be38-8114bf3b7179",
+    "operations": [
+      {
+        "id": "1d50f0cf-ea60-4835-961d-86ae3a03b755",
+        "name": "drop_overlap",
+        "key": "drop_overlap",
+        "type": "likha_sql",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE book_booking_slots n SET status = 'cancelled'\n         WHERE n.id = ? AND n.status IN ('held','confirmed')\n           AND (\n             EXISTS (SELECT 1 FROM book_booking_slots s\n               WHERE s.court = n.court AND s.seq < n.seq\n                 AND s.status IN ('held','confirmed')\n                 AND s.date = n.date\n                 AND s.start_time < n.end_time AND s.end_time > n.start_time)\n             OR EXISTS (SELECT 1 FROM book_closures cl\n               JOIN book_courts c ON c.id = n.court\n               WHERE cl.tenant = c.tenant\n                 AND (cl.court = n.court OR cl.court IS NULL)\n                 AND COALESCE(cl.date_start, cl.date) <= n.date\n                 AND COALESCE(cl.date_end, cl.date) >= n.date\n                 AND (cl.all_day\n                      OR ((cl.start_time IS NULL OR cl.start_time < n.end_time)\n                          AND (cl.end_time IS NULL OR cl.end_time > n.start_time))))\n           )",
+          "binding": [
+            "{{normalize.itemId}}"
+          ]
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "7836a150-5d32-4e73-be38-8114bf3b7179",
+        "name": "normalize",
+        "key": "normalize",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const id = t.key\n      ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n      ?? (p.keys && p.keys[0])\n      ?? p.id\n      ?? (p.item && p.item.id)\n      ?? (Array.isArray(p) ? p[0] && p[0].id : null);\n    if (id == null) throw new Error('no item id in trigger: ' + JSON.stringify(t).slice(0,300));\n    return { itemId: id };\n  };"
+        },
+        "resolve": "1d50f0cf-ea60-4835-961d-86ae3a03b755",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "5cf44389-2b82-4dd5-b36c-11d327dde004",
+    "name": "hold_expire_sweeper",
+    "icon": "timer_off",
+    "color": null,
+    "description": "Every 5 min: release expired holds; expire stale unpaid bookings",
+    "trigger": "schedule",
+    "options": {
+      "cron": "*/5 * * * *"
+    },
+    "operation": "7925eea9-82e0-401f-8214-6b9cc816eff1",
+    "operations": [
+      {
+        "id": "7925eea9-82e0-401f-8214-6b9cc816eff1",
+        "name": "sweep",
+        "key": "sweep",
+        "type": "likha_sql",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "sql": "WITH released AS (\n           UPDATE book_booking_slots SET status='released'\n           WHERE status='held' AND held_until IS NOT NULL AND held_until < now()\n           RETURNING booking\n         ), expired AS (\n           UPDATE book_bookings b SET status='expired', payment_status='failed'\n           FROM book_tenants t\n           WHERE b.tenant = t.id AND b.status='pending_payment'\n             AND b.date_created < now() - make_interval(\n                   mins => COALESCE(t.payment_timeout_minutes, 15) + 10)\n             -- a pending proof is the venue's move — don't expire under review\n             AND NOT EXISTS (SELECT 1 FROM book_payment_proofs pp\n                             WHERE pp.booking = b.id AND pp.status = 'pending')\n             AND NOT EXISTS (SELECT 1 FROM book_booking_slots s\n                             WHERE s.booking=b.id\n                               AND (s.status='confirmed'\n                                    OR (s.status='held'\n                                        AND (s.held_until IS NULL OR s.held_until > now()))))\n           RETURNING b.id\n         )\n         SELECT (SELECT count(*) FROM released) AS released, (SELECT count(*) FROM expired) AS expired",
+          "binding": []
+        },
+        "resolve": null,
         "reject": null
       }
     ],
@@ -1439,6 +2100,151 @@
     "accountability": "all"
   },
   {
+    "id": "710b3f3f-1f56-4378-9d03-0f17fd03bed3",
+    "name": "booking_totals",
+    "icon": "calculate",
+    "color": null,
+    "description": "On slot create/update: recompute booking subtotal + total (delete gap: slot row gone)",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.create",
+        "items.update"
+      ],
+      "collections": [
+        "book_booking_slots"
+      ]
+    },
+    "operation": "cb169d0c-80cf-4411-b0eb-fb59ed52a0be",
+    "operations": [
+      {
+        "id": "cb169d0c-80cf-4411-b0eb-fb59ed52a0be",
+        "name": "normalize",
+        "key": "normalize_slot",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const id = t.key\n      ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n      ?? (p.keys && p.keys[0])\n      ?? p.id\n      ?? (p.item && p.item.id)\n      ?? (Array.isArray(p) ? p[0] && p[0].id : null);\n    if (id == null) throw new Error('no item id in trigger: ' + JSON.stringify(t).slice(0,300));\n    return { itemId: id };\n  };"
+        },
+        "resolve": "db57a844-6b44-4802-babd-e6a588c3ba9b",
+        "reject": null
+      },
+      {
+        "id": "db57a844-6b44-4802-babd-e6a588c3ba9b",
+        "name": "recompute",
+        "key": "recompute",
+        "type": "likha_sql",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE book_bookings b SET\n           subtotal = COALESCE((SELECT SUM(COALESCE(s.price,\n               ROUND(c.price_per_hour * EXTRACT(EPOCH FROM ((s.date + s.end_time) - (s.date + s.start_time))) / 3600, 2)))\n             FROM book_booking_slots s JOIN book_courts c ON c.id = s.court\n             WHERE s.booking = b.id AND s.status IN ('held','confirmed')), 0),\n           total = COALESCE((SELECT SUM(COALESCE(s.price,\n               ROUND(c.price_per_hour * EXTRACT(EPOCH FROM ((s.date + s.end_time) - (s.date + s.start_time))) / 3600, 2)))\n             FROM book_booking_slots s JOIN book_courts c ON c.id = s.court\n             WHERE s.booking = b.id AND s.status IN ('held','confirmed')), 0)\n             + COALESCE(b.platform_fee, 0)\n         WHERE b.id = (SELECT booking FROM book_booking_slots WHERE id = ?)",
+          "binding": [
+            "{{normalize_slot.itemId}}"
+          ]
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "71be8c7f-59ce-40ce-bdbd-7bb08bf038f9",
+    "name": "chart_court_hours",
+    "icon": null,
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "error_on_reject": true
+    },
+    "operation": "17bb2f85-e40b-48b8-9b7b-75acc9f73529",
+    "operations": [
+      {
+        "id": "17bb2f85-e40b-48b8-9b7b-75acc9f73529",
+        "name": "gather",
+        "key": "gather",
+        "type": "likha_sql",
+        "position_x": 1,
+        "position_y": 1,
+        "options": {
+          "sql": "SELECT c.name AS court, ROUND(SUM(s.duration_minutes) / 60.0, 1)::float AS hours\nFROM book_booking_slots s\nJOIN book_bookings b ON b.id = s.booking\nJOIN book_courts c ON c.id = s.court\nWHERE s.status = 'confirmed'\n  AND s.date BETWEEN (now() AT TIME ZONE 'Asia/Manila')::date\n                  AND (now() AT TIME ZONE 'Asia/Manila')::date + 29\n  AND (\n  '{{$accountability.admin}}' = 'true'\n  OR b.tenant::text IN (\n    SELECT tu.tenant::text FROM book_tenant_users tu\n    WHERE tu.user::text = '{{$accountability.user}}'\n    UNION\n    SELECT jsonb_array_elements_text((u.book_tenant_ids)::jsonb)\n    FROM directus_users u WHERE u.id::text = '{{$accountability.user}}'\n    UNION\n    SELECT u.book_tenant::text FROM directus_users u\n    WHERE u.id::text = '{{$accountability.user}}' AND u.book_tenant IS NOT NULL\n  )\n)\nGROUP BY c.id, c.name\nORDER BY SUM(s.duration_minutes) DESC"
+        },
+        "resolve": "bd6f9e85-902d-4ccb-a6f9-9401d62628e8",
+        "reject": null
+      },
+      {
+        "id": "bd6f9e85-902d-4ccb-a6f9-9401d62628e8",
+        "name": "chart",
+        "key": "chart",
+        "type": "exec",
+        "position_x": 2,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const rows = (data.gather && data.gather.rows) || [];\n  if (!rows.length) return { title: { text: 'No court bookings in the next 30 days', left: 'center', top: 'middle', textStyle: { color: '#94a3b8', fontSize: 12 } } };\n  return {\n    grid: { left: 8, right: 36, top: 12, bottom: 24, containLabel: true },\n    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: '{b}: {c} hrs' },\n    xAxis: { type: 'value', name: 'court-hours', nameTextStyle: { fontSize: 10, color: '#64748b' }, axisLabel: { fontSize: 10, color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },\n    yAxis: { type: 'category', data: rows.map(r => r.court), inverse: true, axisLabel: { fontSize: 11, color: '#475569' } },\n    series: [{ type: 'bar', barMaxWidth: 18, data: rows.map(r => Number(r.hours)), itemStyle: { color: '#7c3aed', borderRadius: [0, 4, 4, 0] } }]\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "7d491a60-1cc5-4fa0-96f3-06385446c1cc",
+    "name": "subscription_lapse_guard",
+    "icon": "shield",
+    "color": null,
+    "description": "Sync venue status with subscription_status; auto-reactivate billing suspensions only",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.update"
+      ],
+      "collections": [
+        "book_tenants"
+      ]
+    },
+    "operation": "87785a83-b0c4-47a1-b191-2ec3182cc914",
+    "operations": [
+      {
+        "id": "65a54177-d167-4958-87d3-20d4e4d3b20c",
+        "name": "sync_status",
+        "key": "sync_status",
+        "type": "likha_sql",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE book_tenants t SET\n           status = CASE\n             WHEN t.subscription_status = 'cancelled' AND COALESCE(t.suspension_reason, '') <> 'manual' THEN 'suspended'\n             WHEN t.subscription_status IN ('active', 'trialing') AND t.suspension_reason = 'billing' THEN 'active'\n             ELSE t.status END,\n           suspension_reason = CASE\n             WHEN t.subscription_status = 'cancelled' AND COALESCE(t.suspension_reason, '') <> 'manual' THEN 'billing'\n             WHEN t.subscription_status IN ('active', 'trialing') AND t.suspension_reason = 'billing' THEN NULL\n             ELSE t.suspension_reason END\n         WHERE t.id = ?",
+          "binding": [
+            "{{normalize.itemId}}"
+          ]
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "87785a83-b0c4-47a1-b191-2ec3182cc914",
+        "name": "normalize",
+        "key": "normalize",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const id = t.key\n      ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n      ?? (p.keys && p.keys[0])\n      ?? p.id\n      ?? (p.item && p.item.id)\n      ?? (Array.isArray(p) ? p[0] && p[0].id : null);\n    if (id == null) throw new Error('no item id in trigger: ' + JSON.stringify(t).slice(0,300));\n    return { itemId: id };\n  };"
+        },
+        "resolve": "65a54177-d167-4958-87d3-20d4e4d3b20c",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "82b54d6b-c7ce-44a7-8e83-4482b76090de",
     "name": "Reactivate DUPR Match",
     "icon": "restore",
@@ -1719,6 +2525,48 @@
           "code": "module.exports = async function(data) {\n  const body = data.$trigger.body || {};\n  const matchKey = body.matchKey;\n  const clubId = body.clubId;\n  if (!matchKey || !clubId) throw new Error('Missing required fields: matchKey, clubId');\n  return {\n    matchKey, clubId,\n    apiBaseUrl: data.read_settings[0].api_base_url,\n    environment: data.read_settings[0].environment || 'uat'\n  };\n}"
         },
         "resolve": "597390fb-48d4-463f-8803-72f3b9c708f7",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "8bb70503-fede-4e72-94c1-0b89ce5a39bc",
+    "name": "chart_peak_hours",
+    "icon": null,
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "error_on_reject": true
+    },
+    "operation": "36973bbb-dcfd-41ef-a991-56f2316083d4",
+    "operations": [
+      {
+        "id": "36973bbb-dcfd-41ef-a991-56f2316083d4",
+        "name": "gather",
+        "key": "gather",
+        "type": "likha_sql",
+        "position_x": 1,
+        "position_y": 1,
+        "options": {
+          "sql": "SELECT EXTRACT(hour FROM s.start_time)::int AS hr, COUNT(*)::int AS n\nFROM book_booking_slots s\nJOIN book_bookings b ON b.id = s.booking\nWHERE s.status = 'confirmed'\n  AND s.date BETWEEN (now() AT TIME ZONE 'Asia/Manila')::date\n                  AND (now() AT TIME ZONE 'Asia/Manila')::date + 29\n  AND (\n  '{{$accountability.admin}}' = 'true'\n  OR b.tenant::text IN (\n    SELECT tu.tenant::text FROM book_tenant_users tu\n    WHERE tu.user::text = '{{$accountability.user}}'\n    UNION\n    SELECT jsonb_array_elements_text((u.book_tenant_ids)::jsonb)\n    FROM directus_users u WHERE u.id::text = '{{$accountability.user}}'\n    UNION\n    SELECT u.book_tenant::text FROM directus_users u\n    WHERE u.id::text = '{{$accountability.user}}' AND u.book_tenant IS NOT NULL\n  )\n)\nGROUP BY 1 ORDER BY 1"
+        },
+        "resolve": "bd3afa01-89b1-49a7-bc3a-d74e12555c49",
+        "reject": null
+      },
+      {
+        "id": "bd3afa01-89b1-49a7-bc3a-d74e12555c49",
+        "name": "chart",
+        "key": "chart",
+        "type": "exec",
+        "position_x": 2,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const rows = (data.gather && data.gather.rows) || [];\n  if (!rows.length) return { title: { text: 'No confirmed slots in the next 30 days', left: 'center', top: 'middle', textStyle: { color: '#94a3b8', fontSize: 12 } } };\n  const names = ['12a','1a','2a','3a','4a','5a','6a','7a','8a','9a','10a','11a','12p','1p','2p','3p','4p','5p','6p','7p','8p','9p','10p','11p'];\n  const byHour = {};\n  rows.forEach(r => { byHour[Number(r.hr)] = Number(r.n); });\n  const labels = [], vals = [];\n  for (let h = 0; h < 24; h++) { labels.push(names[h]); vals.push(byHour[h] || 0); }\n  return {\n    grid: { left: 40, right: 14, top: 24, bottom: 44 },\n    tooltip: { trigger: 'axis', formatter: '{b}: {c} bookings' },\n    xAxis: { type: 'category', data: labels, axisLabel: { fontSize: 9, color: '#64748b', interval: 0, rotate: 45 } },\n    yAxis: { type: 'value', minInterval: 1, name: 'slots', nameTextStyle: { fontSize: 10, color: '#64748b' }, axisLabel: { fontSize: 10, color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },\n    series: [{ type: 'bar', barMaxWidth: 14, data: vals, itemStyle: { color: '#7c3aed', borderRadius: [3, 3, 0, 0] } }]\n  };\n}"
+        },
+        "resolve": null,
         "reject": null
       }
     ],
@@ -2323,6 +3171,78 @@
     "accountability": "all"
   },
   {
+    "id": "98742f95-630d-407f-b106-5c942922b355",
+    "name": "chart_bookings_court",
+    "icon": null,
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "error_on_reject": true
+    },
+    "operation": "d9972f12-7643-4a15-b232-25a635150139",
+    "operations": [
+      {
+        "id": "7b2fc99e-a2fc-4bf6-8db9-040020a40419",
+        "name": "chart",
+        "key": "chart",
+        "type": "exec",
+        "position_x": 2,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const rows = (data.gather && data.gather.rows) || [];\n  if (!rows.length) return { title: { text: 'No court bookings in the next 30 days', left: 'center', top: 'middle', textStyle: { color: '#94a3b8', fontSize: 12 } } };\n  return {\n    grid: { left: 8, right: 40, top: 12, bottom: 24, containLabel: true },\n    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: '{b}: {c} bookings' },\n    xAxis: { type: 'value', minInterval: 1, name: 'bookings', nameTextStyle: { fontSize: 10, color: '#64748b' }, axisLabel: { fontSize: 10, color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },\n    yAxis: { type: 'category', data: rows.map(r => r.court), inverse: true, axisLabel: { fontSize: 11, color: '#475569' } },\n    series: [{ type: 'bar', barMaxWidth: 18, data: rows.map(r => Number(r.n)), itemStyle: { color: '#8b5cf6', borderRadius: [0, 4, 4, 0] } }]\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "d9972f12-7643-4a15-b232-25a635150139",
+        "name": "gather",
+        "key": "gather",
+        "type": "likha_sql",
+        "position_x": 1,
+        "position_y": 1,
+        "options": {
+          "sql": "SELECT c.name AS court, COUNT(DISTINCT s.booking)::int AS n\nFROM book_booking_slots s\nJOIN book_bookings b ON b.id = s.booking\nJOIN book_courts c ON c.id = s.court\nWHERE s.status = 'confirmed'\n  AND s.date BETWEEN (now() AT TIME ZONE 'Asia/Manila')::date\n                  AND (now() AT TIME ZONE 'Asia/Manila')::date + 29\n  AND (\n  '{{$accountability.admin}}' = 'true'\n  OR b.tenant::text IN (\n    SELECT tu.tenant::text FROM book_tenant_users tu\n    WHERE tu.user::text = '{{$accountability.user}}'\n    UNION\n    SELECT jsonb_array_elements_text((u.book_tenant_ids)::jsonb)\n    FROM directus_users u WHERE u.id::text = '{{$accountability.user}}'\n    UNION\n    SELECT u.book_tenant::text FROM directus_users u\n    WHERE u.id::text = '{{$accountability.user}}' AND u.book_tenant IS NOT NULL\n  )\n)\nGROUP BY c.id, c.name\nORDER BY n DESC"
+        },
+        "resolve": "7b2fc99e-a2fc-4bf6-8db9-040020a40419",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "9ae846c2-7485-4b86-9060-aab36cc9e5e4",
+    "name": "no_show_sweeper",
+    "icon": "person_off",
+    "color": null,
+    "description": "Daily 15:00 UTC (23:00 PHT): confirmed bookings past last slot end +30min → no_show",
+    "trigger": "schedule",
+    "options": {
+      "cron": "0 15 * * *"
+    },
+    "operation": "580c5655-25ba-44fa-933c-dfa30917fc78",
+    "operations": [
+      {
+        "id": "580c5655-25ba-44fa-933c-dfa30917fc78",
+        "name": "sweep",
+        "key": "sweep",
+        "type": "likha_sql",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "sql": "WITH last_end AS (\n           SELECT booking, MAX(date + end_time) AS ends_at\n           FROM book_booking_slots WHERE status='confirmed' GROUP BY booking\n         )\n         UPDATE book_bookings b SET status='no_show'\n         FROM last_end le\n         WHERE b.id = le.booking AND b.status='confirmed'\n           AND b.checked_in_at IS NULL\n           AND le.ends_at < now() - interval '30 minutes'",
+          "binding": []
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "a0fa19af-d57a-49d4-a385-d9fc07a3af42",
     "name": "reset all rating",
     "icon": "bolt",
@@ -2405,6 +3325,57 @@
     "accountability": "all"
   },
   {
+    "id": "a385d921-68bb-44f5-97c2-844c639e9fab",
+    "name": "court_limit_guard",
+    "icon": "gavel",
+    "color": null,
+    "description": "On court create: inactivate it if tenant exceeds plan max_courts",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "book_courts"
+      ]
+    },
+    "operation": "6238a27e-7d60-4b64-96b2-02cd09234742",
+    "operations": [
+      {
+        "id": "36604dde-adcc-41bb-b0b5-11b151d53157",
+        "name": "cap_court",
+        "key": "cap_court",
+        "type": "likha_sql",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE book_courts c SET status = 'inactive'\n         WHERE c.id = ?\n           AND COALESCE(c.status, 'active') = 'active'\n           AND EXISTS (\n             SELECT 1 FROM book_tenants t\n             WHERE t.id = c.tenant AND t.max_courts IS NOT NULL\n               AND (SELECT count(*) FROM book_courts x\n                    WHERE x.tenant = t.id AND COALESCE(x.status, 'active') <> 'inactive')\n                   > t.max_courts\n           )",
+          "binding": [
+            "{{normalize.itemId}}"
+          ]
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "6238a27e-7d60-4b64-96b2-02cd09234742",
+        "name": "normalize",
+        "key": "normalize",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const id = t.key\n      ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n      ?? (p.keys && p.keys[0])\n      ?? p.id\n      ?? (p.item && p.item.id)\n      ?? (Array.isArray(p) ? p[0] && p[0].id : null);\n    if (id == null) throw new Error('no item id in trigger: ' + JSON.stringify(t).slice(0,300));\n    return { itemId: id };\n  };"
+        },
+        "resolve": "36604dde-adcc-41bb-b0b5-11b151d53157",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "acf9d9d3-e91e-4944-b6ee-ef5f8f39a660",
     "name": "block multi club creation",
     "icon": "bolt",
@@ -2473,6 +3444,106 @@
         },
         "resolve": null,
         "reject": "d3861d31-6c28-422a-8eaa-b3af7dc78cae"
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "ae1ccc5b-8efa-49bc-beda-da8719ec0986",
+    "name": "child_record_guard",
+    "icon": "shield",
+    "color": null,
+    "description": "On slot/payment/proof/photo create: delete rows the creator is not allowed to attach (deep-filter validation cannot run on create)",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "book_booking_slots",
+        "book_payments",
+        "book_payment_proofs",
+        "book_court_photos"
+      ]
+    },
+    "operation": "d8c18d74-3bc6-46c3-886c-555fd813bde0",
+    "operations": [
+      {
+        "id": "a0437b03-f0f7-4dd6-aee5-7d3621e25fdf",
+        "name": "guard_sweep",
+        "key": "guard_sweep",
+        "type": "likha_sql",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "sql": "WITH ctx AS (\n           SELECT ?::uuid AS id, ?::uuid AS uid, ?::boolean AS is_admin\n         ), bad AS (\n           SELECT id, uid FROM ctx WHERE uid IS NOT NULL AND NOT is_admin\n         ), d_slots AS (\n           DELETE FROM book_booking_slots s\n           USING book_bookings b, bad\n           WHERE s.id = bad.id AND b.id = s.booking\n             AND NOT (b.customer = bad.uid OR EXISTS (\n               SELECT 1 FROM book_tenant_users tu\n               WHERE tu.user = bad.uid AND tu.tenant = b.tenant))\n           RETURNING s.id\n         ), d_pay AS (\n           DELETE FROM book_payments s\n           USING book_bookings b, bad\n           WHERE s.id = bad.id AND b.id = s.booking\n             AND NOT (b.customer = bad.uid OR EXISTS (\n               SELECT 1 FROM book_tenant_users tu\n               WHERE tu.user = bad.uid AND tu.tenant = b.tenant))\n           RETURNING s.id\n         ), d_proof AS (\n           DELETE FROM book_payment_proofs s\n           USING book_bookings b, bad\n           WHERE s.id = bad.id AND b.id = s.booking\n             AND NOT (b.customer = bad.uid OR EXISTS (\n               SELECT 1 FROM book_tenant_users tu\n               WHERE tu.user = bad.uid AND tu.tenant = b.tenant))\n           RETURNING s.id\n         ), d_photos AS (\n           DELETE FROM book_court_photos ph\n           USING book_courts c, bad\n           WHERE ph.id = bad.id AND c.id = ph.court\n             AND NOT EXISTS (\n               SELECT 1 FROM book_tenant_users tu\n               WHERE tu.user = bad.uid AND tu.tenant = c.tenant)\n           RETURNING ph.id\n         )\n         SELECT (SELECT count(*) FROM d_slots) AS slots,\n                (SELECT count(*) FROM d_pay) AS payments,\n                (SELECT count(*) FROM d_proof) AS proofs,\n                (SELECT count(*) FROM d_photos) AS photos",
+          "binding": [
+            "{{guard_ctx.itemId}}",
+            "{{guard_ctx.uid}}",
+            "{{guard_ctx.isAdmin}}"
+          ]
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "d8c18d74-3bc6-46c3-886c-555fd813bde0",
+        "name": "guard_ctx",
+        "key": "guard_ctx",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n          const t = data.$trigger || {};\n          const p = t.payload || {};\n          const id = t.key ?? p.id ?? (p.item && p.item.id);\n          const acc = data.$accountability || {};\n          if (id == null) throw new Error('no item id in trigger');\n          return { itemId: id, uid: acc.user ?? null, isAdmin: !!acc.admin };\n        };"
+        },
+        "resolve": "a0437b03-f0f7-4dd6-aee5-7d3621e25fdf",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "aef54b1b-c3ce-4463-972a-afff2504a08a",
+    "name": "billing_grace_sweeper",
+    "icon": "schedule",
+    "color": null,
+    "description": "Daily: trial expiry → past_due; past_due past 7d grace → suspended (billing)",
+    "trigger": "schedule",
+    "options": {
+      "cron": "30 1 * * *"
+    },
+    "operation": "2f629e71-dacc-4972-81b3-230193e2faef",
+    "operations": [
+      {
+        "id": "2f629e71-dacc-4972-81b3-230193e2faef",
+        "name": "trial_expire",
+        "key": "trial_expire",
+        "type": "likha_sql",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE book_tenants SET subscription_status = 'past_due'\n         WHERE subscription_status = 'trialing'\n           AND subscription_renews_at IS NOT NULL\n           AND subscription_renews_at < now()",
+          "binding": []
+        },
+        "resolve": "8144a445-f8a0-4593-8685-e0d76daf3372",
+        "reject": null
+      },
+      {
+        "id": "8144a445-f8a0-4593-8685-e0d76daf3372",
+        "name": "past_due_suspend",
+        "key": "past_due_suspend",
+        "type": "likha_sql",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE book_tenants SET status = 'suspended', suspension_reason = 'billing'\n         WHERE subscription_status = 'past_due'\n           AND subscription_renews_at IS NOT NULL\n           AND subscription_renews_at < now() - interval '7 days'\n           AND COALESCE(suspension_reason, '') <> 'manual'",
+          "binding": []
+        },
+        "resolve": null,
+        "reject": null
       }
     ],
     "flow_manager_category": null,
@@ -3061,6 +4132,73 @@
     "accountability": "all"
   },
   {
+    "id": "c3427262-f360-45e3-9103-92da76880cbb",
+    "name": "slot_init",
+    "icon": "schedule",
+    "color": null,
+    "description": "On slot create: duration, hold expiry, price snapshot, sync status to parent booking",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "book_booking_slots"
+      ]
+    },
+    "operation": "d4802571-e153-43cb-80d8-77f4cf041830",
+    "operations": [
+      {
+        "id": "cc212156-4863-4c26-b98d-3d1d16ebc060",
+        "name": "contiguity_sweep",
+        "key": "contiguity_sweep",
+        "type": "likha_sql",
+        "position_x": 70,
+        "position_y": 10,
+        "options": {
+          "sql": "WITH cur AS (\n           SELECT booking, court, date FROM book_booking_slots WHERE id = ?\n         ),\n         sib AS (\n           SELECT s2.id, s2.court, s2.date, s2.start_time, s2.end_time,\n             LAG(s2.end_time)   OVER w AS prev_end,\n             LEAD(s2.start_time) OVER w AS next_start\n           FROM book_booking_slots s2, cur\n           WHERE s2.booking = cur.booking AND s2.status IN ('held','confirmed')\n           WINDOW w AS (PARTITION BY s2.court, s2.date ORDER BY s2.start_time, s2.seq)\n         ),\n         gaps AS (\n           SELECT s.id AS slot_id, g.court, g.date, g.a, g.b FROM sib s\n           JOIN LATERAL (VALUES\n             (s.prev_end, s.start_time),\n             (s.end_time, s.next_start)\n           ) AS g(a, b) ON g.a IS NOT NULL AND g.b IS NOT NULL\n         ),\n         bad AS (\n           SELECT DISTINCT g.slot_id\n           FROM gaps g\n           JOIN book_courts c ON c.id = g.court\n           JOIN book_tenants t ON t.id = c.tenant\n           WHERE t.allow_non_contiguous_slots IS NOT TRUE\n             AND g.a <> g.b\n             AND EXISTS (\n               SELECT 1 FROM generate_series(\n                 FLOOR(EXTRACT(EPOCH FROM g.a) / 60),\n                 CEIL(EXTRACT(EPOCH FROM g.b) / 60) - 1,\n                 COALESCE(t.slot_minutes, 60)\n               ) AS m\n               WHERE NOT (\n                 EXISTS (SELECT 1 FROM book_booking_slots o\n                         WHERE o.court = g.court AND o.date = g.date\n                           AND o.booking <> (SELECT booking FROM cur)\n                           AND o.status IN ('held','confirmed')\n                           AND EXTRACT(EPOCH FROM o.start_time) < (m + COALESCE(t.slot_minutes, 60)) * 60\n                           AND EXTRACT(EPOCH FROM o.end_time)   > m * 60)\n                 OR EXISTS (SELECT 1 FROM book_closures cl\n                            JOIN book_courts c2 ON c2.id = g.court\n                            WHERE cl.tenant = c2.tenant\n                              AND (cl.court = g.court OR cl.court IS NULL)\n                              AND COALESCE(cl.date_start, cl.date) <= g.date\n                              AND COALESCE(cl.date_end, cl.date) >= g.date\n                              AND (cl.all_day\n                                   OR (EXTRACT(EPOCH FROM COALESCE(cl.start_time, '00:00'::time)) < (m + COALESCE(t.slot_minutes, 60)) * 60\n                                       AND EXTRACT(EPOCH FROM COALESCE(cl.end_time, '23:59:59'::time)) > m * 60)))\n               )\n             )\n         )\n         UPDATE book_booking_slots SET status = 'cancelled'\n         WHERE id IN (SELECT slot_id FROM bad) AND status IN ('held','confirmed')",
+          "binding": [
+            "{{normalize.itemId}}"
+          ]
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "d4802571-e153-43cb-80d8-77f4cf041830",
+        "name": "normalize",
+        "key": "normalize",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const id = t.key\n      ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n      ?? (p.keys && p.keys[0])\n      ?? p.id\n      ?? (p.item && p.item.id)\n      ?? (Array.isArray(p) ? p[0] && p[0].id : null);\n    if (id == null) throw new Error('no item id in trigger: ' + JSON.stringify(t).slice(0,300));\n    return { itemId: id };\n  };"
+        },
+        "resolve": "ec0b3b14-ffd2-4a68-b9da-f2966cc421fc",
+        "reject": null
+      },
+      {
+        "id": "ec0b3b14-ffd2-4a68-b9da-f2966cc421fc",
+        "name": "init_slot",
+        "key": "init_slot",
+        "type": "likha_sql",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE book_booking_slots s SET\n           duration_minutes = GREATEST(0, ROUND(EXTRACT(EPOCH FROM ((s.date + s.end_time) - (s.date + s.start_time))) / 60))::int,\n           status = CASE\n             WHEN c.tenant <> b.tenant\n               OR COALESCE(c.status, 'active') <> 'active'\n               OR t.status IS DISTINCT FROM 'active'\n               OR (s.date + s.start_time) <\n                  (now() AT TIME ZONE COALESCE(t.timezone, 'Asia/Manila') - interval '2 hours')\n             THEN 'cancelled'\n             WHEN b.status = 'confirmed' AND s.status = 'held' THEN 'confirmed'\n             ELSE s.status END,\n           held_until = CASE WHEN s.status = 'held' AND b.status <> 'confirmed'\n                              AND c.tenant = b.tenant\n                              AND COALESCE(c.status, 'active') = 'active'\n                              AND t.status IS NOT DISTINCT FROM 'active'\n                             THEN now() + make_interval(mins => GREATEST(COALESCE(t.payment_timeout_minutes, 15), 1))\n                             ELSE s.held_until END,\n           price = COALESCE(s.price, ROUND(c.price_per_hour * EXTRACT(EPOCH FROM ((s.date + s.end_time) - (s.date + s.start_time))) / 3600, 2))\n         FROM book_bookings b, book_courts c, book_tenants t\n         WHERE s.id = ? AND b.id = s.booking AND c.id = s.court AND t.id = c.tenant",
+          "binding": [
+            "{{normalize.itemId}}"
+          ]
+        },
+        "resolve": "cc212156-4863-4c26-b98d-3d1d16ebc060",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "c3c98972-c482-4d4e-bd5b-66430f1d88b9",
     "name": "Match",
     "icon": "bolt",
@@ -3099,7 +4237,7 @@
         "key": "mail_25jbh",
         "type": "mail",
         "position_x": 55,
-        "position_y": 1,
+        "position_y": 4,
         "options": {
           "type": "markdown",
           "to": [
@@ -3140,7 +4278,7 @@
             "external_identifier": "{{$trigger.payload.email}}"
           }
         },
-        "resolve": "342f5aab-f5e3-41e2-9c58-8e35734b3fa8",
+        "resolve": null,
         "reject": null
       },
       {
@@ -3247,6 +4385,48 @@
     "accountability": "all"
   },
   {
+    "id": "ded06802-0919-424f-9a53-ba0b9ad2d33b",
+    "name": "chart_revenue_method",
+    "icon": null,
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "error_on_reject": true
+    },
+    "operation": "c9de5770-a630-4420-90e1-57de151e2a37",
+    "operations": [
+      {
+        "id": "c9de5770-a630-4420-90e1-57de151e2a37",
+        "name": "gather",
+        "key": "gather",
+        "type": "likha_sql",
+        "position_x": 1,
+        "position_y": 1,
+        "options": {
+          "sql": "SELECT initcap(COALESCE(NULLIF(btrim(p.method), ''), 'other')) AS method,\n       SUM(p.amount)::float AS total\nFROM book_payments p\nJOIN book_bookings b ON b.id = p.booking\nWHERE p.status = 'paid'\n  AND p.paid_at >= now() - interval '30 days'\n  AND (\n  '{{$accountability.admin}}' = 'true'\n  OR b.tenant::text IN (\n    SELECT tu.tenant::text FROM book_tenant_users tu\n    WHERE tu.user::text = '{{$accountability.user}}'\n    UNION\n    SELECT jsonb_array_elements_text((u.book_tenant_ids)::jsonb)\n    FROM directus_users u WHERE u.id::text = '{{$accountability.user}}'\n    UNION\n    SELECT u.book_tenant::text FROM directus_users u\n    WHERE u.id::text = '{{$accountability.user}}' AND u.book_tenant IS NOT NULL\n  )\n)\nGROUP BY 1 ORDER BY 2 DESC"
+        },
+        "resolve": "dbfe6121-487e-41b7-bec8-8e1ced489e4c",
+        "reject": null
+      },
+      {
+        "id": "dbfe6121-487e-41b7-bec8-8e1ced489e4c",
+        "name": "chart",
+        "key": "chart",
+        "type": "exec",
+        "position_x": 2,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const rows = (data.gather && data.gather.rows) || [];\n  if (!rows.length) return { title: { text: 'No paid payments in the last 30 days', left: 'center', top: 'middle', textStyle: { color: '#94a3b8', fontSize: 12 } } };\n  const palette = ['#7c3aed', '#a78bfa', '#c4b5fd', '#6d28d9', '#f59e0b', '#0ea5e9', '#94a3b8'];\n  return {\n    tooltip: { trigger: 'item', formatter: '{b}: ₱{c} ({d}%)' },\n    legend: { type: 'scroll', bottom: 0, textStyle: { fontSize: 10, color: '#64748b' } },\n    series: [{ type: 'pie', radius: ['40%', '66%'], center: ['50%', '44%'],\n      label: { fontSize: 10, color: '#475569' },\n      data: rows.map((r, i) => ({ name: r.method, value: Number(r.total), itemStyle: { color: palette[i % palette.length] } })) }]\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "e6fcb9cf-548e-4b43-95e0-da5665ecca55",
     "name": "get appState",
     "icon": "bolt",
@@ -3305,6 +4485,146 @@
           "code": "module.exports = async function(data) {\n    const mm = data.$trigger?.payload?.appState?.matchmaking;\n    if (!mm?.players || !mm?.completedMatches) return [];\n\n    const { players, completedMatches } = mm;\n    const result = [];\n\n    const matchPayloads = {};\n    for (const match of completedMatches) {\n        const key = `${match.completedAt}_${match.matchId}`;\n        const playerIds = new Set();\n        const collect = (team) => {\n            if (!team) return;\n            for (const { username } of team) {\n                const p = players[username];\n                if (p?.userId) playerIds.add(p.userId);\n            }\n        };\n        collect(match.teamA);\n        collect(match.teamB);\n\n        matchPayloads[key] = {\n            match_key: key,\n            match_id: match.matchId,\n            match_type: match.matchType,\n            team_a: match.teamA,\n            team_b: match.teamB,\n            team_a_score: match.teamAScore,\n            team_b_score: match.teamBScore,\n            started_at: match.startedAt ? new Date(match.startedAt).toISOString() : null,\n            completed_at: new Date(match.completedAt).toISOString(),\n            players: Array.from(playerIds, id => ({ directus_users_id: id })),\n            club: match.club || mm.clubUUID || null\n        };\n    }\n\n    const processTeam = (team, key) => {\n        if (!team) return;\n        for (const { username } of team) {\n            const player = players[username];\n            if (!player?.userId) continue;\n            if (!player.completed_matches) {\n                player.completed_matches = [];\n                result.push(player);\n            }\n            player.completed_matches.push(matchPayloads[key]);\n        }\n    };\n\n    for (const match of completedMatches) {\n        const key = `${match.completedAt}_${match.matchId}`;\n        processTeam(match.teamA, key);\n        processTeam(match.teamB, key);\n    }\n\n    return result;\n};"
         },
         "resolve": "51f5df17-a4e7-4b49-85e3-82a0b677deb4",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "e898c650-9dda-4956-8750-83b5f96d74a4",
+    "name": "proof_auto_confirm",
+    "icon": "bolt",
+    "color": null,
+    "description": "Tenant auto_confirm_payments ON → booking confirms on proof upload",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "book_payment_proofs"
+      ]
+    },
+    "operation": "fb9b56b0-bd90-44ab-b25a-32309eef771e",
+    "operations": [
+      {
+        "id": "25497448-0c67-48da-a2cc-4914b18fdf87",
+        "name": "auto_confirm",
+        "key": "auto_confirm",
+        "type": "likha_sql",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "sql": "WITH p AS (\n           SELECT pr.id AS proof_id, pr.booking AS booking_id\n           FROM book_payment_proofs pr\n           JOIN book_bookings b ON b.id = pr.booking\n           JOIN book_tenants t ON t.id = b.tenant\n           WHERE pr.id = ? AND t.auto_confirm_payments = true AND b.status = 'pending_payment'\n         ),\n         upd_book AS (\n           UPDATE book_bookings b SET status='confirmed', payment_status='pending_verification'\n           FROM p WHERE b.id = p.booking_id RETURNING b.id\n         )\n         UPDATE book_booking_slots s SET status='confirmed'\n         FROM upd_book ub WHERE s.booking = ub.id AND s.status IN ('held','released')",
+          "binding": [
+            "{{normalize.itemId}}"
+          ]
+        },
+        "resolve": "9059332f-7bd6-41aa-be62-a94e51885a88",
+        "reject": null
+      },
+      {
+        "id": "6f8edec3-252b-4520-b79e-f582ae29a2eb",
+        "name": "require_confirmed",
+        "key": "require_confirmed",
+        "type": "exec",
+        "position_x": 130,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const s = data.read_status && data.read_status.status;\n    if (s !== 'confirmed') throw new Error('skip: booking not confirmed (' + s + ')');\n    return { bookingId: data.guard_confirmed.bookingId };\n  };"
+        },
+        "resolve": "e1504bf1-4d7b-4d32-af43-040816b06b0d",
+        "reject": null
+      },
+      {
+        "id": "9059332f-7bd6-41aa-be62-a94e51885a88",
+        "name": "read_booking",
+        "key": "read_booking",
+        "type": "item-read",
+        "position_x": 70,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "book_payment_proofs",
+          "key": [
+            "{{normalize.itemId}}"
+          ],
+          "fields": [
+            "booking"
+          ]
+        },
+        "resolve": "95b2e581-eb60-4ef6-b071-4c5b6c07977e",
+        "reject": null
+      },
+      {
+        "id": "95b2e581-eb60-4ef6-b071-4c5b6c07977e",
+        "name": "guard_confirmed",
+        "key": "guard_confirmed",
+        "type": "exec",
+        "position_x": 90,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const id = data.read_booking && data.read_booking.booking;\n    if (!id) throw new Error('skip: no booking');\n    return { bookingId: id };\n  };"
+        },
+        "resolve": "ce0b632d-38b8-4904-b0ee-57b42a876391",
+        "reject": null
+      },
+      {
+        "id": "ce0b632d-38b8-4904-b0ee-57b42a876391",
+        "name": "read_status",
+        "key": "read_status",
+        "type": "item-read",
+        "position_x": 110,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "book_bookings",
+          "key": [
+            "{{guard_confirmed.bookingId}}"
+          ],
+          "fields": [
+            "status"
+          ]
+        },
+        "resolve": "6f8edec3-252b-4520-b79e-f582ae29a2eb",
+        "reject": null
+      },
+      {
+        "id": "e1504bf1-4d7b-4d32-af43-040816b06b0d",
+        "name": "touch_booking",
+        "key": "touch_booking",
+        "type": "item-update",
+        "position_x": 150,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": true,
+          "collection": "book_bookings",
+          "key": [
+            "{{require_confirmed.bookingId}}"
+          ],
+          "payload": {
+            "status": "confirmed"
+          }
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "fb9b56b0-bd90-44ab-b25a-32309eef771e",
+        "name": "normalize",
+        "key": "normalize",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const id = t.key\n      ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n      ?? (p.keys && p.keys[0])\n      ?? p.id\n      ?? (p.item && p.item.id)\n      ?? (Array.isArray(p) ? p[0] && p[0].id : null);\n    if (id == null) throw new Error('no item id in trigger: ' + JSON.stringify(t).slice(0,300));\n    return { itemId: id };\n  };"
+        },
+        "resolve": "25497448-0c67-48da-a2cc-4914b18fdf87",
         "reject": null
       }
     ],
@@ -3457,6 +4777,353 @@
           "collection": "directus_users"
         },
         "resolve": "3ac0d039-c00b-46b9-a085-32af48fa4000",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "f00b38ce-6807-4b56-a750-670a79bd654b",
+    "name": "chart_bookings_14d",
+    "icon": null,
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "error_on_reject": true
+    },
+    "operation": "84771507-7195-4994-a992-7b5dcbda4379",
+    "operations": [
+      {
+        "id": "84771507-7195-4994-a992-7b5dcbda4379",
+        "name": "gather",
+        "key": "gather",
+        "type": "likha_sql",
+        "position_x": 1,
+        "position_y": 1,
+        "options": {
+          "sql": "WITH days AS (\n  SELECT generate_series(\n    ((now() AT TIME ZONE 'Asia/Manila')::date - 13),\n    (now() AT TIME ZONE 'Asia/Manila')::date,\n    interval '1 day'\n  )::date AS day\n),\nbk AS (\n  SELECT (b.date_created AT TIME ZONE 'Asia/Manila')::date AS day, COUNT(*) AS n\n  FROM book_bookings b\n  WHERE b.status <> 'cancelled'\n    AND (b.date_created AT TIME ZONE 'Asia/Manila')::date >= (now() AT TIME ZONE 'Asia/Manila')::date - 13\n    AND (\n  '{{$accountability.admin}}' = 'true'\n  OR b.tenant::text IN (\n    SELECT tu.tenant::text FROM book_tenant_users tu\n    WHERE tu.user::text = '{{$accountability.user}}'\n    UNION\n    SELECT jsonb_array_elements_text((u.book_tenant_ids)::jsonb)\n    FROM directus_users u WHERE u.id::text = '{{$accountability.user}}'\n    UNION\n    SELECT u.book_tenant::text FROM directus_users u\n    WHERE u.id::text = '{{$accountability.user}}' AND u.book_tenant IS NOT NULL\n  )\n)\n  GROUP BY 1\n)\nSELECT to_char(d.day, 'Mon DD') AS label, COALESCE(k.n, 0)::int AS value\nFROM days d LEFT JOIN bk k ON k.day = d.day\nORDER BY d.day"
+        },
+        "resolve": "b8be0ab7-acf4-43cd-ba26-e782f149eaca",
+        "reject": null
+      },
+      {
+        "id": "b8be0ab7-acf4-43cd-ba26-e782f149eaca",
+        "name": "chart",
+        "key": "chart",
+        "type": "exec",
+        "position_x": 2,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const rows = (data.gather && data.gather.rows) || [];\n  if (!rows.length) return { title: { text: 'No bookings in the last 14 days', left: 'center', top: 'middle', textStyle: { color: '#94a3b8', fontSize: 12 } } };\n  return {\n    grid: { left: 44, right: 16, top: 28, bottom: 28 },\n    tooltip: { trigger: 'axis', formatter: '{b}: {c} bookings' },\n    xAxis: { type: 'category', data: rows.map(r => r.label), axisLabel: { fontSize: 10, color: '#64748b' } },\n    yAxis: { type: 'value', minInterval: 1, name: 'bookings', nameTextStyle: { fontSize: 10, color: '#64748b' }, axisLabel: { fontSize: 10, color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },\n    series: [{ name: 'Bookings', type: 'bar', barMaxWidth: 18, data: rows.map(r => Number(r.value)), itemStyle: { color: '#8b5cf6', borderRadius: [3, 3, 0, 0] } }]\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "f4866617-191d-4ef4-bcbd-2d1d09c07347",
+    "name": "chart_court_utilization",
+    "icon": null,
+    "color": null,
+    "description": null,
+    "trigger": "webhook",
+    "options": {
+      "error_on_reject": true
+    },
+    "operation": "5483ff1f-914d-4aad-9572-f352fe448648",
+    "operations": [
+      {
+        "id": "5483ff1f-914d-4aad-9572-f352fe448648",
+        "name": "gather",
+        "key": "gather",
+        "type": "likha_sql",
+        "position_x": 1,
+        "position_y": 1,
+        "options": {
+          "sql": "WITH dates AS (\n  SELECT generate_series(\n    (now() AT TIME ZONE 'Asia/Manila')::date,\n    (now() AT TIME ZONE 'Asia/Manila')::date + 29,\n    interval '1 day'\n  )::date AS day\n),\ncourts AS (\n  SELECT c.id, c.name, c.tenant\n  FROM book_courts c\n  WHERE c.status = 'active' AND (\n  '{{$accountability.admin}}' = 'true'\n  OR c.tenant::text IN (\n    SELECT tu.tenant::text FROM book_tenant_users tu\n    WHERE tu.user::text = '{{$accountability.user}}'\n    UNION\n    SELECT jsonb_array_elements_text((u.book_tenant_ids)::jsonb)\n    FROM directus_users u WHERE u.id::text = '{{$accountability.user}}'\n    UNION\n    SELECT u.book_tenant::text FROM directus_users u\n    WHERE u.id::text = '{{$accountability.user}}' AND u.book_tenant IS NOT NULL\n  )\n)\n),\ncourt_day AS (\n  SELECT c.id AS court_id, c.name, c.tenant, d.day,\n    COALESCE(och.closed, oh.closed, true) AS is_closed,\n    COALESCE(och.open_time, oh.open_time) AS ot,\n    COALESCE(och.close_time, oh.close_time) AS ct\n  FROM courts c\n  CROSS JOIN dates d\n  LEFT JOIN book_opening_hours och\n    ON och.court = c.id AND och.tenant = c.tenant\n   AND och.day_of_week = EXTRACT(dow FROM d.day)::int\n  LEFT JOIN book_opening_hours oh\n    ON oh.court IS NULL AND oh.tenant = c.tenant\n   AND oh.day_of_week = EXTRACT(dow FROM d.day)::int\n),\nopen_min AS (\n  SELECT court_id, name, tenant, day, ot, ct,\n    CASE WHEN is_closed OR ot IS NULL THEN 0\n    ELSE GREATEST(0, EXTRACT(epoch FROM (ct - ot)) / 60\n      + CASE WHEN ct <= ot THEN 1440 ELSE 0 END)::int END AS open_m\n  FROM court_day\n),\nclosed_min AS (\n  SELECT om.court_id, om.day, SUM(\n    CASE WHEN cl.all_day IS TRUE THEN om.open_m\n    ELSE GREATEST(0, EXTRACT(epoch FROM (\n      LEAST(om.ct, cl.end_time) - GREATEST(om.ot, cl.start_time))) / 60)::int\n    END) AS m\n  FROM open_min om\n  JOIN book_closures cl\n    ON cl.tenant = om.tenant\n   AND (cl.court = om.court_id OR cl.court IS NULL)\n   AND (cl.date = om.day\n        OR (cl.date_start <= om.day AND cl.date_end >= om.day))\n   AND (cl.all_day IS TRUE OR (cl.start_time IS NOT NULL AND cl.end_time IS NOT NULL))\n  GROUP BY om.court_id, om.day\n),\ncap AS (\n  SELECT om.court_id, om.name,\n    SUM(GREATEST(0, om.open_m - COALESCE(cm.m, 0))) AS cap_m\n  FROM open_min om\n  LEFT JOIN closed_min cm ON cm.court_id = om.court_id AND cm.day = om.day\n  GROUP BY om.court_id, om.name\n),\nbk AS (\n  SELECT s.court AS court_id, SUM(s.duration_minutes)::int AS booked_m,\n         COUNT(DISTINCT s.booking)::int AS n\n  FROM book_booking_slots s\n  JOIN book_bookings b ON b.id = s.booking\n  WHERE s.status = 'confirmed'\n    AND s.date BETWEEN (now() AT TIME ZONE 'Asia/Manila')::date\n                    AND (now() AT TIME ZONE 'Asia/Manila')::date + 29\n    AND (\n  '{{$accountability.admin}}' = 'true'\n  OR b.tenant::text IN (\n    SELECT tu.tenant::text FROM book_tenant_users tu\n    WHERE tu.user::text = '{{$accountability.user}}'\n    UNION\n    SELECT jsonb_array_elements_text((u.book_tenant_ids)::jsonb)\n    FROM directus_users u WHERE u.id::text = '{{$accountability.user}}'\n    UNION\n    SELECT u.book_tenant::text FROM directus_users u\n    WHERE u.id::text = '{{$accountability.user}}' AND u.book_tenant IS NOT NULL\n  )\n)\n  GROUP BY s.court\n)\nSELECT cp.name AS court, cap.cap_m::int AS cap_m,\n       COALESCE(bk.booked_m, 0) AS booked_m, COALESCE(bk.n, 0) AS bookings,\n       CASE WHEN cap.cap_m > 0\n            THEN ROUND(COALESCE(bk.booked_m, 0)::numeric / cap.cap_m * 100, 1)\n            ELSE NULL END::float AS pct\nFROM courts cp\nJOIN cap ON cap.court_id = cp.id\nLEFT JOIN bk ON bk.court_id = cp.id\nORDER BY pct DESC NULLS LAST, booked_m DESC"
+        },
+        "resolve": "b5697e9a-e56f-44bc-a1d8-237ded9047d1",
+        "reject": null
+      },
+      {
+        "id": "b5697e9a-e56f-44bc-a1d8-237ded9047d1",
+        "name": "chart",
+        "key": "chart",
+        "type": "exec",
+        "position_x": 2,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const rows = (data.gather && data.gather.rows) || [];\n  if (!rows.length) return { title: { text: 'No active courts', left: 'center', top: 'middle', textStyle: { color: '#94a3b8', fontSize: 12 } } };\n  const names = rows.map(r => r.pct == null ? r.court + ' (no hours)' : r.court);\n  const vals = rows.map(r => r.pct == null ? 0 : Number(r.pct));\n  return {\n    grid: { left: 8, right: 40, top: 12, bottom: 24, containLabel: true },\n    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: '{b}: {c}%' },\n    xAxis: { type: 'value', max: 100, name: 'utilization %', nameTextStyle: { fontSize: 10, color: '#64748b' }, axisLabel: { fontSize: 10, color: '#64748b', formatter: '{value}%' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },\n    yAxis: { type: 'category', data: names, inverse: true, axisLabel: { fontSize: 11, color: '#475569' } },\n    series: [{ type: 'bar', barMaxWidth: 18,\n      data: vals.map(v => ({ value: v, itemStyle: { color: v >= 70 ? '#22c55e' : v >= 40 ? '#f59e0b' : '#7c3aed', borderRadius: [0, 4, 4, 0] } })) }]\n  };\n}"
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "f85b63e2-5708-43da-bef8-b33c5fe8ce80",
+    "name": "proof_rejected",
+    "icon": "cancel",
+    "color": null,
+    "description": "Proof rejected → payment_status=unpaid (customer may re-upload) + customer mail",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.update"
+      ],
+      "collections": [
+        "book_payment_proofs"
+      ]
+    },
+    "operation": "730275a7-35db-4eb0-b278-f7f3b11c7087",
+    "operations": [
+      {
+        "id": "258bf894-d007-4f64-ae6b-b366b3e8d703",
+        "name": "normalize",
+        "key": "normalize_proof",
+        "type": "exec",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const id = t.key\n      ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n      ?? (p.keys && p.keys[0])\n      ?? p.id\n      ?? (p.item && p.item.id)\n      ?? (Array.isArray(p) ? p[0] && p[0].id : null);\n    if (id == null) throw new Error('no item id in trigger: ' + JSON.stringify(t).slice(0,300));\n    return { itemId: id };\n  };"
+        },
+        "resolve": "fcad1776-3447-4da1-b13b-b37e07debaf1",
+        "reject": null
+      },
+      {
+        "id": "43248130-e3e5-4d1b-9016-577b120b8709",
+        "name": "guard_email",
+        "key": "guard_email",
+        "type": "exec",
+        "position_x": 150,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const email = data.read_detail && data.read_detail.customer_email;\n    if (!email) throw new Error('skip: no recipient email');\n    return {};\n  };"
+        },
+        "resolve": "94a1ff66-ab3f-4233-aab5-33d44bc5a3b6",
+        "reject": null
+      },
+      {
+        "id": "67bbaf00-c391-4268-9098-654c897030ac",
+        "name": "read_detail",
+        "key": "read_detail",
+        "type": "item-read",
+        "position_x": 110,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "book_bookings",
+          "key": [
+            "{{read_booking.booking}}"
+          ],
+          "fields": [
+            "ref",
+            "customer_email",
+            "customer_name"
+          ]
+        },
+        "resolve": "9f872637-7780-46d1-ad44-d912a14d5ac1",
+        "reject": null
+      },
+      {
+        "id": "730275a7-35db-4eb0-b278-f7f3b11c7087",
+        "name": "guard",
+        "key": "guard",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = async function(data) {\n          const t = data.$trigger || {};\n          const p = t.payload || {};\n          const keys = p.keys || t.keys || [];\n          const id = keys[0] ?? p.id ?? (p.item && p.item.id);\n          if (p.status !== 'rejected' || !id) throw new Error('skip: not a rejection');\n          return { proofId: id };\n        };"
+        },
+        "resolve": "258bf894-d007-4f64-ae6b-b366b3e8d703",
+        "reject": null
+      },
+      {
+        "id": "7b185dd6-14b5-4852-9b50-43c64d074740",
+        "name": "read_booking",
+        "key": "read_booking",
+        "type": "item-read",
+        "position_x": 90,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "book_payment_proofs",
+          "key": [
+            "{{normalize_proof.itemId}}"
+          ],
+          "fields": [
+            "booking"
+          ]
+        },
+        "resolve": "67bbaf00-c391-4268-9098-654c897030ac",
+        "reject": null
+      },
+      {
+        "id": "94a1ff66-ab3f-4233-aab5-33d44bc5a3b6",
+        "name": "notify_customer",
+        "key": "notify_customer",
+        "type": "mail",
+        "position_x": 170,
+        "position_y": 10,
+        "options": {
+          "type": "markdown",
+          "to": [
+            "{{read_detail.customer_email}}"
+          ],
+          "subject": "Proof rejected — {{read_detail.ref}}",
+          "body": "Hi {{read_detail.customer_name}},\n\nYour proof of payment for booking **{{read_detail.ref}}** was rejected.\n\nReason: {{read_proof.rejection_reason}}\n\nPlease upload a new proof before your hold expires.\n\n— Zyberlab Booking"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "9f872637-7780-46d1-ad44-d912a14d5ac1",
+        "name": "read_proof",
+        "key": "read_proof",
+        "type": "item-read",
+        "position_x": 130,
+        "position_y": 10,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "book_payment_proofs",
+          "key": [
+            "{{normalize_proof.itemId}}"
+          ],
+          "fields": [
+            "rejection_reason"
+          ]
+        },
+        "resolve": "43248130-e3e5-4d1b-9016-577b120b8709",
+        "reject": null
+      },
+      {
+        "id": "fcad1776-3447-4da1-b13b-b37e07debaf1",
+        "name": "reset_payment",
+        "key": "reset_payment",
+        "type": "likha_sql",
+        "position_x": 70,
+        "position_y": 10,
+        "options": {
+          "sql": "UPDATE book_bookings b SET payment_status='unpaid'\n         FROM book_payment_proofs p\n         WHERE p.id = ? AND b.id = p.booking\n           AND b.payment_status = 'pending_verification'",
+          "binding": [
+            "{{normalize_proof.itemId}}"
+          ]
+        },
+        "resolve": "7b185dd6-14b5-4852-9b50-43c64d074740",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "25d47e94-fe7c-48c7-be04-1da5b4a1ad36",
+    "name": "expire club subscription",
+    "icon": "bolt",
+    "color": null,
+    "description": null,
+    "trigger": "schedule",
+    "options": {
+      "cron": "0 3 * * *"
+    },
+    "operation": "6b061669-6d9c-4e57-8b22-0801017a4964",
+    "operations": [
+      {
+        "id": "6b061669-6d9c-4e57-8b22-0801017a4964",
+        "name": "target_date",
+        "key": "target_date",
+        "type": "exec",
+        "position_x": 37,
+        "position_y": 1,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const targetDate = new Date();\n    \n    // Subtract exactly 1 month from today's date\n    targetDate.setMonth(targetDate.getMonth() - 1);\n    \n    // Return standard ISO format (e.g., \"2026-05-05T01:53:05.000Z\")\n    return targetDate.toISOString(); \n};"
+        },
+        "resolve": "e9da0af2-f598-4d7e-b513-70599d878446",
+        "reject": null
+      },
+      {
+        "id": "e9da0af2-f598-4d7e-b513-70599d878446",
+        "name": "Update Data",
+        "key": "item_update_s6c1f",
+        "type": "item-update",
+        "position_x": 29,
+        "position_y": 19,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "payload": {
+            "status": "draft"
+          },
+          "collection": "club",
+          "query": {
+            "filter": {
+              "last_payment": {
+                "_lt": "$NOW(-1 month)"
+              }
+            }
+          }
+        },
+        "resolve": null,
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
+    "id": "4132096c-69c5-4513-9aae-25079ecaee40",
+    "name": "club creation email notif",
+    "icon": "bolt",
+    "color": null,
+    "description": null,
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "club"
+      ]
+    },
+    "operation": "3b4850e9-00fa-4818-a913-bd1a6158a002",
+    "operations": [
+      {
+        "id": "3b4850e9-00fa-4818-a913-bd1a6158a002",
+        "name": "Send Email",
+        "key": "mail_25jbh",
+        "type": "mail",
+        "position_x": 28,
+        "position_y": 1,
+        "options": {
+          "type": "markdown",
+          "to": [
+            "trinmar.boado@gmail.com"
+          ],
+          "subject": "DinkMatch New CLUB",
+          "cc": [
+            "trinmar.boado@gmail.com"
+          ],
+          "bcc": [
+            "trinmar.boado@gmail.com"
+          ],
+          "replyTo": [
+            "trinmar.boado@gmail.com"
+          ],
+          "body": "{{$trigger.payload}}"
+        },
+        "resolve": null,
         "reject": null
       }
     ],

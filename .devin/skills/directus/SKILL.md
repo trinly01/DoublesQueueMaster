@@ -64,6 +64,43 @@ apply but MUST be smoke-tested on api.dinkmatch.club first:
   custom charts via flow-powered panel extensions.
 - Full detail: `C:/Users/trinm/Documents/GitHub/mitmit/.devin/skills/directus-flows` + `directus-insights`.
 
+## Venue Dashboard — ECharts panels (VERIFIED on api.dinkmatch.club)
+
+`likha-echarts-panel` extension is installed (panel type `echarts-panel`).
+Builder: `scripts/setup-tenant-charts.mjs` — 5 charts live on the shared
+"Venue Dashboard" (Revenue/Bookings 14d, Revenue-by-method, Busiest-hours,
+Court-hours).
+
+- **Panel options:** `{url: "/flows/trigger/<flow-uuid>", method: "GET"}` —
+  NOT `{flow:{key:...}}`. The `flow` form makes the panel GET
+  `/flows/{id}` first, which would force a `directus_flows` read grant on
+  tenant roles; the `url` form skips that and still forwards the viewer's
+  token via `useApi()`.
+- **Flow shape:** webhook trigger, `accountability:"all"`,
+  `options.error_on_reject:true`; ops `likha_sql` (key `gather`) → `exec`
+  (key `chart`) returning a plain ECharts option object. Exec reads rows
+  via `data.gather.rows` (likha_sql returns raw pg QueryResult).
+- **`{{$accountability.*}}` renders inside likha_sql** (verified):
+  `user`→uuid or literal `'null'` string, `admin`→`'true'/'false'`,
+  `role`→uuid. Always compare user ids as `::text` — `'null'` is not a
+  valid uuid and would 500 a `::uuid` cast.
+- **Per-tenant SQL scoping (likha_sql bypasses ACL — mandatory):**
+  `b.tenant::text IN (book_tenant_users ∪ book_tenant_ids jsonb ∪
+  book_tenant)` subqueries on `directus_users`/`book_tenant_users`, OR'd
+  with `'{{$accountability.admin}}' = 'true'` for admin preview.
+  Verified: tenant-a ₱1200/13 bookings vs tenant-b ₱0/2, admin sees all,
+  unauthenticated sees nothing.
+- **ECharts options must be cloneable** — string formatter templates
+  (`'{b}: ₱{c}'`) OK, JS functions 500 the panel.
+- Grid quirk: positions must be ≥1 (x/y=0 collapses panels).
+- **Slot dates are FUTURE-dated** (bookings sell upcoming court time) —
+  operational charts (court hours, utilization, busiest hours) must use
+  `s.date BETWEEN today AND today+N` forward windows, not "last N days".
+  Revenue/bookings-created charts stay past-looking. Utilization capacity
+  = opening hours (court row overrides venue `court IS NULL` row;
+  `day_of_week` = JS getDay/pg dow, 0=Sun) minus `book_closures`
+  (all_day or partial `date`/`date_start`+`date_end` + start/end times).
+
 ## Tenant isolation (VERIFIED on this instance — booking system)
 
 Pattern used for `book_*` collections (`book_tenant` role/policy):

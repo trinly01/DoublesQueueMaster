@@ -1,0 +1,443 @@
+[
+	{
+		"name": "Venue Dashboard",
+		"icon": "storefront",
+		"note": "Live booking insights — scoped to your venues by permissions. Switch venue in Studio to change scope.",
+		"color": "#7c3aed",
+		"panels": [
+			{
+				"name": "Revenue by Method · 30d",
+				"icon": "donut_large",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 1,
+				"position_y": 77,
+				"width": 27,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/ded06802-0919-424f-9a53-ba0b9ad2d33b",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Court Hours · 30d",
+				"icon": "sports_tennis",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 1,
+				"position_y": 103,
+				"width": 56,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/71be8c7f-59ce-40ce-bdbd-7bb08bf038f9",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Bookings by Status",
+				"icon": "donut_large",
+				"color": null,
+				"show_header": true,
+				"note": null,
+				"type": "pie-chart",
+				"position_x": 1,
+				"position_y": 25,
+				"width": 27,
+				"height": 24,
+				"options": {
+					"collection": "book_bookings",
+					"column": "status"
+				}
+			},
+			{
+				"name": "Bookings by Court · next 30d",
+				"icon": "scoreboard",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 29,
+				"position_y": 129,
+				"width": 27,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/98742f95-630d-407f-b106-5c942922b355",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Court Utilization · next 30d",
+				"icon": "speed",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 1,
+				"position_y": 129,
+				"width": 27,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/f4866617-191d-4ef4-bcbd-2d1d09c07347",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "New Bookings · 24h",
+				"icon": "event_available",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "metric",
+				"position_x": 1,
+				"position_y": 1,
+				"width": 12,
+				"height": 10,
+				"options": {
+					"collection": "book_bookings",
+					"field": "id",
+					"function": "count",
+					"sortField": null,
+					"filter": {
+						"date_created": {
+							"_gte": "$NOW(-1 day)"
+						}
+					}
+				}
+			},
+			{
+				"name": "Bookings · 14 days",
+				"icon": "bar_chart",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 29,
+				"position_y": 51,
+				"width": 27,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/f00b38ce-6807-4b56-a750-670a79bd654b",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Revenue · 14 days",
+				"icon": "show_chart",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 1,
+				"position_y": 51,
+				"width": 27,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/45c01f39-6ba3-4caa-bbd9-25f6625cf478",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Court Utilization · 30d",
+				"icon": "speed",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 1,
+				"position_y": 129,
+				"width": 27,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/f4866617-191d-4ef4-bcbd-2d1d09c07347",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Held Slots",
+				"icon": "schedule",
+				"color": "#3b82f6",
+				"show_header": true,
+				"note": null,
+				"type": "metric",
+				"position_x": 15,
+				"position_y": 13,
+				"width": 12,
+				"height": 10,
+				"options": {
+					"collection": "book_booking_slots",
+					"field": "id",
+					"function": "count",
+					"sortField": null,
+					"filter": {
+						"status": {
+							"_eq": "held"
+						}
+					}
+				}
+			},
+			{
+				"name": "Busiest Hours · 30d",
+				"icon": "schedule",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 29,
+				"position_y": 77,
+				"width": 27,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/8bb70503-fede-4e72-94c1-0b89ce5a39bc",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Cancelled",
+				"icon": "cancel",
+				"color": "#94a3b8",
+				"show_header": true,
+				"note": null,
+				"type": "metric",
+				"position_x": 29,
+				"position_y": 13,
+				"width": 12,
+				"height": 10,
+				"options": {
+					"collection": "book_bookings",
+					"field": "id",
+					"function": "count",
+					"sortField": null,
+					"filter": {
+						"status": {
+							"_eq": "cancelled"
+						}
+					}
+				}
+			},
+			{
+				"name": "Busiest Hours · next 30d",
+				"icon": "schedule",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 29,
+				"position_y": 77,
+				"width": 27,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/8bb70503-fede-4e72-94c1-0b89ce5a39bc",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Bookings by Court · 30d",
+				"icon": "scoreboard",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 29,
+				"position_y": 129,
+				"width": 27,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/98742f95-630d-407f-b106-5c942922b355",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Court Hours/day · next 14d",
+				"icon": "query_stats",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 1,
+				"position_y": 155,
+				"width": 56,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/237d6617-836d-400a-a936-91ecb48c138e",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Confirmed",
+				"icon": "check_circle",
+				"color": "#22c55e",
+				"show_header": true,
+				"note": null,
+				"type": "metric",
+				"position_x": 15,
+				"position_y": 1,
+				"width": 12,
+				"height": 10,
+				"options": {
+					"collection": "book_bookings",
+					"field": "id",
+					"function": "count",
+					"sortField": null,
+					"filter": {
+						"status": {
+							"_eq": "confirmed"
+						}
+					}
+				}
+			},
+			{
+				"name": "Proofs by Status",
+				"icon": "verified",
+				"color": null,
+				"show_header": true,
+				"note": null,
+				"type": "pie-chart",
+				"position_x": 29,
+				"position_y": 25,
+				"width": 27,
+				"height": 24,
+				"options": {
+					"collection": "book_payment_proofs",
+					"column": "status"
+				}
+			},
+			{
+				"name": "Paid Revenue",
+				"icon": "payments",
+				"color": "#0ea5e9",
+				"show_header": true,
+				"note": null,
+				"type": "metric",
+				"position_x": 43,
+				"position_y": 1,
+				"width": 12,
+				"height": 10,
+				"options": {
+					"collection": "book_payments",
+					"field": "amount",
+					"function": "sum",
+					"sortField": null,
+					"filter": {
+						"status": {
+							"_eq": "paid"
+						}
+					}
+				}
+			},
+			{
+				"name": "Court Hours/day · 14d",
+				"icon": "query_stats",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 1,
+				"position_y": 155,
+				"width": 56,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/237d6617-836d-400a-a936-91ecb48c138e",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Proofs · 7 days",
+				"icon": "fact_check",
+				"color": "#8b5cf6",
+				"show_header": true,
+				"note": null,
+				"type": "metric",
+				"position_x": 43,
+				"position_y": 13,
+				"width": 12,
+				"height": 10,
+				"options": {
+					"collection": "book_payment_proofs",
+					"field": "id",
+					"function": "count",
+					"sortField": null,
+					"filter": {
+						"date_created": {
+							"_gte": "$NOW(-7 days)"
+						}
+					}
+				}
+			},
+			{
+				"name": "Revenue · 7 days",
+				"icon": "trending_up",
+				"color": "#22c55e",
+				"show_header": true,
+				"note": null,
+				"type": "metric",
+				"position_x": 1,
+				"position_y": 13,
+				"width": 12,
+				"height": 10,
+				"options": {
+					"collection": "book_payments",
+					"field": "amount",
+					"function": "sum",
+					"sortField": null,
+					"filter": {
+						"_and": [
+							{
+								"status": {
+									"_eq": "paid"
+								}
+							},
+							{
+								"date_created": {
+									"_gte": "$NOW(-7 days)"
+								}
+							}
+						]
+					}
+				}
+			},
+			{
+				"name": "Court Hours · next 30d",
+				"icon": "sports_tennis",
+				"color": "#7c3aed",
+				"show_header": true,
+				"note": null,
+				"type": "echarts-panel",
+				"position_x": 1,
+				"position_y": 103,
+				"width": 56,
+				"height": 24,
+				"options": {
+					"url": "/flows/trigger/71be8c7f-59ce-40ce-bdbd-7bb08bf038f9",
+					"method": "GET"
+				}
+			},
+			{
+				"name": "Pending Proofs",
+				"icon": "pending_actions",
+				"color": "#f59e0b",
+				"show_header": true,
+				"note": null,
+				"type": "metric",
+				"position_x": 29,
+				"position_y": 1,
+				"width": 12,
+				"height": 10,
+				"options": {
+					"collection": "book_payment_proofs",
+					"field": "id",
+					"function": "count",
+					"sortField": null,
+					"filter": {
+						"status": {
+							"_eq": "pending"
+						}
+					}
+				}
+			}
+		]
+	}
+]
