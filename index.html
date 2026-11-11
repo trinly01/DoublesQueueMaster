@@ -300,68 +300,83 @@
     /></noscript>
     <script>
       (function () {
-        var search = window.location.search;
-        if (!search) return;
+        var l = window.location;
+        var params = new URLSearchParams(l.search);
 
-        var params = new URLSearchParams(search);
-        var redirectPath = params.get('r');
+        function isTracking(key) {
+          return (
+            key === 'fbclid' ||
+            key.indexOf('utm_') === 0 ||
+            key === 'gclid' ||
+            key === 'ttclid' ||
+            key === 'wbraid'
+          );
+        }
 
         function stripTracking(p) {
           var cleaned = new URLSearchParams();
           p.forEach(function (value, key) {
-            if (
-              key !== 'fbclid' &&
-              key.indexOf('utm_') !== 0 &&
-              key !== 'gclid' &&
-              key !== 'ttclid' &&
-              key !== 'wbraid'
-            ) {
+            if (!isTracking(key)) {
               cleaned.append(key, value);
             }
           });
           return cleaned;
         }
 
+        var redirectPath = params.get('r');
+
         if (redirectPath) {
           var cleanSearch = stripTracking(params);
           cleanSearch.delete('r');
           var newSearch = cleanSearch.toString();
-          var pathname = window.location.pathname;
+          var pathname = l.pathname;
           if (pathname.length > 1 && pathname.slice(-1) === '/') {
             pathname = pathname.slice(0, -1);
           }
           var newUrl =
-            window.location.origin +
+            l.origin +
             pathname +
             (newSearch ? '?' + newSearch : '') +
             '#' +
             redirectPath;
-          window.location.replace(newUrl);
+          l.replace(newUrl);
+          return;
+        }
+
+        // Path-style URL -> hash route: /book -> /#/book. Runs before the
+        // app bundle so location.hash is still untouched (the PWA service
+        // worker serves index.html for unknown paths, bypassing 404.html).
+        var pathOnly = l.pathname.replace(/\/+$/, '');
+        if (!l.hash && pathOnly !== '' && !/\.[a-z0-9]+$/i.test(pathOnly)) {
+          var kept = new URLSearchParams();
+          params.forEach(function (value, key) {
+            if (!isTracking(key)) {
+              kept.append(key, value);
+            }
+          });
+          var keptSearch = kept.toString();
+          l.replace(
+            l.origin + '/#' + pathOnly + (keptSearch ? '?' + keptSearch : ''),
+          );
           return;
         }
 
         var hasTracking = false;
         params.forEach(function (_, key) {
-          if (
-            key === 'fbclid' ||
-            key.indexOf('utm_') === 0 ||
-            key === 'gclid' ||
-            key === 'ttclid' ||
-            key === 'wbraid'
-          ) {
+          if (isTracking(key)) {
             hasTracking = true;
           }
         });
 
         if (hasTracking) {
-          var cleanSearch = stripTracking(params);
-          var newSearch = cleanSearch.toString();
-          var newUrl =
-            window.location.origin +
-            window.location.pathname +
-            (newSearch ? '?' + newSearch : '') +
-            window.location.hash;
-          window.history.replaceState({}, '', newUrl);
+          var cleanSearch2 = stripTracking(params);
+          var newSearch2 = cleanSearch2.toString();
+          var newUrl2 =
+            l.origin +
+            l.pathname +
+            (newSearch2 ? '?' + newSearch2 : '') +
+            l.hash;
+          window.history.replaceState({}, '', newUrl2);
         }
       })();
     </script>

@@ -30,7 +30,20 @@ export default boot(() => {
     return;
   }
 
-  // 2. Strip known tracking params from the URL bar (no page reload)
+  // 2. Path-style URL -> hash route: /book/venues -> /#/book/venues.
+  //    The PWA service worker serves index.html for unknown paths, so
+  //    GitHub Pages' 404.html redirect never runs — the SPA boots with an
+  //    empty hash and lands on the default route. Move pathname into #.
+  const pathOnly = loc.pathname.replace(/\/+$/, '');
+  if (!loc.hash && pathOnly !== '' && !/\.[a-z0-9]+$/i.test(pathOnly)) {
+    const cleanSearch = stripTrackingParams(params).toString();
+    window.location.replace(
+      loc.origin + '/#' + pathOnly + (cleanSearch ? `?${cleanSearch}` : ''),
+    );
+    return;
+  }
+
+  // 3. Strip known tracking params from the URL bar (no page reload)
   if (hasTrackingParam(params)) {
     const cleanSearch = stripTrackingParams(params);
     const newSearch = cleanSearch.toString();

@@ -103,72 +103,87 @@
         'https://connect.facebook.net/en_US/fbevents.js',
       );
       fbq('init', '28034335189520524');
-      fbq('track', 'PageView');</script>  <script type="module" crossorigin src="/assets/index-DtwggvJB.js"></script>
+      fbq('track', 'PageView');</script>  <script type="module" crossorigin src="/assets/index-BhMCoUq5.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/vendor-ex1uFvBg.js">
   <link rel="stylesheet" crossorigin href="/assets/vendor-CrKmbS5D.css">
   <link rel="stylesheet" crossorigin href="/assets/index-CQJPRVzQ.css">
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#027be3"><link rel="mask-icon" href="/icons/safari-pinned-tab.svg" color="#027be3"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="DinkMatch — Smart Matchmaking"><meta name="msapplication-TileImage" content="/icons/ms-icon-144x144.png"><meta name="msapplication-TileColor" content="#000000"><link rel="apple-touch-icon" href="/icons/apple-icon-120x120.png"><link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-icon-152x152.png"><link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-icon-167x167.png"><link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180x180.png"></head><body><noscript><img height=1 width=1 src="https://www.facebook.com/tr?id=28034335189520524&ev=PageView&noscript=1"></noscript><script>(function () {
-        var search = window.location.search;
-        if (!search) return;
+        var l = window.location;
+        var params = new URLSearchParams(l.search);
 
-        var params = new URLSearchParams(search);
-        var redirectPath = params.get('r');
+        function isTracking(key) {
+          return (
+            key === 'fbclid' ||
+            key.indexOf('utm_') === 0 ||
+            key === 'gclid' ||
+            key === 'ttclid' ||
+            key === 'wbraid'
+          );
+        }
 
         function stripTracking(p) {
           var cleaned = new URLSearchParams();
           p.forEach(function (value, key) {
-            if (
-              key !== 'fbclid' &&
-              key.indexOf('utm_') !== 0 &&
-              key !== 'gclid' &&
-              key !== 'ttclid' &&
-              key !== 'wbraid'
-            ) {
+            if (!isTracking(key)) {
               cleaned.append(key, value);
             }
           });
           return cleaned;
         }
 
+        var redirectPath = params.get('r');
+
         if (redirectPath) {
           var cleanSearch = stripTracking(params);
           cleanSearch.delete('r');
           var newSearch = cleanSearch.toString();
-          var pathname = window.location.pathname;
+          var pathname = l.pathname;
           if (pathname.length > 1 && pathname.slice(-1) === '/') {
             pathname = pathname.slice(0, -1);
           }
           var newUrl =
-            window.location.origin +
+            l.origin +
             pathname +
             (newSearch ? '?' + newSearch : '') +
             '#' +
             redirectPath;
-          window.location.replace(newUrl);
+          l.replace(newUrl);
+          return;
+        }
+
+        // Path-style URL -> hash route: /book -> /#/book. Runs before the
+        // app bundle so location.hash is still untouched (the PWA service
+        // worker serves index.html for unknown paths, bypassing 404.html).
+        var pathOnly = l.pathname.replace(/\/+$/, '');
+        if (!l.hash && pathOnly !== '' && !/\.[a-z0-9]+$/i.test(pathOnly)) {
+          var kept = new URLSearchParams();
+          params.forEach(function (value, key) {
+            if (!isTracking(key)) {
+              kept.append(key, value);
+            }
+          });
+          var keptSearch = kept.toString();
+          l.replace(
+            l.origin + '/#' + pathOnly + (keptSearch ? '?' + keptSearch : ''),
+          );
           return;
         }
 
         var hasTracking = false;
         params.forEach(function (_, key) {
-          if (
-            key === 'fbclid' ||
-            key.indexOf('utm_') === 0 ||
-            key === 'gclid' ||
-            key === 'ttclid' ||
-            key === 'wbraid'
-          ) {
+          if (isTracking(key)) {
             hasTracking = true;
           }
         });
 
         if (hasTracking) {
-          var cleanSearch = stripTracking(params);
-          var newSearch = cleanSearch.toString();
-          var newUrl =
-            window.location.origin +
-            window.location.pathname +
-            (newSearch ? '?' + newSearch : '') +
-            window.location.hash;
-          window.history.replaceState({}, '', newUrl);
+          var cleanSearch2 = stripTracking(params);
+          var newSearch2 = cleanSearch2.toString();
+          var newUrl2 =
+            l.origin +
+            l.pathname +
+            (newSearch2 ? '?' + newSearch2 : '') +
+            l.hash;
+          window.history.replaceState({}, '', newUrl2);
         }
       })();</script><div id=q-app></div><div id=seo-fallback><h1>DinkMatch — Pickleball Open Play Queue &amp; Matchmaking App</h1><p>DinkMatch is a free web app that runs fair pickleball open play sessions — it replaces the paddle rack and the whiteboard. Players check in, join a transparent first-in-line queue, and the app builds balanced matches automatically.</p><h2>Fair queue and smart matchmaking</h2><ul><li>Transparent FIFO queue with configurable winner/loser re-entry and queue-priority modes (first in line, least played first)</li><li>Skill-balanced matchmaking modes: Pro Pick, Casual, Competitive, Standard, Social — plus Manual Match with a live team-balance indicator</li><li>Fixed duos stay welded together; avoid-player lists keep chosen players apart</li><li>Club ratings, leaderboards, Best Duo analysis, and player stats (partners, rivals, clutch record)</li><li>DUPR integration: connect your DUPR account, submit match results directly, or export a DUPR-ready CSV</li><li>Multi-device sync so admins and moderators run the same session together</li></ul><h2>How does it work?</h2><p>Check players in, let the app draft the next four from the queue, send them to a court, and tap the winner. The queue re-orders itself, ratings update, and the leaderboard stays live — no sign-up needed to try open play mode.</p></div></body></html>
