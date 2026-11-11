@@ -5,15 +5,42 @@
 
       <template v-if="bundle">
         <div class="book-header">
-          <q-btn flat dense round icon="arrow_back" @click="$router.back()" />
+          <q-btn flat dense round icon="arrow_back" @click="$router.push('/book')" />
           <div class="col">
             <div class="book-title ellipsis">{{ bundle.tenant.name }}</div>
             <div class="book-subtitle">Pick a date, court &amp; time</div>
           </div>
         </div>
 
+        <!-- suspended venue: exists but not taking bookings -->
+        <q-card v-if="venueUnavailable" class="book-card q-mb-md">
+          <q-card-section class="text-center q-pa-lg">
+            <q-icon name="hotel_class" size="52px" color="grey-4" class="q-mb-sm" />
+            <div class="text-subtitle1 text-weight-bold">Temporarily unavailable</div>
+            <div class="text-body2 text-grey-7 q-mt-xs">
+              {{ bundle.tenant.name }} isn't taking bookings right now — please check back later.
+            </div>
+            <div v-if="bundle.tenant.contact_phone || bundle.tenant.contact_email" class="text-caption text-grey-8 q-mt-sm">
+              Contact: {{ [bundle.tenant.contact_phone, bundle.tenant.contact_email].filter(Boolean).join(' · ') }}
+            </div>
+            <q-btn unelevated rounded color="accent" label="Browse other venues" class="q-mt-md"
+              @click="$router.push('/book')" />
+          </q-card-section>
+        </q-card>
+
+        <template v-else>
+        <div class="row items-center no-wrap q-mb-sm">
+          <q-icon name="schedule" size="16px" color="grey-7" class="q-mr-xs" />
+          <span class="text-caption text-grey-7 ellipsis">{{ hoursLabel }}</span>
+          <q-space />
+          <q-btn flat dense no-caps color="grey-7" size="sm" icon="event_note" label="My bookings"
+            :to="'/book/my'" />
+          <q-btn flat dense no-caps color="accent" size="sm" icon="info" label="Venue info"
+            :to="`/book/v/${bundle.tenant.slug}`" />
+        </div>
+
         <!-- date strip -->
-        <div class="row no-wrap book-scroll-x q-gutter-sm q-mb-sm">
+        <HScroll class="q-mb-sm">
           <button
             v-for="d in dayOptions" :key="d.value"
             :class="['day-tile', { 'is-active': selectedDate === d.value }]"
@@ -23,33 +50,45 @@
             <span class="day-num">{{ d.num }}</span>
             <span class="day-mon">{{ d.mon }}</span>
           </button>
-        </div>
+        </HScroll>
 
         <!-- court strip -->
-        <div class="row no-wrap book-scroll-x q-gutter-sm q-mb-md">
+        <HScroll class="q-mb-md">
           <button
             v-for="c in bundle.courts" :key="c.id"
             :class="['court-tile', { 'is-active': selectedCourt === c.id }]"
             @click="selectedCourt = c.id"
           >
-            <img v-if="c.photo" class="court-thumb" :src="fileUrl(c.photo)" alt="" />
-            <span class="court-name">{{ c.name }}</span>
-            <span class="court-price">₱{{ fmt(c.price_per_hour) }}/hr</span>
+            <span class="court-thumb-wrap">
+              <img
+                v-if="c.photo" class="court-thumb" :src="fileUrl(c.photo)" alt=""
+                @click.stop="photoCourt = c"
+              />
+              <span v-else class="court-thumb court-thumb-empty" @click.stop="photoCourt = c">
+                <q-icon name="sports_tennis" size="26px" color="grey-4" />
+              </span>
+              <q-icon v-if="c.photo" name="zoom_in" size="14px" class="court-zoom" />
+            </span>
+            <span class="court-body">
+              <span class="court-name">{{ c.name }}</span>
+              <span v-if="courtSub(c)" class="court-sub">{{ courtSub(c) }}</span>
+              <span class="court-price">₱{{ fmt(c.price_per_hour) }}/hr</span>
+            </span>
           </button>
-        </div>
+        </HScroll>
 
         <!-- selection mode hint -->
         <div class="row items-center q-gutter-xs q-mb-md">
           <q-icon :name="contiguousOnly ? 'linear_scale' : 'touch_app'" size="18px" color="accent" />
           <span class="text-body2 text-grey-7">
             {{ contiguousOnly
-              ? 'Tap a start time, then tap an end time — slots must be consecutive'
+              ? 'Tap a start time, then an end time — every free slot in between is booked; booked/closed times are skipped'
               : 'Tap times to select — non-adjacent slots allowed' }}
           </span>
         </div>
         <div v-if="anchor" class="anchor-hint q-mb-md">
           <q-icon name="flag" size="16px" class="q-mr-xs" />
-          Start set — now tap the end time. Tap the flagged slot again to cancel.
+          Start set — tap an end time, or tap the flagged slot again for just that one slot.
         </div>
 
         <!-- grid -->
@@ -74,19 +113,27 @@
           </q-btn>
         </div>
 
-        <!-- selected slots -->
+        <!-- selected slots — grouped by court + day for easy review -->
         <div v-if="draftSlots.length" class="selected-panel q-mt-md">
-          <div class="text-subtitle2 text-weight-bold q-mb-xs">
+          <div class="text-subtitle2 text-weight-bold q-mb-sm">
             Selected · {{ draftSlots.length }} slot{{ draftSlots.length > 1 ? 's' : '' }}
           </div>
-          <q-chip
-            v-for="(s, i) in draftSlots" :key="i" dense removable
-            color="accent" text-color="white" class="q-mr-xs q-mb-xs"
-            @remove="removeDraft(i)"
-          >
-            {{ s.courtName }} · {{ fmtDate(s.date) }} {{ s.start }}–{{ s.end }}
-          </q-chip>
-          <div class="row justify-between items-center q-mt-sm">
+          <div v-for="g in groupedDraft" :key="g.key" class="draft-group">
+            <div class="draft-group-head">
+              <span class="text-caption text-weight-bold draft-court">{{ g.courtName }}</span>
+              <span class="text-caption draft-date"> · {{ fmtDate(g.date) }}</span>
+              <span class="text-caption draft-hours"> — {{ g.items.length }}h</span>
+            </div>
+            <q-chip
+              v-for="s in g.items" :key="s.start" dense removable outline
+              color="accent" text-color="accent" class="draft-chip"
+              @remove="removeDraft(s)"
+            >
+              {{ s.start }}–{{ s.end }}
+            </q-chip>
+          </div>
+          <q-separator class="q-my-sm" />
+          <div class="row justify-between items-center">
             <div class="text-body2 text-grey-8">
               Est. total <b class="text-accent">₱{{ fmt(estTotal) }}</b>
             </div>
@@ -94,6 +141,7 @@
               label="Review &amp; pay" @click="goCheckout" />
           </div>
         </div>
+        </template>
       </template>
 
       <div v-else-if="!loading" class="book-empty">
@@ -101,6 +149,7 @@
         <div class="text-subtitle1 text-weight-medium">Venue not found</div>
       </div>
     </div>
+    <CourtPhotoDialog v-model:court="photoCourt" />
   </q-page>
 </template>
 
@@ -109,8 +158,10 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   fetchVenueBundle, fetchDaySlots, closureBlocks, hoursFor, peso, fileUrl,
-  setDraft, draftSlots, type BookSlot, type DraftSlot,
+  setDraft, draftSlots, type BookSlot, type BookCourt, type DraftSlot,
 } from 'src/composables/useBooking';
+import HScroll from 'src/components/HScroll.vue';
+import CourtPhotoDialog from 'src/components/CourtPhotoDialog.vue';
 import { useNotify } from 'src/composables/useNotify';
 
 defineOptions({ name: 'BookSlotsPage' });
@@ -119,10 +170,12 @@ const router = useRouter();
 const { notify } = useNotify();
 
 const bundle = ref<Awaited<ReturnType<typeof fetchVenueBundle>>>(null);
+const venueUnavailable = computed(() => bundle.value != null && bundle.value.tenant.status !== 'active');
 const loading = ref(true);
 const daySlots = ref<BookSlot[]>([]);
 const selectedDate = ref('');
 const selectedCourt = ref<string | null>(null);
+const photoCourt = ref<BookCourt | null>(null);
 const anchor = ref<{ court: string; date: string; start: number } | null>(null);
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -148,6 +201,17 @@ const contiguousOnly = computed(() => bundle.value?.tenant?.allow_non_contiguous
 
 const durLabel = (mins: number) => (mins >= 60 ? `${mins / 60}h` : `${mins}m`);
 
+// one-line hint so customers can tell courts apart while picking
+const courtSub = (c: BookCourt) =>
+  [c.surface, (c.description ?? '').split('\n')[0]].filter(Boolean).join(' · ');
+
+const hoursLabel = computed(() => {
+  const w = windowInfo.value;
+  if (w === 'closed') return selectedCourt.value ? 'Closed this day' : 'Select a court';
+  if (w === 'nohours') return 'Hours not published';
+  return `Open ${toHM2(w.open)}–${toHM2(w.close)}`;
+});
+
 // operating window: 'closed' | 'nohours' | {open,close}
 const windowInfo = computed<'closed' | 'nohours' | { open: number; close: number }>(() => {
   if (!bundle.value || selectedCourt.value == null || !selectedDate.value) return 'closed';
@@ -159,6 +223,14 @@ const windowInfo = computed<'closed' | 'nohours' | { open: number; close: number
 });
 
 interface Cell { start: number; end: number; label: string; price: number; state: 'free' | 'occupied' | 'closed' | 'selected' | 'anchor'; cls: string }
+
+// minutes-since-midnight *today* (-1 when viewing a future day) — slots whose
+// start time has already passed are not bookable
+const nowMins = computed(() => {
+  const n = new Date();
+  const today = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+  return selectedDate.value === today ? n.getHours() * 60 + n.getMinutes() : -1;
+});
 
 const gridCells = computed<Cell[]>(() => {
   const w = windowInfo.value;
@@ -172,13 +244,13 @@ const gridCells = computed<Cell[]>(() => {
     const label = `${toHM2(s)}–${toHM2(e)}`;
     const price = Number(court.price_per_hour ?? 0) * (slotStep.value / 60);
     let state: Cell['state'] = 'free';
-    // overlaps an existing booked/held slot?
-    const hit = daySlots.value.some((sl) => {
+    // slot start already in the past?
+    if (nowMins.value >= 0 && s <= nowMins.value) state = 'occupied';
+    else if (daySlots.value.some((sl) => {
       if (sl.court !== court.id) return false;
       const ss = hm2(sl.start_time), se = hm2(sl.end_time);
       return ss < e && se > s;
-    });
-    if (hit) state = 'occupied';
+    })) state = 'occupied';
     else if (closureBlocks(bundle.value!.closures, court.id, selectedDate.value, s, e)) state = 'closed';
     else if (draftSlots.value.some((d) =>
       d.court === court.id && d.date === selectedDate.value && hm2(`${d.start}:00`) < e && hm2(`${d.end}:00`) > s)) {
@@ -218,13 +290,36 @@ function toggleSlot(cell: Cell) {
 
 // contiguous-only venues: tap start cell, then end cell → one run of step-sized slots.
 // Replaces any existing run for the same court+date so gaps can't form.
+// Duration limits apply to booked minutes (free cells only), not the window span —
+// unavailable cells inside the range are skipped, never booked.
 function handleRangePick(cell: Cell) {
   const courtId = selectedCourt.value;
   if (!courtId) return;
   const date = selectedDate.value;
   const a = anchor.value;
+  const durOk = (mins: number) => mins >= minDur.value && mins <= maxDur.value;
+  const durWarn = () => notify({
+    type: 'warning',
+    message: `Pick between ${durLabel(minDur.value)} and ${durLabel(maxDur.value)} of court time.`,
+  });
+  const commit = (slots: DraftSlot[]) => {
+    draftSlots.value = [
+      ...draftSlots.value.filter((d) => !(d.court === courtId && d.date === date)),
+      ...slots,
+    ];
+  };
+
+  // second tap on the flagged start = commit just that one slot
   if (a && a.court === courtId && a.date === date && a.start === cell.start) {
-    anchor.value = null; // tapped the flagged start again — cancel
+    anchor.value = null;
+    if (cell.state !== 'anchor') return;
+    if (!durOk(slotStep.value)) { durWarn(); return; }
+    const court0 = bundle.value!.courts.find((c) => c.id === courtId)!;
+    commit([{
+      court: courtId, courtName: court0.name, date,
+      start: toHM2(cell.start), end: toHM2(cell.start + slotStep.value),
+      pricePerHour: Number(court0.price_per_hour) || undefined,
+    }]);
     return;
   }
   if (cell.state === 'selected') {
@@ -240,39 +335,54 @@ function handleRangePick(cell: Cell) {
   }
   const lo = Math.min(a.start, cell.start);
   const hi = Math.max(a.start, cell.start) + slotStep.value;
-  const span = hi - lo;
   anchor.value = null;
-  if (span < minDur.value || span > maxDur.value) {
-    notify({
-      type: 'warning',
-      message: `Pick a range between ${durLabel(minDur.value)} and ${durLabel(maxDur.value)}.`,
-    });
-    return;
-  }
+
+  // Book every selectable cell in the range; booked/closed cells are skipped
+  // (unavailable inventory can't be booked anyway — free cells are never skipped)
+  const cellMap = new Map(gridCells.value.map((c) => [c.start, c]));
   const court = bundle.value!.courts.find((c) => c.id === courtId)!;
   const price = Number(court.price_per_hour) || 0;
   const slots: DraftSlot[] = [];
+  let skipped = 0;
   for (let t = lo; t + slotStep.value <= hi; t += slotStep.value) {
+    const st = cellMap.get(t)?.state;
+    if (st === 'occupied' || st === 'closed' || st == null) { skipped++; continue; }
     slots.push({
       court: courtId, courtName: court.name, date,
       start: toHM2(t), end: toHM2(t + slotStep.value),
       pricePerHour: price || undefined,
     });
   }
-  draftSlots.value = [
-    ...draftSlots.value.filter((d) => !(d.court === courtId && d.date === date)),
-    ...slots,
-  ];
-}
-
-function removeDraft(i: number) {
-  if (contiguousOnly.value) {
-    // a run is atomic — removing one chip drops the whole court+date range
-    const d = draftSlots.value[i];
-    if (d) draftSlots.value = draftSlots.value.filter((x) => !(x.court === d.court && x.date === d.date));
+  if (!slots.length) {
+    notify({ type: 'warning', message: 'No available slots in that range.' });
     return;
   }
-  draftSlots.value.splice(i, 1);
+  if (!durOk(slots.length * slotStep.value)) { durWarn(); return; }
+  if (skipped) {
+    notify({ type: 'info', message: `${skipped} booked/closed slot${skipped > 1 ? 's' : ''} skipped.` });
+  }
+  commit(slots);
+}
+
+const groupedDraft = computed(() => {
+  const map = new Map<string, { key: string; courtName: string; date: string; items: DraftSlot[] }>();
+  for (const s of draftSlots.value) {
+    const key = `${s.court}|${s.date}`;
+    let g = map.get(key);
+    if (!g) { g = { key, courtName: s.courtName, date: s.date, items: [] }; map.set(key, g); }
+    g.items.push(s);
+  }
+  return [...map.values()];
+});
+
+function removeDraft(s: DraftSlot) {
+  if (contiguousOnly.value) {
+    // a run is atomic — removing one chip drops the whole court+date range
+    draftSlots.value = draftSlots.value.filter((x) => !(x.court === s.court && x.date === s.date));
+    return;
+  }
+  const i = draftSlots.value.indexOf(s);
+  if (i >= 0) draftSlots.value.splice(i, 1);
 }
 
 const estTotal = computed(() =>
@@ -293,6 +403,46 @@ async function reloadSlots() {
   if (!bundle.value || !selectedCourt.value) { daySlots.value = []; return; }
   daySlots.value = await fetchDaySlots(
     bundle.value.courts.map((c) => c.id), selectedDate.value);
+  reconcileDraft();
+}
+
+// Drafts persist across sessions — prune entries for the viewed court+date
+// that are no longer selectable (booked/closed/outside hours since picking).
+// Other court+date combos are checked when the user views them or at checkout.
+function reconcileDraft() {
+  const b = bundle.value, courtId = selectedCourt.value, date = selectedDate.value;
+  if (!b || !courtId || !date) return;
+  const affected = draftSlots.value.some((d) => d.court === courtId && d.date === date);
+  if (!affected) return;
+
+  const w = windowInfo.value;
+  const wOpen = typeof w === 'object' ? w.open : 0;
+  const wClose = typeof w === 'object' ? w.close : 24 * 60;
+  const dayClosed = w === 'closed' || w === 'nohours';
+  const blocked = (s: number, e: number) =>
+    daySlots.value.some((sl) =>
+      sl.court === courtId && hm2(sl.start_time) < e && hm2(sl.end_time) > s)
+    || closureBlocks(b.closures, courtId, date, s, e);
+
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const nowM = now.getHours() * 60 + now.getMinutes();
+  const badIdx = new Set<number>();
+  draftSlots.value.forEach((d, i) => {
+    if (d.court !== courtId || d.date !== date) return;
+    const s = hm2(`${d.start}:00`), e = hm2(`${d.end}:00`);
+    const past = d.date < today || (d.date === today && s <= nowM);
+    if (dayClosed || past || s < wOpen || e > wClose || blocked(s, e)) badIdx.add(i);
+  });
+  if (!badIdx.size) return;
+
+  if (contiguousOnly.value) {
+    // a run is atomic — one bad cell invalidates the whole court+date run
+    draftSlots.value = draftSlots.value.filter((d) => !(d.court === courtId && d.date === date));
+  } else {
+    draftSlots.value = draftSlots.value.filter((_, i) => !badIdx.has(i));
+  }
+  notify({ type: 'warning', message: 'Some selected slots are no longer available and were removed.' });
 }
 
 function goCheckout() {
@@ -324,8 +474,9 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 .slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
-.slot-cell { height: auto !important; padding: 8px 4px; border-radius: 10px; }
-.slot-time { font-size: 12px; font-weight: 600; }
+.slot-cell { height: auto !important; padding: 9px 4px; border-radius: 10px; }
+.slot-cell :deep(.q-btn__content) { flex-direction: column; line-height: 1.25; }
+.slot-time { font-size: 12.5px; font-weight: 700; white-space: nowrap; }
 .slot-price { font-size: 11px; opacity: .8; }
 .slot-free {
   background: #e8f5e9;
@@ -355,4 +506,5 @@ onMounted(async () => {
   border-radius: 16px;
   padding: 14px;
 }
+
 </style>

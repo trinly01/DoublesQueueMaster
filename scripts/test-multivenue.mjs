@@ -70,7 +70,10 @@ try {
 
   // ---- reads span both venues ----
   const venues = await must('GET', '/items/book_tenants?fields=id,name', null, tok);
-  ok('read: sees both member venues', venues.length === 2, venues.map((v) => v.name).join(', '));
+  // staff read = own venues ∪ all ACTIVE venues (they browse as customers too)
+  const ids = new Set(venues.map((v) => v.id));
+  ok('read: sees both member venues', ids.has(tenA.id) && ids.has(tenB.id),
+    `${venues.length} venues: ${venues.map((v) => v.name).join(', ')}`);
 
   // ---- active-venue switch via self-update ----
   const sw = await api('PATCH', `/users/${user.id}`, { book_tenant: tenB.id }, tok);

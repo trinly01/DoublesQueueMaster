@@ -174,7 +174,9 @@ async function users() {
     if (cur.type === 'uuid') { console.log('book_tenant already uuid'); }
     else throw new Error('exists as ' + cur.type);
   } catch {
-    const { id: _id, collection: _c, ...meta } = backupField.meta ?? {};
+    const meta = { ...(backupField.meta ?? {}) };
+    delete meta.id;
+    delete meta.collection;
     await api('POST', '/fields/directus_users', {
       field: 'book_tenant', type: 'uuid', meta, schema: { is_nullable: true },
     });

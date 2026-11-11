@@ -7,6 +7,7 @@
         <!-- STEP 1: your details -->
         <div class="book-header">
           <q-btn flat dense round icon="arrow_back" @click="$router.back()" />
+        <q-btn flat dense round icon="home" :to="'/'" />
           <div class="col">
             <div class="book-title">Your details</div>
             <div class="book-subtitle">Almost there</div>
@@ -16,8 +17,18 @@
         <q-card class="book-card q-mb-md">
           <q-card-section>
             <div class="text-subtitle2 text-weight-bold q-mb-sm">{{ draftTenant.name }}</div>
-            <div v-for="(s, i) in draftSlots" :key="i" class="text-body2 q-py-xs">
-              {{ s.courtName }} · {{ fmtDate(s.date) }} · {{ s.start }}–{{ s.end }}
+            <div v-for="g in groupedDraft" :key="g.key" class="draft-group">
+              <div class="draft-group-head">
+                <span class="text-caption text-weight-bold draft-court">{{ g.courtName }}</span>
+                <span class="text-caption draft-date"> · {{ fmtDate(g.date) }}</span>
+                <span class="text-caption draft-hours"> — {{ g.items.length }}h</span>
+              </div>
+              <q-chip
+                v-for="s in g.items" :key="s.start" dense outline
+                color="accent" text-color="accent" class="draft-chip"
+              >
+                {{ s.start }}–{{ s.end }}
+              </q-chip>
             </div>
             <q-separator class="q-my-sm" />
             <div class="text-body2">Est. total <b class="text-accent">₱{{ fmt(estTotal) }}</b></div>
@@ -27,17 +38,26 @@
 
         <q-card class="book-card">
           <q-card-section class="q-gutter-sm">
-            <q-input v-model="form.name" outlined dense rounded label="Full name *" bg-color="white" />
-            <q-input v-model="form.phone" outlined dense rounded label="Mobile number" placeholder="09XX XXX XXXX" bg-color="white" />
+            <q-input v-model="form.name" outlined dense rounded label="Full name *" bg-color="white"
+              :rules="[(v) => !!v?.trim() || 'Required']" lazy-rules />
+            <q-input v-model="form.phone" outlined dense rounded label="Mobile number *" placeholder="09XX XXX XXXX" bg-color="white"
+              :rules="[
+                (v) => !!v?.trim() || 'Required',
+                (v) => v.replace(/\D/g, '').length >= 7 || 'Enter a valid mobile number',
+              ]" lazy-rules />
             <q-input v-model="form.email" outlined dense rounded label="Email (for booking updates)" type="email" bg-color="white" />
             <q-input v-model="form.notes" outlined dense rounded label="Notes for the venue (optional)" type="textarea" autogrow bg-color="white" />
             <q-btn
-              unelevated rounded color="accent" class="full-width q-mt-sm"
+              unelevated rounded color="accent" icon="event_available" class="full-width q-mt-sm"
               :loading="creating" label="Reserve slots &amp; continue to payment"
+              :disable="!form.name.trim() || !form.phone.trim()"
               @click="createAndPay"
             />
             <div class="text-caption text-grey-6 text-center">
-              Slots are held for ~30 minutes while you pay.
+              Slots are held for ~{{ holdMins }} minutes — first come, first served.
+            </div>
+            <div v-if="draftTenant?.refund_policy" class="refund-note q-mt-xs">
+              {{ draftTenant.refund_policy }}
             </div>
           </q-card-section>
         </q-card>
@@ -47,6 +67,7 @@
         <!-- STEP 2: pay + upload proof -->
         <div class="book-header">
           <q-btn flat dense round icon="arrow_back" @click="$router.push('/book/my')" />
+        <q-btn flat dense round icon="home" :to="'/'" />
           <div class="col">
             <div class="book-title">Complete payment</div>
             <div class="book-subtitle">Booking {{ booking.ref }}</div>
@@ -76,44 +97,97 @@
           </q-card-section>
           <q-separator />
           <q-card-section>
-            <div class="book-section-label q-mb-sm">Pay via GCash</div>
-            <div class="gcash-box">
-              <div v-if="booking.tenant?.gcash_name" class="text-body1">
-                Send to: <b>{{ booking.tenant.gcash_name }}</b>
+            <div class="book-section-label q-mb-sm">{{ payTitle }} (proof of payment)</div>
+            <template v-if="paymentMethods.length">
+              <div v-for="m in paymentMethods" :key="m.id" class="pay-method">
+                <div class="row items-center q-gutter-sm no-wrap">
+                  <q-icon
+                    :name="m.type === 'bank' ? 'account_balance' : m.type === 'cash' ? 'payments' : 'account_balance_wallet'"
+                    color="accent" size="22px"
+                  />
+                  <div class="col">
+                    <div class="text-body2 text-weight-bold">{{ m.name }}</div>
+                    <div v-if="m.account_name" class="text-caption text-grey-7">{{ m.account_name }}</div>
+                    <div
+                      v-if="m.account_number" class="pay-acct text-caption text-weight-bold"
+                      @click="copyAccount(m)"
+                    >{{ m.account_number }}</div>
+                  </div>
+                  <q-img
+                    v-if="m.qr" :src="fileUrl(m.qr)" class="pay-qr cursor-pointer" ratio="1" fit="contain"
+                    spinner-color="accent" @click="qrView = { src: fileUrl(m.qr), title: `${m.name} QR` }"
+                  />
+                </div>
+                <div v-if="m.instructions" class="text-caption text-grey-7 q-mt-xs">{{ m.instructions }}</div>
               </div>
-              <div v-if="booking.tenant?.gcash_number" class="text-h6 text-weight-bold">
-                {{ booking.tenant.gcash_number }}
+            </template>
+            <template v-else>
+              <div class="gcash-box">
+                <div v-if="payAccountName" class="text-body1">
+                  Send to: <b>{{ payAccountName }}</b>
+                </div>
+                <div v-if="booking.tenant?.gcash_number" class="text-h6 text-weight-bold">
+                  {{ booking.tenant.gcash_number }}
+                </div>
+                <div v-if="!payAccountName && !booking.tenant?.gcash_number && !booking.tenant?.bank_details" class="text-body2 text-grey-7">
+                  Ask the venue for payment details
+                </div>
+                <q-btn
+                  v-if="booking.tenant?.gcash_number" outline dense rounded color="green-8"
+                  icon="content_copy" label="Copy number"
+                  @click="copyGcash"
+                />
               </div>
-              <q-btn
-                v-if="booking.tenant?.gcash_number" outline dense rounded color="green-8"
-                icon="content_copy" label="Copy number"
-                @click="copyGcash"
+              <q-img
+                v-if="booking.tenant?.payment_qr" :src="fileUrl(booking.tenant.payment_qr)"
+                class="pay-qr q-mt-sm" ratio="1" fit="contain" spinner-color="accent"
               />
-            </div>
-            <div v-if="booking.tenant?.bank_details" class="text-caption text-grey-7 q-mt-sm">
-              {{ booking.tenant.bank_details }}
+              <div v-if="booking.tenant?.bank_details" class="text-caption text-grey-7 q-mt-sm">
+                {{ booking.tenant.bank_details }}
+              </div>
+            </template>
+            <div v-if="booking.tenant?.refund_policy" class="refund-note q-mt-sm">
+              {{ booking.tenant.refund_policy }}
             </div>
           </q-card-section>
         </q-card>
 
-        <q-card v-if="payment && booking.payment_status !== 'paid'" class="book-card">
+        <q-card v-if="payment && booking.payment_status === 'pending_verification'" class="book-card q-mt-md">
+          <q-card-section class="text-center">
+            <q-icon name="hourglass_top" color="orange" size="48px" />
+            <div class="text-h6 text-weight-bold q-mt-sm">Proof submitted</div>
+            <div class="text-body2 text-grey-7">The venue is verifying your payment — we'll confirm your slot shortly.</div>
+            <q-btn flat color="accent" label="View my bookings" class="q-mt-sm"
+              @click="$router.push('/book/my')" />
+          </q-card-section>
+        </q-card>
+
+        <q-card v-else-if="payment && booking.payment_status !== 'paid'" class="book-card">
           <q-card-section>
             <div class="book-section-label q-mb-sm">Upload proof of payment</div>
-            <div class="text-caption text-grey-7 q-mb-sm">
-              Screenshot of your GCash receipt — the venue verifies and confirms your slot.
+            <q-banner
+              v-if="holdExpired" dense rounded class="bg-red-1 text-red-9 q-mb-sm"
+            >
+              <template #avatar><q-icon name="error" /></template>
+              Your slot hold expired — proof can no longer be submitted for this booking.
+              <template #action>
+                <q-btn flat dense color="red-9" label="Pick slots" @click="rebook" />
+              </template>
+            </q-banner>
+            <div v-else class="text-caption text-grey-7 q-mb-sm">
+              Pay via any method above, then upload the receipt — the venue verifies and confirms your slot.
             </div>
-            <q-input v-model="proof.sender" outlined dense rounded label="GCash sender name *" class="q-mb-sm" bg-color="white" />
-            <q-input v-model="proof.refNo" outlined dense rounded label="Reference / transaction no. (optional)" class="q-mb-sm" bg-color="white" />
+            <q-input v-model="proof.refNo" outlined dense rounded label="Reference / transaction no. (optional)" class="q-mb-sm" bg-color="white" :disable="holdExpired" />
             <q-file
               v-model="proof.file" outlined dense rounded label="Receipt screenshot *"
-              accept="image/*" max-file-size="5242880" bg-color="white"
+              accept="image/*" max-file-size="5242880" bg-color="white" :disable="holdExpired"
             >
               <template #prepend><q-icon name="attach_file" /></template>
             </q-file>
             <q-btn
-              unelevated rounded color="accent" class="full-width q-mt-md"
+              unelevated rounded color="accent" icon="cloud_upload" class="full-width q-mt-md"
               :loading="submittingProof" label="Submit proof"
-              :disable="!proof.file || !proof.sender"
+              :disable="holdExpired || !proof.file"
               @click="submitProofForm"
             />
           </q-card-section>
@@ -124,7 +198,7 @@
             <q-icon name="check_circle" color="positive" size="48px" />
             <div class="text-h6 text-weight-bold q-mt-sm">Payment confirmed!</div>
             <div class="text-body2 text-grey-7">Your booking is confirmed. See you on court.</div>
-            <q-btn unelevated rounded color="accent" class="q-mt-md" label="View my bookings"
+            <q-btn unelevated rounded color="accent" icon="receipt_long" class="q-mt-md" label="View my bookings"
               @click="$router.push('/book/my')" />
           </q-card-section>
         </q-card>
@@ -136,6 +210,7 @@
         <q-btn flat color="accent" label="Browse venues" class="q-mt-sm" @click="$router.push('/book')" />
       </div>
     </div>
+    <ImageLightbox v-model:open="qrOpen" :src="qrView?.src ?? ''" :title="qrView?.title" />
   </q-page>
 </template>
 
@@ -146,10 +221,11 @@ import {
   draftTenant, draftSlots, pendingBookingId, clearDraft,
   createBooking, ensurePayment, bookingTotal, submitProof,
   fetchBooking, fetchMyProfile, fetchVenueBundle, fetchDaySlots,
-  closureBlocks, hoursFor, peso,
-  type BookBookingDetail, type BookPayment, type DraftSlot,
+  closureBlocks, hoursFor, peso, fileUrl, tenantPayLabel, fetchPaymentMethods,
+  type BookBookingDetail, type BookPayment, type BookPaymentMethod, type DraftSlot,
 } from 'src/composables/useBooking';
 import { useNotify } from 'src/composables/useNotify';
+import ImageLightbox from 'src/components/ImageLightbox.vue';
 
 defineOptions({ name: 'BookCheckoutPage' });
 const route = useRoute();
@@ -158,6 +234,12 @@ const { notify } = useNotify();
 
 const booking = ref<BookBookingDetail | null>(null);
 const payment = ref<BookPayment | null>(null);
+const paymentMethods = ref<BookPaymentMethod[]>([]);
+const qrView = ref<{ src: string; title: string } | null>(null);
+const qrOpen = computed({
+  get: () => qrView.value !== null,
+  set: (v: boolean) => { if (!v) qrView.value = null; },
+});
 const loading = ref(false);
 const creating = ref(false);
 const submittingProof = ref(false);
@@ -165,7 +247,7 @@ const holdLeft = ref('');
 let holdTimer: ReturnType<typeof setInterval> | null = null;
 
 const form = ref({ name: '', phone: '', email: '', notes: '' });
-const proof = ref<{ sender: string; refNo: string; file: File | null }>({ sender: '', refNo: '', file: null });
+const proof = ref<{ refNo: string; file: File | null }>({ refNo: '', file: null });
 
 const estTotal = computed(() =>
   draftSlots.value.reduce((sum, d) => {
@@ -173,7 +255,27 @@ const estTotal = computed(() =>
     return sum + Number(d.pricePerHour ?? 0) * (m / 60);
   }, 0));
 
+const groupedDraft = computed(() => {
+  const map = new Map<string, { key: string; courtName: string; date: string; items: DraftSlot[] }>();
+  for (const s of draftSlots.value) {
+    const key = `${s.court}|${s.date}`;
+    let g = map.get(key);
+    if (!g) { g = { key, courtName: s.courtName, date: s.date, items: [] }; map.set(key, g); }
+    g.items.push(s);
+  }
+  return [...map.values()];
+});
+
 const fmt = (n: number | string | null | undefined) => peso(n, 2);
+const holdMins = computed(() => draftTenant.value?.payment_timeout_minutes ?? 15);
+const holdExpired = computed(() => holdLeft.value === 'expired');
+const payTitle = computed(() => {
+  const ms = paymentMethods.value;
+  if (ms.length === 1) return `Pay via ${ms[0].name}`;
+  if (ms.length > 1) return 'Payment options';
+  return `Pay via ${tenantPayLabel(booking.value?.tenant ?? draftTenant.value)}`;
+});
+const payAccountName = computed(() => booking.value?.tenant?.gcash_name || '');
 const mins = (t: string) => { const [h, m] = t.slice(0, 5).split(':'); return parseInt(h, 10) * 60 + parseInt(m, 10); };
 const dayOfWeek = (d: string) => new Date(`${d}T12:00:00`).getDay();
 const fmtDate = (d: string) => {
@@ -187,7 +289,16 @@ function startHoldTimer() {
     if (!latest.length) { holdLeft.value = ''; return; }
     const soonest = Math.min(...latest.map((t) => new Date(t).getTime()));
     const diff = soonest - Date.now();
-    if (diff <= 0) { holdLeft.value = 'expired'; if (holdTimer) clearInterval(holdTimer); return; }
+    if (diff <= 0) {
+      holdLeft.value = 'expired';
+      if (holdTimer) clearInterval(holdTimer);
+      notify({
+        type: 'negative', timeout: 8000,
+        message: 'Your slot hold expired — please select your slots again.',
+        actions: [{ label: 'Pick slots', color: 'white', handler: rebook }],
+      });
+      return;
+    }
     const m = Math.floor(diff / 60000), s = Math.floor((diff % 60000) / 1000);
     holdLeft.value = `${m}m ${s}s`;
   }, 1000);
@@ -199,6 +310,9 @@ async function loadBooking(id: string) {
     pendingBookingId.value = id;
     const pays = booking.value.payments ?? [];
     payment.value = pays.length ? pays[pays.length - 1] : null;
+    paymentMethods.value = booking.value.tenant?.id
+      ? await fetchPaymentMethods(booking.value.tenant.id).catch(() => [])
+      : [];
     if (booking.value.customer_name) {
       form.value.name = booking.value.customer_name;
       form.value.phone = booking.value.customer_phone ?? '';
@@ -224,6 +338,9 @@ async function revalidateDraft(): Promise<string[]> {
     groups.set(k, [...(groups.get(k) ?? []), s]);
   }
   const bad = new Set<string>();
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const nowM = now.getHours() * 60 + now.getMinutes();
   await Promise.all([...groups.entries()].map(async ([key, slots]) => {
     const [courtId, date] = key.split('|');
     const court = activeCourts.get(courtId);
@@ -232,6 +349,8 @@ async function revalidateDraft(): Promise<string[]> {
     const booked = await fetchDaySlots([courtId], date);
     for (const s of slots) {
       const a = mins(s.start), b = mins(s.end);
+      // already past — can't book a slot that has started
+      if (date < today || (date === today && a <= nowM)) { bad.add(s.courtName); continue; }
       if (win && (a < win.open || b > win.close)) { bad.add(s.courtName); continue; }
       if (closureBlocks(bundle.closures, courtId, date, a, b)) { bad.add(s.courtName); continue; }
       const hit = booked.some((o) => {
@@ -247,6 +366,10 @@ async function revalidateDraft(): Promise<string[]> {
 async function createAndPay() {
   if (!form.value.name.trim()) {
     notify({ type: 'negative', message: 'Please enter your full name.' });
+    return;
+  }
+  if (form.value.phone.replace(/\D/g, '').length < 7) {
+    notify({ type: 'negative', message: 'Please enter a valid mobile number.' });
     return;
   }
   if (!draftTenant.value || !draftSlots.value.length) return;
@@ -290,7 +413,9 @@ async function createAndPay() {
     // ensure a payment record exists with the computed total
     const total = await bookingTotal(b.id);
     if (total > 0) {
-      payment.value = await ensurePayment(b.id, total);
+      const pm = paymentMethods.value[0];
+      payment.value = await ensurePayment(b.id, total,
+        pm ? { payment_name: pm.name, payment_qr: pm.qr } : draftTenant.value);
       await loadBooking(b.id); // refresh total display
     }
   } catch (e) {
@@ -325,7 +450,7 @@ function rebook() {
 }
 
 async function submitProofForm() {
-  if (!booking.value || !payment.value || !proof.value.file || !proof.value.sender.trim()) return;
+  if (!booking.value || !payment.value || !proof.value.file) return;
   submittingProof.value = true;
   try {
     const state = await checkBookingState();
@@ -342,7 +467,7 @@ async function submitProofForm() {
       bookingId: booking.value.id,
       paymentId: payment.value.id,
       file: proof.value.file,
-      senderName: proof.value.sender.trim(),
+      senderName: booking.value.customer_name,
       referenceNo: proof.value.refNo.trim() || undefined,
     });
     notify({ type: 'positive', message: 'Proof submitted — the venue will confirm shortly.' });
@@ -361,6 +486,16 @@ async function copyGcash() {
   if (!num) return;
   try { await navigator.clipboard.writeText(num); notify({ type: 'positive', message: 'GCash number copied' }); }
   catch { notify({ type: 'info', message: num }); }
+}
+
+async function copyAccount(m: BookPaymentMethod) {
+  if (!m.account_number) return;
+  try {
+    await navigator.clipboard.writeText(m.account_number);
+    notify({ type: 'positive', message: `${m.name} account copied` });
+  } catch {
+    notify({ type: 'negative', message: 'Could not copy — long-press to copy manually' });
+  }
 }
 
 onMounted(async () => {
@@ -386,5 +521,27 @@ onUnmounted(() => { if (holdTimer) clearInterval(holdTimer); });
   border: 1px solid #c8e6c9;
   border-radius: 12px;
   padding: 14px;
+}
+.pay-qr {
+  max-width: 220px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  background: #fff;
+}
+.pay-method {
+  border: 1px solid #e8e0f5;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: #faf8ff;
+}
+.pay-method .pay-qr { max-width: 110px; max-height: 110px; }
+.refund-note {
+  font-size: 0.72rem;
+  color: #8a6d3b;
+  background: #fff8e1;
+  border: 1px solid #ffecb3;
+  border-radius: 8px;
+  padding: 6px 10px;
 }
 </style>

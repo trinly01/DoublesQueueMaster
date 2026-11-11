@@ -127,14 +127,8 @@ const FLOWS = [
              WHEN c.tenant <> b.tenant
                OR COALESCE(c.status, 'active') <> 'active'
                OR t.status IS DISTINCT FROM 'active'
-             THEN 'cancelled'
-             WHEN t.allow_non_contiguous_slots IS NOT TRUE
-               AND (SELECT MAX(p.end_time) FROM book_booking_slots p
-                    WHERE p.booking = s.booking AND p.court = s.court AND p.date = s.date
-                      AND p.seq < s.seq AND p.status IN ('held','confirmed')) IS NOT NULL
-               AND s.start_time <> (SELECT MAX(p.end_time) FROM book_booking_slots p
-                    WHERE p.booking = s.booking AND p.court = s.court AND p.date = s.date
-                      AND p.seq < s.seq AND p.status IN ('held','confirmed'))
+               OR (s.date + s.start_time) <
+                  (now() AT TIME ZONE COALESCE(t.timezone, 'Asia/Manila') - interval '2 hours')
              THEN 'cancelled'
              WHEN b.status = 'confirmed' AND s.status = 'held' THEN 'confirmed'
              ELSE s.status END,
@@ -142,10 +136,69 @@ const FLOWS = [
                               AND c.tenant = b.tenant
                               AND COALESCE(c.status, 'active') = 'active'
                               AND t.status IS NOT DISTINCT FROM 'active'
-                             THEN now() + interval '30 minutes' ELSE s.held_until END,
+                             THEN now() + make_interval(mins => GREATEST(COALESCE(t.payment_timeout_minutes, 15), 1))
+                             ELSE s.held_until END,
            price = COALESCE(s.price, ROUND(c.price_per_hour * EXTRACT(EPOCH FROM ((s.date + s.end_time) - (s.date + s.start_time))) / 3600, 2))
          FROM book_bookings b, book_courts c, book_tenants t
          WHERE s.id = ? AND b.id = s.booking AND c.id = s.court AND t.id = c.tenant`,
+        [T('normalize.itemId')]) },
+      // contiguity sweep: runs may only be separated by gaps that are FULLY
+      // covered by other bookings' active slots or closures — free cells can
+      // never be skipped. Re-evaluates the whole set each create, so it is
+      // order-independent and race-safe.
+      { name: 'contiguity_sweep', key: 'contiguity_sweep', type: 'likha_sql', options: sql(
+        `WITH cur AS (
+           SELECT booking, court, date FROM book_booking_slots WHERE id = ?
+         ),
+         sib AS (
+           SELECT s2.id, s2.court, s2.date, s2.start_time, s2.end_time,
+             LAG(s2.end_time)   OVER w AS prev_end,
+             LEAD(s2.start_time) OVER w AS next_start
+           FROM book_booking_slots s2, cur
+           WHERE s2.booking = cur.booking AND s2.status IN ('held','confirmed')
+           WINDOW w AS (PARTITION BY s2.court, s2.date ORDER BY s2.start_time, s2.seq)
+         ),
+         gaps AS (
+           SELECT s.id AS slot_id, g.court, g.date, g.a, g.b FROM sib s
+           JOIN LATERAL (VALUES
+             (s.prev_end, s.start_time),
+             (s.end_time, s.next_start)
+           ) AS g(a, b) ON g.a IS NOT NULL AND g.b IS NOT NULL
+         ),
+         bad AS (
+           SELECT DISTINCT g.slot_id
+           FROM gaps g
+           JOIN book_courts c ON c.id = g.court
+           JOIN book_tenants t ON t.id = c.tenant
+           WHERE t.allow_non_contiguous_slots IS NOT TRUE
+             AND g.a <> g.b
+             AND EXISTS (
+               SELECT 1 FROM generate_series(
+                 FLOOR(EXTRACT(EPOCH FROM g.a) / 60),
+                 CEIL(EXTRACT(EPOCH FROM g.b) / 60) - 1,
+                 COALESCE(t.slot_minutes, 60)
+               ) AS m
+               WHERE NOT (
+                 EXISTS (SELECT 1 FROM book_booking_slots o
+                         WHERE o.court = g.court AND o.date = g.date
+                           AND o.booking <> (SELECT booking FROM cur)
+                           AND o.status IN ('held','confirmed')
+                           AND EXTRACT(EPOCH FROM o.start_time) < (m + COALESCE(t.slot_minutes, 60)) * 60
+                           AND EXTRACT(EPOCH FROM o.end_time)   > m * 60)
+                 OR EXISTS (SELECT 1 FROM book_closures cl
+                            JOIN book_courts c2 ON c2.id = g.court
+                            WHERE cl.tenant = c2.tenant
+                              AND (cl.court = g.court OR cl.court IS NULL)
+                              AND COALESCE(cl.date_start, cl.date) <= g.date
+                              AND COALESCE(cl.date_end, cl.date) >= g.date
+                              AND (cl.all_day
+                                   OR (EXTRACT(EPOCH FROM COALESCE(cl.start_time, '00:00'::time)) < (m + COALESCE(t.slot_minutes, 60)) * 60
+                                       AND EXTRACT(EPOCH FROM COALESCE(cl.end_time, '23:59:59'::time)) > m * 60)))
+               )
+             )
+         )
+         UPDATE book_booking_slots SET status = 'cancelled'
+         WHERE id IN (SELECT slot_id FROM bad) AND status IN ('held','confirmed')`,
         [T('normalize.itemId')]) },
     ],
   },
@@ -229,14 +282,19 @@ const FLOWS = [
            RETURNING booking
          ), expired AS (
            UPDATE book_bookings b SET status='expired', payment_status='failed'
-           WHERE b.status='pending_payment'
-             AND b.date_created < now() - interval '35 minutes'
+           FROM book_tenants t
+           WHERE b.tenant = t.id AND b.status='pending_payment'
+             AND b.date_created < now() - make_interval(
+                   mins => COALESCE(t.payment_timeout_minutes, 15) + 10)
+             -- a pending proof is the venue's move — don't expire under review
+             AND NOT EXISTS (SELECT 1 FROM book_payment_proofs pp
+                             WHERE pp.booking = b.id AND pp.status = 'pending')
              AND NOT EXISTS (SELECT 1 FROM book_booking_slots s
                              WHERE s.booking=b.id
                                AND (s.status='confirmed'
                                     OR (s.status='held'
                                         AND (s.held_until IS NULL OR s.held_until > now()))))
-           RETURNING id
+           RETURNING b.id
          )
          SELECT (SELECT count(*) FROM released) AS released, (SELECT count(*) FROM expired) AS expired`) },
     ],
@@ -270,6 +328,13 @@ const FLOWS = [
          WHERE p.id = ? AND b.id = p.booking
            AND b.payment_status IN ('unpaid','pending_verification')
            AND b.status = 'pending_payment'`,
+        [T('normalize.itemId')]) },
+      // Proof submitted = venue's move now: keep slots held 24h so the
+      // sweeper can't release them mid-review (prevents re-book + double-book on approval)
+      { name: 'extend_hold', key: 'extend_hold', type: 'likha_sql', options: sql(
+        `UPDATE book_booking_slots s SET held_until = GREATEST(s.held_until, now() + interval '24 hours')
+         FROM book_payment_proofs p
+         WHERE p.id = ? AND s.booking = p.booking AND s.status = 'held'`,
         [T('normalize.itemId')]) },
       readBookingOfProof(),
       { name: 'read_tenant', key: 'read_tenant', type: 'item-read',
@@ -424,8 +489,8 @@ const FLOWS = [
   },
   {
     name: 'child_record_guard', icon: 'shield',
-    description: 'On slot/payment/proof create: delete rows attached to bookings the creator does not own (deep-filter validation cannot run on create)',
-    trigger: 'event', options: { type: 'action', scope: ['items.create'], collections: ['book_booking_slots', 'book_payments', 'book_payment_proofs'] },
+    description: 'On slot/payment/proof/photo create: delete rows the creator is not allowed to attach (deep-filter validation cannot run on create)',
+    trigger: 'event', options: { type: 'action', scope: ['items.create'], collections: ['book_booking_slots', 'book_payments', 'book_payment_proofs', 'book_court_photos'] },
     ops: [
       { name: 'guard_ctx', key: 'guard_ctx', type: 'exec', options: { code:
         `module.exports = async function(data) {
@@ -465,10 +530,19 @@ const FLOWS = [
                SELECT 1 FROM book_tenant_users tu
                WHERE tu.user = bad.uid AND tu.tenant = b.tenant))
            RETURNING s.id
+         ), d_photos AS (
+           DELETE FROM book_court_photos ph
+           USING book_courts c, bad
+           WHERE ph.id = bad.id AND c.id = ph.court
+             AND NOT EXISTS (
+               SELECT 1 FROM book_tenant_users tu
+               WHERE tu.user = bad.uid AND tu.tenant = c.tenant)
+           RETURNING ph.id
          )
          SELECT (SELECT count(*) FROM d_slots) AS slots,
                 (SELECT count(*) FROM d_pay) AS payments,
-                (SELECT count(*) FROM d_proof) AS proofs`,
+                (SELECT count(*) FROM d_proof) AS proofs,
+                (SELECT count(*) FROM d_photos) AS photos`,
         [T('guard_ctx.itemId'), T('guard_ctx.uid'), T('guard_ctx.isAdmin')]) },
     ],
   },

@@ -24,15 +24,27 @@ const ACTIVE_VENUE = { tenant: { status: { _eq: 'active' } } };
 
 // [collection, permissions(item filter), fields]
 const PERMS = [
-  ['book_tenants', { status: { _eq: 'active' } },
+  // suspended venues stay readable so /book can show "temporarily
+  // unavailable" on direct links; pending (never launched) stays hidden
+  ['book_tenants', { status: { _in: ['active', 'suspended'] } },
     ['id', 'name', 'slug', 'status', 'logo', 'description', 'address', 'latitude', 'longitude',
      'contact_phone', 'contact_email', 'gcash_name', 'gcash_number', 'bank_details',
+     'payment_name', 'payment_qr',
      'timezone', 'currency', 'slot_minutes', 'min_duration', 'max_duration',
      'buffer_minutes', 'cancel_cutoff_hours', 'auto_confirm_payments',
+     'refund_policy', 'payment_timeout_minutes',
      'allow_non_contiguous_slots']],
   ['book_courts', { status: { _eq: 'active' }, ...ACTIVE_VENUE },
     ['id', 'tenant', 'name', 'sport', 'surface', 'description', 'photo',
      'price_per_hour', 'peak_multiplier', 'status', 'sort']],
+  // gallery: scoped via court → active court under active venue
+  ['book_court_photos',
+    { court: { status: { _eq: 'active' }, tenant: { status: { _eq: 'active' } } } },
+    ['id', 'court', 'photo', 'caption', 'sort', 'seq']],
+  // venue pay methods — active venues only
+  ['book_payment_methods', ACTIVE_VENUE,
+    ['id', 'tenant', 'name', 'type', 'account_name', 'account_number',
+     'qr', 'instructions', 'sort']],
   ['book_sport_types', {}, ['id', 'name', 'icon', 'sort']],
   ['book_opening_hours', ACTIVE_VENUE,
     ['id', 'tenant', 'court', 'day_of_week', 'open_time', 'close_time', 'closed']],
@@ -46,18 +58,22 @@ const PERMS = [
 ];
 
 async function main() {
-  const existing = await api('GET', '/permissions?limit=-1&fields=id,collection,action,policy,fields');
+  const existing = await api('GET', '/permissions?limit=-1&fields=id,collection,action,policy,fields,permissions');
   const have = new Map(existing.filter((p) => p.policy === POLICY).map((p) => [`${p.collection}:${p.action}`, p]));
   let created = 0, updated = 0, skipped = 0;
   for (const [collection, permissions, fields] of PERMS) {
     const key = `${collection}:read`;
     const cur = have.get(key);
     if (cur) {
-      // upsert fields so whitelist stays in sync (filters on non-readable fields 403)
-      const same = JSON.stringify([...(cur.fields || [])].sort()) === JSON.stringify([...fields].sort());
-      if (same) { skipped++; console.log(`= ${key}`); continue; }
-      await api('PATCH', `/permissions/${cur.id}`, { fields });
-      updated++; console.log(`~ ${key} fields updated`);
+      // upsert fields + item filter so whitelist/filter stay in sync
+      const patch = {};
+      const sameF = JSON.stringify([...(cur.fields || [])].sort()) === JSON.stringify([...fields].sort());
+      const sameP = JSON.stringify(cur.permissions ?? null) === JSON.stringify(permissions ?? null);
+      if (!sameF) patch.fields = fields;
+      if (!sameP) patch.permissions = permissions;
+      if (!Object.keys(patch).length) { skipped++; console.log(`= ${key}`); continue; }
+      await api('PATCH', `/permissions/${cur.id}`, patch);
+      updated++; console.log(`~ ${key} updated (${Object.keys(patch).join(',')})`);
       continue;
     }
     try {

@@ -29,8 +29,9 @@
         </q-card>
 
         <div class="row q-gutter-sm justify-center q-mt-lg">
-          <q-btn unelevated rounded color="accent" label="My bookings" @click="$router.push('/book/my')" />
-          <q-btn outline rounded color="accent" label="Book another" @click="$router.push('/book')" />
+          <q-btn unelevated rounded color="accent" icon="receipt_long" label="My bookings" @click="$router.push('/book/my')" />
+          <q-btn outline rounded color="accent" icon="add_circle" label="Book another" @click="$router.push('/book')" />
+          <q-btn flat rounded color="grey-7" icon="home" label="Home" @click="$router.push('/')" />
         </div>
       </div>
     </div>

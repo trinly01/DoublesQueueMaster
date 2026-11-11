@@ -84,8 +84,13 @@ _client.request = async function (fn: never) {
     // Token expired — refresh and retry once
     try {
       await _client.refresh();
-    } catch {
-      throw err; // refresh failed — throw original 401
+    } catch (refreshErr) {
+      // Definitive auth failure (400/401) = dead session. Clear it so public
+      // pages work again instead of every request 401-looping forever.
+      // Keep the session on network/5xx errors — those are transient.
+      const status = (refreshErr as { response?: { status?: number } })?.response?.status;
+      if (status === 400 || status === 401) storage.set(null);
+      throw err; // throw original 401
     }
     return await originalRequest(fn);
   }

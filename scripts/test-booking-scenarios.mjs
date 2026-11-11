@@ -130,9 +130,11 @@ async function ensureFixtures() {
 }
 
 // ---------- cleanup of transactional data ----------
-async function cleanBookings() {
-  // delete all bookings (cascades slots/payments/proofs) + test closures
-  const bs = await items('book_bookings', TOKEN);
+// Scoped to the two TEST tenants only — the previous unscoped wipe deleted
+// real/demo bookings on other venues (a submitted customer booking on
+// Test Arena was lost when the suite ran on the shared backend).
+async function cleanBookings(T1, TB) {
+  const bs = await items('book_bookings', TOKEN, `&filter[tenant][_in]=${T1},${TB}`);
   for (const b of bs) { try { await del('book_bookings', b.id, TOKEN); } catch {} }
   const cls = await items('book_closures', TOKEN, '&filter[reason][_eq]=scenario-test');
   for (const c of cls) { try { await del('book_closures', c.id, TOKEN); } catch {} }
@@ -142,7 +144,7 @@ async function main() {
   const F = await ensureFixtures();
   const { tok, t1, tb, b1, b2, c1 } = F;
   const T1 = t1.id, TB = tb.id;
-  await cleanBookings();
+  await cleanBookings(T1, TB);
   console.log('   (transactional bookings cleaned)');
 
   // ============ B. CUSTOMER BROWSE ============
@@ -331,8 +333,11 @@ async function main() {
   const tAcross = await items('book_bookings', tok.tA, `&filter[tenant][_eq]=${TB}`);
   check('E3 tenant A cross-venue filter returns empty', tAcross.length === 0, `${tAcross.length}`);
   const tVenues = await items('book_tenants', tok.tA);
-  check('E4 tenant A sees only own tenant record', tVenues.length === 1 && tVenues[0].id === T1,
-    `${tVenues.length} venues`);
+  // staff browse all ACTIVE venues (they're also customers) but never
+  // pending/suspended ones; own venue must be included
+  check('E4 tenant A sees own + other active venues only',
+    tVenues.every((v) => v.status === 'active') && tVenues.some((v) => v.id === T1),
+    `${tVenues.length} venues, statuses=${[...new Set(tVenues.map(v=>v.status))]}`);
   // E5: tenant A cannot write tenant B booking
   if (bk4?.id) {
     let we;

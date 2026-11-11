@@ -281,7 +281,7 @@
           <q-btn
             label="Book a Court"
             icon="event_available"
-            color="primary"
+            color="accent"
             rounded
             outline
             class="full-width"

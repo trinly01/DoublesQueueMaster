@@ -9,6 +9,7 @@ export interface BookTenant {
   id: string;
   name: string;
   slug: string;
+  status: string;
   logo: string | null;
   description: string | null;
   address: string | null;
@@ -19,6 +20,8 @@ export interface BookTenant {
   gcash_name: string | null;
   gcash_number: string | null;
   bank_details: string | null;
+  payment_name: string | null;
+  payment_qr: string | null;
   timezone: string;
   currency: string;
   slot_minutes: number;
@@ -26,8 +29,19 @@ export interface BookTenant {
   max_duration: number;
   buffer_minutes: number;
   cancel_cutoff_hours: number;
+  refund_policy: string | null;
+  payment_timeout_minutes: number;
   auto_confirm_payments: boolean;
   allow_non_contiguous_slots: boolean;
+}
+
+export interface BookCourtPhoto {
+  id: string;
+  court: string;
+  photo: string | null;   // directus_files id → fileUrl()
+  caption: string | null;
+  sort: number | null;
+  seq?: number | null;
 }
 
 export interface BookCourt {
@@ -39,6 +53,7 @@ export interface BookCourt {
   surface: string | null;
   description: string | null;
   photo: string | null;
+  photos?: BookCourtPhoto[];
   price_per_hour: number;
   peak_multiplier: number | null;
   status: string;
@@ -102,10 +117,15 @@ export interface BookBooking {
 }
 
 export interface BookTenantBrief {
+  id?: string;
   name?: string;
   gcash_name?: string | null;
   gcash_number?: string | null;
   bank_details?: string | null;
+  payment_name?: string | null;
+  payment_qr?: string | null;
+  refund_policy?: string | null;
+  payment_timeout_minutes?: number;
   [key: string]: unknown;
 }
 
@@ -220,8 +240,19 @@ export async function fetchVenues(): Promise<VenueCard[]> {
 export async function fetchVenueBySlug(slug: string): Promise<BookTenant | null> {
   const rows = await req<unknown>(
     readItems('book_tenants', {
-      fields: ['*'],
-      filter: { slug: { _eq: slug }, status: { _eq: 'active' } },
+      // explicit whitelist — fields:['*'] 403s for guests (unpublished fields
+      // like lat/lng/gcash_qr aren't readable by the public/customer roles)
+      fields: ['id', 'name', 'slug', 'status', 'logo', 'description', 'address',
+        'latitude', 'longitude', 'contact_phone', 'contact_email',
+        'gcash_name', 'gcash_number', 'bank_details', 'payment_name', 'payment_qr',
+        'timezone', 'currency',
+        'slot_minutes', 'min_duration', 'max_duration', 'buffer_minutes',
+        'cancel_cutoff_hours', 'auto_confirm_payments',
+        'refund_policy', 'payment_timeout_minutes',
+        'allow_non_contiguous_slots'],
+      // suspended venues are returned so pages can show "temporarily
+      // unavailable" instead of "not found"; pending stays hidden
+      filter: { slug: { _eq: slug }, status: { _in: ['active', 'suspended'] } },
       limit: 1,
     }),
   );
@@ -229,10 +260,35 @@ export async function fetchVenueBySlug(slug: string): Promise<BookTenant | null>
   return (list[0] as BookTenant) ?? null;
 }
 
+export interface BookPaymentMethod {
+  id: string;
+  tenant: string;
+  name: string;
+  type: string;
+  account_name: string | null;
+  account_number: string | null;
+  qr: string | null;
+  instructions: string | null;
+  sort: number | null;
+}
+
+export async function fetchPaymentMethods(tenantId: string): Promise<BookPaymentMethod[]> {
+  const rows = await req<unknown>(
+    readItems('book_payment_methods', {
+      // matches public/customer whitelist — seq not readable by guests
+      fields: ['id', 'tenant', 'name', 'type', 'account_name', 'account_number',
+        'qr', 'instructions', 'sort'],
+      filter: { tenant: { _eq: tenantId } },
+      sort: ['sort', 'name'], limit: 50,
+    }),
+  );
+  return (Array.isArray(rows) ? rows : []) as BookPaymentMethod[];
+}
+
 export async function fetchVenueBundle(slug: string) {
   const tenant = await fetchVenueBySlug(slug);
   if (!tenant) return null;
-  const [courts, hours, closures, sports] = await Promise.all([
+  const [courts, hours, closures, sports, courtPhotos, payMethods] = await Promise.all([
     req<unknown>(readItems('book_courts', {
       fields: ['id', 'tenant', 'name', 'sport', 'surface', 'description', 'photo',
         'price_per_hour', 'peak_multiplier', 'status', 'sort'],
@@ -251,17 +307,31 @@ export async function fetchVenueBundle(slug: string) {
     req<unknown>(readItems('book_sport_types', {
       fields: ['id', 'name', 'icon', 'sort'], limit: 100,
     })),
+    req<unknown>(readItems('book_court_photos', {
+      fields: ['id', 'court', 'photo', 'caption', 'sort', 'seq'],
+      filter: { court: { tenant: { _eq: tenant.id }, status: { _eq: 'active' } } },
+      sort: ['sort', 'seq'], limit: -1,
+    })),
+    fetchPaymentMethods(tenant.id),
   ]);
   const sportMap = new Map(
     ((Array.isArray(sports) ? sports : []) as { id: string; name: string }[]).map((s) => [s.id, s.name]),
   );
   const courtRows = (Array.isArray(courts) ? courts : []) as BookCourt[];
   for (const c of courtRows) c.sport_name = c.sport != null ? sportMap.get(c.sport) : undefined;
+  const byCourt = new Map<string, BookCourtPhoto[]>();
+  for (const p of (Array.isArray(courtPhotos) ? courtPhotos : []) as BookCourtPhoto[]) {
+    const list = byCourt.get(p.court) ?? [];
+    list.push(p);
+    byCourt.set(p.court, list);
+  }
+  for (const c of courtRows) c.photos = byCourt.get(c.id) ?? [];
   return {
     tenant,
     courts: courtRows,
     hours: (Array.isArray(hours) ? hours : []) as BookOpeningHour[],
     closures: (Array.isArray(closures) ? closures : []) as BookClosure[],
+    paymentMethods: payMethods,
   };
 }
 
@@ -403,18 +473,38 @@ export async function createBooking(payload: {
 }
 
 // ---------- payment + proof ----------
-export async function ensurePayment(bookingId: string, amount: number): Promise<BookPayment> {
+/** Display label for the venue's pay method — payment_name wins, else GCash if an
+ *  account is set, else a generic fallback. Venues can take any bank/wallet. */
+export function tenantPayLabel(t?: { payment_name?: string | null; gcash_name?: string | null; gcash_number?: string | null } | null): string {
+  return t?.payment_name?.trim()
+    || (t?.gcash_name || t?.gcash_number ? 'GCash' : 'Payment details');
+}
+
+function methodForTenant(t?: { payment_name?: string | null; payment_qr?: string | null } | null): string {
+  const n = (t?.payment_name ?? '').toLowerCase();
+  if (n.includes('gcash')) return 'gcash';
+  if (n.includes('maya')) return 'maya';
+  if (/bank|bpi|union ?bank|metro ?bank|maribank|landbank|pnb|rcbc|bdo|chinabank|security bank|gotyme|seabank|tonik|ing|cimb/.test(n)) return 'bank';
+  if (t?.payment_qr) return 'qrph';
+  return 'other';
+}
+
+export async function ensurePayment(
+  bookingId: string, amount: number,
+  tenant?: { payment_name?: string | null; payment_qr?: string | null } | null,
+): Promise<BookPayment> {
   const existing = await req<unknown>(
     readItems('book_payments', {
       fields: ['id', 'booking', 'method', 'amount', 'status', 'reference', 'paid_at'],
       filter: { booking: { _eq: bookingId } },
-      sort: ['-date_created'], limit: 1,
+      // -paid_at: whitelisted + puts settled payments first; date_created isn't readable
+      sort: ['-paid_at'], limit: 1,
     }),
   );
   const list = Array.isArray(existing) ? existing : [];
   if (list.length) return list[0] as BookPayment;
   const created = await req<unknown>(
-    createItem('book_payments', { booking: bookingId, method: 'gcash', amount }),
+    createItem('book_payments', { booking: bookingId, method: methodForTenant(tenant), amount }),
   );
   return created as BookPayment;
 }
@@ -477,7 +567,24 @@ export async function fetchMyBookings(): Promise<BookBooking[]> {
 export async function fetchBooking(id: string): Promise<BookBookingDetail | null> {
   const rows = await req<unknown>(
     readItems('book_bookings', {
-      fields: ['*', 'slots.*', 'payments.*', 'proofs.*', 'tenant.*'],
+      // explicit fields — '*' requests unreadable columns (internal_notes,
+      // platform_fee, system fields…) and the whole query 403s for customers
+      fields: [
+        'id', 'ref', 'tenant', 'customer_name', 'customer_phone', 'customer_email',
+        'status', 'payment_status', 'subtotal', 'total', 'notes', 'source',
+        'checked_in_at', 'cancelled_at', 'cancel_reason',
+        'slots.id', 'slots.court', 'slots.date',
+        'slots.start_time', 'slots.end_time', 'slots.duration_minutes',
+        'slots.price', 'slots.status', 'slots.held_until',
+        'payments.id', 'payments.method', 'payments.amount', 'payments.status',
+        'payments.reference', 'payments.paid_at', 'payments.receipt_file',
+        'proofs.id', 'proofs.file', 'proofs.sender_name', 'proofs.reference_no',
+        'proofs.sent_at', 'proofs.status', 'proofs.rejection_reason',
+        'proofs.reviewed_at',
+        'tenant.id', 'tenant.name', 'tenant.slug', 'tenant.gcash_name', 'tenant.gcash_number',
+        'tenant.bank_details', 'tenant.payment_name', 'tenant.payment_qr',
+        'tenant.refund_policy', 'tenant.payment_timeout_minutes',
+      ],
       filter: { id: { _eq: id } }, limit: 1,
     }),
   );

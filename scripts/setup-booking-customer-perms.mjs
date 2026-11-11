@@ -28,20 +28,32 @@ const SLOTS_READ = { _or: [OWN_VIA_BOOKING, { booking: { tenant: { status: { _eq
 const BOOKING_CUSTOMER_FIELDS = ['id', 'ref', 'tenant', 'customer', 'customer_name',
   'customer_phone', 'customer_email', 'status', 'payment_status', 'subtotal', 'total',
   'notes', 'source', 'checked_in_at', 'cancelled_at', 'cancel_reason',
-  'slots', 'payments', 'proofs']; // no internal_notes/platform_fee
+  'slots', 'payments', 'proofs', 'seq']; // no internal_notes/platform_fee
+// 'seq' needed: fetchMyBookings sorts by -seq — Directus 403s unreadable sort fields
 
 // [collection, action, permissions, fields, validation, presets]
 const PERMS = [
-  // --- public browsing (active venues only) ---
-  ['book_tenants', 'read', { status: { _eq: 'active' } },
+  // --- public browsing (active + suspended venues readable so direct
+  // links can show "temporarily unavailable"; pending stays hidden) ---
+  ['book_tenants', 'read', { status: { _in: ['active', 'suspended'] } },
     ['id', 'name', 'slug', 'status', 'logo', 'description', 'address', 'latitude', 'longitude',
      'contact_phone', 'contact_email', 'gcash_name', 'gcash_number', 'bank_details',
+     'payment_name', 'payment_qr',
      'timezone', 'currency', 'slot_minutes', 'min_duration', 'max_duration',
      'buffer_minutes', 'cancel_cutoff_hours', 'auto_confirm_payments',
+     'refund_policy', 'payment_timeout_minutes',
      'allow_non_contiguous_slots']],
   ['book_courts', 'read', { status: { _eq: 'active' }, ...ACTIVE_VENUE },
     ['id', 'tenant', 'name', 'sport', 'surface', 'description', 'photo',
      'price_per_hour', 'peak_multiplier', 'status', 'sort']],
+  // gallery: scoped via court → active court under active venue
+  ['book_court_photos', 'read',
+    { court: { status: { _eq: 'active' }, tenant: { status: { _eq: 'active' } } } },
+    ['id', 'court', 'photo', 'caption', 'sort', 'seq']],
+  // venue pay methods — active venues only
+  ['book_payment_methods', 'read', ACTIVE_VENUE,
+    ['id', 'tenant', 'name', 'type', 'account_name', 'account_number',
+     'qr', 'instructions', 'sort']],
   ['book_sport_types', 'read', {}, ['id', 'name', 'icon', 'sort']],
   ['book_opening_hours', 'read', ACTIVE_VENUE,
     ['id', 'tenant', 'court', 'day_of_week', 'open_time', 'close_time', 'closed']],

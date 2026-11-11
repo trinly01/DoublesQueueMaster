@@ -3,23 +3,31 @@
     <div class="book-container">
       <div class="book-header">
         <q-btn flat dense round icon="arrow_back" @click="$router.back()" />
+        <q-btn flat dense round icon="home" :to="'/'" />
         <div class="col">
           <div class="book-title">My bookings</div>
           <div class="book-subtitle">Your court reservations</div>
         </div>
       </div>
 
-      <q-tabs v-model="tab" dense align="left" class="q-mb-md text-accent">
-        <q-tab name="upcoming" label="Upcoming" />
-        <q-tab name="past" label="Past / cancelled" />
+      <q-tabs v-model="tab" dense align="justify" narrow-indicator no-caps stretch
+        class="q-mb-md text-accent full-width">
+        <q-tab name="upcoming" :label="`Upcoming (${upcomingCount})`" />
+        <q-tab name="past" :label="`Past / cancelled (${pastCount})`" />
       </q-tabs>
 
       <q-inner-loading :showing="loading" />
 
-      <div v-if="!loading && !shown.length" class="book-empty">
+      <div v-if="!loading && error" class="book-empty">
+        <q-icon name="cloud_off" size="56px" color="grey-4" class="q-mb-sm" />
+        <div class="text-subtitle1 text-weight-medium">Couldn't load your bookings</div>
+        <div class="text-caption text-grey-6 q-mt-xs">Check your connection, then try again.</div>
+        <q-btn outline rounded color="accent" icon="refresh" class="q-mt-md" label="Retry" @click="load" />
+      </div>
+      <div v-else-if="!loading && !shown.length" class="book-empty">
         <q-icon name="event_note" size="56px" color="grey-4" class="q-mb-sm" />
         <div class="text-subtitle1 text-weight-medium">No bookings here yet</div>
-        <q-btn unelevated rounded color="accent" class="q-mt-md" label="Book a court" @click="$router.push('/book')" />
+        <q-btn unelevated rounded color="accent" icon="event_available" class="q-mt-md" label="Book a court" @click="$router.push('/book')" />
       </div>
 
       <q-card
@@ -55,6 +63,7 @@ defineOptions({ name: 'BookMyPage' });
 const tab = ref('upcoming');
 const bookings = ref<BookBooking[]>([]);
 const loading = ref(true);
+const error = ref(false);
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const fmtDate = (d: string) => {
@@ -82,6 +91,8 @@ const isUpcoming = (b: BookBooking) => {
 
 const shown = computed(() =>
   bookings.value.filter((b) => (tab.value === 'upcoming') === isUpcoming(b)));
+const upcomingCount = computed(() => bookings.value.filter(isUpcoming).length);
+const pastCount = computed(() => bookings.value.length - upcomingCount.value);
 
 const statusLabel = (b: BookBooking) => {
   if (b.status === 'pending_payment' && b.payment_status === 'pending_verification') return 'verifying';
@@ -94,11 +105,14 @@ const statusColor = (b: BookBooking) => {
   return 'grey-7';
 };
 
-onMounted(async () => {
+async function load() {
+  loading.value = true;
+  error.value = false;
   try { bookings.value = await fetchMyBookings(); }
-  catch (e) { console.error('my bookings failed', e); }
+  catch (e) { console.error('my bookings failed', e); error.value = true; }
   finally { loading.value = false; }
-});
+}
+onMounted(load);
 </script>
 
 <style lang="scss" scoped>

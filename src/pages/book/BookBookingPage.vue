@@ -6,10 +6,12 @@
       <template v-if="booking">
         <div class="book-header">
           <q-btn flat dense round icon="arrow_back" @click="$router.back()" />
+        <q-btn flat dense round icon="home" :to="'/'" />
           <div class="col">
             <div class="book-title">{{ booking.ref || `Booking #${booking.id}` }}</div>
             <div class="book-subtitle">{{ tenantName }}</div>
           </div>
+          <q-btn flat dense no-caps color="accent" icon="event_note" label="My bookings" :to="'/book/my'" />
           <q-chip dense unelevated :color="statusColor" text-color="white">{{ statusLabel }}</q-chip>
         </div>
 
@@ -19,7 +21,7 @@
             <div class="book-section-label q-mb-sm">Schedule</div>
             <div v-for="s in booking.slots" :key="s.id" class="row justify-between items-center q-py-xs">
               <span>{{ fmtDate(s.date) }} · {{ fmtTime(s.start_time) }}–{{ fmtTime(s.end_time) }}</span>
-              <q-chip dense unelevated :color="slotColor(s.status)" text-color="white" size="sm">{{ s.status }}</q-chip>
+              <q-chip dense unelevated :color="slotChip(s).color" text-color="white" size="sm">{{ slotChip(s).label }}</q-chip>
             </div>
           </q-card-section>
         </q-card>
@@ -52,12 +54,12 @@
         <!-- actions -->
         <div class="row q-gutter-sm">
           <q-btn
-            v-if="canPay" unelevated rounded color="accent" class="col"
+            v-if="canPay" unelevated rounded color="accent" icon="payments" class="col"
             label="Complete payment" @click="$router.push(`/book/checkout?b=${booking.id}`)"
           />
           <q-btn
             v-if="canCancel" outline rounded color="negative" class="col"
-            label="Cancel booking" :loading="cancelling" @click="doCancel"
+            label="Cancel booking" :loading="cancelling" @click="confirmCancel"
           />
         </div>
         <div v-if="booking.cancel_reason" class="text-caption text-grey-6 q-mt-sm">
@@ -76,6 +78,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { Dialog } from 'quasar';
 import { useRoute } from 'vue-router';
 import { fetchBooking, cancelBooking, fileUrl, peso, type BookBookingDetail } from 'src/composables/useBooking';
 import { useNotify } from 'src/composables/useNotify';
@@ -99,9 +102,22 @@ const canCancel = computed(() =>
   booking.value?.status === 'pending_payment' &&
   !['paid', 'refunded'].includes(booking.value?.payment_status ?? ''));
 
+const slotChip = (s: { status: string; held_until?: string | null }) => {
+  if (s.status === 'held' && s.held_until && new Date(s.held_until).getTime() < Date.now())
+    return { label: 'hold expired', color: 'grey' };
+  return { label: s.status, color: ({ held: 'blue', confirmed: 'positive', cancelled: 'grey', released: 'grey' } as Record<string, string>)[s.status] ?? 'grey' };
+};
+
+const allHoldsExpired = computed(() => {
+  const slots = booking.value?.slots ?? [];
+  return slots.length > 0 && slots.every((s) =>
+    s.status === 'held' && s.held_until && new Date(s.held_until).getTime() < Date.now());
+});
+
 const statusLabel = computed(() => {
   const b = booking.value; if (!b) return '';
   if (b.status === 'pending_payment' && b.payment_status === 'pending_verification') return 'verifying payment';
+  if (b.status === 'pending_payment' && allHoldsExpired.value) return 'hold expired';
   return b.status.replace(/_/g, ' ');
 });
 const statusColor = computed(() => {
@@ -116,7 +132,16 @@ const payColor = computed(() => {
   if (p === 'pending_verification') return 'orange';
   return 'grey';
 });
-const slotColor = (s: string) => ({ held: 'blue', confirmed: 'positive', cancelled: 'grey' }[s] ?? 'grey');
+
+function confirmCancel() {
+  Dialog.create({
+    title: 'Cancel this booking?',
+    message: 'Your held slots will be released and this cannot be undone. If you already paid, contact the venue about a refund.',
+    cancel: { label: 'Keep booking', color: 'grey' },
+    ok: { label: 'Yes, cancel', color: 'negative' },
+    persistent: true,
+  }).onOk(() => { void doCancel(); });
+}
 
 async function doCancel() {
   if (!booking.value) return;
