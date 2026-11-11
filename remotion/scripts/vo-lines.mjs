@@ -103,4 +103,96 @@ export const LINES = {
     text: "Your club. Your vibe. DinkMatch dot club.",
     voice: "en-US-AndrewMultilingualNeural",
   },
+  // BookGuide tutorial — customer booking flow. Natural voice.
+  // NOTE: edge-tts reads ~4-6s for these line lengths; scenes are 2-6s,
+  // so keep texts tight — long lines overlap the next scene's cue.
+  bk_intro: {
+    text: "Book a court in five easy steps.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bk_s1: {
+    text: "Step one — pick a venue near you.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bk_s2: {
+    text: "Step two — choose court, date, and time.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bk_s3: {
+    text: "Step three — enter your details. Slots are held for you.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bk_s4: {
+    text: "Step four — pay the venue direct, upload your receipt.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bk_s5: {
+    text: "Step five — venue verifies it. You're booked.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  // Short-cut merge: steps 4+5 share one line so narration never overlaps.
+  bk_s45: {
+    text: "Pay the venue direct, upload your receipt — the venue verifies, you're booked.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  // Quick-cut lines — short scenes (2.5s) need sub-2s reads or narration
+  // bleeds into the next scene. bkq_* = BookGuide short.
+  bkq_intro: {
+    text: "Five easy steps.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bkq_s1: {
+    text: "Pick a venue.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bkq_s2: {
+    text: "Choose your slot.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bkq_s3: {
+    text: "Enter your details.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bkq_s45: {
+    text: "Pay direct, upload receipt — verified.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bk_outro: {
+    text: "Book your next game at dinkmatch dot club slash book.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  // Venue pitch — owners/staff. Natural voice.
+  vn_hook: {
+    text: "Your venue. Your bookings. Zero hassle.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  vn_dash: {
+    text: "Manage everything in one dashboard — bookings, proofs, courts.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  vn_insights: {
+    text: "And your numbers at a glance — revenue, bookings, court usage.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  vn_pay: {
+    text: "Get paid your way — GCash, Maya, or bank.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  vn_outro: {
+    text: "List your venue at dinkmatch dot club.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  // BookTeaser announcement — quick hits, Natural voice.
+  bt_hook: {
+    text: "Big news — court booking is officially live on DinkMatch.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bt_mid: {
+    text: "Pick a venue. Choose your slot. You're booked.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
+  bt_outro: {
+    text: "Book your next game at dinkmatch dot club slash book.",
+    voice: "en-US-AndrewMultilingualNeural",
+  },
 };

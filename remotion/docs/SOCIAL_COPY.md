@@ -203,6 +203,139 @@ Fair queue, no confusion. See you on court! 🏓
 
 ---
 
+
+## Ad 5 — BookGuide (`BookGuide-9x16.mp4` / `BookGuideShort-9x16.mp4`)
+
+Customer tutorial — "Book a court in 5 steps". Use the Short cut for
+reels; Full for YouTube/pinned posts.
+
+### TikTok / Reels / Shorts
+
+```text
+Stop playing phone tag with the venue 📞🏓
+
+Book your court in 5 taps:
+1️⃣ Pick a venue
+2️⃣ Choose court, date & time
+3️⃣ Name + mobile — slots held for you
+4️⃣ Pay direct (GCash/Maya/bank) + upload receipt
+5️⃣ Venue verifies — you're booked
+
+→ dinkmatch.club/book
+
+#pickleball #pickleballcourts #bookacourt #pickleballclub #gcash
+```
+
+### Facebook / IG Feed
+
+```text
+Your club's courts are now bookable online — no more "is 3pm free?" texts.
+
+Pick a venue, choose your slot, pay direct via GCash/Maya/bank,
+upload your receipt. The venue verifies and confirms — add it to
+your calendar and you're set.
+
+Free for players → dinkmatch.club/book
+```
+
+---
+
+## Ad 6 — Venue (`Venue-9x16.mp4` / `Venue-1x1.mp4` / `Venue-16x9.mp4`)
+
+Venue-owner pitch — target club admins/owners, not players.
+Beats: hook → one dashboard (bookings/proofs/courts) → live insights
+(revenue, bookings, court usage) → GCash/Maya/bank payments → free-trial CTA.
+Use `-1x1` for FB/IG feed, `-9x16` for Reels/TikTok, `-16x9` for YouTube.
+
+### Facebook / IG Feed (`-1x1`)
+
+```text
+Your pickleball venue is losing money to chaos. 💸
+
+"Is 3pm free?" texts. Payment proofs buried in Viber.
+No-show slots. And zero idea which court actually earns.
+
+DinkMatch Venue gives you:
+📊 One dashboard — bookings, proofs, courts, staff
+📈 Live insights — revenue, bookings, court usage at a glance
+✅ Approve payment proofs in one tap
+💳 Get paid direct — GCash, Maya, or bank
+
+Players book themselves online. You just run the court.
+
+Free to start → dinkmatch.club
+
+#pickleballclub #pickleballbusiness #courtbooking #sportsvenue #gcash
+```
+
+### TikTok / Reels / Shorts (`-9x16`)
+
+```text
+POV: your venue takes bookings but you still run it on Viber chats 📱😅
+
+DinkMatch gives pickleball venues:
+→ Live booking dashboard
+→ Revenue + court usage insights
+→ GCash/Maya payments with receipt upload
+→ Free trial — no card needed
+
+Stop being a receptionist. Start running a venue.
+→ dinkmatch.club
+
+#pickleball #pickleballclub #sportsbusiness #gcash #courtbooking
+```
+
+### Venue-owner Facebook groups (PH club/venue admins)
+
+```text
+Kumusta club owners! 🏓
+
+For those still taking court bookings via text/Viber —
+we built DinkMatch Venue for exactly this.
+
+Players book and pay online (GCash/Maya/bank) and upload
+receipts. You see everything in one dashboard: bookings,
+pending payment proofs, revenue, which courts are busiest.
+
+Free 30-day trial — no card needed.
+→ dinkmatch.club
+```
+
+### YouTube (community post / description, `-16x9`)
+
+```text
+Title: Stop Running Your Venue on Viber — DinkMatch Venue
+
+Your venue. Your bookings. Zero hassle.
+
+Manage everything in one dashboard — bookings, payment proofs,
+courts, staff. See live insights on revenue, bookings and court
+usage. Get paid direct via GCash, Maya, or bank.
+
+Plans start at ₱0 — free 30-day trial, no card needed.
+→ dinkmatch.club
+```
+
+---
+
+## Ad 7 — BookTeaser (`BookTeaser-9x16.mp4`)
+
+Announcement cut — "court booking is LIVE". Best as a pinned/announcement
+post, not a paid ad.
+
+### TikTok / Reels / Shorts
+
+```text
+Court booking is LIVE on DinkMatch 🔥
+
+Pick a venue. Choose your slot. You're booked.
+Pay direct. Upload receipt. See you on court.
+
+→ dinkmatch.club/book
+
+#pickleball #pickleballcourts #bookacourt #pickleballclub
+```
+
 ## Posting playbook
 
 - **Pinned comment** (all posts):

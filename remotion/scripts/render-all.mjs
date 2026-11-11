@@ -17,6 +17,10 @@ const ADS = [
   "DuprOfficial",
   "BigScreen",
   "Modes",
+  "BookGuide",
+  "BookGuideShort",
+  "Venue",
+  "BookTeaser",
 ];
 const RATIOS = ["9x16", "1x1", "16x9"];
 
