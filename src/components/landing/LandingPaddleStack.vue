@@ -395,7 +395,7 @@ import {
   RatingEngine,
   computeWinProbability,
   type Player,
-} from 'src/services/matchmaking';
+} from 'src/services/matchmaking-core';
 
 // ============ Player count control ============
 const playerCount = ref(16);

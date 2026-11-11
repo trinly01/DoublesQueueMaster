@@ -260,6 +260,8 @@
       href="icons/apple-launch-2048x2732.png"
     />
 
+    <link rel="preconnect" href="https://api.dinkmatch.club" crossorigin />
+
     <!-- Meta Pixel Code -->
     <script>
       !(function (f, b, e, v, n, t, s) {
@@ -300,8 +302,25 @@
     /></noscript>
     <script>
       (function () {
+        // A failed lazy-chunk fetch (e.g. stale index.html after a deploy
+        // deleted old hashed assets) leaves the route permanently broken
+        // until reload — recover automatically.
+        window.addEventListener('vite:preloadError', function () {
+          window.location.reload();
+        });
+
         var l = window.location;
         var params = new URLSearchParams(l.search);
+
+        // history.replaceState avoids a second full document load + HTML
+        // re-parse; falls back to location.replace where unsupported.
+        function nav(u) {
+          try {
+            window.history.replaceState({}, '', u);
+          } catch (e) {
+            l.replace(u);
+          }
+        }
 
         function isTracking(key) {
           return (
@@ -339,7 +358,7 @@
             (newSearch ? '?' + newSearch : '') +
             '#' +
             redirectPath;
-          l.replace(newUrl);
+          nav(newUrl);
           return;
         }
 
@@ -355,7 +374,7 @@
             }
           });
           var keptSearch = kept.toString();
-          l.replace(
+          nav(
             l.origin + '/#' + pathOnly + (keptSearch ? '?' + keptSearch : ''),
           );
           return;

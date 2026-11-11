@@ -9,6 +9,13 @@ import { LocalStorage } from 'quasar';
 
 const LIKHA_URL = 'https://api.dinkmatch.club';
 
+// LocalStorage keys that together represent "logged in":
+//  - 'dink-auth'       : flag set by the login/register pages
+//  - 'likha-data'      : SDK token blob (written via QuasarStorage below)
+//  - 'current_user_id' : cached user id (written by ClubPage, cleared on logout)
+export const AUTH_FLAG_KEY = 'dink-auth';
+const CURRENT_USER_ID_KEY = 'current_user_id';
+
 // Custom Storage adapter for Likha SDK utilizing Quasar's LocalStorage.
 // Token mode (not cookies) so auth works on iOS Safari, which blocks
 // cross-site cookies between the frontend and the Directus backend domain.
@@ -28,7 +35,23 @@ class QuasarStorage {
 
 const storage = new QuasarStorage();
 
-const _client = createLikha(LIKHA_URL)
+// The SDK sets Content-Type: application/json on every request, including
+// GETs — a non-CORS-safelisted header that forces an OPTIONS preflight per
+// unique URL (query string included). Stripping it on safe methods makes
+// guest requests CORS-simple: one round-trip instead of two.
+const sdkFetch: typeof fetch = (input, init) => {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  if ((method === 'GET' || method === 'HEAD') && init?.headers) {
+    const headers = new Headers(init.headers);
+    headers.delete('content-type');
+    return fetch(input, { ...init, headers });
+  }
+  return fetch(input, init);
+};
+
+const _client = createLikha(LIKHA_URL, {
+  globals: { fetch: sdkFetch },
+})
   .with(
     authentication('json', {
       storage,
@@ -69,6 +92,28 @@ _client.refresh = (async (options?: Record<string, unknown>) => {
   return _refreshing;
 }) as typeof _client.refresh;
 
+// Single source of truth for "is there a usable session?".
+// 'dink-auth' alone is not enough — it can outlive the tokens, which used to
+// let the router guard pass and every API call 401 (forced logout cascade).
+// Require the flag AND stored credentials. Access-token expiry is NOT checked
+// here: an expired access token with a live refresh token/cookie is normal —
+// boot, the session guard, and the 401 interceptor below handle refreshing.
+export function isAuthenticated(): boolean {
+  if (!LocalStorage.has(AUTH_FLAG_KEY)) return false;
+  // During a token refresh the SDK briefly stores a null-credential blob;
+  // trust the flag until the rotation completes.
+  if (_refreshing) return true;
+  return !!storage.get()?.access_token;
+}
+
+// Clear every auth-related key together so the three indicators can never
+// disagree about whether a session exists.
+export function clearAuthSession(): void {
+  storage.set(null); // removes 'likha-data'
+  LocalStorage.remove(AUTH_FLAG_KEY);
+  LocalStorage.remove(CURRENT_USER_ID_KEY);
+}
+
 // Global 401 interceptor: if a request fails with 401, refresh the token
 // and retry once. This handles the race condition where the access token
 // expired (e.g., phone screen was locked) but the refresh token is still
@@ -85,11 +130,12 @@ _client.request = async function (fn: never) {
     try {
       await _client.refresh();
     } catch (refreshErr) {
-      // Definitive auth failure (400/401) = dead session. Clear it so public
-      // pages work again instead of every request 401-looping forever.
+      // Definitive auth failure (400/401) = dead session. Clear ALL auth keys
+      // — not just 'likha-data' — so the router guard and session checks agree
+      // the session is dead instead of passing on a stale 'dink-auth' flag.
       // Keep the session on network/5xx errors — those are transient.
       const status = (refreshErr as { response?: { status?: number } })?.response?.status;
-      if (status === 400 || status === 401) storage.set(null);
+      if (status === 400 || status === 401) clearAuthSession();
       throw err; // throw original 401
     }
     return await originalRequest(fn);

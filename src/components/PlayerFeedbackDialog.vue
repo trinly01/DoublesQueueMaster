@@ -116,7 +116,7 @@ import {
   COMMEND_ITEMS,
   REPORT_ITEMS,
   getPlayerFeedback,
-  getUserInfo,
+  getUsersInfo,
   type FeedbackEntry,
   type ReportItem,
 } from 'src/services/playerReport';
@@ -196,25 +196,34 @@ async function loadFeedback() {
 
   const entries = await getPlayerFeedback(props.playerId);
 
-  const enriched = await Promise.all(
-    entries.map(async (entry) => {
-      const reporter =
-        entry.type === 'commend'
-          ? await getUserInfo(entry.reporter)
-          : { name: null, username: null };
-      const sourceItems =
-        entry.type === 'report' ? REPORT_ITEMS : COMMEND_ITEMS;
-      const reasons = entry.content.items
-        .map((key) => sourceItems.find((i) => i.key === key))
-        .filter((i): i is ReportItem => !!i);
-      return {
-        ...entry,
-        reporterName: reporter.name || undefined,
-        reporterUsername: reporter.username || undefined,
-        reasons,
-      };
-    }),
+  // One batched users read for all commend reporters — previously this
+  // issued a separate readUsers call per commend entry.
+  const reporterMap = await getUsersInfo(
+    entries
+      .filter((entry) => entry.type === 'commend')
+      .map((entry) => entry.reporter),
   );
+
+  const enriched = entries.map((entry) => {
+    const reporter =
+      entry.type === 'commend'
+        ? (reporterMap.get(entry.reporter) ?? {
+            name: null,
+            username: null,
+          })
+        : { name: null, username: null };
+    const sourceItems =
+      entry.type === 'report' ? REPORT_ITEMS : COMMEND_ITEMS;
+    const reasons = entry.content.items
+      .map((key) => sourceItems.find((i) => i.key === key))
+      .filter((i): i is ReportItem => !!i);
+    return {
+      ...entry,
+      reporterName: reporter.name || undefined,
+      reporterUsername: reporter.username || undefined,
+      reasons,
+    };
+  });
 
   feedback.value = enriched;
   saveCachedFeedback(enriched);

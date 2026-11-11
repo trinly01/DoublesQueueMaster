@@ -6,7 +6,7 @@ import {
   createWebHistory,
 } from 'vue-router';
 import routes from './routes';
-import { LocalStorage } from 'quasar';
+import { isAuthenticated } from 'src/services/likhaClient';
 
 /*
  * If not building with SSR mode, you can
@@ -35,7 +35,7 @@ export default route(function (/* { store, ssrContext } */) {
   });
 
   Router.beforeEach((to, from, next) => {
-    const hasSession = LocalStorage.has('dink-auth');
+    const hasSession = isAuthenticated();
 
     if (to.matched.some((record) => record.meta.requiresAuth)) {
       if (!hasSession) {

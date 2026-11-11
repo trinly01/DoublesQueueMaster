@@ -1,6 +1,6 @@
 import { LocalStorage } from 'quasar';
 import type { Router } from 'vue-router';
-import { likhaClient } from 'src/services/likhaClient';
+import { likhaClient, clearAuthSession } from 'src/services/likhaClient';
 import { PlayerProfile } from 'src/services/playerProfile';
 import { useNotify } from 'src/composables/useNotify';
 
@@ -19,9 +19,7 @@ export function useAuth() {
 
   // Clear all locally-persisted auth/session state.
   const clearLocalSession = () => {
-    LocalStorage.remove('dink-auth');
-    LocalStorage.remove('likha-data');
-    LocalStorage.remove('current_user_id');
+    clearAuthSession();
     LocalStorage.remove('recent_clubs_cache');
     PlayerProfile.clearProfile();
   };

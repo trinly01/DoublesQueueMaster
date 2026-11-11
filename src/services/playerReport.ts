@@ -268,6 +268,48 @@ export interface ClubFeedbackEntry extends FeedbackEntry {
 }
 
 /**
+ * Batch-resolve display info for many user ids in a single request.
+ * Returns a map of userId → { name, username }; missing/failed lookups are
+ * simply absent from the map (same degradation as getUserInfo's nulls).
+ */
+export async function getUsersInfo(
+  userIds: string[],
+): Promise<Map<string, { name: string | null; username: string | null }>> {
+  const map = new Map<
+    string,
+    { name: string | null; username: string | null }
+  >();
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length === 0) return map;
+  try {
+    const result = await likhaClient.request(
+      readUsers({
+        filter: { id: { _in: ids } },
+        fields: ['id', 'first_name', 'username'],
+        limit: -1,
+      }),
+    );
+    const users = (result as Array<{
+      id?: string;
+      first_name?: string;
+      username?: string;
+    }>) || [];
+    for (const user of users) {
+      if (!user?.id) continue;
+      map.set(user.id, {
+        name: user.first_name || user.username || null,
+        username: user.username || null,
+      });
+    }
+  } catch (err) {
+    console.error('getUsersInfo error:', err);
+  }
+  return map;
+}
+
+const EMPTY_USER_INFO = { name: null, username: null } as const;
+
+/**
  * Load all feedback (reports and commendations) linked to a club.
  */
 export async function getClubFeedback(
@@ -301,22 +343,22 @@ export async function getClubFeedback(
         r.date_created ||
         new Date().toISOString(),
     }));
-    const enriched = await Promise.all(
-      entries.map(async (entry) => {
-        const [player, reporter] = await Promise.all([
-          getUserInfo(entry.player),
-          getUserInfo(entry.reporter),
-        ]);
-        return {
-          ...entry,
-          playerName: player.name || undefined,
-          playerUsername: player.username || undefined,
-          reporterName: reporter.name || undefined,
-          reporterUsername: reporter.username || undefined,
-        };
-      }),
+    // One batched users read for every referenced player+reporter —
+    // previously this issued 2 readUsers calls per feedback entry.
+    const userMap = await getUsersInfo(
+      entries.flatMap((entry) => [entry.player, entry.reporter]),
     );
-    return enriched;
+    return entries.map((entry) => {
+      const player = userMap.get(entry.player) ?? EMPTY_USER_INFO;
+      const reporter = userMap.get(entry.reporter) ?? EMPTY_USER_INFO;
+      return {
+        ...entry,
+        playerName: player.name || undefined,
+        playerUsername: player.username || undefined,
+        reporterName: reporter.name || undefined,
+        reporterUsername: reporter.username || undefined,
+      };
+    });
   } catch (err) {
     console.error('getClubFeedback error:', err);
     return [];

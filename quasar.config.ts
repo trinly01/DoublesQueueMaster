@@ -16,7 +16,11 @@ export default configure((/* ctx */) => {
     boot: ['cleanUrl', 'likha'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#css
-    css: ['app.scss'],
+    // '../assets/fonts.css' resolves to src/assets/fonts.css (css entries
+    // are prefixed with src/css/) — self-hosted Roboto + Material Icons
+    // with font-display: swap; replaces the roboto-font/material-icons
+    // extras which can't set font-display.
+    css: ['app.scss', '../assets/fonts.css'],
 
     // https://github.com/quasarframework/quasar/tree/dev/extras
     extras: [
@@ -28,8 +32,10 @@ export default configure((/* ctx */) => {
       // 'line-awesome',
       // 'roboto-font-latin-ext', // this or either 'roboto-font', NEVER both!
 
-      'roboto-font', // optional, you are not bound to it
-      'material-icons', // optional, you are not bound to it
+      // 'roboto-font' / 'material-icons' extras removed: they ship Roboto
+      // .woff with no font-display and Material Icons font-display:block.
+      // src/assets/fonts.css (loaded via css[]) self-hosts the same font
+      // files with font-display: swap instead.
     ],
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#build
@@ -66,7 +72,17 @@ export default configure((/* ctx */) => {
           output: {
             ...(viteConf.build.rollupOptions?.output || {}),
             manualChunks: (id: string) => {
-              if (id.includes('node_modules')) {
+              if (!id.includes('node_modules')) return;
+              // Whitelist only the eager framework — everything else
+              // auto-splits along lazy-route boundaries (echarts, three,
+              // trystero, qrcode, html5-qrcode, edge-tts). A blanket
+              // node_modules→vendor rule forces ~3MB of route-only deps
+              // into the eager entry chunk.
+              if (
+                /[\\/]node_modules[\\/](?:@vue|vue|vue-router|quasar|@quasar|@likha-erp|@directus|register-service-worker)[\\/]/.test(
+                  id,
+                )
+              ) {
                 return 'vendor';
               }
             },
@@ -179,6 +195,18 @@ export default configure((/* ctx */) => {
         // /compare.html, etc. to index.html and the app hijacks them.
         cfg.navigateFallbackDenylist = [
           /\.(?:html|xml|txt|json|png|ico|svg|webmanifest)$/,
+        ];
+        // Also bypass SW fallback for downloads/media/fonts — a navigation
+        // to these must not return index.html.
+        cfg.navigateFallbackDenylist.push(/\.(?:csv|mp4|woff2?)$/);
+        // Keep ~60MB of promo MP4s out of the precache manifest. Note:
+        // globIgnores REPLACES Workbox's default node_modules exclusion,
+        // so it must be re-included here.
+        cfg.globIgnores = [
+          ...(cfg.globIgnores ?? []),
+          '**/node_modules/**/*',
+          '**/ads/**',
+          '**/*.mp4',
         ];
         // Activate new builds immediately instead of waiting for all
         // clients to close — otherwise shipped fixes never reach users.

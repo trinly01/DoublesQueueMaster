@@ -2,7 +2,7 @@
   <q-page class="player-page flex flex-center">
     <q-ajax-bar ref="dataFetchBar" position="top" color="amber-4" size="3px" />
     <q-card
-      class="player-card shadow-4 q-pa-md q-pa-lg-md relative-position flex column"
+      class="player-card shadow-4 q-pa-md relative-position flex column"
       bordered
     >
       <PlayerFeedbackButton
@@ -1730,7 +1730,15 @@ import { useProFeatures } from 'src/composables/useProFeatures';
 import MatchResult from 'src/components/MatchResult.vue';
 import PlayerAvatar from 'src/components/PlayerAvatar.vue';
 import PayBanner from 'src/components/PayBanner.vue';
-import * as echarts from 'echarts';
+import * as echarts from 'echarts/core';
+import { BarChart, LineChart } from 'echarts/charts';
+import {
+  GridComponent,
+  LegendComponent,
+  MarkLineComponent,
+  TooltipComponent,
+} from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
 import QRCode from 'qrcode';
 import {
   resolveAvatarUrl,
@@ -1753,6 +1761,16 @@ import { runDuoRanking } from 'src/utils/runLeaderboard';
 import type { DuoLeaderboardEntry } from 'src/composables/useDuoLeaderboard';
 import { useRecentClubs } from 'src/composables/useRecentClubs';
 import { useDupr } from 'src/composables/useDupr';
+
+echarts.use([
+  BarChart,
+  LineChart,
+  CanvasRenderer,
+  GridComponent,
+  LegendComponent,
+  MarkLineComponent,
+  TooltipComponent,
+]);
 
 const router = useRouter();
 const $q = useQuasar();
@@ -1891,16 +1909,31 @@ const showLeaderboardDialog = ref(false);
 const showQrDialog = ref(false);
 const qrCodeDataUrl = ref('');
 
-const { recentClubs, loadRecentClubs } = useRecentClubs(currentUserId);
+const { recentClubs, loadRecentClubs, loadCachedClubs } = useRecentClubs(
+  currentUserId,
+);
 
-// Load recent clubs the moment currentUserId becomes available,
-// instead of waiting for the full profile fetch to complete.
+// Paint cached clubs the moment currentUserId becomes available — same
+// trigger the old dedicated fetch used, minus the network call.
 watch(
   currentUserId,
   (id) => {
-    if (id) loadRecentClubs();
+    if (id) loadCachedClubs();
   },
   { immediate: true },
+);
+
+// Recent clubs are derived from the profile's completed_matches payload:
+// PlayerProfile.fetchProfile already queries this user's matches (same
+// players.directus_users_id filter, limit 500 vs the old dedicated
+// limit-250 read), so watching the stored matches avoids a second
+// completed_match request on mount. Any reassignment — including an empty
+// array after a failed/empty fetch — refreshes the list.
+watch(
+  () => PlayerProfile.state.completedMatches,
+  (matches) => {
+    if (matches && currentUserId.value) void loadRecentClubs(matches);
+  },
 );
 
 const displayClubs = computed(() => [...recentClubs.value].reverse());

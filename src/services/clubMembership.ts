@@ -53,26 +53,42 @@ export async function addClubMember(
 /**
  * Convenience: check membership and auto-join if not already a member.
  * Returns the club UUID and whether the user was already a member or newly added.
+ *
+ * `opts.skipMembershipCheck` lets callers that already hold a fresh member
+ * list (e.g. ClubPage auto-join right after loadClubData fetched
+ * club.players.directus_users_id.id) skip the redundant club re-read.
+ * `opts.clubUUID` must then supply the target club's UUID; without it the
+ * membership check runs anyway so the club can still be resolved.
  */
 export async function joinClub(
   clubId: string,
   userId: string,
+  opts?: { clubUUID?: string; skipMembershipCheck?: boolean },
 ): Promise<
   | { success: true; clubUUID: string; alreadyMember: boolean }
   | { success: false; error: string }
 > {
   try {
-    const info = await checkClubMembership(clubId, userId);
-    if (!info) return { success: false, error: 'Club not found' };
+    let clubUUID: string;
+    let alreadyMember = false;
+    if (opts?.skipMembershipCheck && opts.clubUUID) {
+      // Caller asserts fresh membership data shows the user is NOT a member.
+      clubUUID = opts.clubUUID;
+    } else {
+      const info = await checkClubMembership(clubId, userId);
+      if (!info) return { success: false, error: 'Club not found' };
+      clubUUID = info.clubUUID;
+      alreadyMember = info.isMember;
+    }
 
-    if (!info.isMember) {
-      await addClubMember(info.clubUUID, userId);
+    if (!alreadyMember) {
+      await addClubMember(clubUUID, userId);
     }
 
     return {
       success: true,
-      clubUUID: info.clubUUID,
-      alreadyMember: info.isMember,
+      clubUUID,
+      alreadyMember,
     };
   } catch (err) {
     const status = (err as { response?: { status?: number } })?.response

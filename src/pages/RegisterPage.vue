@@ -163,7 +163,7 @@ import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { LocalStorage } from 'quasar';
 import { useNotify } from 'src/composables/useNotify';
-import { likhaClient } from 'src/services/likhaClient';
+import { likhaClient, AUTH_FLAG_KEY } from 'src/services/likhaClient';
 import { registerUser } from '@likha-erp/likha-sdk';
 
 const firstName = ref('');
@@ -205,7 +205,7 @@ const onSubmit = async () => {
       email: email.value,
       password: password.value,
     });
-    LocalStorage.set('dink-auth', true);
+    LocalStorage.set(AUTH_FLAG_KEY, true);
 
     notify({
       color: 'positive',

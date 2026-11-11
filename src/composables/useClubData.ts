@@ -230,12 +230,21 @@ export function useClubData(context: UseClubDataContext) {
     }
   };
 
-  const handleJoinClub = async () => {
+  const handleJoinClub = async (opts?: { trustFreshMembership?: boolean }) => {
     if (!currentClubId.value || !currentUserId.value) return;
     try {
       const result = await joinClubService(
         currentClubId.value,
         currentUserId.value,
+        // trustFreshMembership: caller asserts clubMembers/currentClubUUID
+        // came from a just-completed loadClubData payload, so joinClub can
+        // skip re-reading club.players to re-verify membership.
+        opts?.trustFreshMembership
+          ? {
+              clubUUID: currentClubUUID.value || undefined,
+              skipMembershipCheck: true,
+            }
+          : undefined,
       );
       if (!result.success) {
         notify({ color: 'negative', message: result.error });
@@ -375,6 +384,10 @@ export function useClubData(context: UseClubDataContext) {
 
     // Capture expected club so we can abort if the user switched clubs while the API was in-flight
     const expectedClubId = clubId;
+    // Set once the server payload's member list has been applied — lets
+    // callers (auto-join) trust isCurrentUserMember/currentClubUUID as fresh
+    // instead of re-fetching club.players to re-verify membership.
+    let serverPayloadApplied = false;
 
     // Check for cached data — if available, restore immediately and fetch in background
     const hasCache = restoreFromCache(clubId);
@@ -974,6 +987,7 @@ export function useClubData(context: UseClubDataContext) {
           isCurrentUserMember.value =
             isOpenPlay.value ||
             clubMembers.value.some((m) => m.id === currentUserId.value);
+          serverPayloadApplied = true;
 
           // Persist club metadata for offline admin/moderator detection
           LocalStorage.set(`club_meta_${clubId}`, {
@@ -1154,6 +1168,8 @@ export function useClubData(context: UseClubDataContext) {
         setClubSwitchInProgress(false);
       }
     }
+
+    return serverPayloadApplied;
   };
 
   return {

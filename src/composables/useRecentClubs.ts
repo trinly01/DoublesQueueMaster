@@ -11,6 +11,28 @@ export interface RecentClub {
   players?: Array<{ id?: string; directus_users_id?: { id: string } }>;
 }
 
+/**
+ * Minimal shape needed to derive recent clubs from an already-fetched
+ * completed_match row (e.g. PlayerProfile.state.completedMatches).
+ */
+export interface RecentClubSourceMatch {
+  completed_at?: string;
+  club?:
+    | string
+    | null
+    | {
+        id?: string;
+        clubId?: string;
+        name?: string;
+        logo?: string;
+        players?: Array<{ id?: string; directus_users_id?: { id: string } }>;
+      };
+}
+
+// The dedicated query only ever consumed the 250 most recent matches —
+// callers passing a larger prefetched window are sliced to the same size.
+const RECENT_MATCH_LIMIT = 250;
+
 export function useRecentClubs(
   currentUserId: Ref<string>,
   options?: {
@@ -34,13 +56,24 @@ export function useRecentClubs(
     return `${LIKHA_URL}/assets/${logo}`;
   };
 
-  const loadRecentClubs = async () => {
-    // Show cached clubs instantly, even before user ID is available
+  /**
+   * Paint cached clubs instantly. Safe to call before the user id or fresh
+   * matches arrive — it never hits the network.
+   */
+  const loadCachedClubs = (): boolean => {
     const cached = LocalStorage.getItem(cacheKey) as RecentClub[] | null;
-    const hasCache = cached && cached.length > 0;
+    const hasCache = !!(cached && cached.length > 0);
     if (hasCache) {
       recentClubs.value = cached;
     }
+    return hasCache;
+  };
+
+  const loadRecentClubs = async (
+    prefetchedMatches?: RecentClubSourceMatch[],
+  ) => {
+    // Show cached clubs instantly, even before user ID is available
+    const hasCache = loadCachedClubs();
 
     // Skip server fetch if we don't have a user ID yet
     if (!currentUserId.value) return;
@@ -50,38 +83,49 @@ export function useRecentClubs(
     }
 
     try {
-      const fields = [
-        'completed_at',
-        'club.id',
-        'club.clubId',
-        'club.name',
-        'club.logo',
-      ];
-      if (includePlayers) {
-        fields.push('club.players.id', 'club.players.directus_users_id.id');
+      let rawMatches: unknown;
+      if (prefetchedMatches !== undefined) {
+        // Caller already fetched this user's completed matches (same
+        // players.directus_users_id filter, larger limit) — derive clubs
+        // from that payload instead of issuing a second completed_match read.
+        rawMatches = prefetchedMatches;
+      } else {
+        const fields = [
+          'completed_at',
+          'club.id',
+          'club.clubId',
+          'club.name',
+          'club.logo',
+        ];
+        if (includePlayers) {
+          fields.push('club.players.id', 'club.players.directus_users_id.id');
+        }
+
+        rawMatches = await likhaClient.request(
+          readItems('completed_match', {
+            filter: {
+              players: { directus_users_id: { _eq: currentUserId.value } },
+            },
+            fields,
+            sort: ['-completed_at'],
+            limit: RECENT_MATCH_LIMIT,
+          }),
+        );
       }
 
-      const matches = await likhaClient.request(
-        readItems('completed_match', {
-          filter: {
-            players: { directus_users_id: { _eq: currentUserId.value } },
-          },
-          fields,
-          sort: ['-completed_at'],
-          limit: 250,
-        }),
-      );
-
-      const matchList = (matches || []) as unknown as {
+      const matchList = ((rawMatches || []) as unknown as {
         completed_at: string;
         club: {
           id: string;
           clubId: string;
           name?: string;
           logo?: string;
-          players?: Array<{ id?: string; directus_users_id?: { id: string } }>;
+          players?: Array<{
+            id?: string;
+            directus_users_id?: { id: string };
+          }>;
         };
-      }[];
+      }[]).slice(0, RECENT_MATCH_LIMIT);
 
       const seen = new Set<string>();
       const sortedClubs: RecentClub[] = [];
@@ -152,7 +196,8 @@ export function useRecentClubs(
       } else {
         // Merge cached clubs that have no matches (user joined but hasn't played yet)
         if (hasCache && includePlayers) {
-          for (const c of cached!) {
+          // recentClubs still holds the cache loadCachedClubs() painted.
+          for (const c of recentClubs.value) {
             if (!seen.has(c.id)) {
               sortedClubs.push(c);
             }
@@ -176,5 +221,6 @@ export function useRecentClubs(
     recentClubs,
     loading,
     loadRecentClubs,
+    loadCachedClubs,
   };
 }

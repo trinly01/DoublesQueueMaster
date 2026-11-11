@@ -1,7 +1,5 @@
 import { RouteRecordRaw } from 'vue-router';
 import MainLayout from 'layouts/MainLayout.vue';
-import PlayerPage from 'pages/PlayerPage.vue';
-import ClubPage from 'pages/ClubPage.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -14,7 +12,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'profile',
-        component: PlayerPage,
+        component: () => import('pages/PlayerPage.vue'),
         meta: { requiresAuth: true },
       },
       {
@@ -48,12 +46,12 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'club/:clubId',
-        component: ClubPage,
+        component: () => import('pages/ClubPage.vue'),
         meta: { requiresAuth: true },
       },
       {
         path: 'openplay',
-        component: ClubPage,
+        component: () => import('pages/ClubPage.vue'),
       },
       {
         path: 'play',

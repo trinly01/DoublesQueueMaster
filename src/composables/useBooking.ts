@@ -3,6 +3,7 @@ import { LocalStorage } from 'quasar';
 import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import { readItems, createItem, updateItem, uploadFiles, readMe } from '@likha-erp/likha-sdk';
 import { useNotify } from 'src/composables/useNotify';
+import 'src/css/book.scss';
 
 // ---------- types (book_* collections — customer-facing subset) ----------
 export interface BookTenant {
@@ -275,51 +276,87 @@ export interface BookPaymentMethod {
   sort: number | null;
 }
 
-export async function fetchPaymentMethods(tenantId: string): Promise<BookPaymentMethod[]> {
+async function readPaymentMethods(
+  filter: Record<string, unknown>,
+): Promise<BookPaymentMethod[]> {
   const rows = await req<unknown>(
     readItems('book_payment_methods', {
       // matches public/customer whitelist — seq not readable by guests
       fields: ['id', 'tenant', 'name', 'type', 'account_name', 'account_number',
         'qr', 'instructions', 'sort'],
-      filter: { tenant: { _eq: tenantId } },
+      filter,
       sort: ['sort', 'name'], limit: 50,
     }),
   );
   return (Array.isArray(rows) ? rows : []) as BookPaymentMethod[];
 }
 
+export async function fetchPaymentMethods(tenantId: string): Promise<BookPaymentMethod[]> {
+  return readPaymentMethods({ tenant: { _eq: tenantId } });
+}
+
+// ---------- venue bundle cache ----------
+// Tenant config (info, opening hours, sport types, payment methods) barely
+// changes during a browsing session — cache it per slug so the venue → slots
+// → checkout revalidation journey doesn't refetch it. Courts, court photos
+// and closures always fetch live: they decide what can actually be booked.
+const BUNDLE_CACHE_TTL = 90_000; // ms
+interface VenueBundleCacheEntry {
+  tenant: BookTenant;
+  hours: BookOpeningHour[];
+  sportMap: Map<string, string>;
+  paymentMethods: BookPaymentMethod[];
+  at: number;
+}
+const venueBundleCache = new Map<string, VenueBundleCacheEntry>();
+
 export async function fetchVenueBundle(slug: string) {
-  const tenant = await fetchVenueBySlug(slug);
-  if (!tenant) return null;
-  const [courts, hours, closures, sports, courtPhotos, payMethods] = await Promise.all([
+  const cached = venueBundleCache.get(slug);
+  const usable = cached != null && Date.now() - cached.at < BUNDLE_CACHE_TTL ? cached : null;
+  // every dependent filters on tenant.slug (or court.tenant.slug) so all
+  // requests fire in ONE parallel round — no tenant.id pre-fetch waterfall
+  const tenantSlug = { slug: { _eq: slug } };
+  const [tenant, courts, hours, closures, sports, courtPhotos, payMethods] = await Promise.all([
+    usable ? Promise.resolve(usable.tenant) : fetchVenueBySlug(slug),
     req<unknown>(readItems('book_courts', {
       fields: ['id', 'tenant', 'name', 'sport', 'surface', 'description', 'photo',
         'price_per_hour', 'peak_multiplier', 'status', 'sort'],
-      filter: { tenant: { _eq: tenant.id }, status: { _eq: 'active' } },
+      filter: { tenant: tenantSlug, status: { _eq: 'active' } },
       sort: ['sort', 'name'], limit: 100,
     })),
-    req<unknown>(readItems('book_opening_hours', {
+    usable ? Promise.resolve(usable.hours) : req<unknown>(readItems('book_opening_hours', {
       fields: ['id', 'tenant', 'court', 'day_of_week', 'open_time', 'close_time', 'closed'],
-      filter: { tenant: { _eq: tenant.id } }, limit: 100,
+      filter: { tenant: tenantSlug }, limit: 100,
     })),
     req<unknown>(readItems('book_closures', {
       fields: ['id', 'tenant', 'court', 'date', 'date_start', 'date_end', 'all_day',
         'start_time', 'end_time', 'reason'],
-      filter: { tenant: { _eq: tenant.id } }, limit: 200,
+      filter: { tenant: tenantSlug }, limit: 200,
     })),
-    req<unknown>(readItems('book_sport_types', {
+    usable ? Promise.resolve(null) : req<unknown>(readItems('book_sport_types', {
       fields: ['id', 'name', 'icon', 'sort'], limit: 100,
     })),
     req<unknown>(readItems('book_court_photos', {
       fields: ['id', 'court', 'photo', 'caption', 'sort', 'seq'],
-      filter: { court: { tenant: { _eq: tenant.id }, status: { _eq: 'active' } } },
+      filter: { court: { tenant: tenantSlug, status: { _eq: 'active' } } },
       sort: ['sort', 'seq'], limit: -1,
     })),
-    fetchPaymentMethods(tenant.id),
+    usable ? Promise.resolve(usable.paymentMethods) : readPaymentMethods({ tenant: tenantSlug }),
   ]);
-  const sportMap = new Map(
-    ((Array.isArray(sports) ? sports : []) as { id: string; name: string }[]).map((s) => [s.id, s.name]),
-  );
+  if (!tenant) return null;
+  const hoursArr = (Array.isArray(hours) ? hours : []) as BookOpeningHour[];
+  const payArr = (Array.isArray(payMethods) ? payMethods : []) as BookPaymentMethod[];
+  const sportMap = usable
+    ? usable.sportMap
+    : new Map(
+        ((Array.isArray(sports) ? sports : []) as { id: string; name: string }[])
+          .map((s) => [s.id, s.name]),
+      );
+  if (!usable) {
+    venueBundleCache.set(slug, {
+      tenant, hours: hoursArr, sportMap, paymentMethods: payArr, at: Date.now(),
+    });
+  }
   const courtRows = (Array.isArray(courts) ? courts : []) as BookCourt[];
   for (const c of courtRows) c.sport_name = c.sport != null ? sportMap.get(c.sport) : undefined;
   const byCourt = new Map<string, BookCourtPhoto[]>();
@@ -332,9 +369,9 @@ export async function fetchVenueBundle(slug: string) {
   return {
     tenant,
     courts: courtRows,
-    hours: (Array.isArray(hours) ? hours : []) as BookOpeningHour[],
+    hours: hoursArr,
     closures: (Array.isArray(closures) ? closures : []) as BookClosure[],
-    paymentMethods: payMethods,
+    paymentMethods: payArr,
   };
 }
 
@@ -472,6 +509,11 @@ export async function createBooking(payload: {
     })),
   };
   const created = await req<unknown>(createItem('book_bookings', body));
+  // a new booking changes live availability — drop this venue's cached bundle
+  // parts so the next fetchVenueBundle sees fresh state
+  for (const [key, entry] of venueBundleCache) {
+    if (entry.tenant.id === payload.tenantId) venueBundleCache.delete(key);
+  }
   return created as BookBooking;
 }
 

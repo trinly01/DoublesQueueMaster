@@ -1728,7 +1728,7 @@ import {
 } from '../services/matchmaking';
 import type { Player } from '../services/matchmaking';
 import { readItems, readMe } from '@likha-erp/likha-sdk';
-import { likhaClient } from 'src/services/likhaClient';
+import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import { useAuth } from 'src/composables/useAuth';
 import { useCloudSync } from '../composables/useCloudSync';
 import { useClubData } from '../composables/useClubData';
@@ -2756,9 +2756,7 @@ const copyClubLinkToClipboard = () => {
 };
 
 // Initialize Likha client from environment or localStorage
-const likhaUrl = ref(
-  localStorage.getItem('likhaUrl') || 'https://api.dinkmatch.club',
-);
+const likhaUrl = ref(localStorage.getItem('likhaUrl') || LIKHA_URL);
 const likhaToken = ref(localStorage.getItem('likhaToken') || '');
 
 // Cloud sync — timestamp helpers kept here (shared by loadClubData and composable)
@@ -3612,16 +3610,19 @@ onMounted(async () => {
     // Restore optimistic-concurrency token before loadClubData so the sync guard
     // has the correct token from the start (loadClubData resets it on club switch).
     lastSyncedServerTimestamp.value = loadLastSyncedTimestamp(clubId);
-    await loadClubData(clubId);
+    const serverPayloadApplied = await loadClubData(clubId);
     void loadClubFeedback();
-    // Auto-join if not a member (lazy join: works offline if cached, joins when online)
+    // Auto-join if not a member (lazy join: works offline if cached, joins when online).
+    // trustFreshMembership is only passed when loadClubData actually applied
+    // the server payload — its club.players list is the authoritative
+    // membership, so joinClub can skip re-reading it to re-verify.
     if (
       !isCurrentUserMember.value &&
       !isOpenPlay.value &&
       currentUserId.value &&
       isOnline.value
     ) {
-      await handleJoinClub();
+      await handleJoinClub({ trustFreshMembership: serverPayloadApplied });
     }
     // Rating adoption is handled by loadClubData (above) which now fetches
     // rating_updated_at and applies LWW. No separate refreshPlayerRatings needed.

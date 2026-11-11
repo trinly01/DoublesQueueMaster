@@ -37,7 +37,9 @@ export interface CloudSyncContext {
   currentUserId: Ref<string>;
   isOpenPlay: ComputedRef<boolean>;
   likhaUrl: Ref<string>;
-  loadClubData: (clubId: string) => Promise<void>;
+  // Returns whether the server payload (incl. member list) was applied —
+  // callers may ignore it.
+  loadClubData: (clubId: string) => Promise<unknown>;
   refreshPlayerRatings: () => Promise<void>;
   router: Router;
   lastSyncedServerTimestamp: Ref<number>;

@@ -327,15 +327,22 @@ function startHoldTimer() {
   }, 1000);
 }
 
-async function loadBooking(id: string) {
+async function loadBooking(id: string, tenantId?: string | null) {
+  // when the tenant id is already known (fresh-booking flow), overlap the
+  // payment-methods fetch with the booking detail fetch instead of after it
+  const methodsP = tenantId
+    ? fetchPaymentMethods(tenantId).catch(() => [] as BookPaymentMethod[])
+    : null;
   booking.value = await fetchBooking(id);
   if (booking.value) {
     pendingBookingId.value = id;
     const pays = booking.value.payments ?? [];
     payment.value = pays.length ? pays[pays.length - 1] : null;
-    paymentMethods.value = booking.value.tenant?.id
-      ? await fetchPaymentMethods(booking.value.tenant.id).catch(() => [])
-      : [];
+    paymentMethods.value = methodsP && booking.value.tenant?.id === tenantId
+      ? await methodsP
+      : booking.value.tenant?.id
+        ? await fetchPaymentMethods(booking.value.tenant.id).catch(() => [])
+        : [];
     if (booking.value.customer_name) {
       form.value.name = booking.value.customer_name;
       form.value.phone = booking.value.customer_phone ?? '';
@@ -418,8 +425,11 @@ async function createAndPay() {
       slots: draftSlots.value.map((s) => ({ court: s.court, date: s.date, start: s.start, end: s.end })),
     });
     pendingBookingId.value = b.id;
-    // createItem doesn't return nested slots — refetch, then check what survived
-    await loadBooking(b.id);
+    // createItem doesn't return nested slots — refetch, then check what survived.
+    // bookingTotal only needs the id — overlap its poll with loadBooking.
+    const totalP = bookingTotal(b.id);
+    void totalP.catch(() => {}); // may go unawaited if we bail on dead slots below
+    await loadBooking(b.id, draftTenant.value?.id);
     const alive = (booking.value?.slots ?? []).filter((s) => s.status === 'held' || s.status === 'confirmed');
     if (!alive.length) {
       notify({ type: 'negative', message: 'Sorry — those slots were just taken. Please pick another time.' });
@@ -434,12 +444,12 @@ async function createAndPay() {
       });
     }
     // ensure a payment record exists with the computed total
-    const total = await bookingTotal(b.id);
+    const total = await totalP;
     if (total > 0) {
       const pm = paymentMethods.value[0];
       payment.value = await ensurePayment(b.id, total,
         pm ? { payment_name: pm.name, payment_qr: pm.qr } : draftTenant.value);
-      await loadBooking(b.id); // refresh total display
+      await loadBooking(b.id, draftTenant.value?.id); // refresh total display
     }
   } catch (e) {
     console.error('booking create failed', e);

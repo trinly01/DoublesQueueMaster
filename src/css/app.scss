@@ -1,6 +1,6 @@
 // app global css in SCSS form
-
-@import './book.scss';
+// book.scss is imported by useBooking.ts so it joins the /book lazy CSS
+// chunk instead of the render-blocking entry CSS.
 
 // Accent shade utilities (Quasar doesn't auto-generate these for custom colors)
 .bg-accent-2 {

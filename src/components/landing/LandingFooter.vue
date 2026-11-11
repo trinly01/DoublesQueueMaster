@@ -2,7 +2,12 @@
   <footer class="landing-footer">
     <div class="container row items-center justify-between q-gutter-sm wrap">
       <div class="row items-center no-wrap">
-        <img :src="logoUrl" alt="DinkMatch logo" class="footer-logo" />
+        <img
+          :src="logoUrl"
+          alt="DinkMatch logo"
+          class="footer-logo"
+          loading="lazy"
+        />
         <span class="text-weight-bold q-ml-sm">DinkMatch</span>
       </div>
       <div class="row q-gutter-md">

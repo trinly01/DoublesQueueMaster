@@ -1,0 +1,87 @@
+/* Self-hosted font faces — replaces the 'roboto-font' and
+   'material-icons' Quasar extras so font-display can be set.
+   The extras ship Roboto .woff with NO font-display descriptor and
+   Material Icons with font-display: block (invisible-icon FOIT on first
+   paint). Font files in ./fonts/ are byte-identical copies of
+   @quasar/extras web-font files, so Vite emits the same hashed assets.
+   Roboto woff2 variants are NOT shipped by @quasar/extras — see
+   BOOT_PERF_AUDIT.md F22 if woff2 is wanted later. */
+
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  src: url('./fonts/KFOkCnqEu92Fr1MmgVxIIzQ.woff') format('woff');
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('./fonts/KFOlCnqEu92Fr1MmSU5fBBc-.woff') format('woff');
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/KFOmCnqEu92Fr1Mu4mxM.woff') format('woff');
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/KFOlCnqEu92Fr1MmEU9fBBc-.woff') format('woff');
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/KFOlCnqEu92Fr1MmWUlfBBc-.woff') format('woff');
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('./fonts/KFOlCnqEu92Fr1MmYUtfBBc-.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    url('./fonts/flUhRq6tzZclQEJ-Vdg-IuiaDsNcIhQ8tQ.woff2') format('woff2'),
+    url('./fonts/flUhRq6tzZclQEJ-Vdg-IuiaDsNa.woff') format('woff');
+}
+
+/* Copied verbatim from @quasar/extras/material-icons/material-icons.css —
+   Quasar's default iconSet renders <i class="material-icons">. */
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+}

@@ -1,6 +1,6 @@
 import { boot } from 'quasar/wrappers';
 import { LocalStorage } from 'quasar';
-import { likhaClient } from 'src/services/likhaClient';
+import { likhaClient, isAuthenticated } from 'src/services/likhaClient';
 
 export default boot(async ({ app }) => {
   app.config.globalProperties.$likha = likhaClient;
@@ -16,20 +16,21 @@ export default boot(async ({ app }) => {
   // refreshing unnecessarily on every reload widens the window for a
   // concurrent-refresh race (e.g., second tab, PWA reopen) that invalidates
   // the session and randomly logs users out.
-  if (LocalStorage.has('dink-auth')) {
+  if (isAuthenticated()) {
     const authData = LocalStorage.getItem('likha-data') as {
       expires_at?: number;
     } | null;
     const needsRefresh =
       !authData?.expires_at || authData.expires_at < Date.now() + 60_000;
     if (needsRefresh) {
-      try {
-        await likhaClient.refresh();
-      } catch {
+      // Fire-and-forget: refresh() is single-flighted across the boot,
+      // session guard, and 401 interceptor — nothing at mount depends on
+      // its completion, so don't block first paint on it.
+      void likhaClient.refresh().catch(() => {
         // Refresh failed — the 401 interceptor will handle it on the next
         // API call. Don't force logout here; the session may still be valid.
         console.warn('[Boot] Proactive token refresh failed');
-      }
+      });
     }
   }
 });

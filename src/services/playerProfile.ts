@@ -42,7 +42,17 @@ export interface DirectusCompletedMatch {
   team_b_score: number;
   completed_at: string;
   started_at?: string;
-  club: string;
+  // Requested as club.id/club.clubId/club.name/club.logo — arrives as an
+  // object; a bare string only appears if the relational fields are absent.
+  club:
+    | string
+    | null
+    | {
+        id?: string;
+        clubId?: string;
+        name?: string;
+        logo?: string;
+      };
   meta?: MatchMeta;
   players?: {
     id: number;
@@ -219,7 +229,17 @@ export class PlayerProfileService {
               filter: {
                 players: { directus_users_id: { _eq: this.state.id } },
               },
-              fields: ['*', 'club.id', 'players.directus_users_id.*'],
+              // club.clubId/name/logo let consumers (e.g. recent clubs on
+              // PlayerPage) derive club cards without a second
+              // completed_match query.
+              fields: [
+                '*',
+                'club.id',
+                'club.clubId',
+                'club.name',
+                'club.logo',
+                'players.directus_users_id.*',
+              ],
               sort: ['-completed_at'],
               limit: 500,
             }),

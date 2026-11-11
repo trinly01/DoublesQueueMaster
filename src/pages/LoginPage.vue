@@ -222,7 +222,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { LocalStorage } from 'quasar';
 import { useNotify } from 'src/composables/useNotify';
-import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
+import { likhaClient, LIKHA_URL, AUTH_FLAG_KEY } from 'src/services/likhaClient';
 import { registerUserVerify } from '@likha-erp/likha-sdk';
 import { PlayerProfile } from 'src/services/playerProfile';
 
@@ -353,7 +353,7 @@ onMounted(async () => {
       // also handles the Directus provisioning race for new SSO users via
       // retry logic. A 401 here means the session is invalid.
       await PlayerProfile.fetchProfile();
-      LocalStorage.set('dink-auth', true);
+      LocalStorage.set(AUTH_FLAG_KEY, true);
 
       notify({
         color: 'positive',
@@ -389,7 +389,7 @@ const onSubmit = async () => {
   loading.value = true;
   try {
     await likhaClient.login({ email: email.value, password: password.value });
-    LocalStorage.set('dink-auth', true);
+    LocalStorage.set(AUTH_FLAG_KEY, true);
 
     notify({
       color: 'positive',

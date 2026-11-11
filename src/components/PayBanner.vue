@@ -5,7 +5,7 @@
         {{ message }}
       </span>
     </div>
-    <div class="col-12 col-sm-auto pay-banner-btn q-mt-xs q-mt-sm-none">
+    <div class="col-12 col-sm-auto pay-banner-btn q-mt-xs">
       <q-btn
         color="accent"
         :label="buttonLabel"

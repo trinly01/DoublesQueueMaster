@@ -1,7 +1,4 @@
-import { LocalStorage } from 'quasar';
-import { likhaClient } from 'src/services/likhaClient';
-
-const SESSION_KEY = 'dink-auth';
+import { likhaClient, isAuthenticated } from 'src/services/likhaClient';
 
 let visibilityHandler: (() => void) | null = null;
 let pageShowHandler: (() => void) | null = null;
@@ -14,7 +11,7 @@ export function useSessionGuard() {
   let isRefreshing = false;
   let wasHidden = false;
   const refreshOnWake = async (): Promise<boolean> => {
-    if (!LocalStorage.has(SESSION_KEY)) return false;
+    if (!isAuthenticated()) return false;
 
     // Only attempt refresh if the page was actually hidden (screen lock, tab switch)
     // Don't refresh on every visibility change (scroll, address bar, etc.)
@@ -42,7 +39,7 @@ export function useSessionGuard() {
   };
 
   const startSessionGuard = () => {
-    if (!LocalStorage.has(SESSION_KEY)) return;
+    if (!isAuthenticated()) return;
 
     // Refresh on visibility change (phone screen unlock / tab switch back)
     if (visibilityHandler) {

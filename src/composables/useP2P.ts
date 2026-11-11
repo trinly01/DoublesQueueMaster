@@ -139,9 +139,6 @@ async function fetchCloudflareTurnServers(): Promise<RTCIceServer[]> {
   return turnFetchPromise;
 }
 
-// Kick off fetch immediately on module load (non-blocking)
-fetchCloudflareTurnServers();
-
 export function useP2P() {
   const connectionState = ref<ConnectionStatus>('idle');
   const role = ref<PeerRole>(null);
