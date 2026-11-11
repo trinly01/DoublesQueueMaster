@@ -3,7 +3,6 @@
     <div class="book-container">
       <div class="book-header">
         <q-btn flat dense round icon="arrow_back" @click="$router.back()" />
-        <q-btn flat dense round icon="home" :to="'/'" />
         <div class="col">
           <div class="book-title">My bookings</div>
           <div class="book-subtitle">Your court reservations</div>
@@ -52,6 +51,14 @@
         </q-card-section>
       </q-card>
     </div>
+    <q-page-sticky position="bottom-left" :offset="[18, 18]">
+      <q-btn round icon="person" color="accent" @click="$router.push('/')">
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+          >Profile</q-tooltip
+        >
+      </q-btn>
+    </q-page-sticky>
+
   </q-page>
 </template>
 

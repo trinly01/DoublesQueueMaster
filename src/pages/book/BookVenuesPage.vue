@@ -82,6 +82,14 @@
         </q-card>
       </div>
     </div>
+    <q-page-sticky position="bottom-left" :offset="[18, 18]">
+      <q-btn round icon="person" color="accent" @click="$router.push('/')">
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+          >Profile</q-tooltip
+        >
+      </q-btn>
+    </q-page-sticky>
+
   </q-page>
 </template>
 

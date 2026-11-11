@@ -6,7 +6,6 @@
       <template v-if="bundle">
         <div class="book-header">
           <q-btn flat dense round icon="arrow_back" @click="$router.push('/book')" />
-        <q-btn flat dense round icon="home" :to="'/'" />
           <div class="col">
             <div class="book-title ellipsis">{{ bundle.tenant.name }}</div>
             <div class="book-subtitle ellipsis">{{ bundle.tenant.address }}</div>
@@ -14,7 +13,7 @@
         </div>
 
         <!-- suspended/pending venue: exists but not taking bookings -->
-        <q-card v-if="venueUnavailable" class="book-card q-mb-md">
+        <q-card v-if="venueUnavailable" class="book-card q-mb-lg">
           <q-card-section class="text-center q-pa-lg">
             <q-icon name="hotel_class" size="52px" color="grey-4" class="q-mb-sm" />
             <div class="text-subtitle1 text-weight-bold">Temporarily unavailable</div>
@@ -31,7 +30,7 @@
 
         <template v-else>
         <!-- venue hero -->
-        <q-card class="book-card venue-hero q-mb-md">
+        <q-card class="book-card venue-hero q-mb-lg">
           <q-card-section class="row q-col-gutter-md items-center q-pa-lg">
             <div class="book-logo venue-logo-lg">
               <img v-if="bundle.tenant.logo" :src="fileUrl(bundle.tenant.logo)" alt="" />
@@ -106,7 +105,7 @@
         </q-card>
 
         <!-- hours -->
-        <q-card class="book-card q-mb-md">
+        <q-card class="book-card q-mb-lg">
           <q-card-section>
             <div class="book-section-label q-mb-sm">Opening hours</div>
             <template v-if="weeklyHours.length">
@@ -171,6 +170,14 @@
     </div>
     <CourtPhotoDialog v-model:court="photoCourt" />
     <ImageLightbox v-model:open="qrOpen" :src="qrView?.src ?? ''" :title="qrView?.title" />
+    <q-page-sticky position="bottom-left" :offset="[18, 18]">
+      <q-btn round icon="person" color="accent" @click="$router.push('/')">
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+          >Profile</q-tooltip
+        >
+      </q-btn>
+    </q-page-sticky>
+
   </q-page>
 </template>
 

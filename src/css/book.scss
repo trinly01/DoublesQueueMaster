@@ -22,6 +22,8 @@
   gap: 8px;
   margin-bottom: 16px;
 }
+// Let the title column shrink below content width so the chip/actions never clip
+.book-header > .col { min-width: 0; }
 
 .book-title {
   font-size: 1.25rem;
@@ -248,11 +250,11 @@
 
 /* selected/draft slot groups — shared by picker + checkout review */
 .draft-group { margin-bottom: 10px; }
-.draft-group-head { margin-bottom: 4px; display: flex; align-items: baseline; flex-wrap: wrap; }
-.draft-court { color: #5b3a8e; }
-.draft-date { color: #616161; font-weight: 500; }
-.draft-hours { color: #9e9e9e; }
+.draft-group-head { margin-bottom: 4px; display: flex; flex-direction: column; }
+.draft-court { color: #5b3a8e; font-weight: 700; font-size: 13px; }
+.draft-meta { color: #616161; font-weight: 500; font-size: 12px; }
 .draft-chip { font-size: 12px; margin: 0 6px 6px 0; }
+.slot-dead { text-decoration: line-through; opacity: 0.75; }
 
 /* tappable payment account number — accent purple, copies on tap */
 .pay-acct { color: #764ba2; cursor: pointer; white-space: nowrap; }

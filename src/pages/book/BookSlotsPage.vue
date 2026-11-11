@@ -13,7 +13,7 @@
         </div>
 
         <!-- suspended venue: exists but not taking bookings -->
-        <q-card v-if="venueUnavailable" class="book-card q-mb-md">
+        <q-card v-if="venueUnavailable" class="book-card q-mb-lg">
           <q-card-section class="text-center q-pa-lg">
             <q-icon name="hotel_class" size="52px" color="grey-4" class="q-mb-sm" />
             <div class="text-subtitle1 text-weight-bold">Temporarily unavailable</div>
@@ -120,9 +120,8 @@
           </div>
           <div v-for="g in groupedDraft" :key="g.key" class="draft-group">
             <div class="draft-group-head">
-              <span class="text-caption text-weight-bold draft-court">{{ g.courtName }}</span>
-              <span class="text-caption draft-date"> · {{ fmtDate(g.date) }}</span>
-              <span class="text-caption draft-hours"> — {{ g.items.length }}h</span>
+              <span class="draft-court">{{ g.courtName }}</span>
+              <span class="draft-meta">{{ fmtDate(g.date) }} · {{ g.items.length }}h</span>
             </div>
             <q-chip
               v-for="s in g.items" :key="s.start" dense removable outline
@@ -150,6 +149,14 @@
       </div>
     </div>
     <CourtPhotoDialog v-model:court="photoCourt" />
+    <q-page-sticky position="bottom-left" :offset="[18, 18]">
+      <q-btn round icon="person" color="accent" @click="$router.push('/')">
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+          >Profile</q-tooltip
+        >
+      </q-btn>
+    </q-page-sticky>
+
   </q-page>
 </template>
 
@@ -372,7 +379,12 @@ const groupedDraft = computed(() => {
     if (!g) { g = { key, courtName: s.courtName, date: s.date, items: [] }; map.set(key, g); }
     g.items.push(s);
   }
-  return [...map.values()];
+  const groups = [...map.values()];
+  for (const g of groups) g.items.sort((a, b) => a.start.localeCompare(b.start));
+  return groups.sort((a, b) =>
+    a.date.localeCompare(b.date) ||
+    a.courtName.localeCompare(b.courtName) ||
+    a.items[0].start.localeCompare(b.items[0].start));
 });
 
 function removeDraft(s: DraftSlot) {

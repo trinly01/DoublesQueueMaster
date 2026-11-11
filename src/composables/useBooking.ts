@@ -119,6 +119,9 @@ export interface BookBooking {
 export interface BookTenantBrief {
   id?: string;
   name?: string;
+  slug?: string;
+  address?: string | null;
+  timezone?: string;
   gcash_name?: string | null;
   gcash_number?: string | null;
   bank_details?: string | null;
@@ -583,6 +586,7 @@ export async function fetchBooking(id: string): Promise<BookBookingDetail | null
         'proofs.reviewed_at',
         'tenant.id', 'tenant.name', 'tenant.slug', 'tenant.gcash_name', 'tenant.gcash_number',
         'tenant.bank_details', 'tenant.payment_name', 'tenant.payment_qr',
+        'tenant.address', 'tenant.timezone',
         'tenant.refund_policy', 'tenant.payment_timeout_minutes',
       ],
       filter: { id: { _eq: id } }, limit: 1,
@@ -596,6 +600,167 @@ export async function cancelBooking(id: string, reason?: string): Promise<void> 
   await req<unknown>(
     updateItem('book_bookings', id, { status: 'cancelled', cancel_reason: reason || null }),
   );
+}
+
+// ---------- add-to-calendar (.ics + Google) ----------
+// Pure frontend: booking slots → VEVENTs in venue-local time converted to UTC.
+// VALARM entries give customers the reminder behavior inside their calendar app.
+
+export async function fetchCourtNames(tenantId?: string | null): Promise<Map<string, string>> {
+  if (!tenantId) return new Map();
+  const rows = await req<unknown>(
+    readItems('book_courts', {
+      fields: ['id', 'name'],
+      filter: { tenant: { _eq: tenantId } },
+      limit: -1,
+    }),
+  );
+  const list = Array.isArray(rows) ? rows : [];
+  return new Map(list.map((c) => [(c as { id: string }).id, (c as { name?: string }).name ?? 'Court']));
+}
+
+const icsStamp = (d: Date) =>
+  d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+function tzOffsetMs(utc: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).formatToParts(utc);
+  const v = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  const wallAsUtc = Date.UTC(v('year'), v('month') - 1, v('day'), v('hour') % 24, v('minute'), v('second'));
+  return wallAsUtc - Math.floor(utc.getTime() / 1000) * 1000;
+}
+
+function zonedToUtc(dateStr: string, hhmm: string, timeZone: string): Date {
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  const [h, mi] = hhmm.slice(0, 5).split(':').map(Number);
+  const wall = Date.UTC(y, mo - 1, d, h, mi);
+  let utc = wall;
+  for (let i = 0; i < 2; i++) utc = wall - tzOffsetMs(new Date(utc), timeZone);
+  return new Date(utc);
+}
+
+const icsEsc = (s: string) =>
+  s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+
+interface CalEvent {
+  uid: string; dtstart: Date; dtend: Date; summary: string;
+  description: string; location: string; status: 'CONFIRMED' | 'TENTATIVE'; url: string;
+}
+
+function bookingEvents(booking: BookBookingDetail, names: Map<string, string>): CalEvent[] {
+  const tz = booking.tenant?.timezone || 'Asia/Manila';
+  const venue = booking.tenant?.name ?? 'the venue';
+  const addr = booking.tenant?.address || venue;
+  const url = `https://dinkmatch.club/#/book/booking/${booking.id}`;
+  const groups = new Map<string, BookSlot[]>();
+  for (const s of booking.slots ?? []) {
+    if (s.status === 'cancelled') continue;
+    const k = `${s.court}|${s.date}`;
+    (groups.get(k) ?? groups.set(k, []).get(k)!).push(s);
+  }
+  const events: CalEvent[] = [];
+  for (const [key, slots] of groups) {
+    const [courtId, date] = key.split('|');
+    const court = names.get(courtId) ?? 'Court';
+    slots.sort((a, b) => a.start_time.localeCompare(b.start_time));
+    // split into contiguous runs so gaps don't inflate the event
+    let runStart = slots[0].start_time, runEnd = slots[0].end_time, runConfirmed = slots[0].status === 'confirmed';
+    const flush = (end: string) => {
+      events.push({
+        uid: `${booking.id}-${courtId}-${date}-${runStart}@dinkmatch.club`,
+        dtstart: zonedToUtc(date, runStart, tz),
+        dtend: zonedToUtc(date, end, tz),
+        summary: `Court booking — ${court} · ${venue}`,
+        description: [
+          `Ref: ${booking.ref ?? booking.id}`,
+          `Court: ${court} · ${date} ${runStart.slice(0, 5)}–${end.slice(0, 5)}`,
+          `Venue: ${venue}`,
+          `Booking: ${url}`,
+        ].join('\n'),
+        location: addr,
+        status: runConfirmed ? 'CONFIRMED' : 'TENTATIVE',
+        url,
+      });
+    };
+    for (const s of slots.slice(1)) {
+      if (s.start_time > runEnd) { flush(runEnd); runStart = s.start_time; runConfirmed = s.status === 'confirmed'; }
+      else runConfirmed = runConfirmed && s.status === 'confirmed';
+      runEnd = s.end_time;
+    }
+    flush(runEnd);
+  }
+  return events.sort((a, b) => a.dtstart.getTime() - b.dtstart.getTime());
+}
+
+export function bookingIcs(booking: BookBookingDetail, names: Map<string, string>): string | null {
+  const events = bookingEvents(booking, names);
+  if (!events.length) return null;
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Zyberlab//DinkMatch Booking//EN',
+    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+  ];
+  for (const e of events) {
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:${e.uid}`,
+      `DTSTAMP:${icsStamp(new Date())}`,
+      `DTSTART:${icsStamp(e.dtstart)}`,
+      `DTEND:${icsStamp(e.dtend)}`,
+      `SUMMARY:${icsEsc(e.summary)}`,
+      `LOCATION:${icsEsc(e.location)}`,
+      `DESCRIPTION:${icsEsc(e.description)}`,
+      `STATUS:${e.status}`,
+      `URL:${e.url}`,
+      'BEGIN:VALARM', 'ACTION:DISPLAY', 'TRIGGER:-PT1H',
+      'DESCRIPTION:Your court booking starts soon', 'END:VALARM',
+      'BEGIN:VALARM', 'ACTION:DISPLAY', 'TRIGGER:-P1D',
+      'DESCRIPTION:Your court booking is tomorrow', 'END:VALARM',
+      'END:VEVENT',
+    );
+  }
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
+export function bookingGoogleUrl(booking: BookBookingDetail, names: Map<string, string>): string | null {
+  const e = bookingEvents(booking, names)[0];
+  if (!e) return null;
+  const p = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: e.summary,
+    dates: `${icsStamp(e.dtstart)}/${icsStamp(e.dtend)}`,
+    details: e.description,
+    location: e.location,
+  });
+  return `https://calendar.google.com/calendar/render?${p.toString()}`;
+}
+
+export function downloadTextFile(filename: string, content: string, mime = 'text/plain'): void {
+  const blob = new Blob([content], { type: `${mime};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** One-call helper for pages: fetch court names → .ics download. */
+export async function addBookingToCalendar(booking: BookBookingDetail): Promise<void> {
+  const names = await fetchCourtNames(booking.tenant?.id);
+  const ics = bookingIcs(booking, names);
+  if (!ics) throw new Error('No bookable slots to add');
+  const safe = (booking.ref ?? booking.id).replace(/[^\w-]+/g, '-');
+  downloadTextFile(`${safe}-court-booking.ics`, ics, 'text/calendar');
+}
+
+export async function openGoogleCalendar(booking: BookBookingDetail): Promise<void> {
+  const names = await fetchCourtNames(booking.tenant?.id);
+  const url = bookingGoogleUrl(booking, names);
+  if (!url) throw new Error('No bookable slots to add');
+  window.open(url, '_blank', 'noopener');
 }
 
 // ---------- profile prefill ----------

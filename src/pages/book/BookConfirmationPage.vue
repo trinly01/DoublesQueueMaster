@@ -29,23 +29,63 @@
         </q-card>
 
         <div class="row q-gutter-sm justify-center q-mt-lg">
+          <q-btn-dropdown
+            v-if="hasBookableSlots" outline rounded color="accent" icon="event"
+            label="Add to calendar" no-caps
+          >
+            <q-list dense>
+              <q-item clickable v-close-popup @click="downloadIcs">
+                <q-item-section avatar><q-icon name="download" /></q-item-section>
+                <q-item-section>Download .ics — all slots</q-item-section>
+              </q-item>
+              <q-item clickable v-close-popup @click="openGcal">
+                <q-item-section avatar><q-icon name="calendar_month" /></q-item-section>
+                <q-item-section>Google Calendar</q-item-section>
+              </q-item>
+            </q-list>
+          </q-btn-dropdown>
           <q-btn unelevated rounded color="accent" icon="receipt_long" label="My bookings" @click="$router.push('/book/my')" />
           <q-btn outline rounded color="accent" icon="add_circle" label="Book another" @click="$router.push('/book')" />
-          <q-btn flat rounded color="grey-7" icon="home" label="Home" @click="$router.push('/')" />
         </div>
       </div>
     </div>
+    <q-page-sticky position="bottom-left" :offset="[18, 18]">
+      <q-btn round icon="person" color="accent" @click="$router.push('/')">
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+          >Profile</q-tooltip
+        >
+      </q-btn>
+    </q-page-sticky>
+
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { fetchBooking, peso, type BookBookingDetail } from 'src/composables/useBooking';
+import {
+  fetchBooking, peso, addBookingToCalendar, openGoogleCalendar,
+  type BookBookingDetail,
+} from 'src/composables/useBooking';
+import { useNotify } from 'src/composables/useNotify';
 
 defineOptions({ name: 'BookConfirmationPage' });
 const route = useRoute();
 const booking = ref<BookBookingDetail | null>(null);
+const { notify } = useNotify();
+const hasBookableSlots = computed(() =>
+  (booking.value?.slots ?? []).some((s) => s.status !== 'cancelled'));
+
+async function downloadIcs() {
+  if (!booking.value) return;
+  try { await addBookingToCalendar(booking.value); }
+  catch { notify({ type: 'negative', message: 'Nothing to add — no active slots on this booking.' }); }
+}
+async function openGcal() {
+  if (!booking.value) return;
+  try { await openGoogleCalendar(booking.value); }
+  catch { notify({ type: 'negative', message: 'Nothing to add — no active slots on this booking.' }); }
+}
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const fmtDate = (d: string) => {

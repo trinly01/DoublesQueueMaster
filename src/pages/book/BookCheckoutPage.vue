@@ -7,21 +7,19 @@
         <!-- STEP 1: your details -->
         <div class="book-header">
           <q-btn flat dense round icon="arrow_back" @click="$router.back()" />
-        <q-btn flat dense round icon="home" :to="'/'" />
           <div class="col">
             <div class="book-title">Your details</div>
             <div class="book-subtitle">Almost there</div>
           </div>
         </div>
 
-        <q-card class="book-card q-mb-md">
+        <q-card class="book-card q-mb-lg">
           <q-card-section>
             <div class="text-subtitle2 text-weight-bold q-mb-sm">{{ draftTenant.name }}</div>
             <div v-for="g in groupedDraft" :key="g.key" class="draft-group">
               <div class="draft-group-head">
-                <span class="text-caption text-weight-bold draft-court">{{ g.courtName }}</span>
-                <span class="text-caption draft-date"> · {{ fmtDate(g.date) }}</span>
-                <span class="text-caption draft-hours"> — {{ g.items.length }}h</span>
+                <span class="draft-court">{{ g.courtName }}</span>
+                <span class="draft-meta">{{ fmtDate(g.date) }} · {{ g.items.length }}h</span>
               </div>
               <q-chip
                 v-for="s in g.items" :key="s.start" dense outline
@@ -67,14 +65,17 @@
         <!-- STEP 2: pay + upload proof -->
         <div class="book-header">
           <q-btn flat dense round icon="arrow_back" @click="$router.push('/book/my')" />
-        <q-btn flat dense round icon="home" :to="'/'" />
           <div class="col">
             <div class="book-title">Complete payment</div>
             <div class="book-subtitle">Booking {{ booking.ref }}</div>
           </div>
         </div>
 
-        <q-banner v-if="holdLeft" dense rounded class="q-mb-md"
+        <q-banner v-if="verifying && !reupload" dense rounded class="q-mb-md bg-blue-1 text-blue-9">
+          <template #avatar><q-icon name="hourglass_top" /></template>
+          Proof submitted — the venue is verifying your payment. Your slots stay held meanwhile.
+        </q-banner>
+        <q-banner v-else-if="holdLeft && awaitingPay" dense rounded class="q-mb-md"
           :class="holdLeft === 'expired' ? 'bg-red-1 text-red-9' : 'bg-orange-1 text-orange-9'">
           <template #avatar><q-icon :name="holdLeft === 'expired' ? 'error' : 'schedule'" /></template>
           <template v-if="holdLeft === 'expired'">
@@ -87,9 +88,9 @@
           </template>
         </q-banner>
 
-        <q-card class="book-card q-mb-md">
+        <q-card v-if="booking.status === 'pending_payment' && booking.payment_status !== 'paid'" class="book-card q-mb-lg">
           <q-card-section>
-            <div class="book-section-label q-mb-sm">Pay this amount</div>
+            <div class="book-section-label q-mb-sm">{{ verifying ? 'Payment details' : 'Pay this amount' }}</div>
             <div class="text-h4 text-weight-bold text-accent">₱{{ fmt(booking.total ?? payment?.amount) }}</div>
             <div class="text-caption text-grey-7 q-mt-xs">
               {{ booking.tenant?.name }} · {{ booking.slots?.length ?? 0 }} slot(s)
@@ -152,17 +153,19 @@
           </q-card-section>
         </q-card>
 
-        <q-card v-if="payment && booking.payment_status === 'pending_verification'" class="book-card q-mt-md">
+        <q-card v-if="booking.payment_status === 'pending_verification' && !reupload" class="book-card">
           <q-card-section class="text-center">
             <q-icon name="hourglass_top" color="orange" size="48px" />
             <div class="text-h6 text-weight-bold q-mt-sm">Proof submitted</div>
             <div class="text-body2 text-grey-7">The venue is verifying your payment — we'll confirm your slot shortly.</div>
-            <q-btn flat color="accent" label="View my bookings" class="q-mt-sm"
+            <q-btn unelevated rounded color="accent" icon="cloud_upload" label="Reupload proof"
+              class="q-mt-md full-width" @click="reupload = true" />
+            <q-btn flat color="accent" label="View my bookings" class="q-mt-xs"
               @click="$router.push('/book/my')" />
           </q-card-section>
         </q-card>
 
-        <q-card v-else-if="payment && booking.payment_status !== 'paid'" class="book-card">
+        <q-card v-else-if="payment && (awaitingPay || reupload)" class="book-card">
           <q-card-section>
             <div class="book-section-label q-mb-sm">Upload proof of payment</div>
             <q-banner
@@ -175,7 +178,9 @@
               </template>
             </q-banner>
             <div v-else class="text-caption text-grey-7 q-mb-sm">
-              Pay via any method above, then upload the receipt — the venue verifies and confirms your slot.
+              {{ reupload
+                ? 'Upload a new receipt — the latest upload is used for verification.'
+                : 'Pay via any method above, then upload the receipt — the venue verifies and confirms your slot.' }}
             </div>
             <q-input v-model="proof.refNo" outlined dense rounded label="Reference / transaction no. (optional)" class="q-mb-sm" bg-color="white" :disable="holdExpired" />
             <q-file
@@ -193,7 +198,7 @@
           </q-card-section>
         </q-card>
 
-        <q-card v-else-if="booking.payment_status === 'paid'" class="book-card q-mt-md">
+        <q-card v-else-if="booking.payment_status === 'paid'" class="book-card">
           <q-card-section class="text-center">
             <q-icon name="check_circle" color="positive" size="48px" />
             <div class="text-h6 text-weight-bold q-mt-sm">Payment confirmed!</div>
@@ -211,6 +216,14 @@
       </div>
     </div>
     <ImageLightbox v-model:open="qrOpen" :src="qrView?.src ?? ''" :title="qrView?.title" />
+    <q-page-sticky position="bottom-left" :offset="[18, 18]">
+      <q-btn round icon="person" color="accent" @click="$router.push('/')">
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+          >Profile</q-tooltip
+        >
+      </q-btn>
+    </q-page-sticky>
+
   </q-page>
 </template>
 
@@ -244,6 +257,7 @@ const loading = ref(false);
 const creating = ref(false);
 const submittingProof = ref(false);
 const holdLeft = ref('');
+const reupload = ref(false);
 let holdTimer: ReturnType<typeof setInterval> | null = null;
 
 const form = ref({ name: '', phone: '', email: '', notes: '' });
@@ -263,12 +277,21 @@ const groupedDraft = computed(() => {
     if (!g) { g = { key, courtName: s.courtName, date: s.date, items: [] }; map.set(key, g); }
     g.items.push(s);
   }
-  return [...map.values()];
+  const groups = [...map.values()];
+  for (const g of groups) g.items.sort((a, b) => a.start.localeCompare(b.start));
+  return groups.sort((a, b) =>
+    a.date.localeCompare(b.date) ||
+    a.courtName.localeCompare(b.courtName) ||
+    a.items[0].start.localeCompare(b.items[0].start));
 });
 
 const fmt = (n: number | string | null | undefined) => peso(n, 2);
 const holdMins = computed(() => draftTenant.value?.payment_timeout_minutes ?? 15);
 const holdExpired = computed(() => holdLeft.value === 'expired');
+const verifying = computed(() => booking.value?.payment_status === 'pending_verification');
+const awaitingPay = computed(() =>
+  booking.value?.status === 'pending_payment' &&
+  !['pending_verification', 'paid'].includes(booking.value?.payment_status ?? ''));
 const payTitle = computed(() => {
   const ms = paymentMethods.value;
   if (ms.length === 1) return `Pay via ${ms[0].name}`;
@@ -300,7 +323,7 @@ function startHoldTimer() {
       return;
     }
     const m = Math.floor(diff / 60000), s = Math.floor((diff % 60000) / 1000);
-    holdLeft.value = `${m}m ${s}s`;
+    holdLeft.value = m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m ${s}s` : `${m}m ${s}s`;
   }, 1000);
 }
 
