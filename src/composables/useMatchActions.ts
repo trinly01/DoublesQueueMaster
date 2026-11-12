@@ -12,6 +12,7 @@ import {
   compareWaitingMatches,
   type QueuePriorityMode,
 } from 'src/utils/matchOrdering';
+import { perfMeasure } from 'src/utils/perfTelemetry';
 
 type NotifyFn = (opts: QNotifyCreateOptions) => void;
 
@@ -374,9 +375,11 @@ export function useMatchActions(context: UseMatchActionsContext) {
     MatchmakingApp.state.teamSize = matchType.value === 'singles' ? 1 : 2;
     MatchmakingApp.stampSetting('teamSize');
     MatchmakingApp.persist();
-    MatchmakingApp.draftNextMatches(
-      queuePriorityMode.value,
-      currentAdminName.value,
+    perfMeasure('draft-next-matches', () =>
+      MatchmakingApp.draftNextMatches(
+        queuePriorityMode.value,
+        currentAdminName.value,
+      ),
     );
 
     // Surface avoid-preference outcomes from the draft run.

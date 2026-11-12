@@ -5275,3 +5275,545 @@ describe('completedMatches cap', () => {
     expect(sys.state.completedMatchIds).toEqual([]);
   });
 });
+
+describe('draftNextMatches — DFS budget & correctness fix', () => {
+  const queueSingles = (sys: LocalMatchmakingSystem, names: string[]) => {
+    names.forEach((name, i) => {
+      sys.state.players[name] = makePlayer(1500, { username: name });
+      sys.state.queues.push({
+        username: name,
+        queueType: 'GENERAL',
+        enteredAt: 1000 + i,
+        createdAt: 1000,
+        updatedAt: 1000,
+        queuedAt: 1000,
+      });
+    });
+  };
+
+  const draftedSet = (sys: LocalMatchmakingSystem) =>
+    sys.state.activeMatches.map((m) =>
+      [...m.teamA, ...m.teamB].sort(),
+    );
+
+  it('clique-avoid repro: relaxed pass still drafts the lex-tail splittable combo', () => {
+    // Dense avoid graph reachable via cloud sync / legacy state:
+    // mergeAppState copies `avoids` wholesale by avoidUpdatedAt LWW
+    // (matchmaking.ts ~:1995-1998 and ~:2082-2085) with NO cap re-validation,
+    // and loadState()/LocalStorage restores whatever was persisted. Write-path
+    // caps (MAX_AVOIDS_PER_PLAYER, MAX_INCOMING_AVOID_RATIO) therefore do NOT
+    // cover this data — the draft must stay correct on it.
+    //
+    // Fixture: 48 singles. p0..p39 form an avoid clique, p40..p47 form a second
+    // clique, and every A-player avoids every B-player EXCEPT the two disjoint
+    // non-edges (p24,p46) and (p25,p47). The ONLY 4-player combo whose avoid
+    // edges can be split across two teams is {p24,p25,p46,p47} — it sits at the
+    // lexicographic tail of the DFS (~184k UNSAT leaves precede it). The old
+    // shared `visited` counter let the strict pass starve the relaxed pass, so
+    // this queue drafted 0 matches and reported every avoid edge as a blocker.
+    const sys = new LocalMatchmakingSystem(2);
+    const names = Array.from({ length: 48 }, (_, i) => `p${i}`);
+    queueSingles(sys, names);
+
+    // Direct avoids writes — bypass setPlayerAvoid caps on purpose (simulates
+    // merged/legacy data, see comment above).
+    const avoid = (a: string, b: string) => {
+      const p = sys.state.players[a];
+      (p.avoids ??= {})[b] = 'match';
+    };
+    for (let i = 0; i < 40; i++) {
+      for (let j = i + 1; j < 40; j++) avoid(`p${i}`, `p${j}`); // A-clique
+    }
+    for (let i = 40; i < 48; i++) {
+      for (let j = i + 1; j < 48; j++) avoid(`p${i}`, `p${j}`); // B-clique
+    }
+    for (let i = 0; i < 40; i++) {
+      for (let j = 40; j < 48; j++) {
+        if ((i === 24 && j === 46) || (i === 25 && j === 47)) continue;
+        avoid(`p${i}`, `p${j}`); // dense bipartite, minus two non-edges
+      }
+    }
+
+    sys.draftNextMatches('timestamp', 'test');
+
+    expect(sys.state.activeMatches.length).toBe(1);
+    expect(draftedSet(sys)).toEqual([['p24', 'p25', 'p46', 'p47']]);
+    expect(sys.lastDraftInfo.blockers).toEqual([]);
+    // The follow-up pickUnits call on the remaining 44 players hits the
+    // deterministic run budget mid-search → flagged, never phantom blockers.
+    expect(sys.lastDraftInfo.searchExhausted).toBe(true);
+    // Nobody else lost their queue spot.
+    expect(
+      sys.state.queues.filter((q) => !q.deletedAt).length,
+    ).toBe(44);
+  });
+
+  it('budget partition: a strict-pass-heavy queue still drafts via the reserved relaxed slice', () => {
+    // 60 singles in three avoid-cliques of 20. The strict pass has NO
+    // conflict-free 4-set (the avoid graph's independence number is 3) and
+    // burns far more than its node slice exploring partial conflict-free
+    // subsets. The relaxed pass must still get its own reserved slice and
+    // draft the first splittable combo — the old shared `visited` counter
+    // let strict starve relaxed into a false blocker + 0 matches.
+    const sys = new LocalMatchmakingSystem(2);
+    const names = Array.from({ length: 60 }, (_, i) => `p${i}`);
+    queueSingles(sys, names);
+    const avoid = (a: string, b: string) => {
+      const p = sys.state.players[a];
+      (p.avoids ??= {})[b] = 'match';
+    };
+    for (const [lo, hi] of [
+      [0, 20],
+      [20, 40],
+      [40, 60],
+    ] as const) {
+      for (let i = lo; i < hi; i++) {
+        for (let j = i + 1; j < hi; j++) avoid(`p${i}`, `p${j}`);
+      }
+    }
+
+    sys.draftNextMatches('timestamp', 'test');
+
+    // The strict pass burns its entire node slice on every early pickUnits
+    // call (verified: strict -> 'exhausted' at ~50k nodes), yet the relaxed
+    // pass's reserved slice still drafts — first splittable combo in DFS
+    // order is {p0,p1} from clique A + {p20,p21} from clique B.
+    expect(sys.state.activeMatches.length).toBeGreaterThan(0);
+    expect(draftedSet(sys)[0]).toEqual(['p0', 'p1', 'p20', 'p21']);
+    // Matches came through the relaxed pass → soft violations reported.
+    expect(sys.lastDraftInfo.violations.length).toBeGreaterThan(0);
+  });
+
+  // ------------------------------------------------------------------
+  // Golden-master reference: the PRE-FIX subset search, kept inline so the
+  // equivalence spec can compare new output against old output computed on
+  // the same state. Faithful to the old implementation — including the
+  // missing dead-edge filter in makeUnit and the shared 200k `visited`
+  // counter across all pickUnits calls of one draft run (corpus states are
+  // small enough that the cap is never reached either way).
+  // ------------------------------------------------------------------
+  interface RefUnit {
+    entries: { username: string }[];
+    avoidPairs: { from: string; to: string; scope: string }[];
+  }
+
+  const refBuildUnits = (sys: LocalMatchmakingSystem): RefUnit[] => {
+    const state = sys.state;
+    const allStarDir = state.allStarSortDirection ?? 'desc';
+    // Corpus states always run strict_balance (the constructor default), so
+    // the rating-sorted branch is the only one that matters here.
+    const sortFn = (a: QueueEntry, b: QueueEntry) => {
+      const ratingA = state.players[a.username]?.rating ?? 1450;
+      const ratingB = state.players[b.username]?.rating ?? 1450;
+      if (ratingA !== ratingB) {
+        return allStarDir === 'desc' ? ratingB - ratingA : ratingA - ratingB;
+      }
+      return a.enteredAt - b.enteredAt;
+    };
+    const prioritizedQueue = state.queues
+      .filter((q) => !q.deletedAt && !q.lockedAt)
+      .sort(sortFn);
+    const liveUsernames = new Set(prioritizedQueue.map((q) => q.username));
+    const eligible = prioritizedQueue.filter((q) => {
+      const partner = sys.getLinkedPartner(q.username);
+      return partner === undefined || liveUsernames.has(partner);
+    });
+    const entryByUsername = new Map(eligible.map((q) => [q.username, q]));
+    const usePairs = state.teamSize > 1;
+    const units: RefUnit[] = [];
+    const pendingEarlier = new Map<string, QueueEntry>();
+    const makeUnit = (entries: QueueEntry[]): RefUnit => ({
+      entries,
+      // Old makeUnit had NO dead-edge filter — every avoid entry is kept.
+      avoidPairs: entries.flatMap((e) =>
+        Object.entries(state.players[e.username]?.avoids ?? {}).map(
+          ([to, scope]) => ({
+            from: e.username,
+            to,
+            scope: scope as string,
+          }),
+        ),
+      ),
+    });
+    for (const q of eligible) {
+      const partner = usePairs ? sys.getLinkedPartner(q.username) : undefined;
+      const partnerEntry = partner
+        ? entryByUsername.get(partner)
+        : undefined;
+      if (!partner || !partnerEntry) {
+        units.push(makeUnit([q]));
+        continue;
+      }
+      const earlier = pendingEarlier.get(partner);
+      if (earlier) {
+        pendingEarlier.delete(partner);
+        units.push(makeUnit([earlier, q]));
+      } else {
+        pendingEarlier.set(q.username, q);
+      }
+    }
+    return units;
+  };
+
+  const refMatchConflicts = (
+    u: RefUnit,
+    chosen: RefUnit[],
+  ): { from: string; to: string }[] => {
+    const uNames = new Set(u.entries.map((e) => e.username));
+    const out: { from: string; to: string }[] = [];
+    for (const ap of u.avoidPairs) {
+      for (const c of chosen) {
+        if (c.entries.some((e) => e.username === ap.to)) {
+          out.push({ from: ap.from, to: ap.to });
+        }
+      }
+    }
+    for (const c of chosen) {
+      for (const ap of c.avoidPairs) {
+        if (uNames.has(ap.to)) {
+          out.push({ from: ap.from, to: ap.to });
+        }
+      }
+    }
+    return out;
+  };
+
+  const refCanSplitTeams = (
+    chosen: RefUnit[],
+    teamSize: number,
+  ): boolean => {
+    const all = new Set(
+      chosen.flatMap((u) => u.entries.map((e) => e.username)),
+    );
+    const banned: [string, string][] = [];
+    for (const u of chosen) {
+      for (const ap of u.avoidPairs) {
+        if (all.has(ap.to)) banned.push([ap.from, ap.to]);
+      }
+    }
+    const teamOf = new Map<string, number>();
+    const counts = [0, 0];
+    const dfs = (i: number): boolean => {
+      if (i === chosen.length) return counts[0] === teamSize;
+      const u = chosen[i];
+      const names = new Set(u.entries.map((e) => e.username));
+      for (const t of [0, 1]) {
+        if (counts[t] + u.entries.length > teamSize) continue;
+        let ok = true;
+        for (const [a, b] of banned) {
+          const aT = names.has(a) ? t : teamOf.get(a);
+          const bT = names.has(b) ? t : teamOf.get(b);
+          if (aT !== undefined && aT === bT) {
+            ok = false;
+            break;
+          }
+        }
+        if (!ok) continue;
+        u.entries.forEach((e) => teamOf.set(e.username, t));
+        counts[t] += u.entries.length;
+        if (dfs(i + 1)) return true;
+        u.entries.forEach((e) => teamOf.delete(e.username));
+        counts[t] -= u.entries.length;
+      }
+      return false;
+    };
+    return dfs(0);
+  };
+
+  const refPickUnits = (
+    list: RefUnit[],
+    needed: number,
+    teamSize: number,
+    visited: { n: number },
+  ): RefUnit[] | null => {
+    const attempt = (allowMatchConflicts: boolean): RefUnit[] | null => {
+      const chosen: RefUnit[] = [];
+      const dfs = (i: number, sum: number): boolean => {
+        if (++visited.n > 200_000) return false;
+        if (sum === needed) return refCanSplitTeams(chosen, teamSize);
+        if (i >= list.length || sum > needed) return false;
+        if (
+          allowMatchConflicts ||
+          refMatchConflicts(list[i], chosen).length === 0
+        ) {
+          chosen.push(list[i]);
+          if (dfs(i + 1, sum + list[i].entries.length)) return true;
+          chosen.pop();
+        }
+        return dfs(i + 1, sum);
+      };
+      return dfs(0, 0) ? [...chosen] : null;
+    };
+    const strict = attempt(false);
+    if (strict) return strict;
+    return attempt(true);
+  };
+
+  const refDraftSets = (sys: LocalMatchmakingSystem): string[][] => {
+    const teamSize = sys.state.teamSize;
+    const needed = teamSize * 2;
+    const units = refBuildUnits(sys);
+    const countPlayers = (list: RefUnit[]) =>
+      list.reduce((n, u) => n + u.entries.length, 0);
+    const visited = { n: 0 }; // shared across the whole run — old semantics
+    const sets: string[][] = [];
+    while (countPlayers(units) >= needed) {
+      const picked = refPickUnits(units, needed, teamSize, visited);
+      if (!picked || picked.length === 0) break;
+      sets.push(
+        picked.flatMap((u) => u.entries.map((e) => e.username)).sort(),
+      );
+      const drafted = new Set(picked);
+      for (let i = units.length - 1; i >= 0; i--) {
+        if (drafted.has(units[i])) units.splice(i, 1);
+      }
+    }
+    return sets;
+  };
+
+  const mulberry32 = (seed: number) => {
+    let s = seed | 0;
+    return () => {
+      s = (s + 0x6d2b79f5) | 0;
+      let t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  };
+
+  it('golden master: drafted sets are identical to the pre-fix DFS on a corpus of small states', () => {
+    // Deterministic corpus: random small queues with random avoids (both
+    // scopes — decisions ignore scope), dead targets, mutual links
+    // (including link+avoid conflicts), deleted/locked entries and both
+    // team sizes. strict_balance is the constructor default and is the only
+    // mode the reference implements, so matchmakingMode is never touched.
+    for (let seed = 1; seed <= 60; seed++) {
+      const rand = mulberry32(seed * 7919);
+      const sys = new LocalMatchmakingSystem(rand() < 0.25 ? 1 : 2);
+      const n = 4 + Math.floor(rand() * 6); // 4..9 players
+      const names = Array.from({ length: n }, (_, i) => `u${i}`);
+      names.forEach((name, i) => {
+        sys.state.players[name] = makePlayer(
+          1200 + Math.floor(rand() * 600),
+          {
+            username: name,
+            matchesPlayed: Math.floor(rand() * 5),
+          },
+        );
+        sys.state.queues.push({
+          username: name,
+          queueType: 'GENERAL',
+          enteredAt: 1000 + i,
+          createdAt: 1000,
+          updatedAt: 1000,
+          queuedAt: 1000,
+        });
+      });
+      // Random avoid edges via direct writes (merged/legacy-style data).
+      const edgeCount = Math.floor(rand() * n * 2);
+      for (let e = 0; e < edgeCount; e++) {
+        const a = names[Math.floor(rand() * n)];
+        const b = names[Math.floor(rand() * n)];
+        if (a === b) continue;
+        const scope = rand() < 0.5 ? 'match' : 'partner';
+        (sys.state.players[a].avoids ??= {})[b] =
+          scope as 'match' | 'partner';
+      }
+      // Occasional self-avoid and dead-target avoid.
+      if (rand() < 0.3) {
+        const a = names[Math.floor(rand() * n)];
+        (sys.state.players[a].avoids ??= {})[a] = 'match';
+      }
+      if (rand() < 0.4) {
+        const a = names[Math.floor(rand() * n)];
+        (sys.state.players[a].avoids ??= {})[`ghost${seed}`] = 'match';
+      }
+      // Occasional mutual link (may coincide with an avoid edge).
+      if (rand() < 0.4 && n >= 4) {
+        const a = names[Math.floor(rand() * n)];
+        const b = names[Math.floor(rand() * n)];
+        if (a !== b) {
+          sys.state.players[a].linkedTo = b;
+          sys.state.players[b].linkedTo = a;
+        }
+      }
+      // Occasional locked / deleted queue entries.
+      if (rand() < 0.3) {
+        const q = sys.state.queues[Math.floor(rand() * n)];
+        q.lockedAt = 500;
+        q.lockUpdatedAt = 500;
+      }
+      if (rand() < 0.3) {
+        const q = sys.state.queues[Math.floor(rand() * n)];
+        q.deletedAt = 500;
+      }
+      if (rand() < 0.3) {
+        sys.state.allStarSortDirection = rand() < 0.5 ? 'asc' : 'desc';
+      }
+
+      // Reference must run BEFORE the draft mutates state (drafted entries
+      // are tombstoned, which would shrink the reference's unit pool).
+      const expected = refDraftSets(sys);
+      sys.draftNextMatches('timestamp', 'test');
+      expect(draftedSet(sys), `seed ${seed}`).toEqual(expected);
+    }
+  });
+
+  it('determinism: structuredClone(state) drafts identical teams and membership', () => {
+    // A plain (non-reactive) state with links + dense avoids so the draft
+    // exercises the relaxed path; cloned twice — outputs must be identical.
+    const base = {
+      teamSize: 2,
+      players: {} as Record<string, Player>,
+      queues: [] as QueueEntry[],
+      activeMatches: [] as ActiveMatch[],
+      completedMatches: [] as CompletedMatch[],
+    };
+    const names = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    names.forEach((name, i) => {
+      base.players[name] = makePlayer(1400 + i * 30, { username: name });
+      base.queues.push({
+        username: name,
+        queueType: 'GENERAL',
+        enteredAt: 1000 + i,
+        createdAt: 1000,
+        updatedAt: 1000,
+        queuedAt: 1000,
+      });
+    });
+    // Linked pair {a,b}; several avoids incl. one forced same-match pair.
+    base.players.a.linkedTo = 'b';
+    base.players.b.linkedTo = 'a';
+    base.players.c.avoids = { d: 'match' };
+    base.players.e.avoids = { f: 'partner' };
+    base.players.g.avoids = { h: 'match' };
+
+    const s1 = new LocalMatchmakingSystem(2);
+    s1.state = structuredClone(base);
+    const s2 = new LocalMatchmakingSystem(2);
+    s2.state = structuredClone(base);
+
+    s1.draftNextMatches('timestamp', 'test');
+    s2.draftNextMatches('timestamp', 'test');
+
+    const shape = (sys: LocalMatchmakingSystem) => ({
+      matches: sys.state.activeMatches.map((m) => ({
+        teamA: [...m.teamA],
+        teamB: [...m.teamB],
+      })),
+      queued: sys.state.queues
+        .filter((q) => !q.deletedAt)
+        .map((q) => q.username)
+        .sort(),
+    });
+    expect(shape(s1)).toEqual(shape(s2));
+    // Sanity: the fixture actually drafted something.
+    expect(s1.state.activeMatches.length).toBeGreaterThan(0);
+  });
+
+  it('dead-edge filter: avoids targeting players outside the live queue are ignored', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueSingles(sys, ['a', 'b', 'c', 'd']);
+    // 'a' avoids: a nonexistent player, an existing-but-unqueued player, and
+    // a queued-but-locked player — none are draft units, so none may affect
+    // the draft (direct writes bypass the write-path caps like merged data).
+    (sys.state.players.a.avoids ??= {})['ghost'] = 'match';
+    sys.state.players['x'] = makePlayer(1500, { username: 'x' });
+    (sys.state.players.a.avoids ??= {})['x'] = 'match';
+    sys.state.players['l'] = makePlayer(1500, { username: 'l' });
+    sys.state.queues.push({
+      username: 'l',
+      queueType: 'GENERAL',
+      enteredAt: 2000,
+      createdAt: 2000,
+      updatedAt: 2000,
+      queuedAt: 2000,
+      lockedAt: 1,
+      lockUpdatedAt: 1,
+    });
+    (sys.state.players.a.avoids ??= {})['l'] = 'match';
+
+    sys.draftNextMatches('timestamp', 'test');
+
+    expect(draftedSet(sys)).toEqual([['a', 'b', 'c', 'd']]);
+    expect(sys.lastDraftInfo.violations).toEqual([]);
+    expect(sys.lastDraftInfo.blockers).toEqual([]);
+  });
+
+  it('selfBanned: a linked unit whose members avoid each other is never drafted', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueSingles(sys, ['a', 'b', 'c', 'd', 'e', 'f']);
+    // Direct writes bypass setPlayerLink's refusal — simulates merged data
+    // where a link and an avoid coexist inside one draft unit.
+    sys.state.players.a.linkedTo = 'b';
+    sys.state.players.b.linkedTo = 'a';
+    (sys.state.players.a.avoids ??= {}).b = 'match';
+
+    sys.draftNextMatches('timestamp', 'test');
+
+    // Unit {a,b} can never be split → excluded from candidates; the four
+    // remaining players draft normally and a/b keep their queue spots.
+    expect(sys.state.activeMatches.length).toBe(1);
+    expect(draftedSet(sys)).toEqual([['c', 'd', 'e', 'f']]);
+    expect(
+      sys.state.queues
+        .filter((q) => !q.deletedAt)
+        .map((q) => q.username)
+        .sort(),
+    ).toEqual(['a', 'b']);
+    expect(sys.lastDraftInfo.blockers).toEqual([]);
+    expect(sys.lastDraftInfo.searchExhausted).toBeUndefined();
+  });
+
+  it('selfBanned unit still surfaces as a blocker when it alone blocks the draft', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueSingles(sys, ['a', 'b', 'c', 'd']);
+    sys.state.players.a.linkedTo = 'b';
+    sys.state.players.b.linkedTo = 'a';
+    (sys.state.players.a.avoids ??= {}).b = 'match';
+
+    sys.draftNextMatches('timestamp', 'test');
+
+    // Only unit {a,b}(self-banned) + c + d remain — no 4-player draft exists.
+    expect(sys.state.activeMatches.length).toBe(0);
+    expect(sys.lastDraftInfo.blockers).toEqual([{ from: 'a', to: 'b' }]);
+    expect(
+      sys.state.queues.filter((q) => !q.deletedAt).length,
+    ).toBe(4);
+  });
+
+  it('teamSize guard: absurd synced teamSize drafts as doubles without mutating state', () => {
+    for (const bad of [0, 7, Number.NaN]) {
+      const sys = new LocalMatchmakingSystem(2);
+      queueSingles(sys, ['a', 'b', 'c', 'd']);
+      sys.state.teamSize = bad;
+
+      sys.draftNextMatches('timestamp', 'test');
+
+      // The synced setting is never mutated…
+      expect(sys.state.teamSize).toBe(bad);
+      // …and the draft falls back to doubles: one 2v2 match.
+      expect(sys.state.activeMatches.length).toBe(1);
+      const m = sys.state.activeMatches[0];
+      expect(m.teamA.length).toBe(2);
+      expect(m.teamB.length).toBe(2);
+      expect([...m.teamA, ...m.teamB].sort()).toEqual([
+        'a',
+        'b',
+        'c',
+        'd',
+      ]);
+    }
+
+    // teamSize=1 still drafts singles (bit-identical behavior).
+    const singles = new LocalMatchmakingSystem(2);
+    queueSingles(singles, ['a', 'b', 'c', 'd']);
+    singles.state.teamSize = 1;
+    singles.draftNextMatches('timestamp', 'test');
+    expect(singles.state.activeMatches.length).toBe(2);
+    for (const m of singles.state.activeMatches) {
+      expect(m.teamA.length).toBe(1);
+      expect(m.teamB.length).toBe(1);
+    }
+  });
+});

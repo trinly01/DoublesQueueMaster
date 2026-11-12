@@ -50,10 +50,14 @@ export class LocalMatchmakingSystem {
    * Result of the last draftNextMatches run (transient, not synced):
    * - violations: soft 'match'-scope avoids that could not be honored
    * - blockers: hard 'partner'-scope avoids that prevented any valid draft
+   * - searchExhausted: a deterministic node budget cut the search short —
+   *   the queue may still be draftable; players stay queued and NO phantom
+   *   blockers are reported for the exhausted pass.
    */
   public lastDraftInfo: {
     violations: { from: string; to: string }[];
     blockers: { from: string; to: string }[];
+    searchExhausted?: boolean;
   } = { violations: [], blockers: [] };
   // When true, settings watchers should NOT emit action-log entries.
   // Set around programmatic merges (mergeAppState, copyServerSettings) so
@@ -997,7 +1001,13 @@ export class LocalMatchmakingSystem {
     priorityMode: string = 'timestamp',
     generatedBy?: string,
   ) {
-    const playersNeeded = this.state.teamSize * 2;
+    // teamSize arrives via cloud sync unvalidated (it is copied verbatim by
+    // SETTINGS_OVERWRITE_FIELDS) — guard absurd values locally so the draft
+    // stays deterministic. The synced setting is NEVER mutated; only 1
+    // (singles) and 2 (doubles) are meaningful, anything else drafts as
+    // doubles — {1,2} behavior is bit-identical to before.
+    const teamSize = this.state.teamSize === 1 ? 1 : 2;
+    const playersNeeded = teamSize * 2;
     this.lastDraftInfo = { violations: [], blockers: [] };
 
     const isStrictBalance = this.state.matchmakingMode === 'strict_balance';
@@ -1048,7 +1058,7 @@ export class LocalMatchmakingSystem {
       avoidPairs: { from: string; to: string; scope: 'partner' | 'match' }[];
     }
 
-    const usePairs = this.state.teamSize > 1; // singles ignores links
+    const usePairs = teamSize > 1; // singles ignores links
     const units: DraftUnit[] = [];
     const pendingEarlier = new Map<string, QueueEntry>();
     const makeUnit = (entries: QueueEntry[]): DraftUnit => ({
@@ -1060,10 +1070,14 @@ export class LocalMatchmakingSystem {
           (e) => this.state.players[e.username]?.matchesPlayed || 0,
         ),
       ),
+      // Dead-edge filter: merged/legacy avoids can target players who are no
+      // longer live-queued. Restricting to liveUsernames here means every
+      // consumer (conflict gate, team split, blocker report) sees the same
+      // edge set. getPlayerAvoids/UI display is untouched.
       avoidPairs: entries.flatMap((e) =>
-        Object.entries(this.state.players[e.username]?.avoids ?? {}).map(
-          ([to, scope]) => ({ from: e.username, to, scope }),
-        ),
+        Object.entries(this.state.players[e.username]?.avoids ?? {})
+          .filter(([to]) => liveUsernames.has(to))
+          .map(([to, scope]) => ({ from: e.username, to, scope })),
       ),
     });
 
@@ -1123,94 +1137,235 @@ export class LocalMatchmakingSystem {
       return out;
     };
 
-    /**
-     * Can the chosen units be split into two teams of `teamSize` with every
-     * multi-entry unit kept together and no avoid pair on the same team?
-     * DFS over unit→team assignment.
-     */
-    const canSplitTeams = (chosen: DraftUnit[]): boolean => {
-      const all = new Set(
-        chosen.flatMap((u) => u.entries.map((e) => e.username)),
-      );
-      const banned: [string, string][] = [];
-      for (const u of chosen) {
-        for (const ap of u.avoidPairs) {
-          if (all.has(ap.to)) {
-            banned.push([ap.from, ap.to]);
-          }
-        }
-      }
-      const teamOf = new Map<string, number>();
-      const counts = [0, 0];
-      const dfs = (i: number): boolean => {
-        if (i === chosen.length) return counts[0] === this.state.teamSize;
-        const u = chosen[i];
-        const names = new Set(u.entries.map((e) => e.username));
-        for (const t of [0, 1]) {
-          if (counts[t] + u.entries.length > this.state.teamSize) continue;
-          let ok = true;
-          for (const [a, b] of banned) {
-            const aT = names.has(a) ? t : teamOf.get(a);
-            const bT = names.has(b) ? t : teamOf.get(b);
-            if (aT !== undefined && aT === bT) {
-              ok = false;
-              break;
-            }
-          }
-          if (!ok) continue;
-          u.entries.forEach((e) => teamOf.set(e.username, t));
-          counts[t] += u.entries.length;
-          if (dfs(i + 1)) return true;
-          u.entries.forEach((e) => teamOf.delete(e.username));
-          counts[t] -= u.entries.length;
-        }
-        return false;
-      };
-      return dfs(0);
-    };
+    // Deterministic work budgets — node counters ONLY, never wall-clock:
+    // wall-clock budgets are device-dependent and would break multi-admin
+    // determinism (different devices could draft different matches).
+    //   STRICT_SLICE    — max nodes the strict (conflict-free) pass may burn
+    //                     per pickUnits call before yielding to relaxed.
+    //   RELAXED_SLICE   — reserved node slice for the relaxed pass; strict
+    //                     can never eat into it (kills the starvation bug).
+    //   PICK_BUDGET     — ceiling for one pickUnits call (both attempts).
+    //   RUN_BUDGET      — ceiling across the whole draftNextMatches call
+    //                     (every while-iteration × pickUnits × attempt).
+    // canSplitTeams inner team-assignment nodes count against the same
+    // counters so the pathological case is actually bounded.
+    const STRICT_SLICE = 50_000;
+    const RELAXED_SLICE = 1_100_000;
+    const PICK_BUDGET = STRICT_SLICE + RELAXED_SLICE;
+    const RUN_BUDGET = 1_200_000;
+
+    // Nodes consumed by this draftNextMatches call (deterministic).
+    let draftWork = 0;
+    // Set when a budget ceiling cut a search short: the queue may still be
+    // draftable — players stay queued and NO phantom blockers are reported.
+    let searchExhausted = false;
+
+    type AttemptResult =
+      | { status: 'found'; units: DraftUnit[] }
+      | { status: 'infeasible' }
+      | { status: 'exhausted' };
 
     // Pick a priority-ordered subset of units totalling exactly `needed`
     // players. Include-first DFS prefers earlier units; units are atomic so a
     // pair can never be split across a match boundary. Two passes: strict
     // (honor avoids) then relaxed (violate, but report). Opposite-team
-    // separation stays hard in both passes via canSplitTeams.
-    let visited = 0;
+    // separation stays hard in both passes via the bitmask canSplitTeams.
+    //
+    // Determinism contract: returns the SAME first-success subset on every
+    // device — DFS traversal order is unchanged and every budget is a
+    // deterministic node counter.
     const pickUnits = (
       list: DraftUnit[],
       needed: number,
     ): DraftUnit[] | null => {
-      const attempt = (allowMatchConflicts: boolean): DraftUnit[] | null => {
-        const chosen: DraftUnit[] = [];
-        const dfs = (i: number, sum: number): boolean => {
-          if (++visited > 200_000) return false; // pathological-queue safety cap
-          if (sum === needed) {
-            return canSplitTeams(chosen);
+      // --- Per-call unit-conflict bitmask (precomputed ONCE) ---
+      const unitOfName = new Map<string, number>();
+      list.forEach((u, i) =>
+        u.entries.forEach((e) => unitOfName.set(e.username, i)),
+      );
+      const selfBanned: boolean[] = new Array(list.length).fill(false);
+      const nbrs: Set<number>[] = list.map(() => new Set<number>());
+      for (let i = 0; i < list.length; i++) {
+        for (const ap of list[i].avoidPairs) {
+          const j = unitOfName.get(ap.to);
+          if (j === undefined) continue; // dead target → non-neighbor
+          if (j === i) {
+            // Self-edge (both endpoints in the same unit — e.g. a linked
+            // pair whose members avoid each other): the unit can never be
+            // split, so it is never draftable under either pass.
+            selfBanned[i] = true;
+            continue;
           }
-          if (i >= list.length || sum > needed) return false;
-          if (
-            allowMatchConflicts ||
-            matchConflicts(list[i], chosen).length === 0
-          ) {
-            chosen.push(list[i]);
-            if (dfs(i + 1, sum + list[i].entries.length)) return true;
-            chosen.pop();
+          // Symmetrize: avoidPairs is outgoing-only per member, but
+          // matchConflicts/canSplitTeams treat avoids as undirected.
+          nbrs[i].add(j);
+          nbrs[j].add(i);
+        }
+      }
+      // Self-banned units are excluded from candidates entirely (they stay
+      // in `units` for blocker reporting).
+      const cand: number[] = [];
+      for (let i = 0; i < list.length; i++) {
+        if (!selfBanned[i]) cand.push(i);
+      }
+      const m = cand.length;
+
+      // --- Suffix reachability ---
+      // reach[i] = set of player-count sums achievable by cand[i:] IGNORING
+      // constraints (sizes only), computed in O(m·needed). Pruning a node
+      // whose remaining sum is unreachable is admissible: it can only cut
+      // branches with no constraint-free completion, so the first-success
+      // subset is provably unchanged.
+      const useReachMask = needed <= 30; // JS bitwise is 32-bit
+      const reachMask: number[] = new Array(m + 1).fill(0);
+      const reachSets: Set<number>[] = new Array(m + 1);
+      if (useReachMask) {
+        // Bits 0..needed — needed<=30 keeps the top bit clear of the sign bit.
+        const limitMask =
+          needed >= 30 ? 0x7fffffff : (1 << (needed + 1)) - 1;
+        reachMask[m] = 1; // empty suffix achieves sum 0
+        for (let i = m - 1; i >= 0; i--) {
+          const size = list[cand[i]].entries.length;
+          reachMask[i] =
+            reachMask[i + 1] | ((reachMask[i + 1] << size) & limitMask);
+        }
+      } else {
+        // Fallback for absurd needed values (synced-unvalidated teamSize).
+        for (let i = m; i >= 0; i--) reachSets[i] = new Set<number>();
+        reachSets[m].add(0);
+        for (let i = m - 1; i >= 0; i--) {
+          const size = list[cand[i]].entries.length;
+          const next = reachSets[i + 1];
+          const cur = new Set(next);
+          for (const s of next) cur.add(s + size);
+          reachSets[i] = cur;
+        }
+      }
+      const reachable = (i: number, rem: number): boolean =>
+        useReachMask
+          ? (reachMask[i] & (1 << rem)) !== 0
+          : reachSets[i].has(rem);
+
+      const attempt = (
+        allowMatchConflicts: boolean,
+        ceiling: number,
+      ): AttemptResult => {
+        let overBudget = false;
+        const chosen: number[] = []; // positions into cand[]
+
+        // canSplitTeams — bitmask rewrite. The chosen units must split into
+        // two teams of `teamSize` players with every multi-entry unit kept
+        // together and no avoid edge inside a team. Unit-level adjacency
+        // (nbrs, symmetrized) is exactly the player-level banned-pair
+        // relation lifted to units: a banned pair is violated iff its two
+        // endpoints' units share a team, so feasibility is identical.
+        // Pinning chosen[0] to team 0 is pure team-label symmetry (teams are
+        // interchangeable and only the boolean is consumed) — satisfiability
+        // is unchanged. Inner assignment nodes count against `ceiling`.
+        const splitOk = (): boolean => {
+          const k = chosen.length;
+          const bad: number[] = new Array(k).fill(0);
+          for (let a = 0; a < k; a++) {
+            const ua = cand[chosen[a]];
+            if (selfBanned[ua]) return false; // defensive — never draftable
+            for (let b = a + 1; b < k; b++) {
+              if (nbrs[ua].has(cand[chosen[b]])) {
+                bad[a] |= 1 << b;
+                bad[b] |= 1 << a;
+              }
+            }
+          }
+          const counts = [0, 0];
+          const teamMask = [0, 0]; // position bitmasks per team
+          const INNER_CAP = 1024; // deterministic; unreachable at teamSize<=2
+          let inner = 0;
+          const assign = (p: number): boolean => {
+            if (++draftWork > ceiling) {
+              overBudget = true;
+              return false;
+            }
+            if (++inner > INNER_CAP) return false; // cap-hit = leaf fails
+            if (p === k) return counts[0] === teamSize;
+            const size = list[cand[chosen[p]]].entries.length;
+            // p===0 pinned to team 0 — team labels are pure symmetry.
+            for (let t = 0; t < (p === 0 ? 1 : 2); t++) {
+              if (counts[t] + size > teamSize) continue;
+              if (bad[p] & teamMask[t]) continue; // conflicts on team t
+              teamMask[t] |= 1 << p;
+              counts[t] += size;
+              if (assign(p + 1)) return true;
+              teamMask[t] &= ~(1 << p);
+              counts[t] -= size;
+            }
+            return false;
+          };
+          return assign(0);
+        };
+
+        const dfs = (i: number, sum: number): boolean => {
+          if (++draftWork > ceiling) {
+            overBudget = true;
+            return false;
+          }
+          if (sum === needed) return splitOk();
+          if (i >= m) return false;
+          // Suffix-reachability prune (admissible — see reach[] above).
+          if (!reachable(i, needed - sum)) return false;
+          const ui = cand[i];
+          const size = list[ui].entries.length;
+          if (sum + size <= needed) {
+            let ok = true;
+            if (!allowMatchConflicts) {
+              // Strict include-gate: O(|chosen|), zero allocs. nbrs is
+              // symmetrized so edge direction doesn't matter.
+              for (const c of chosen) {
+                if (nbrs[ui].has(cand[c])) {
+                  ok = false;
+                  break;
+                }
+              }
+            }
+            if (ok) {
+              chosen.push(i);
+              if (dfs(i + 1, sum + size)) return true;
+              chosen.pop();
+            }
           }
           return dfs(i + 1, sum);
         };
-        return dfs(0, 0) ? [...chosen] : null;
+
+        if (dfs(0, 0)) {
+          return { status: 'found', units: chosen.map((c) => list[cand[c]]) };
+        }
+        return { status: overBudget ? 'exhausted' : 'infeasible' };
       };
-      const strict = attempt(false);
-      if (strict) return strict;
-      const relaxed = attempt(true);
-      if (relaxed) {
+
+      const pickStart = draftWork;
+      const pickCeiling = Math.min(pickStart + PICK_BUDGET, RUN_BUDGET);
+      // Strict gets its own slice; relaxed is guaranteed a fresh reserved
+      // slice afterwards — strict can never starve it.
+      const strict = attempt(
+        false,
+        Math.min(pickStart + STRICT_SLICE, pickCeiling, RUN_BUDGET),
+      );
+      if (strict.status === 'found') return strict.units;
+      const relaxed = attempt(
+        true,
+        Math.min(draftWork + RELAXED_SLICE, pickCeiling, RUN_BUDGET),
+      );
+      if (relaxed.status === 'found') {
         // Record soft-scope violations for the admin warning chip.
-        for (let i = 0; i < relaxed.length; i++) {
+        // matchConflicts is kept for REPORTING — it yields the actual
+        // {from,to} player pairs the UI displays.
+        for (let i = 0; i < relaxed.units.length; i++) {
           draftViolations.push(
-            ...matchConflicts(relaxed[i], relaxed.slice(0, i)),
+            ...matchConflicts(relaxed.units[i], relaxed.units.slice(0, i)),
           );
         }
+        return relaxed.units;
       }
-      return relaxed;
+      if (relaxed.status === 'exhausted') searchExhausted = true;
+      return null;
     };
 
     // Alternator flag: when WINNERS and LOSERS brackets are tied on priority,
@@ -1280,10 +1435,13 @@ export class LocalMatchmakingSystem {
       }
 
       if (!draftedUnits || draftedUnits.length === 0) {
-        // No valid combo despite enough players — avoids (or unit
-        // indivisibility) made every split infeasible. Report the offending
-        // pairs so the admin can resolve them manually.
-        if (countPlayers(units) >= playersNeeded) {
+        // No valid combo despite enough players. Two distinct outcomes:
+        // - searchExhausted: a deterministic budget cut the search short —
+        //   the queue may still be draftable, so players stay queued and we
+        //   must NOT dump pool avoids as phantom blockers.
+        // - proven infeasible: every split was explored and none worked —
+        //   report the offending pairs so the admin can resolve them.
+        if (!searchExhausted && countPlayers(units) >= playersNeeded) {
           const pooled = new Set(
             units.flatMap((u) => u.entries.map((e) => e.username)),
           );
@@ -1333,7 +1491,7 @@ export class LocalMatchmakingSystem {
       // Generate the match
       const match = MatchmakerEngine.draftBalancedMatch(
         playersToBalance,
-        this.state.teamSize,
+        teamSize,
         this.state.matchmakingMode || 'fair_balance',
         pinnedPairs.length > 0 ? pinnedPairs : undefined,
         avoidTeammates.length > 0 ? avoidTeammates : undefined,
@@ -1426,6 +1584,7 @@ export class LocalMatchmakingSystem {
     this.lastDraftInfo = {
       violations: dedupe(draftViolations),
       blockers: dedupe(draftBlockers),
+      ...(searchExhausted ? { searchExhausted: true } : {}),
     };
     this.saveState();
   }
