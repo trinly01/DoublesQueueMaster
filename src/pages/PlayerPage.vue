@@ -1751,13 +1751,12 @@ import {
   ratingChipCategory,
   toDuprScale,
 } from 'src/utils/playerHelpers';
+import { rankClubPlayers, CLUB_RANKING_CONFIG } from 'src/utils/ratingReplay';
 import {
-  replayMatches,
-  replayMatchesForRanking,
-  rankClubPlayers,
-  CLUB_RANKING_CONFIG,
-} from 'src/utils/ratingReplay';
-import { runDuoRanking } from 'src/utils/runLeaderboard';
+  runClubRanking,
+  runDuoRanking,
+  runMatchesReplay,
+} from 'src/utils/runLeaderboard';
 import type { DuoLeaderboardEntry } from 'src/composables/useDuoLeaderboard';
 import { useRecentClubs } from 'src/composables/useRecentClubs';
 import { useDupr } from 'src/composables/useDupr';
@@ -1971,43 +1970,43 @@ const leaderboardLoading = ref(false);
 const globalLeaderboard = ref<LeaderboardEntry[]>([]);
 const globalDuoLeaderboard = ref<DuoLeaderboardEntry[]>([]);
 const matchesLeaderboardCache = ref<LeaderboardEntry[]>([]);
-const matchesLeaderboard = computed<LeaderboardEntry[]>(() => {
+// "My Matches" replay runs off the main thread in the leaderboard worker
+// (runMatchesReplay → computeMatchesReplay: legacy username keyspace, flat
+// 1450 seed, fixed-duo skips, competitive modes only, newest-first input
+// reversed internally — identical to the old [...matches].reverse() call).
+// This used to be a computed that replayed synchronously on every profile
+// load; the ref holds the last computed board so an in-flight refresh
+// doesn't blank the tab (leaderboardData falls back to the persisted cache
+// only while this is empty, same as before).
+const matchesLeaderboard = ref<LeaderboardEntry[]>([]);
+let matchesReplaySeq = 0;
+
+const refreshMatchesLeaderboard = async () => {
+  const seq = ++matchesReplaySeq;
   const allMatches = PlayerProfile.state.completedMatches || [];
-  if (allMatches.length === 0) return [];
+  if (allMatches.length === 0) {
+    matchesLeaderboard.value = [];
+    return;
+  }
 
   // Filter to last 30 days for My Matches tab
   const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const matches = allMatches.filter(
     (m) => new Date(m.completed_at).getTime() >= thirtyDaysAgo,
   );
-  if (matches.length === 0) return [];
+  if (matches.length === 0) {
+    matchesLeaderboard.value = [];
+    return;
+  }
 
-  // Replay matches chronologically using the same algorithm as the rating script.
-  const replayed = replayMatches(
-    [...matches].reverse().map((m) => ({
-      teamAScore: m.team_a_score,
-      teamBScore: m.team_b_score,
-      completedAt: m.completed_at,
-      teamA: (m.team_a || []).map((p) => ({
-        username: p.username,
-        name: p.firstName,
-        firstName: p.firstName,
-        lastName: p.lastName,
-        rating: p.rating,
-        avatar: p.avatar,
-        linkedTo: p.linkedTo,
-      })),
-      teamB: (m.team_b || []).map((p) => ({
-        username: p.username,
-        name: p.firstName,
-        firstName: p.firstName,
-        lastName: p.lastName,
-        rating: p.rating,
-        avatar: p.avatar,
-        linkedTo: p.linkedTo,
-      })),
-    })),
-  );
+  // Replay matches chronologically using the same algorithm as the rating
+  // script — in the worker when available, inline fallback otherwise.
+  const replayed = await runMatchesReplay(matches).catch((err) => {
+    console.warn('[matchesLeaderboard] replay failed:', err);
+    return null;
+  });
+  // A newer refresh started while the worker ran — its result wins.
+  if (!replayed || seq !== matchesReplaySeq) return;
 
   // Build registered-user info map from the players junction.
   const userMap = new Map<
@@ -2065,11 +2064,25 @@ const matchesLeaderboard = computed<LeaderboardEntry[]>(() => {
     top30,
   );
   if (!currentUsername || top30.some((p) => p.username === currentUsername)) {
-    return top30;
+    matchesLeaderboard.value = top30;
+    return;
   }
   const currentEntry = sorted.find((p) => p.username === currentUsername);
-  return currentEntry ? [...top30, currentEntry] : top30;
-});
+  matchesLeaderboard.value = currentEntry ? [...top30, currentEntry] : top30;
+};
+
+// Same reactive inputs the old computed tracked: the match list (reassigned
+// by fetchProfile/cache restore) and the username used for the
+// append-current-player step. immediate covers the cached-matches case —
+// the worker job starts during setup instead of freezing first render.
+watch(
+  [
+    () => PlayerProfile.state.completedMatches,
+    () => PlayerProfile.state.username,
+  ],
+  () => void refreshMatchesLeaderboard(),
+  { immediate: true },
+);
 
 const leaderboardData = computed(() => {
   if (leaderboardTab.value === 'global') return globalLeaderboard.value;
@@ -3015,36 +3028,17 @@ const fetchLeaderboard = async () => {
     // the tab is informational, not a rating board.
     const duoPromise = runDuoRanking(matches, false).catch(() => []);
 
-    // Replay using the same ranking path as the club leaderboard
-    const replayed = replayMatchesForRanking(
-      competitiveMatches.map((m) => ({
-        teamAScore: m.team_a_score,
-        teamBScore: m.team_b_score,
-        matchKey: m.match_key,
-        completedAt: m.completed_at,
-        matchmakingMode: m.meta?.matchmakingMode,
-        teamA: (m.team_a || []).map((p) => ({
-          userId: p.userId,
-          username: p.username,
-          firstName: p.firstName,
-          lastName: p.lastName,
-          rating: p.rating,
-          level: p.level,
-          avatar: p.avatar,
-          linkedTo: p.linkedTo,
-        })),
-        teamB: (m.team_b || []).map((p) => ({
-          userId: p.userId,
-          username: p.username,
-          firstName: p.firstName,
-          lastName: p.lastName,
-          rating: p.rating,
-          level: p.level,
-          avatar: p.avatar,
-          linkedTo: p.linkedTo,
-        })),
-      })),
-    );
+    // Heavy replay runs off the main thread (Web Worker with inline
+    // fallback in runLeaderboard.ts). The 'club' job is the same ranking
+    // pipeline the club tab uses — the algorithm is club-agnostic, only
+    // the match set and post-filters differ. toRankedInputs inside the
+    // worker is a superset of the old inline mapping (adds `name`, which
+    // the userId identity key never reads — every match here is already
+    // all-registered), and non-competitive modes are already excluded
+    // above, so the includeNonCompetitive flag cannot change the result
+    // either way. This page has no non-competitive toggle, so false
+    // matches the old replayMatchesForRanking default argument.
+    const replayed = await runClubRanking(competitiveMatches, false);
 
     const ranked = rankClubPlayers(replayed);
 
