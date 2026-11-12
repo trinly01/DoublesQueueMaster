@@ -49,15 +49,17 @@
               flat
               round
               size="sm"
+              :ripple="{ early: true }"
               @click.stop
             >
               <q-tooltip
+                v-if="!$q.platform.is.mobile"
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
                 >Options</q-tooltip
               >
-              <q-menu auto-close>
+              <q-menu auto-close transition-duration="100">
                 <q-list style="min-width: 170px">
                   <q-item
                     v-if="

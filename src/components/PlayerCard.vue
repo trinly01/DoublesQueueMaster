@@ -194,7 +194,11 @@
           icon="thumb_up"
           size="md"
         >
-          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+          <q-tooltip
+            v-if="!$q.platform.is.mobile"
+            anchor="top middle"
+            self="bottom middle"
+            :offset="[8, 8]"
             >Commend</q-tooltip
           >
         </q-btn>
@@ -207,7 +211,11 @@
           icon="thumb_down"
           size="sm"
         >
-          <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+          <q-tooltip
+            v-if="!$q.platform.is.mobile"
+            anchor="top middle"
+            self="bottom middle"
+            :offset="[8, 8]"
             >Report</q-tooltip
           >
         </q-btn>
@@ -222,6 +230,7 @@
               size="xs"
             >
               <q-tooltip
+                v-if="!$q.platform.is.mobile"
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
@@ -238,6 +247,7 @@
               :disable="isInMatch || (!canDelete && !isInQueue)"
             >
               <q-tooltip
+                v-if="!$q.platform.is.mobile"
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
@@ -246,7 +256,9 @@
                 }}</q-tooltip
               >
               <q-tooltip
-                v-if="!canDelete && !isInQueue && !isInMatch"
+                v-if="
+                  !$q.platform.is.mobile && !canDelete && !isInQueue && !isInMatch
+                "
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
@@ -263,26 +275,26 @@
               :disable="isInQueue || isInMatch"
             >
               <q-tooltip
+                v-if="!$q.platform.is.mobile && isInQueue"
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
-                v-if="isInQueue"
               >
                 Already in queue
               </q-tooltip>
               <q-tooltip
+                v-else-if="!$q.platform.is.mobile && isInMatch"
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
-                v-else-if="isInMatch"
               >
                 In match
               </q-tooltip>
               <q-tooltip
+                v-else-if="!$q.platform.is.mobile"
                 anchor="top middle"
                 self="bottom middle"
                 :offset="[8, 8]"
-                v-else
                 >Add to queue</q-tooltip
               >
             </q-btn>

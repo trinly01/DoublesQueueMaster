@@ -775,9 +775,13 @@
                           flat
                           round
                           size="sm"
+                          :ripple="{ early: true }"
+                          @click.stop
                         >
-                          <q-tooltip>Options</q-tooltip>
-                          <q-menu auto-close>
+                          <q-tooltip v-if="!$q.platform.is.mobile"
+                            >Options</q-tooltip
+                          >
+                          <q-menu auto-close transition-duration="100">
                             <q-list style="min-width: 180px">
                               <q-item
                                 v-if="
@@ -1375,9 +1379,13 @@
                           flat
                           round
                           size="sm"
+                          :ripple="{ early: true }"
+                          @click.stop
                         >
-                          <q-tooltip>Options</q-tooltip>
-                          <q-menu auto-close>
+                          <q-tooltip v-if="!$q.platform.is.mobile"
+                            >Options</q-tooltip
+                          >
+                          <q-menu auto-close transition-duration="100">
                             <q-list style="min-width: 180px">
                               <q-item
                                 v-if="

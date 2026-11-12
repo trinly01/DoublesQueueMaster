@@ -240,11 +240,23 @@
     </q-item-section>
 
     <q-item-section side v-if="showActions && !isReadOnlyMode">
-      <q-btn color="grey-7" icon="more_vert" flat round size="sm">
-        <q-tooltip anchor="top middle" self="bottom middle" :offset="[8, 8]"
+      <q-btn
+        color="grey-7"
+        icon="more_vert"
+        flat
+        round
+        size="sm"
+        :ripple="{ early: true }"
+        @click.stop
+      >
+        <q-tooltip
+          v-if="!$q.platform.is.mobile"
+          anchor="top middle"
+          self="bottom middle"
+          :offset="[8, 8]"
           >Options</q-tooltip
         >
-        <q-menu auto-close>
+        <q-menu auto-close transition-duration="100">
           <q-list style="min-width: 150px">
             <q-item
               v-if="match.status === 'in-progress'"
