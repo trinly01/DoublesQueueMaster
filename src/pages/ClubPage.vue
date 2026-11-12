@@ -1740,11 +1740,8 @@ import { useDupr } from '../composables/useDupr';
 import { useClubMembers } from '../composables/useClubMembers';
 import { useLeaderboard } from '../composables/useLeaderboard';
 import { useDuoLeaderboard } from '../composables/useDuoLeaderboard';
-import {
-  replayMatches,
-  replayMatchesForRanking,
-  rankClubPlayers,
-} from 'src/utils/ratingReplay';
+import { rankClubPlayers } from 'src/utils/ratingReplay';
+import { runClubRanking, runMatchesReplay } from 'src/utils/runLeaderboard';
 import { resolveAvatarUrl } from 'src/utils/playerHelpers';
 import { compareWaitingMatches } from 'src/utils/matchOrdering';
 import { PlayerProfile } from 'src/services/playerProfile';
@@ -3064,34 +3061,17 @@ const fetchGlobalLeaderboard = async () => {
       );
     });
 
-    const replayed = replayMatchesForRanking(
-      competitiveMatches.map((m) => ({
-        teamAScore: m.team_a_score,
-        teamBScore: m.team_b_score,
-        matchKey: m.match_key,
-        completedAt: m.completed_at,
-        matchmakingMode: m.meta?.matchmakingMode,
-        teamA: (m.team_a || []).map((p) => ({
-          userId: p.userId,
-          username: p.username,
-          firstName: p.firstName,
-          lastName: p.lastName,
-          rating: p.rating,
-          level: p.level,
-          avatar: p.avatar,
-          linkedTo: p.linkedTo,
-        })),
-        teamB: (m.team_b || []).map((p) => ({
-          userId: p.userId,
-          username: p.username,
-          firstName: p.firstName,
-          lastName: p.lastName,
-          rating: p.rating,
-          level: p.level,
-          avatar: p.avatar,
-          linkedTo: p.linkedTo,
-        })),
-      })),
+    // Heavy replay runs off the main thread (Web Worker with inline
+    // fallback in runLeaderboard.ts). The 'club' job is the same ranking
+    // pipeline the club tab uses — the algorithm is club-agnostic, only
+    // the match set and post-filters differ. toRankedInputs inside the
+    // worker is a superset of the old inline mapping (adds `name`, which
+    // neither the userId identity key nor the output map below reads), and
+    // non-competitive modes are already excluded above, so the
+    // includeNonCompetitive flag cannot change the result either way.
+    const replayed = await runClubRanking(
+      competitiveMatches,
+      includeNonCompetitive.value,
     );
 
     const ranked = rankClubPlayers(replayed);
@@ -3276,32 +3256,10 @@ const fetchMyMatchesLeaderboard = async () => {
       return mode !== 'fair_balance' && mode !== 'variety_first';
     });
 
-    // Replay chronologically (oldest first)
-    const replayed = replayMatches(
-      [...competitiveMatches].reverse().map((m) => ({
-        teamAScore: m.team_a_score,
-        teamBScore: m.team_b_score,
-        completedAt: m.completed_at,
-        teamA: (m.team_a || []).map((p) => ({
-          username: p.username,
-          name: p.firstName,
-          firstName: p.firstName,
-          lastName: p.lastName,
-          rating: p.rating,
-          avatar: p.avatar,
-          linkedTo: p.linkedTo,
-        })),
-        teamB: (m.team_b || []).map((p) => ({
-          username: p.username,
-          name: p.firstName,
-          firstName: p.firstName,
-          lastName: p.lastName,
-          rating: p.rating,
-          avatar: p.avatar,
-          linkedTo: p.linkedTo,
-        })),
-      })),
-    );
+    // Legacy replay (same engine as PlayerPage's "My Matches") off the main
+    // thread; the compute fn reverses the newest-first fetch order to
+    // chronological internally, matching the old [...matches].reverse().
+    const replayed = await runMatchesReplay(competitiveMatches);
 
     // Build registered-user info map from the players junction
     const userMap = new Map<

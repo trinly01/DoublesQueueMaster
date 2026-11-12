@@ -6,10 +6,11 @@
 import {
   computeClubRanked,
   computeDuoEntries,
+  computeMatchesReplay,
 } from 'src/utils/leaderboardCompute';
 import type { LeaderboardJob } from 'src/workers/leaderboard.worker';
 import type { DirectusCompletedMatch } from 'src/services/playerProfile';
-import type { RankedPlayer } from 'src/utils/ratingReplay';
+import type { RankedPlayer, ReplayPlayer } from 'src/utils/ratingReplay';
 import type { DuoEntry } from 'src/utils/duoStats';
 
 function run<T>(job: LeaderboardJob, inline: () => T): Promise<T> {
@@ -24,7 +25,7 @@ function run<T>(job: LeaderboardJob, inline: () => T): Promise<T> {
       }, 0),
     );
   }
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let w: Worker;
     try {
       w = new Worker(
@@ -33,7 +34,11 @@ function run<T>(job: LeaderboardJob, inline: () => T): Promise<T> {
       );
     } catch {
       // Worker construction failed (odd webview) — compute inline.
-      resolve(inline());
+      try {
+        resolve(inline());
+      } catch (err) {
+        reject(err);
+      }
       return;
     }
     w.onmessage = (e: MessageEvent<T>) => {
@@ -42,7 +47,13 @@ function run<T>(job: LeaderboardJob, inline: () => T): Promise<T> {
     };
     w.onerror = () => {
       w.terminate();
-      resolve(inline());
+      // onerror runs outside the Promise executor — an inline() throw here
+      // would escape the handler and leave the promise pending forever.
+      try {
+        resolve(inline());
+      } catch (err) {
+        reject(err);
+      }
     };
     w.postMessage(job);
   });
@@ -63,5 +74,17 @@ export function runDuoRanking(
 ): Promise<DuoEntry[]> {
   return run({ kind: 'duo', matches, includeNonCompetitive }, () =>
     computeDuoEntries(matches, includeNonCompetitive),
+  );
+}
+
+// "My Matches" tab — legacy replay engine (same as PlayerPage's matches
+// tab). The tab never had an include-non-competitive toggle, so the job
+// flag is fixed to false; computeMatchesReplay filters competitive modes
+// unconditionally.
+export function runMatchesReplay(
+  matches: DirectusCompletedMatch[],
+): Promise<Record<string, ReplayPlayer>> {
+  return run({ kind: 'matches', matches, includeNonCompetitive: false }, () =>
+    computeMatchesReplay(matches),
   );
 }
