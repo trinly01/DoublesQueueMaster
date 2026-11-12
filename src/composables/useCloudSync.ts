@@ -6,7 +6,7 @@ import {
   type Ref,
   type ComputedRef,
 } from 'vue';
-import { readItems, updateItem } from '@likha-erp/likha-sdk';
+import { readItems, updateItems } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
 import {
   MatchmakingApp,
@@ -15,16 +15,22 @@ import {
 } from 'src/services/matchmaking';
 import type { AppState } from 'src/services/matchmaking';
 import { useNotify } from 'src/composables/useNotify';
-import { useAuth } from 'src/composables/useAuth';
+import { useAuth, registerBeforeLogoutHook } from 'src/composables/useAuth';
+import {
+  isClubPrivilegeMetaVerified,
+  type ClubPrivilegeMeta,
+} from 'src/services/clubMembersMapper';
 import {
   shouldUseLightweightRead,
   shouldSkipFullRead,
   parseLightweightTimestamp,
   applyMergedState,
   collectionEqual,
+  detectServerResetAdvantage,
+  applyServerResetAdvantage,
 } from 'src/services/cloudSyncHelpers';
 import type { Router } from 'vue-router';
-import type { QNotifyCreateOptions } from 'quasar';
+import { LocalStorage, type QNotifyCreateOptions } from 'quasar';
 
 type NotifyFn = (opts: QNotifyCreateOptions) => void;
 type HandleAuthErrorFn = (err: unknown, router: Router) => Promise<boolean>;
@@ -89,8 +95,14 @@ export function useCloudSync(ctx: CloudSyncContext) {
     }
   };
   watch(hasPendingCloudSync, (pending) => {
-    if (pending) syncAjaxBar.value?.start();
-    else syncAjaxBar.value?.stop();
+    if (pending) {
+      syncAjaxBar.value?.start();
+      // Durable intent: remember which club owes a push so a club switch,
+      // reload, or failed push can't silently lose it (Phase 3 #15).
+      markPendingSync(currentClubId.value);
+    } else {
+      syncAjaxBar.value?.stop();
+    }
   });
   // Track when we went offline to detect sleep/long offline periods
   const offlineSince = ref<number | null>(null);
@@ -101,6 +113,56 @@ export function useCloudSync(ctx: CloudSyncContext) {
 
   // Debounce timer for batching rapid local mutations into one sync
   let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Set when the most recent push attempt failed. While true, the pending
+  // flag means "push failed, awaiting retry" rather than "push armed" — the
+  // staleness poll is allowed to PULL server state in that case (pending
+  // blocks push-dedup, not pull).
+  let pushFailed = false;
+
+  // ---- Durable per-club pending-sync marker (RESET_DECISION Phase 3 #15) ----
+  // hasPendingCloudSync is session state — a push dropped by the club-switch
+  // guard (or a failed push before reload) loses the write club-wide if the
+  // club is never revisited in a state that re-arms it. Persisting a dirty
+  // marker per club lets the mount/switch-in path re-arm the push.
+  const pendingSyncKey = (clubId: string) => `pending_sync_${clubId}`;
+  const markPendingSync = (clubId: string) => {
+    if (clubId) LocalStorage.set(pendingSyncKey(clubId), Date.now());
+  };
+  const clearPendingSync = (clubId: string) => {
+    if (clubId) LocalStorage.remove(pendingSyncKey(clubId));
+  };
+  const hasPendingSyncMarker = (clubId: string): boolean =>
+    !!clubId && LocalStorage.getItem(pendingSyncKey(clubId)) != null;
+
+  // Smart-merge wrapper: runs reset-advantage detection first; when the
+  // server carries a newer reset checkpoint for a collection, that
+  // collection is adopted wholesale from the server instead of LWW-merged
+  // (contract §2). Unflagged collections/settings stay on mergeAppState.
+  const RESET_DISCARDED_MESSAGE =
+    'Club data was reset — unsynced changes discarded';
+  const mergeWithResetAdvantage = (
+    local: AppState,
+    server: AppState,
+  ): AppState => {
+    const advantage = detectServerResetAdvantage(local, server);
+    const flagged =
+      advantage.players ||
+      advantage.queues ||
+      advantage.matches ||
+      advantage.completedMatches ||
+      advantage.actionLogs ||
+      advantage.stats;
+    if (!flagged) return mergeAppState(local, server);
+    const merged = mergeAppState(local, server);
+    applyServerResetAdvantage(merged, server, advantage);
+    notify({
+      type: 'info',
+      message: RESET_DISCARDED_MESSAGE,
+      timeout: 4000,
+    });
+    return merged;
+  };
 
   // Realtime subscription handle — declared early so performCloudSync can
   // check isRealtimeActive() via closure. Assigned in startRealtime().
@@ -135,10 +197,37 @@ export function useCloudSync(ctx: CloudSyncContext) {
     return serverAppState?.matchmaking;
   };
 
+  // Pre-write verify + CAS probe: one read returning both the matchmaking
+  // blob (for the moved-check merge) and the row's `date_updated`, which
+  // becomes the compare-and-swap token for the conditional PATCH below.
+  const readServerClubRow = async (): Promise<
+    { matchmaking?: AppState; dateUpdated?: string } | undefined
+  > => {
+    const rows = await likhaClient.request(
+      readItems('club', {
+        filter: { id: { _eq: currentClubUUID.value } },
+        fields: ['appState', 'date_updated'],
+      }),
+    );
+    const row = rows?.[0] as unknown as
+      | {
+          appState?: { matchmaking?: AppState };
+          date_updated?: string;
+        }
+      | undefined;
+    if (!row) return undefined;
+    return {
+      matchmaking: row.appState?.matchmaking,
+      dateUpdated: row.date_updated,
+    };
+  };
+
   // Immediate sync to cloud (read-before-write for multi-admin conflict detection)
   const performCloudSync = async (skipServerMerge = false) => {
     if (isOpenPlay.value) return;
     if (clubSwitchInProgress.value) {
+      // Drop this attempt, but the durable per-club marker written when the
+      // pending flag armed keeps the intent alive for the next visit.
       hasPendingCloudSync.value = false;
       return;
     }
@@ -191,16 +280,43 @@ export function useCloudSync(ctx: CloudSyncContext) {
         }
       }
 
-      // 2. Only allow admins/moderators to write to the cloud
-      if (
-        !currentUserId.value ||
-        (!clubAdminIds.value.has(currentUserId.value) &&
-          !clubModeratorIds.value.has(currentUserId.value))
-      ) {
-        // Non-privileged users still advance their base version so they don't false-conflict later.
+      // 2. Only allow admins/moderators to write to the cloud.
+      // Privilege fail-closed (reset-detection contract §4): clubAdminIds /
+      // clubModeratorIds may be seeded from the club_meta_* cache and drive
+      // UI only — they never authorize a push. Authorization requires the
+      // meta entry to pass isClubPrivilegeMetaVerified — `verified: true`
+      // written only after a fresh admins/moderators M2M fetch, inside
+      // CLUB_PRIVILEGE_META_TTL_MS, with a non-future timestamp — AND the
+      // user present in that verified id snapshot. Legacy, expired, or
+      // future-dated entries → no push (a stale verified flag alone must
+      // not authorize pushes indefinitely once fetches stop).
+      const privilegeMeta = LocalStorage.getItem(
+        `club_meta_${currentClubId.value}`,
+      ) as ClubPrivilegeMeta | null;
+      const verifiedIds = isClubPrivilegeMetaVerified(privilegeMeta)
+        ? [
+            ...(privilegeMeta?.adminIds ?? []),
+            ...(privilegeMeta?.moderatorIds ?? []),
+          ]
+        : [];
+      const isVerifiedPrivileged =
+        !!currentUserId.value && verifiedIds.includes(currentUserId.value);
+      if (!isVerifiedPrivileged) {
+        // Non-privileged (or privilege-unverified) users still advance their
+        // base version so they don't false-conflict later.
         lastSyncedServerTimestamp.value = serverTimestamp;
         hasPendingCloudSync.value = false;
+        pushFailed = false;
         syncInProgress = false;
+        // Durable marker: keep it only while the user still looks privileged
+        // in the UI-seeded refs — their role may simply be unverified and a
+        // later fresh fetch can confirm it. Plain non-privileged users can
+        // never push; their local edits resolve via server-wins on load.
+        const uiPrivileged =
+          !!currentUserId.value &&
+          (clubAdminIds.value.has(currentUserId.value) ||
+            clubModeratorIds.value.has(currentUserId.value));
+        if (!uiPrivileged) clearPendingSync(currentClubId.value);
         console.log('Skipped cloud sync: not admin or moderator');
         return;
       }
@@ -208,6 +324,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
       // 2b. Only sync if local state belongs to this club
       if (MatchmakingApp.state.clubId !== currentClubId.value) {
         hasPendingCloudSync.value = false;
+        pushFailed = false;
         syncInProgress = false;
         console.log(
           'Skipped cloud sync: local state belongs to a different club',
@@ -221,7 +338,13 @@ export function useCloudSync(ctx: CloudSyncContext) {
         serverMatchmaking &&
         serverTimestamp !== lastSyncedServerTimestamp.value
       ) {
-        const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
+        // mergeWithResetAdvantage: wholesale-adopts any collection whose
+        // server reset checkpoint beats ours before the LWW merge result is
+        // applied (reset-detection contract §2, hook point b).
+        const merged = mergeWithResetAdvantage(
+          MatchmakingApp.state,
+          serverMatchmaking,
+        );
         // Assign only keys whose content actually changed — identical merges
         // keep their references and don't invalidate the page's computeds.
         applyMergedState(MatchmakingApp.state, merged);
@@ -234,71 +357,123 @@ export function useCloudSync(ctx: CloudSyncContext) {
         });
       }
 
-      // 4. Pre-write guard: another admin may have written between our read
-      // and this push. Re-check the timestamp once more; if it moved, pull
-      // the fresh state and merge it in so our write can't silently clobber
-      // their change (e.g. re-tombstoning a player another admin just
-      // re-checked-in).
-      try {
-        const verifyTimestamp = await readServerTimestamp();
+      // 4. Pre-write verify + CAS push. Directus has no native OCC, but a
+      // PATCH /items/club whose body carries
+      //   { query: { filter: { id: {_eq}, date_updated: {_eq: <token>} } },
+      //     data: { appState } }
+      // (what updateItems emits for a Query argument) is an atomic
+      // conditional UPDATE: the write lands only while the row still
+      // matches, so a concurrent write in the read→PATCH gap yields an
+      // empty result instead of a silent clobber. On conflict we re-fetch,
+      // reset-aware merge, and retry exactly once — bounded, no loop.
+      const MAX_CAS_ATTEMPTS = 2;
+      let casConflict = false;
+      for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt++) {
+        // Fresh probe: appState for the moved-check merge + date_updated as
+        // the CAS token. No token → abort: an unconditional PATCH would
+        // reopen the clobber window this guard exists to close, and the
+        // outer catch arms pushFailed/pending for a later retry.
+        const probe = await readServerClubRow();
+        const casToken = probe?.dateUpdated;
+        if (!casToken) {
+          throw new Error(
+            '[cloudSync] pre-write verify read returned no club row',
+          );
+        }
+        const fresh = probe?.matchmaking;
+        const verifyTimestamp = fresh?.lastModified ?? 0;
         const observedTimestamp =
           serverTimestamp || lastSyncedServerTimestamp.value;
-        if (verifyTimestamp !== observedTimestamp) {
-          const fresh = await readServerMatchmaking();
-          if (fresh) {
-            applyMergedState(
-              MatchmakingApp.state,
-              mergeAppState(MatchmakingApp.state, fresh),
-            );
-            MatchmakingApp.enforceOneMatchPerPlayer();
-            console.log(
-              '[cloudSync] server moved during sync — merged fresh state before push',
-            );
-          }
+        // On a CAS retry the merge is forced — the conflicting write may
+        // carry a reset whose checkpoint compare alone wouldn't surface.
+        if (fresh && (attempt > 0 || verifyTimestamp !== observedTimestamp)) {
+          // Same reset-advantage adoption as the pre-push merge — the
+          // server may have moved precisely because another admin reset
+          // (contract §2, hook point c).
+          applyMergedState(
+            MatchmakingApp.state,
+            mergeWithResetAdvantage(MatchmakingApp.state, fresh),
+          );
+          MatchmakingApp.enforceOneMatchPerPlayer();
+          console.log(
+            '[cloudSync] server moved during sync — merged fresh state before push',
+          );
         }
-      } catch (verifyErr) {
-        // Best-effort: if the verify read fails we still push — the next
-        // realtime message or sync converges the states.
-        console.warn('[cloudSync] pre-write verify failed:', verifyErr);
+
+        // 5. Stamp, push to cloud, persist locally, and advance our base
+        // version. Re-stamped per attempt so a post-conflict merge retry
+        // carries a fresh lastModified.
+        const stamp = Date.now();
+        MatchmakingApp.state.lastModified = stamp;
+        MatchmakingApp.state.clubUUID = currentClubUUID.value;
+        if (currentClubUUID.value) {
+          MatchmakingApp.state.completedMatches.forEach((m) => {
+            if (!m.club) m.club = currentClubUUID.value;
+          });
+        }
+
+        console.log(
+          '[cloudSync] pushing — queues:',
+          MatchmakingApp.state.queues.filter((q) => !q.deletedAt).length,
+          'matches:',
+          MatchmakingApp.state.activeMatches.filter((m) => !m.deletedAt)
+            .length,
+          'ts:',
+          stamp,
+        );
+
+        const payload = {
+          matchmaking: MatchmakingApp.state,
+        };
+
+        const casResult: unknown = await likhaClient.request(
+          updateItems(
+            'club',
+            {
+              filter: {
+                id: { _eq: currentClubUUID.value },
+                date_updated: { _eq: casToken },
+              },
+            },
+            {
+              appState: payload,
+            },
+          ),
+        );
+
+        if (Array.isArray(casResult) && casResult.length === 0) {
+          // CAS conflict: the row's date_updated moved between our probe
+          // and the PATCH — someone else wrote first. Loop re-probes,
+          // merges their state in, and retries with the fresh token.
+          casConflict = true;
+          console.warn(
+            '[cloudSync] CAS conflict — server row changed mid-push, re-merging and retrying once',
+          );
+          continue;
+        }
+        casConflict = false;
+
+        MatchmakingApp.persistSilently();
+        lastSyncedServerTimestamp.value = stamp;
+        if (currentClubId.value) {
+          saveLastSyncedTimestamp(currentClubId.value, stamp);
+        }
+        hasPendingCloudSync.value = false;
+        pushFailed = false;
+        clearPendingSync(currentClubId.value);
+        syncRetryPending = false;
+        console.log('Successfully synced to cloud');
+        break;
       }
 
-      // 5. Stamp, push to cloud, persist locally, and advance our base version.
-      const stamp = Date.now();
-      MatchmakingApp.state.lastModified = stamp;
-      MatchmakingApp.state.clubUUID = currentClubUUID.value;
-      if (currentClubUUID.value) {
-        MatchmakingApp.state.completedMatches.forEach((m) => {
-          if (!m.club) m.club = currentClubUUID.value;
-        });
+      if (casConflict) {
+        // Bounded retry exhausted — leave pending + the durable marker
+        // armed; the debounce/rearm/poll machinery retries on the next
+        // trigger rather than spinning here.
+        throw new Error(
+          '[cloudSync] CAS conflict persisted after bounded retry',
+        );
       }
-
-      console.log(
-        '[cloudSync] pushing — queues:',
-        MatchmakingApp.state.queues.filter((q) => !q.deletedAt).length,
-        'matches:',
-        MatchmakingApp.state.activeMatches.filter((m) => !m.deletedAt).length,
-        'ts:',
-        stamp,
-      );
-
-      const payload = {
-        matchmaking: MatchmakingApp.state,
-      };
-
-      await likhaClient.request(
-        updateItem('club', currentClubUUID.value, {
-          appState: payload,
-        }),
-      );
-
-      MatchmakingApp.persistSilently();
-      lastSyncedServerTimestamp.value = stamp;
-      if (currentClubId.value) {
-        saveLastSyncedTimestamp(currentClubId.value, stamp);
-      }
-      hasPendingCloudSync.value = false;
-      syncRetryPending = false;
-      console.log('Successfully synced to cloud');
     } catch (err) {
       // Handle 401 Unauthorized errors
       if (await handleAuthError(err, router)) {
@@ -307,6 +482,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
       }
       console.error('Failed to sync to cloud:', err);
       hasPendingCloudSync.value = true;
+      // Durable intent survives the failure — the per-club marker re-arms
+      // the push on the next mount/switch-in even if this session ends.
+      pushFailed = true;
+      markPendingSync(currentClubId.value);
     } finally {
       syncInProgress = false;
       // If another sync was requested while we were busy, run one follow-up.
@@ -316,6 +495,26 @@ export function useCloudSync(ctx: CloudSyncContext) {
       }
     }
   };
+
+  // Pre-logout flush (RESET_DECISION Phase 3 #16): useAuth.logout() drains
+  // registered hooks BEFORE credentials are wiped, so a pending push still
+  // has a valid token — otherwise the debounce/pagehide flush would fire
+  // post-wipe, 401, and drop e.g. a just-issued reset. Bounded to 5s by
+  // useAuth's flushBeforeLogout; performCloudSync's own gates (online,
+  // verified privilege, club match, reset-aware merge, CAS) keep it safe.
+  const unregisterBeforeLogout = registerBeforeLogoutHook(async () => {
+    if (syncDebounceTimer) {
+      clearTimeout(syncDebounceTimer);
+      syncDebounceTimer = null;
+    }
+    if (
+      !hasPendingCloudSync.value &&
+      !hasPendingSyncMarker(currentClubId.value)
+    ) {
+      return;
+    }
+    await performCloudSync();
+  });
 
   const updateOnlineStatus = () => {
     const wasOffline = !isOnline.value;
@@ -395,6 +594,73 @@ export function useCloudSync(ctx: CloudSyncContext) {
       | { id?: string; appState?: { matchmaking?: AppState } };
   };
 
+  // ---- Realtime role-field watch (contract §4 freshness) ----------------
+  // The subscription now carries the admins/moderators M2M user ids. When
+  // they change, the verified privilege snapshot cached in club_meta_* is
+  // stale: a demoted admin's entry would keep authorizing pushes until the
+  // next fresh fetch. We invalidate `verified` (fail-closed — pushes stop)
+  // and run the existing loadClubData refresh, which re-fetches the M2M
+  // and rewrites the entry with verified:true + a fresh TTL timestamp.
+  let lastRoleSnapshot: { uuid: string; key: string } | null = null;
+
+  const extractRoleIds = (rel: unknown): string[] => {
+    if (!Array.isArray(rel)) return [];
+    const ids = rel
+      .map((entry) => {
+        const user = (
+          entry as {
+            directus_users_id?: { id?: unknown } | string | null;
+          } | null
+        )?.directus_users_id;
+        if (typeof user === 'string') return user;
+        const id = (user as { id?: unknown } | null | undefined)?.id;
+        return typeof id === 'string' ? id : undefined;
+      })
+      .filter((id): id is string => typeof id === 'string');
+    return ids.sort();
+  };
+
+  const handleRealtimeRoleFields = (item: unknown) => {
+    const row = item as {
+      admins?: unknown;
+      moderators?: unknown;
+    } | null;
+    // Payloads without the M2M fields (older server, stripped response)
+    // carry no role signal — nothing to diff.
+    if (!row || (row.admins === undefined && row.moderators === undefined)) {
+      return;
+    }
+    const uuid = currentClubUUID.value;
+    const key = JSON.stringify({
+      admins: extractRoleIds(row.admins),
+      moderators: extractRoleIds(row.moderators),
+    });
+    if (lastRoleSnapshot?.uuid === uuid && lastRoleSnapshot.key === key) {
+      return; // unchanged since last observation
+    }
+    const firstObservation =
+      !lastRoleSnapshot || lastRoleSnapshot.uuid !== uuid;
+    lastRoleSnapshot = { uuid, key };
+    if (firstObservation) return; // seed baseline — no refresh storm
+
+    const metaKey = `club_meta_${currentClubId.value}`;
+    const meta = LocalStorage.getItem(metaKey) as Record<
+      string,
+      unknown
+    > | null;
+    if (meta && typeof meta === 'object') {
+      LocalStorage.set(metaKey, { ...meta, verified: false });
+    }
+    console.log(
+      '[realtime] club role fields changed — privilege meta invalidated, refreshing club data',
+    );
+    if (currentClubId.value) {
+      void loadClubData(currentClubId.value).catch((err) => {
+        console.warn('[realtime] role-change refresh failed:', err);
+      });
+    }
+  };
+
   const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
     if (!serverMatchmaking) return;
     const incomingTs = serverMatchmaking.lastModified ?? 0;
@@ -439,12 +705,23 @@ export function useCloudSync(ctx: CloudSyncContext) {
       // persistSilently) ahead of the last-synced server stamp. A clean
       // device that only views data takes the server-wins overwrite so its
       // stale persisted entities can't union-merge back and get re-pushed.
+      // hasPendingCloudSync also counts as dirty: a failed push leaves
+      // lastModified == lastSynced after a pull-merge while edits are still
+      // owed to the server — they must keep merging, not be overwritten.
       const localHasUnsyncedChanges =
         (MatchmakingApp.state.lastModified ?? 0) >
-        lastSyncedServerTimestamp.value;
+          lastSyncedServerTimestamp.value || hasPendingCloudSync.value;
       if (isCurrentUserPrivilegedForSync && localHasUnsyncedChanges) {
-        // Privileged + dirty: smart-merge so local offline edits are preserved
-        const merged = mergeAppState(MatchmakingApp.state, serverMatchmaking);
+        // Privileged + dirty: smart-merge so local offline edits are preserved.
+        // mergeWithResetAdvantage wholesale-adopts collections whose server
+        // reset checkpoint beats ours (contract §2, hook point a).
+        const merged = mergeWithResetAdvantage(
+          MatchmakingApp.state,
+          serverMatchmaking,
+        );
+        // The merge result still owes the server a push — keep the durable
+        // marker honest even if the session pending flag was dropped.
+        markPendingSync(currentClubId.value);
         // Assign only keys whose content actually changed — identical merges
         // keep their references and don't invalidate the page's computeds.
         applyMergedState(MatchmakingApp.state, merged);
@@ -537,6 +814,9 @@ export function useCloudSync(ctx: CloudSyncContext) {
             ...serverMatchmaking.settingsFieldTimestamps,
           };
         }
+        // Server-wins overwrite discards any local unpushed intent — the
+        // durable marker is stale now.
+        clearPendingSync(currentClubId.value);
       }
     } finally {
       // Re-enable settings_change logging now that the merge is complete —
@@ -603,7 +883,15 @@ export function useCloudSync(ctx: CloudSyncContext) {
           event: 'update',
           query: {
             filter: { id: { _eq: currentClubUUID.value } },
-            fields: ['id', 'appState'],
+            fields: [
+              'id',
+              'appState',
+              // Role M2M ids ride along so a server-side role change can
+              // invalidate the verified club_meta_* privilege snapshot
+              // (contract §4). Dot-notation M2M verified for Player tokens.
+              'admins.directus_users_id.id',
+              'moderators.directus_users_id.id',
+            ],
           },
         },
       );
@@ -625,6 +913,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
             // data is an array for create/update, but tolerate a bare object
             // in case a server/SDK version returns the item directly.
             const item = Array.isArray(msg.data) ? msg.data[0] : msg.data;
+            // Role-field diff runs before the matchmaking merge — a role
+            // change invalidates the privilege cache regardless of whether
+            // appState also moved.
+            handleRealtimeRoleFields(item);
             const matchmaking = item?.appState?.matchmaking;
             // Only a message carrying usable data proves the stream is
             // healthy — stripped/empty payloads (e.g. permission-filtered
@@ -714,8 +1006,13 @@ export function useCloudSync(ctx: CloudSyncContext) {
     if (isOpenPlay.value || clubSwitchInProgress.value) return;
     if (!isOnline.value || !currentClubUUID.value || !currentClubId.value)
       return;
-    // Don't pull mid-edit: an admin's debounced push is in flight.
-    if (hasPendingCloudSync.value || syncInProgress) return;
+    // Don't pull mid-edit: an admin's debounced push is armed or in flight.
+    // Exception: when the last push FAILED (pushFailed), pending means
+    // "awaiting retry" with no retry necessarily scheduled — pulling is the
+    // only way this device converges, and applyServerMatchmaking's dirty
+    // check (hasPendingCloudSync counts as dirty) keeps unpushed edits safe.
+    if (syncInProgress) return;
+    if (hasPendingCloudSync.value && !pushFailed) return;
     // Healthy stream delivered recently — nothing to check.
     if (Date.now() - lastRealtimeMessageAt < STALENESS_POLL_MS) return;
 
@@ -780,6 +1077,30 @@ export function useCloudSync(ctx: CloudSyncContext) {
 
   MatchmakingApp.onStateChange = debouncedCloudSync;
 
+  // Durable pending-sync re-arm (Phase 3 #15): when a club with a pending
+  // marker becomes current — on mount, club switch-in, or when the switch
+  // guard releases — re-arm the push through the normal debounced path.
+  // performCloudSync's own gates (online, verified privilege, club match,
+  // merge-before-push) keep this safe; if it gets dropped again mid-switch
+  // the marker persists and the next trigger retries.
+  const maybeRearmPendingSync = () => {
+    const clubId = currentClubId.value;
+    if (!clubId || isOpenPlay.value || hasPendingCloudSync.value) return;
+    if (!hasPendingSyncMarker(clubId)) return;
+    // Only re-arm once local state actually belongs to this club.
+    if (
+      MatchmakingApp.state.clubId &&
+      MatchmakingApp.state.clubId !== clubId
+    ) {
+      return;
+    }
+    debouncedCloudSync();
+  };
+  watch(currentClubId, maybeRearmPendingSync, { immediate: true });
+  watch(clubSwitchInProgress, (inProgress) => {
+    if (!inProgress) maybeRearmPendingSync();
+  });
+
   // Sync-related event listeners (mounted/unmounted in composable)
   let ratingsRefreshInterval: ReturnType<typeof setInterval> | null = null;
   let stalenessPollInterval: ReturnType<typeof setInterval> | null = null;
@@ -820,6 +1141,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
   });
 
   onUnmounted(() => {
+    unregisterBeforeLogout();
     window.removeEventListener('online', updateOnlineStatus);
     window.removeEventListener('offline', updateOnlineStatus);
     window.removeEventListener('pagehide', handlePageHide);
@@ -885,5 +1207,6 @@ export function useCloudSync(ctx: CloudSyncContext) {
     stopRealtime,
     updateOnlineStatus,
     doResumeSync,
+    pollServerState, // exposed for tests — the staleness interval calls it
   };
 }

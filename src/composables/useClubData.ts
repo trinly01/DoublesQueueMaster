@@ -8,9 +8,8 @@ import {
   MatchmakingApp,
   mergeAppState,
   enforceCompletedCaps,
-  ACTION_LOG_CAP,
 } from 'src/services/matchmaking';
-import type { AppState, ActionLog } from 'src/services/matchmaking';
+import type { AppState } from 'src/services/matchmaking';
 import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import {
   mapClubToMembers,
@@ -23,6 +22,8 @@ import {
   shouldSkipClubInfoRefresh,
   applyMergedState,
   collectionEqual,
+  detectServerResetAdvantage,
+  applyServerResetAdvantage,
   type DBUser,
 } from 'src/services/cloudSyncHelpers';
 import type { Router } from 'vue-router';
@@ -276,6 +277,8 @@ export function useClubData(context: UseClubDataContext) {
       clubName?: string;
       clubLogo?: string;
       clubStatus?: string;
+      verified?: boolean;
+      timestamp?: number;
     } | null;
 
     if (cachedState && Object.keys(cachedState).length > 0 && meta) {
@@ -635,183 +638,135 @@ export function useClubData(context: UseClubDataContext) {
             if (mergeEligible) {
               // Admins/Moderators: smart-merge so a refresh picks up other admins' newly created
               //   queues/matches (latest-writer-wins) while preserving player stats.
-              // Detect remote reset: another admin cleared all data (full reset).
-              // Partial checkpoint advances (session resets) are handled by mergeAppState.
-              const serverHasNoPlayers =
-                Object.keys(serverMatchmaking.players || {}).length === 0;
-              const serverHasNoQueues =
-                (serverMatchmaking.queues || []).length === 0;
-              const serverHasNoMatches =
-                (serverMatchmaking.activeMatches || []).filter(
-                  (m) => !m.deletedAt,
-                ).length === 0;
-              const serverTime = serverMatchmaking.lastModified ?? 0;
-              const localTime = MatchmakingApp.state.lastModified ?? 0;
-              const isRemoteReset =
-                serverHasNoPlayers &&
-                serverHasNoQueues &&
-                serverHasNoMatches &&
-                serverTime > localTime;
+              // Detect a server-side reset advantage: another privileged device
+              //   advanced a per-collection reset checkpoint past ours
+              //   (detectServerResetAdvantage — a pure epoch comparison, immune
+              //   to wall-clock skew). Replaces the old isRemoteReset heuristic,
+              //   which only caught fully-empty blobs and never repopulated
+              //   completedMatches — post-reset matches were silently lost
+              //   locally on adoption. Flagged collections are wholesale-
+              //   adopted from the server after the LWW merge below;
+              //   unflagged collections + settings stay on the normal merge.
+              const resetAdvantage = detectServerResetAdvantage(
+                MatchmakingApp.state,
+                serverMatchmaking,
+              );
+              const hasResetAdvantage =
+                resetAdvantage.players ||
+                resetAdvantage.queues ||
+                resetAdvantage.matches ||
+                resetAdvantage.completedMatches ||
+                resetAdvantage.actionLogs ||
+                resetAdvantage.stats;
 
               // Bound the incoming history the same way local writes do —
               // an uncapped blob written by an older client otherwise stays
               // large forever here.
               enforceCompletedCaps(serverMatchmaking);
 
-              if (isRemoteReset) {
-                // Another privileged user performed a reset — adopt server state (mergeAppState will purge)
-                MatchmakingApp.state.players = {};
-                MatchmakingApp.state.queues = [];
-                MatchmakingApp.state.activeMatches = [];
-                MatchmakingApp.state.completedMatches = [];
-                MatchmakingApp.state.completedMatchIds = [];
-                MatchmakingApp.state.lastModified = serverTime;
-                MatchmakingApp.state.playersResetAt =
-                  serverMatchmaking.playersResetAt ?? 0;
-                MatchmakingApp.state.queuesResetAt =
-                  serverMatchmaking.queuesResetAt ?? 0;
-                MatchmakingApp.state.matchesResetAt =
-                  serverMatchmaking.matchesResetAt ?? 0;
-                MatchmakingApp.state.statsResetAt = Math.max(
-                  MatchmakingApp.state.statsResetAt ?? 0,
-                  serverMatchmaking.statsResetAt ?? 0,
-                );
-                // Carry over completedMatchesResetAt using Math.max so the most
-                // recent reset always wins — without this, a stale admin would
-                // push completedMatchesResetAt=0 on their next sync, wiping the
-                // reset and allowing old completed matches to resurrect.
-                const localResetAt =
-                  MatchmakingApp.state.completedMatchesResetAt ?? 0;
-                const serverResetAt =
-                  serverMatchmaking.completedMatchesResetAt ?? 0;
-                MatchmakingApp.state.completedMatchesResetAt = Math.max(
-                  localResetAt,
-                  serverResetAt,
-                );
-                // Keep the per-field stamp from whichever side won
+              // Check if local state is "fresh" (no meaningful data) - e.g., incognito/private mode
+              // In this case, directly adopt server state instead of merging to prevent
+              // timestamp-based logic from keeping empty local data.
+              const isFreshState =
+                Object.keys(MatchmakingApp.state.players).length === 0 &&
+                MatchmakingApp.state.queues.length === 0 &&
+                MatchmakingApp.state.activeMatches.length === 0;
+
+              if (isFreshState) {
+                // Fresh state: zero out local timestamps so mergeAppState
+                // adopts the server state entirely (all fields, all timestamps).
+                // Must zero reset checkpoints too — resetState() sets them to
+                // now(), which would cause mergeAppState to filter out all
+                // server queues/matches/players created before now.
+                //
+                // EXCEPTION: preserve every reset checkpoint set locally.
+                // An offline "Reset All"/"Clear Session" leaves the state
+                // looking fresh (empty players/queues/matches) but its reset
+                // epochs must survive the merge so old server data is dropped.
+                // Without this, an offline admin who resets and comes back
+                // online would see everything resurrect. The club-switch
+                // resetState() zeroes its bookkeeping stamps above, so any
+                // checkpoint >0 here is a real local reset.
+                const keptCheckpoints = {
+                  playersResetAt: MatchmakingApp.state.playersResetAt ?? 0,
+                  statsResetAt: MatchmakingApp.state.statsResetAt ?? 0,
+                  queuesResetAt: MatchmakingApp.state.queuesResetAt ?? 0,
+                  matchesResetAt: MatchmakingApp.state.matchesResetAt ?? 0,
+                  completedMatchesResetAt:
+                    MatchmakingApp.state.completedMatchesResetAt ?? 0,
+                  actionLogsResetAt:
+                    MatchmakingApp.state.actionLogsResetAt ?? 0,
+                };
+                const localCompletedStamp =
+                  (MatchmakingApp.state.settingsFieldTimestamps ?? {})[
+                    'completedMatchesResetAt'
+                  ] ?? 0;
+                MatchmakingApp.state.settingsUpdatedAt = 0;
+                MatchmakingApp.state.settingsFieldTimestamps = {};
+                MatchmakingApp.state.lastModified = 0;
+                MatchmakingApp.state.playersResetAt = 0;
+                MatchmakingApp.state.statsResetAt = 0;
+                MatchmakingApp.state.queuesResetAt = 0;
+                MatchmakingApp.state.matchesResetAt = 0;
+                MatchmakingApp.state.completedMatchesResetAt = 0;
+                MatchmakingApp.state.actionLogsResetAt = 0;
+                for (const [key, value] of Object.entries(keptCheckpoints)) {
+                  if (value > 0) {
+                    (
+                      MatchmakingApp.state as unknown as Record<
+                        string,
+                        number
+                      >
+                    )[key] = value;
+                  }
+                }
                 if (
-                  serverResetAt > localResetAt &&
-                  serverMatchmaking.settingsFieldTimestamps
+                  keptCheckpoints.completedMatchesResetAt > 0 &&
+                  localCompletedStamp > 0
                 ) {
                   MatchmakingApp.state.settingsFieldTimestamps = {
-                    ...MatchmakingApp.state.settingsFieldTimestamps,
-                    completedMatchesResetAt:
-                      serverMatchmaking.settingsFieldTimestamps[
-                        'completedMatchesResetAt'
-                      ] ?? 0,
+                    completedMatchesResetAt: localCompletedStamp,
                   };
                 }
-                // Carry over actionLogsResetAt using Math.max so the most
-                // recent admin-action-chip reset always wins.
-                MatchmakingApp.state.actionLogsResetAt = Math.max(
-                  MatchmakingApp.state.actionLogsResetAt ?? 0,
-                  serverMatchmaking.actionLogsResetAt ?? 0,
+
+                const merged = mergeAppState(
+                  MatchmakingApp.state,
+                  serverMatchmaking as AppState,
                 );
-                // Merge actionLogs: union + dedup by id + sort desc + cap.
-                // Without this, the local admin's stale actionLogs (from
-                // before the offline period) would survive and overwrite
-                // the server's actionLogs on the next cloud sync push —
-                // losing the reset_all log that the resetting admin added.
-                const remoteLocalLogs = MatchmakingApp.state.actionLogs || [];
-                const remoteServerLogs = serverMatchmaking.actionLogs || [];
-                const remoteLogMap = new Map<string, ActionLog>();
-                for (const log of [...remoteLocalLogs, ...remoteServerLogs]) {
-                  remoteLogMap.set(log.id, log);
-                }
-                MatchmakingApp.state.actionLogs = Array.from(
-                  remoteLogMap.values(),
-                )
-                  .sort((a, b) => b.timestamp - a.timestamp)
-                  .slice(0, ACTION_LOG_CAP);
+                applyMergedState(MatchmakingApp.state, merged);
+              } else {
+                // Existing local state: smart-merge with server
+                const merged = mergeAppState(
+                  MatchmakingApp.state,
+                  serverMatchmaking,
+                );
+                // Assign only keys whose content actually changed —
+                // identical merges keep their references and don't
+                // invalidate the page's computeds.
+                applyMergedState(MatchmakingApp.state, merged);
+                // Extra safety: ensure no player appears in multiple matches
+                MatchmakingApp.enforceOneMatchPerPlayer();
+              }
+
+              // Wholesale-adopt the collections the server reset flagged
+              // (contract §2). Runs AFTER the merge so flagged keys can't be
+              // re-contaminated by local LWW winners; unflagged collections
+              // keep whatever the merge produced.
+              if (hasResetAdvantage) {
+                applyServerResetAdvantage(
+                  MatchmakingApp.state,
+                  serverMatchmaking,
+                  resetAdvantage,
+                );
+                // Adopted collections are already constraint-clean on the
+                // server, but re-run the invariant in case local edits raced
+                // the merge.
+                MatchmakingApp.enforceOneMatchPerPlayer();
                 notify({
                   type: 'info',
-                  message: 'Club data was reset',
-                  timeout: 3000,
+                  message: 'Club data was reset — unsynced changes discarded',
+                  timeout: 4000,
                 });
-              } else {
-                // Check if local state is "fresh" (no meaningful data) - e.g., incognito/private mode
-                // In this case, directly adopt server state instead of merging to prevent
-                // timestamp-based logic from keeping empty local data.
-                const isFreshState =
-                  Object.keys(MatchmakingApp.state.players).length === 0 &&
-                  MatchmakingApp.state.queues.length === 0 &&
-                  MatchmakingApp.state.activeMatches.length === 0;
-
-                if (isFreshState) {
-                  // Fresh state: zero out local timestamps so mergeAppState
-                  // adopts the server state entirely (all fields, all timestamps).
-                  // Must zero reset checkpoints too — resetState() sets them to
-                  // now(), which would cause mergeAppState to filter out all
-                  // server queues/matches/players created before now.
-                  //
-                  // EXCEPTION: preserve every reset checkpoint set locally.
-                  // An offline "Reset All"/"Clear Session" leaves the state
-                  // looking fresh (empty players/queues/matches) but its reset
-                  // epochs must survive the merge so old server data is dropped.
-                  // Without this, an offline admin who resets and comes back
-                  // online would see everything resurrect. The club-switch
-                  // resetState() zeroes its bookkeeping stamps above, so any
-                  // checkpoint >0 here is a real local reset.
-                  const keptCheckpoints = {
-                    playersResetAt: MatchmakingApp.state.playersResetAt ?? 0,
-                    statsResetAt: MatchmakingApp.state.statsResetAt ?? 0,
-                    queuesResetAt: MatchmakingApp.state.queuesResetAt ?? 0,
-                    matchesResetAt: MatchmakingApp.state.matchesResetAt ?? 0,
-                    completedMatchesResetAt:
-                      MatchmakingApp.state.completedMatchesResetAt ?? 0,
-                    actionLogsResetAt:
-                      MatchmakingApp.state.actionLogsResetAt ?? 0,
-                  };
-                  const localCompletedStamp =
-                    (MatchmakingApp.state.settingsFieldTimestamps ?? {})[
-                      'completedMatchesResetAt'
-                    ] ?? 0;
-                  MatchmakingApp.state.settingsUpdatedAt = 0;
-                  MatchmakingApp.state.settingsFieldTimestamps = {};
-                  MatchmakingApp.state.lastModified = 0;
-                  MatchmakingApp.state.playersResetAt = 0;
-                  MatchmakingApp.state.statsResetAt = 0;
-                  MatchmakingApp.state.queuesResetAt = 0;
-                  MatchmakingApp.state.matchesResetAt = 0;
-                  MatchmakingApp.state.completedMatchesResetAt = 0;
-                  MatchmakingApp.state.actionLogsResetAt = 0;
-                  for (const [key, value] of Object.entries(keptCheckpoints)) {
-                    if (value > 0) {
-                      (
-                        MatchmakingApp.state as unknown as Record<
-                          string,
-                          number
-                        >
-                      )[key] = value;
-                    }
-                  }
-                  if (
-                    keptCheckpoints.completedMatchesResetAt > 0 &&
-                    localCompletedStamp > 0
-                  ) {
-                    MatchmakingApp.state.settingsFieldTimestamps = {
-                      completedMatchesResetAt: localCompletedStamp,
-                    };
-                  }
-
-                  const merged = mergeAppState(
-                    MatchmakingApp.state,
-                    serverMatchmaking as AppState,
-                  );
-                  applyMergedState(MatchmakingApp.state, merged);
-                } else {
-                  // Existing local state: smart-merge with server
-                  const merged = mergeAppState(
-                    MatchmakingApp.state,
-                    serverMatchmaking,
-                  );
-                  // Assign only keys whose content actually changed —
-                  // identical merges keep their references and don't
-                  // invalidate the page's computeds.
-                  applyMergedState(MatchmakingApp.state, merged);
-                  // Extra safety: ensure no player appears in multiple matches
-                  MatchmakingApp.enforceOneMatchPerPlayer();
-                }
               }
             } else {
               // Non-privileged: server is source of truth — directly overwrite everything, no merge.
@@ -989,7 +944,12 @@ export function useClubData(context: UseClubDataContext) {
             clubMembers.value.some((m) => m.id === currentUserId.value);
           serverPayloadApplied = true;
 
-          // Persist club metadata for offline admin/moderator detection
+          // Persist club metadata for offline admin/moderator detection.
+          // `verified: true` is justified here: the admins/moderators M2M
+          // ids above came from THIS fresh server fetch. Cached entries
+          // restore as UI seeds only — the sync push gate treats missing or
+          // expired `verified` (see isClubPrivilegeMetaVerified, 5min TTL)
+          // as unverified and refuses to push (fail-closed, contract §4).
           LocalStorage.set(`club_meta_${clubId}`, {
             clubUUID: club.id,
             adminIds: Array.from(clubAdminIds.value),
@@ -998,6 +958,7 @@ export function useClubData(context: UseClubDataContext) {
             clubName: club.name || clubId,
             clubLogo: club.logo || '',
             clubStatus: club.status || 'published',
+            verified: true,
             timestamp: Date.now(),
           });
 

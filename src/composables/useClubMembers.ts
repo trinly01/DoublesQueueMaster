@@ -572,7 +572,9 @@ export function useClubMembers(context: UseClubMembersContext) {
       clubMembers.value = mapped.members;
 
       // Keep the offline club_meta cache in sync so member removals and
-      // role changes survive a reload without connectivity.
+      // role changes survive a reload without connectivity. This refresh
+      // just fetched admins/moderators M2M from the server, so the privilege
+      // ids are freshly verified — restart the TTL window (contract §4).
       if (currentClubId.value) {
         const metaKey = `club_meta_${currentClubId.value}`;
         const existing =
@@ -583,6 +585,8 @@ export function useClubMembers(context: UseClubMembersContext) {
           members: clubMembers.value,
           adminIds: Array.from(mapped.adminIds),
           moderatorIds: Array.from(mapped.moderatorIds),
+          verified: true,
+          timestamp: Date.now(),
         });
       }
 

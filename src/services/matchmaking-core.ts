@@ -313,6 +313,54 @@ export function getStorageKey(clubId?: string): string {
   return STORAGE_KEY;
 }
 
+// ---------------------------------------------------------------------------
+// Reset-checkpoint predicates — the SINGLE rule for "did this entity see a
+// write at/after its collection's reset checkpoint". Shared by mergeAppState's
+// pre-filters and saveState's local purge so the two can never disagree
+// (merge-keeps / saveState-drops flap). Entity stamps beyond the skew
+// allowance count as `now`: a fast-clock write is still a write, just not
+// "newer than everything". Real skew is minutes, so 5 min is a safe allowance.
+// ---------------------------------------------------------------------------
+
+export const ENTITY_STAMP_SKEW_ALLOWANCE_MS = 5 * 60 * 1000;
+
+const clampStampForCheckpoint = (t: number | undefined, now: number): number =>
+  t != null && t > now + ENTITY_STAMP_SKEW_ALLOWANCE_MS ? now : (t ?? 0);
+
+/** Latest entity timestamp that counts for the playersResetAt checkpoint. */
+export const playerCheckpointTime = (p: Player, now: number): number =>
+  Math.max(
+    clampStampForCheckpoint(p.createdAt, now),
+    clampStampForCheckpoint(p.updatedAt, now),
+    clampStampForCheckpoint(p.deletedAt, now),
+    clampStampForCheckpoint(p.statsUpdatedAt, now),
+    clampStampForCheckpoint(p.linkUpdatedAt, now),
+    clampStampForCheckpoint(p.avoidUpdatedAt, now),
+  );
+
+/** Latest entity timestamp that counts for the queuesResetAt checkpoint. */
+export const queueCheckpointTime = (q: QueueEntry, now: number): number =>
+  Math.max(
+    clampStampForCheckpoint(q.createdAt, now),
+    clampStampForCheckpoint(q.updatedAt, now),
+    clampStampForCheckpoint(q.deletedAt, now),
+    clampStampForCheckpoint(q.lockUpdatedAt, now),
+  );
+
+/** Latest entity timestamp that counts for the matchesResetAt checkpoint. */
+export const matchCheckpointTime = (m: ActiveMatch, now: number): number =>
+  Math.max(
+    clampStampForCheckpoint(m.createdAt, now),
+    clampStampForCheckpoint(m.updatedAt, now),
+    clampStampForCheckpoint(m.deletedAt, now),
+  );
+
+/** Entity timestamp that counts for the completedMatchesResetAt checkpoint. */
+export const completedMatchCheckpointTime = (
+  m: CompletedMatch,
+  now: number,
+): number => clampStampForCheckpoint(m.completedAt, now);
+
 // Standalone helper: enforce one-match-per-player on any AppState.
 // Losing matches are tombstoned and their players returned to queue.
 export function gcTombstones(state: AppState, now: number) {

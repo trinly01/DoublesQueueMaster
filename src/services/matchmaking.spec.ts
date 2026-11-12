@@ -1212,6 +1212,92 @@ describe('saveState local purge of stale stats', () => {
   });
 });
 
+// saveState's checkpoint purge must apply the SAME per-entity predicate as
+// mergeAppState's pre-filters — mergeAppState counts the dedicated LWW stamps
+// (linkUpdatedAt / avoidUpdatedAt / lockUpdatedAt) as post-reset activity, so
+// saveState must too. Otherwise merge keeps an entity that the next persist
+// drops — the merge/saveState flap.
+describe('saveState — checkpoint purge predicate parity with mergeAppState', () => {
+  it('keeps a player touched only via linkUpdatedAt after the checkpoint', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.playersResetAt = 5000;
+    sys.state.players = {
+      linked: makePlayer(1500, {
+        username: 'linked',
+        createdAt: 100,
+        updatedAt: 100,
+        statsUpdatedAt: 100,
+        linkUpdatedAt: 6000,
+        linkedTo: 'partner',
+      }),
+      stale: makePlayer(1400, {
+        username: 'stale',
+        createdAt: 100,
+        updatedAt: 100,
+        statsUpdatedAt: 100,
+        linkUpdatedAt: 100,
+      }),
+    };
+    sys.persist();
+    expect(sys.state.players.linked).toBeDefined();
+    expect(sys.state.players.stale).toBeUndefined();
+  });
+
+  it('keeps a player touched only via avoidUpdatedAt after the checkpoint', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.playersResetAt = 5000;
+    sys.state.players = {
+      avoided: makePlayer(1500, {
+        username: 'avoided',
+        createdAt: 100,
+        updatedAt: 100,
+        statsUpdatedAt: 100,
+        avoidUpdatedAt: 6000,
+        avoids: { other: 'match' },
+      }),
+    };
+    sys.persist();
+    expect(sys.state.players.avoided).toBeDefined();
+  });
+
+  it('keeps a queue entry touched only via lockUpdatedAt after the checkpoint', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.queuesResetAt = 5000;
+    sys.state.players = {
+      q: makePlayer(1500, { username: 'q', createdAt: 100 }),
+    };
+    sys.state.queues = [
+      makeQueueEntry('q', {
+        createdAt: 100,
+        updatedAt: 100,
+        queuedAt: 100,
+        lockUpdatedAt: 6000,
+        lockedAt: 6000,
+      }),
+    ];
+    sys.persist();
+    expect(sys.state.queues.length).toBe(1);
+    expect(sys.state.queues[0]?.username).toBe('q');
+  });
+
+  it('drops entities whose dedicated stamps also predate the checkpoint', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.playersResetAt = 5000;
+    sys.state.players = {
+      old: makePlayer(1500, {
+        username: 'old',
+        createdAt: 100,
+        updatedAt: 100,
+        statsUpdatedAt: 100,
+        linkUpdatedAt: 200,
+        avoidUpdatedAt: 200,
+      }),
+    };
+    sys.persist();
+    expect(sys.state.players.old).toBeUndefined();
+  });
+});
+
 // Minimal AppState builder for merge tests
 const makeState = (overrides: Partial<AppState> = {}): AppState => ({
   teamSize: 2,
@@ -2779,6 +2865,271 @@ describe('mergeAppState — reset / checkpoint consistency', () => {
     expect(ab.completedMatches.length).toBe(ba.completedMatches.length);
     expect(ab.completedMatches.length).toBe(1);
   });
+
+  // --- Path-3: completedMatchesResetAt effective-value merge (contract §5) ---
+  it('completedMatchesResetAt persists the same epoch the filter used (effective max, not field LWW)', () => {
+    // Local carries the epoch only in the FIELD (no per-field stamp) with a
+    // newer unrelated settings blob; server carries a lower field value but
+    // a higher stamp. Effective per side: local=max(7000,0)=7000,
+    // server=max(3000,6000)=6000 → merged epoch 7000, and the completed-
+    // matches filter must use that same epoch. The old winner-take-all LWW
+    // picked the server's FIELD value (3000) while pickSettings persisted
+    // 7000 — the filter/persisted divergence that re-enabled the purge flap.
+    const local = makeState({
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+      completedMatchesResetAt: 7000,
+      settingsUpdatedAt: 9500,
+      settingsFieldTimestamps: { ttsEnabled: 9500 },
+      completedMatches: [
+        makeCompletedMatch('m6500', { completedAt: 6500, updatedAt: 6500 }),
+      ],
+      lastModified: 9500,
+    });
+    const server = makeState({
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+      completedMatchesResetAt: 3000,
+      settingsUpdatedAt: 3000,
+      settingsFieldTimestamps: { completedMatchesResetAt: 6000 },
+      completedMatches: [
+        makeCompletedMatch('m6500', { completedAt: 6500, updatedAt: 6500 }),
+        makeCompletedMatch('m2000', { completedAt: 2000, updatedAt: 2000 }),
+      ],
+      lastModified: 3000,
+    });
+    const merged = mergeAppState(local, server);
+    // Persisted epoch == epoch the filter actually used.
+    expect(merged.completedMatchesResetAt).toBe(7000);
+    // m6500 (completedAt 6500 <= 7000) is dropped — under the old divergent
+    // merge the filter used 3000 and kept it while persisting 7000.
+    expect(merged.completedMatches.length).toBe(0);
+    // Commutative — same result with sides swapped.
+    const merged2 = mergeAppState(server, local);
+    expect(merged2.completedMatchesResetAt).toBe(7000);
+    expect(merged2.completedMatches.length).toBe(0);
+  });
+
+  it('completedMatchesResetAt: surviving stamp rescues a regressed field value', () => {
+    // Local's field value regressed to 0 (per-field LWW loss) but its stamp
+    // survived at 6000; server has field 3000 + stamp 6000. Effective:
+    // local=max(0,6000)=6000, server=max(3000,6000)=6000 → epoch 6000.
+    // Old code picked local's FIELD (0) because localResetTs >= serverResetTs
+    // → the reset was silently disabled on both the filter and the value.
+    const local = makeState({
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+      completedMatchesResetAt: 0,
+      settingsUpdatedAt: 6500,
+      settingsFieldTimestamps: { completedMatchesResetAt: 6000 },
+      completedMatches: [
+        makeCompletedMatch('m5500', { completedAt: 5500, updatedAt: 5500 }),
+      ],
+      lastModified: 6500,
+    });
+    const server = makeState({
+      players: { alice: makePlayer(1500, { username: 'alice' }) },
+      completedMatchesResetAt: 3000,
+      settingsUpdatedAt: 6000,
+      settingsFieldTimestamps: { completedMatchesResetAt: 6000 },
+      completedMatches: [
+        makeCompletedMatch('m6500', { completedAt: 6500, updatedAt: 6500 }),
+        makeCompletedMatch('m5500', { completedAt: 5500, updatedAt: 5500 }),
+      ],
+      lastModified: 6000,
+    });
+    const merged = mergeAppState(local, server);
+    expect(merged.completedMatchesResetAt).toBe(6000);
+    expect(merged.completedMatches.map((m) => m.matchId)).toEqual(['m6500']);
+  });
+
+  // --- Guard pairing (contract §3): corroborated future epochs are adopted ---
+  it('future checkpoint corroborated by both sides is adopted', () => {
+    const future = Date.now() + 100_000;
+    // Both devices carry the same future-dated epoch — e.g. a reset adopted
+    // from a fast-clock admin and synced to both. Two sides agreeing on an
+    // epoch is strong evidence it's real → accept it, or the checkpoint
+    // would be re-zeroed on every subsequent merge and resurrection returns.
+    const a = makeState({
+      playersResetAt: future,
+      queuesResetAt: future,
+      matchesResetAt: future,
+      statsResetAt: future,
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          createdAt: 100,
+          updatedAt: 100,
+          statsUpdatedAt: 100,
+        }),
+      },
+      queues: [
+        makeQueueEntry('alice', {
+          createdAt: 100,
+          updatedAt: 100,
+          queuedAt: 100,
+        }),
+      ],
+      lastModified: 100,
+    });
+    const b = makeState({
+      playersResetAt: future,
+      queuesResetAt: future,
+      matchesResetAt: future,
+      statsResetAt: future,
+      players: {
+        bob: makePlayer(1400, {
+          username: 'bob',
+          createdAt: 200,
+          updatedAt: 200,
+          statsUpdatedAt: 200,
+        }),
+      },
+      queues: [
+        makeQueueEntry('bob', {
+          createdAt: 200,
+          updatedAt: 200,
+          queuedAt: 200,
+        }),
+      ],
+      lastModified: 200,
+    });
+    const merged = mergeAppState(a, b);
+    expect(merged.playersResetAt).toBe(future);
+    expect(merged.queuesResetAt).toBe(future);
+    expect(merged.matchesResetAt).toBe(future);
+    expect(merged.statsResetAt).toBe(future);
+    // Entities stamped before the adopted checkpoint are filtered.
+    expect(Object.keys(merged.players).length).toBe(0);
+    expect(merged.queues.length).toBe(0);
+  });
+
+  it('future checkpoint carried by only one side is still rejected (uncorroborated)', () => {
+    const future = Date.now() + 100_000;
+    const a = makeState({
+      playersResetAt: future,
+      players: {
+        alice: makePlayer(1500, { username: 'alice', createdAt: 100 }),
+      },
+      lastModified: 100,
+    });
+    const b = makeState({
+      players: {
+        bob: makePlayer(1400, { username: 'bob', createdAt: 200 }),
+      },
+      lastModified: 200,
+    });
+    const merged = mergeAppState(a, b);
+    expect(merged.playersResetAt).toBe(0);
+    expect(merged.players.alice).toBeDefined();
+    expect(merged.players.bob).toBeDefined();
+    // Symmetric — the peer check does not depend on argument order.
+    const merged2 = mergeAppState(b, a);
+    expect(merged2.playersResetAt).toBe(0);
+    expect(merged2.players.alice).toBeDefined();
+  });
+
+  it('clock-skew: fast-clock server checkpoint vs merger clock — uncorroborated epoch rejected, local data kept', () => {
+    // Server admin's clock is ~2h fast: their reset stamped a future epoch.
+    // The merger's clock is correct — the epoch is uncorroborated (local
+    // does not carry it) → rejected → local post-reset work is NOT wiped.
+    const future = Date.now() + 2 * 60 * 60 * 1000;
+    const stale = Date.now() - 60_000;
+    const server = makeState({
+      playersResetAt: future,
+      queuesResetAt: future,
+      matchesResetAt: future,
+      statsResetAt: future,
+      // Server is non-empty (one entity stamped on its own fast clock) so the
+      // remote-reset early return does not fire — this exercises the guard.
+      players: {
+        carol: makePlayer(1300, {
+          username: 'carol',
+          createdAt: future,
+          updatedAt: future,
+          statsUpdatedAt: future,
+        }),
+      },
+      lastModified: future,
+    });
+    const local = makeState({
+      players: {
+        alice: makePlayer(1500, {
+          username: 'alice',
+          createdAt: stale,
+          updatedAt: stale,
+          statsUpdatedAt: stale,
+          matchesPlayed: 4,
+          wins: 3,
+          losses: 1,
+        }),
+      },
+      queues: [
+        makeQueueEntry('alice', {
+          createdAt: stale,
+          updatedAt: stale,
+          queuedAt: stale,
+        }),
+      ],
+      lastModified: stale,
+    });
+    const merged = mergeAppState(local, server);
+    expect(merged.playersResetAt).toBe(0);
+    expect(merged.queuesResetAt).toBe(0);
+    expect(merged.matchesResetAt).toBe(0);
+    expect(merged.statsResetAt).toBe(0);
+    // Local entities survive — a skewed peer cannot wipe valid data.
+    expect(merged.players.alice).toBeDefined();
+    expect(merged.players.alice.matchesPlayed).toBe(4);
+    expect(merged.queues.length).toBe(1);
+    // Carol's server-side entity also survives (no checkpoint applied).
+    expect(merged.players.carol).toBeDefined();
+  });
+
+  it('missing checkpoint fields on the server blob are treated as 0 — local checkpoints still apply', () => {
+    // A server blob written before checkpoint fields existed carries
+    // undefined (not 0) for every *ResetAt — defined behavior: it behaves as
+    // "no reset", so the local checkpoint remains authoritative.
+    const local = makeState({
+      playersResetAt: 5000,
+      players: {
+        stale: makePlayer(1500, {
+          username: 'stale',
+          createdAt: 100,
+          updatedAt: 100,
+        }),
+        fresh: makePlayer(1400, {
+          username: 'fresh',
+          createdAt: 6000,
+          updatedAt: 6000,
+        }),
+      },
+      lastModified: 6000,
+    });
+    const server = makeState({
+      players: {
+        stale: makePlayer(1500, {
+          username: 'stale',
+          createdAt: 100,
+          updatedAt: 100,
+        }),
+        other: makePlayer(1300, {
+          username: 'other',
+          createdAt: 5500,
+          updatedAt: 5500,
+        }),
+      },
+      lastModified: 5500,
+    });
+    const merged = mergeAppState(local, server);
+    expect(merged.playersResetAt).toBe(5000);
+    // 'stale' (pre-checkpoint on both sides) is filtered; 'fresh' and the
+    // post-checkpoint 'other' survive.
+    expect(merged.players.stale).toBeUndefined();
+    expect(merged.players.fresh).toBeDefined();
+    expect(merged.players.other).toBeDefined();
+    // Commutative.
+    const merged2 = mergeAppState(server, local);
+    expect(merged2.playersResetAt).toBe(5000);
+    expect(merged2.players.stale).toBeUndefined();
+  });
 });
 
 describe('mergeAppState — convergence & multi-admin healing', () => {
@@ -4219,6 +4570,33 @@ describe('mergeAppState — actionLogsResetAt checkpoint', () => {
     const merged = mergeAppState(local, server);
     expect(merged.actionLogsResetAt ?? 0).toBe(0);
   });
+
+  it('future-dated actionLogsResetAt: corroborated epoch adopted, uncorroborated rejected', () => {
+    const future = Date.now() + 100_000;
+    // Both sides carry the same future epoch → corroborated adoption (same
+    // rule as the other *ResetAt checkpoints).
+    expect(
+      mergeAppState(
+        makeState({ actionLogsResetAt: future }),
+        makeState({ actionLogsResetAt: future }),
+      ).actionLogsResetAt,
+    ).toBe(future);
+    // Only one side carries it → rejected. Previously Math.max kept the raw
+    // value with no guard — a skewed epoch could disable the log purge
+    // club-wide.
+    expect(
+      mergeAppState(
+        makeState({ actionLogsResetAt: future }),
+        makeState({ actionLogsResetAt: 0 }),
+      ).actionLogsResetAt,
+    ).toBe(0);
+    expect(
+      mergeAppState(
+        makeState({ actionLogsResetAt: 0 }),
+        makeState({ actionLogsResetAt: future }),
+      ).actionLogsResetAt,
+    ).toBe(0);
+  });
 });
 
 describe('addActionLog — ACTION_LOG_CAP (200)', () => {
@@ -4355,11 +4733,55 @@ describe('mergeAppState — offline reset scenario for actionLogsResetAt', () =>
     });
     const merged = mergeAppState(adminA, adminB);
     expect(merged.actionLogsResetAt).toBe(t1);
-    // Logs themselves are not deleted
+    // Contract (reset-detection §7): pre-reset logs ARE filtered out of the
+    // merged blob; the reset audit trail (reset-type actions) and post-reset
+    // logs survive.
     const ids = merged.actionLogs!.map((l) => l.id);
     expect(ids).toContain('a-reset');
-    expect(ids).toContain('b-old');
     expect(ids).toContain('b-new');
+    expect(ids).not.toContain('b-old');
+  });
+
+  it('drops pre-reset logs but preserves reset-audit actions regardless of timestamp', () => {
+    const t1 = 2000;
+    const local = makeState({
+      actionLogsResetAt: t1,
+      actionLogs: [
+        // Reset audit logged BEFORE the checkpoint still survives — the
+        // audit trail of a reset is never filtered.
+        makeLog('reset-evt', 'reset_session', 1500),
+        makeLog('old-checkin', 'check_in', 1000),
+        makeLog('boundary-checkin', 'check_in', 2000),
+        makeLog('new-checkin', 'check_in', 3000),
+      ],
+    });
+    const server = makeState({ actionLogs: [] });
+    const merged = mergeAppState(local, server);
+    const ids = merged.actionLogs!.map((l) => l.id);
+    expect(ids).toContain('reset-evt');
+    expect(ids).toContain('new-checkin');
+    // timestamp <= checkpoint and not a reset action → dropped.
+    expect(ids).not.toContain('old-checkin');
+    expect(ids).not.toContain('boundary-checkin');
+  });
+
+  it('checkpoint filter runs before the cap — pre-reset logs cannot occupy cap slots', () => {
+    const t1 = 5000;
+    const logs: ActionLog[] = [];
+    for (let i = 0; i < 199; i++) {
+      logs.push(makeLog(`post-${i}`, 'check_in', 6000 + i));
+    }
+    for (let i = 0; i < 5; i++) {
+      logs.push(makeLog(`pre-${i}`, 'check_in', 1000 + i));
+    }
+    // 204 unfiltered logs > ACTION_LOG_CAP. If the cap ran first it would
+    // keep 200 entries including the newest pre-reset log; filtering first
+    // keeps exactly the 199 post-reset logs.
+    const local = makeState({ actionLogsResetAt: t1, actionLogs: logs });
+    const merged = mergeAppState(local, makeState({ actionLogs: [] }));
+    expect(merged.actionLogs!.length).toBe(199);
+    expect(merged.actionLogs!.every((l) => l.timestamp > t1)).toBe(true);
+    expect(merged.actionLogs!.map((l) => l.id)).not.toContain('pre-4');
   });
 });
 
@@ -4643,6 +5065,74 @@ describe('mergeAppState — entity ref reuse', () => {
     expect(merged.queues).toContain(q);
     expect(merged.activeMatches).toContain(m);
     expect(merged.completedMatches).toContain(c);
+  });
+
+  it('tombstone-resolution stats overlay copies the winner — inputs untouched', () => {
+    // Both sides deleted the player; local's tombstone is newer so lp wins,
+    // but server's stats are fresher → the overlay fires on the winner. The
+    // winner is a shared input ref — merge must copy before overlaying or it
+    // corrupts the caller's state (merge shares entity refs; in-place
+    // mutation breaks purity).
+    const lp = makePlayer(1500, {
+      username: 'alice',
+      createdAt: 100,
+      updatedAt: 100,
+      deletedAt: 5000,
+      statsUpdatedAt: 100,
+      matchesPlayed: 1,
+      wins: 1,
+      losses: 0,
+    });
+    const sp = makePlayer(1400, {
+      username: 'alice',
+      createdAt: 100,
+      updatedAt: 100,
+      deletedAt: 4000,
+      statsUpdatedAt: 9000,
+      matchesPlayed: 9,
+      wins: 7,
+      losses: 2,
+    });
+    const local = makeState({ players: { alice: lp }, lastModified: 5000 });
+    const server = makeState({ players: { alice: sp }, lastModified: 4000 });
+
+    const merged = mergeAppState(local, server);
+    const m = merged.players.alice;
+
+    // Local tombstone wins; server's fresher stats overlay onto the copy.
+    expect(m.deletedAt).toBe(5000);
+    expect(m.matchesPlayed).toBe(9);
+    expect(m.wins).toBe(7);
+    expect(m.statsUpdatedAt).toBe(9000);
+    // Copy-on-write: neither input was mutated.
+    expect(lp.matchesPlayed).toBe(1);
+    expect(lp.statsUpdatedAt).toBe(100);
+    expect(sp.matchesPlayed).toBe(9);
+    expect(m).not.toBe(lp);
+    expect(m).not.toBe(sp);
+  });
+
+  it('completed-id tombstoning copies the match — input match object untouched', () => {
+    const m = makeMatch('m1', ['alice'], ['bob'], { updatedAt: 100 });
+    const c = makeCompletedMatch('m1', { completedAt: 5000, updatedAt: 5000 });
+    const local = makeState({
+      players: {
+        alice: makePlayer(1500, { username: 'alice' }),
+        bob: makePlayer(1500, { username: 'bob' }),
+      },
+      activeMatches: [m],
+      completedMatches: [c],
+      lastModified: 5000,
+    });
+    const server = makeState({ lastModified: 0 });
+
+    const merged = mergeAppState(local, server);
+
+    // The live copy of an already-completed match is tombstoned in the
+    // MERGED state — the input object must not be mutated.
+    expect(m.deletedAt).toBeUndefined();
+    const mergedM = merged.activeMatches.find((x) => x.matchId === 'm1');
+    expect(mergedM?.deletedAt).toBeDefined();
   });
 });
 

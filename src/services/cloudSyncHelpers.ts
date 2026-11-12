@@ -330,3 +330,136 @@ export const applyMergedState = (
   }
   return changed;
 };
+
+// ---------------------------------------------------------------------------
+// Reset-advantage detection (reset-detection contract §1/§2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-collection reset advantage: `true` when the server carries a newer
+ * reset checkpoint than the local state for that collection.
+ */
+export interface ServerResetAdvantage {
+  players: boolean;
+  queues: boolean;
+  matches: boolean; // active matches
+  completedMatches: boolean;
+  actionLogs: boolean;
+  stats: boolean;
+}
+
+const checkpointValue = (v: number | undefined): number =>
+  typeof v === 'number' && Number.isFinite(v) ? v : 0;
+
+/**
+ * Effective completedMatches checkpoint for one side of the merge. The plain
+ * field can regress via mergeAppState's per-field LWW (Path-3 defect) while
+ * the per-field stamp survives — the effective winner is the max of both.
+ */
+const effectiveCompletedResetAt = (s: AppState): number =>
+  Math.max(
+    checkpointValue(s.completedMatchesResetAt),
+    checkpointValue(s.settingsFieldTimestamps?.['completedMatchesResetAt']),
+  );
+
+/**
+ * Detects collections for which the server has adopted a reset checkpoint
+ * that the local state has not yet adopted.
+ *
+ * Semantics (contract §1 — normative):
+ * - Per collection, `true` iff server's effective checkpoint > local's,
+ *   strict `>`. Equal means "same reset already adopted" — local post-reset
+ *   edits are legitimate and must survive.
+ * - Checkpoint fields: playersResetAt, queuesResetAt, matchesResetAt,
+ *   completedMatchesResetAt, actionLogsResetAt, statsResetAt.
+ * - completedMatches compares effective-vs-effective (see above).
+ * - Missing/undefined fields count as 0.
+ * - Pure value comparison of stored epochs — NO Date.now(), so the check is
+ *   immune to wall-clock skew between devices.
+ * - All-false when the server has no checkpoint advantage (normal merge path
+ *   unaffected).
+ */
+export const detectServerResetAdvantage = (
+  local: AppState,
+  server: AppState,
+): ServerResetAdvantage => ({
+  players:
+    checkpointValue(server.playersResetAt) >
+    checkpointValue(local.playersResetAt),
+  queues:
+    checkpointValue(server.queuesResetAt) >
+    checkpointValue(local.queuesResetAt),
+  matches:
+    checkpointValue(server.matchesResetAt) >
+    checkpointValue(local.matchesResetAt),
+  completedMatches:
+    effectiveCompletedResetAt(server) > effectiveCompletedResetAt(local),
+  actionLogs:
+    checkpointValue(server.actionLogsResetAt) >
+    checkpointValue(local.actionLogsResetAt),
+  stats:
+    checkpointValue(server.statsResetAt) >
+    checkpointValue(local.statsResetAt),
+});
+
+/**
+ * Applies reset-advantage adoption onto a merged AppState (contract §2).
+ *
+ * For every flagged collection the merged result is overwritten with the
+ * server's version wholesale (v1 — per-entity salvage deferred because
+ * entity stamps are launderable via mergePlayerFromDB/refreshPlayerRatings),
+ * and the server checkpoint value is adopted verbatim. Unflagged collections
+ * and settings are left on the normal LWW merge result.
+ *
+ * completedMatches additionally carries settingsFieldTimestamps'
+ * ['completedMatchesResetAt'] from the server so the (field, stamp) pair
+ * stays consistent for future per-field LWW picks. completedMatchIds — the
+ * companion tombstone-classification list for completed matches — is adopted
+ * whenever the server carries the field (absent = legacy blob, keep merge).
+ *
+ * stats has no standalone collection: stat blocks live inside players. The
+ * checkpoint adoption routes the purge — mergeAppState's purgeStaleStats and
+ * the local saveState checkpoint purge zero stat blocks older than the epoch.
+ *
+ * Mutates and returns `merged` (a fresh mergeAppState result — never the
+ * live state or the server payload's own objects; containers are copied,
+ * entity refs may be shared exactly as mergeAppState already does).
+ */
+export const applyServerResetAdvantage = (
+  merged: AppState,
+  server: AppState,
+  advantage: ServerResetAdvantage,
+): AppState => {
+  if (advantage.players) {
+    merged.players = server.players ? { ...server.players } : {};
+    merged.playersResetAt = server.playersResetAt ?? 0;
+  }
+  if (advantage.queues) {
+    merged.queues = [...(server.queues ?? [])];
+    merged.queuesResetAt = server.queuesResetAt ?? 0;
+  }
+  if (advantage.matches) {
+    merged.activeMatches = [...(server.activeMatches ?? [])];
+    merged.matchesResetAt = server.matchesResetAt ?? 0;
+  }
+  if (advantage.completedMatches) {
+    merged.completedMatches = [...(server.completedMatches ?? [])];
+    if (server.completedMatchIds !== undefined) {
+      merged.completedMatchIds = [...server.completedMatchIds];
+    }
+    merged.completedMatchesResetAt = server.completedMatchesResetAt ?? 0;
+    merged.settingsFieldTimestamps = {
+      ...(merged.settingsFieldTimestamps ?? {}),
+      completedMatchesResetAt:
+        server.settingsFieldTimestamps?.['completedMatchesResetAt'] ?? 0,
+    };
+  }
+  if (advantage.actionLogs) {
+    merged.actionLogs = [...(server.actionLogs ?? [])];
+    merged.actionLogsResetAt = server.actionLogsResetAt ?? 0;
+  }
+  if (advantage.stats) {
+    merged.statsResetAt = server.statsResetAt ?? 0;
+  }
+  return merged;
+};

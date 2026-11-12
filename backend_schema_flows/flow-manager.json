@@ -5129,5 +5129,420 @@
     ],
     "flow_manager_category": null,
     "accountability": "all"
+  },
+  {
+    "id": "46788d86-6475-43f1-8f65-d22941c95613",
+    "name": "club_jxn_guard_mods",
+    "icon": "lock",
+    "color": null,
+    "description": "Reject unauthorized moderators-junction creates (creator/admin only)",
+    "status": "active",
+    "trigger": "event",
+    "accountability": "all",
+    "options": {
+      "type": "filter",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "club_directus_users_2"
+      ]
+    },
+    "operation": "2e2581dc-f062-4392-b8f0-501ecf1cd05f",
+    "date_created": "2026-11-12T02:25:01.307Z",
+    "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73",
+    "flow_manager_category": null,
+    "flow_manager_order": 0,
+    "flow_manager_last_run_at": null,
+    "flow_manager_run_counter": 0,
+    "flow_manager_last_run_operation": "",
+    "flow_manager_last_run_message": "",
+    "flow_manager_success_counter": 0,
+    "flow_manager_error_counter": 0,
+    "operations": [
+      {
+        "id": "2e2581dc-f062-4392-b8f0-501ecf1cd05f",
+        "name": "guard_fields",
+        "key": "guard_fields",
+        "type": "exec",
+        "position_x": 10,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const user = (data.$accountability && data.$accountability.user) || null;\n    const duid = p.directus_users_id;\n    const club = p.club_id;\n    const re = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n    if (!user || !re.test(user)) throw new Error('junction write requires an authenticated user');\n    if (!duid || !club || !re.test(duid) || !re.test(club)) {\n      throw new Error('junction write missing club_id/directus_users_id');\n    }\n    return { duid, club_id: club, user };\n  };"
+        },
+        "resolve": "408cbcb7-7bc8-4dbb-be92-d1b5780d37c7",
+        "reject": "8b2bab19-7fbf-49ce-871a-b6f7bdb8d770",
+        "flow": "46788d86-6475-43f1-8f65-d22941c95613",
+        "date_created": "2026-11-12T02:25:03.641Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "37b77f7f-a638-4ba1-ad7b-40f3e49f4861",
+        "name": "judge",
+        "key": "judge",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = function(data) {\n    const row = data.gate && data.gate.rows && data.gate.rows[0];\n    if (!row || row.allowed !== true) {\n      throw new Error('club membership write not permitted for this user/club');\n    }\n    return { proceed: true };\n  };"
+        },
+        "resolve": null,
+        "reject": "8a94b551-7351-4b97-bf80-ef8ce3dffe65",
+        "flow": "46788d86-6475-43f1-8f65-d22941c95613",
+        "date_created": "2026-11-12T02:25:02.825Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "408cbcb7-7bc8-4dbb-be92-d1b5780d37c7",
+        "name": "gate",
+        "key": "gate",
+        "type": "likha_sql",
+        "position_x": 20,
+        "position_y": 10,
+        "options": {
+          "sql": "SELECT (\n  EXISTS (SELECT 1 FROM club c WHERE c.id = ?::uuid AND c.user_created = ?::uuid)\n  OR EXISTS (SELECT 1 FROM club_directus_users a WHERE a.club_id = ?::uuid AND a.directus_users_id = ?::uuid)\n) AS allowed",
+          "binding": [
+            "{{guard_fields.club_id}}",
+            "{{guard_fields.user}}",
+            "{{guard_fields.club_id}}",
+            "{{guard_fields.user}}"
+          ]
+        },
+        "resolve": "37b77f7f-a638-4ba1-ad7b-40f3e49f4861",
+        "reject": "55a0bcb2-d042-4890-94b4-852c51d0b93c",
+        "flow": "46788d86-6475-43f1-8f65-d22941c95613",
+        "date_created": "2026-11-12T02:25:03.267Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "55a0bcb2-d042-4890-94b4-852c51d0b93c",
+        "name": "deny_gate",
+        "key": "deny_gate",
+        "type": "throw-error",
+        "position_x": 70,
+        "position_y": 10,
+        "options": {
+          "status": "403",
+          "message": "Club membership change not permitted"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "46788d86-6475-43f1-8f65-d22941c95613",
+        "date_created": "2026-11-12T02:25:02.079Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "8a94b551-7351-4b97-bf80-ef8ce3dffe65",
+        "name": "deny_judge",
+        "key": "deny_judge",
+        "type": "throw-error",
+        "position_x": 90,
+        "position_y": 10,
+        "options": {
+          "status": "403",
+          "message": "Club membership change not permitted"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "46788d86-6475-43f1-8f65-d22941c95613",
+        "date_created": "2026-11-12T02:25:01.702Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "8b2bab19-7fbf-49ce-871a-b6f7bdb8d770",
+        "name": "deny_guard",
+        "key": "deny_guard",
+        "type": "throw-error",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "status": "403",
+          "message": "Club membership change not permitted"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "46788d86-6475-43f1-8f65-d22941c95613",
+        "date_created": "2026-11-12T02:25:02.450Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      }
+    ]
+  },
+  {
+    "id": "df7a43bb-8911-4455-9baa-4924146d14a6",
+    "name": "club_jxn_guard_admins",
+    "icon": "lock",
+    "color": null,
+    "description": "Reject unauthorized admins-junction creates (creator/admin only — blocks self-promotion)",
+    "status": "active",
+    "trigger": "event",
+    "accountability": "all",
+    "options": {
+      "type": "filter",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "club_directus_users"
+      ]
+    },
+    "operation": "5c756b79-ee12-483b-ba6c-71d12abbc52a",
+    "date_created": "2026-11-12T02:24:58.113Z",
+    "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73",
+    "flow_manager_category": null,
+    "flow_manager_order": 0,
+    "flow_manager_last_run_at": null,
+    "flow_manager_run_counter": 0,
+    "flow_manager_last_run_operation": "",
+    "flow_manager_last_run_message": "",
+    "flow_manager_success_counter": 0,
+    "flow_manager_error_counter": 0,
+    "operations": [
+      {
+        "id": "4511c146-041f-4362-8ae1-8285db9705bd",
+        "name": "deny_guard",
+        "key": "deny_guard",
+        "type": "throw-error",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "status": "403",
+          "message": "Club membership change not permitted"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "df7a43bb-8911-4455-9baa-4924146d14a6",
+        "date_created": "2026-11-12T02:24:59.309Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "5c756b79-ee12-483b-ba6c-71d12abbc52a",
+        "name": "guard_fields",
+        "key": "guard_fields",
+        "type": "exec",
+        "position_x": 10,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const user = (data.$accountability && data.$accountability.user) || null;\n    const duid = p.directus_users_id;\n    const club = p.club_id;\n    const re = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n    if (!user || !re.test(user)) throw new Error('junction write requires an authenticated user');\n    if (!duid || !club || !re.test(duid) || !re.test(club)) {\n      throw new Error('junction write missing club_id/directus_users_id');\n    }\n    return { duid, club_id: club, user };\n  };"
+        },
+        "resolve": "ecf73ae3-212a-4ca4-8378-e5d7b118ef91",
+        "reject": "4511c146-041f-4362-8ae1-8285db9705bd",
+        "flow": "df7a43bb-8911-4455-9baa-4924146d14a6",
+        "date_created": "2026-11-12T02:25:00.517Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "63503d54-542d-4e9c-82b2-3e55d465669f",
+        "name": "judge",
+        "key": "judge",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = function(data) {\n    const row = data.gate && data.gate.rows && data.gate.rows[0];\n    if (!row || row.allowed !== true) {\n      throw new Error('club membership write not permitted for this user/club');\n    }\n    return { proceed: true };\n  };"
+        },
+        "resolve": null,
+        "reject": "de76989f-1815-4c69-8ae4-f390e2fdf1b3",
+        "flow": "df7a43bb-8911-4455-9baa-4924146d14a6",
+        "date_created": "2026-11-12T02:24:59.682Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "9742d712-04f0-4893-aea3-d1eabcd995cc",
+        "name": "deny_gate",
+        "key": "deny_gate",
+        "type": "throw-error",
+        "position_x": 70,
+        "position_y": 10,
+        "options": {
+          "status": "403",
+          "message": "Club membership change not permitted"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "df7a43bb-8911-4455-9baa-4924146d14a6",
+        "date_created": "2026-11-12T02:24:58.890Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "de76989f-1815-4c69-8ae4-f390e2fdf1b3",
+        "name": "deny_judge",
+        "key": "deny_judge",
+        "type": "throw-error",
+        "position_x": 90,
+        "position_y": 10,
+        "options": {
+          "status": "403",
+          "message": "Club membership change not permitted"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "df7a43bb-8911-4455-9baa-4924146d14a6",
+        "date_created": "2026-11-12T02:24:58.495Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "ecf73ae3-212a-4ca4-8378-e5d7b118ef91",
+        "name": "gate",
+        "key": "gate",
+        "type": "likha_sql",
+        "position_x": 20,
+        "position_y": 10,
+        "options": {
+          "sql": "SELECT (\n  EXISTS (SELECT 1 FROM club c WHERE c.id = ?::uuid AND c.user_created = ?::uuid)\n  OR EXISTS (SELECT 1 FROM club_directus_users a WHERE a.club_id = ?::uuid AND a.directus_users_id = ?::uuid)\n) AS allowed",
+          "binding": [
+            "{{guard_fields.club_id}}",
+            "{{guard_fields.user}}",
+            "{{guard_fields.club_id}}",
+            "{{guard_fields.user}}"
+          ]
+        },
+        "resolve": "63503d54-542d-4e9c-82b2-3e55d465669f",
+        "reject": "9742d712-04f0-4893-aea3-d1eabcd995cc",
+        "flow": "df7a43bb-8911-4455-9baa-4924146d14a6",
+        "date_created": "2026-11-12T02:25:00.097Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      }
+    ]
+  },
+  {
+    "id": "eeec3136-5442-46c6-b82b-976552a0e13b",
+    "name": "club_jxn_guard_players",
+    "icon": "lock",
+    "color": null,
+    "description": "Reject unauthorized players-junction creates (self/creator/admin/mod only)",
+    "status": "active",
+    "trigger": "event",
+    "accountability": "all",
+    "options": {
+      "type": "filter",
+      "scope": [
+        "items.create"
+      ],
+      "collections": [
+        "club_directus_users_1"
+      ]
+    },
+    "operation": "1ec7cbd9-2c22-459d-b91b-7d8185030096",
+    "date_created": "2026-11-12T02:24:54.969Z",
+    "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73",
+    "flow_manager_category": null,
+    "flow_manager_order": 0,
+    "flow_manager_last_run_at": null,
+    "flow_manager_run_counter": 0,
+    "flow_manager_last_run_operation": "",
+    "flow_manager_last_run_message": "",
+    "flow_manager_success_counter": 0,
+    "flow_manager_error_counter": 0,
+    "operations": [
+      {
+        "id": "0f93c79c-57e9-48eb-a177-3af06ba373af",
+        "name": "deny_gate",
+        "key": "deny_gate",
+        "type": "throw-error",
+        "position_x": 70,
+        "position_y": 10,
+        "options": {
+          "status": "403",
+          "message": "Club membership change not permitted"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "eeec3136-5442-46c6-b82b-976552a0e13b",
+        "date_created": "2026-11-12T02:24:55.743Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "1ec7cbd9-2c22-459d-b91b-7d8185030096",
+        "name": "guard_fields",
+        "key": "guard_fields",
+        "type": "exec",
+        "position_x": 10,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = function(data) {\n    const t = data.$trigger || {};\n    const p = t.payload || {};\n    const user = (data.$accountability && data.$accountability.user) || null;\n    const duid = p.directus_users_id;\n    const club = p.club_id;\n    const re = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n    if (!user || !re.test(user)) throw new Error('junction write requires an authenticated user');\n    if (!duid || !club || !re.test(duid) || !re.test(club)) {\n      throw new Error('junction write missing club_id/directus_users_id');\n    }\n    return { duid, club_id: club, user };\n  };"
+        },
+        "resolve": "48a3f1af-defc-4c03-a913-3859729ceb63",
+        "reject": "4d76b901-8b96-47b5-ac71-d2d01e3ec5ad",
+        "flow": "eeec3136-5442-46c6-b82b-976552a0e13b",
+        "date_created": "2026-11-12T02:24:57.349Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "3e82ba00-effc-4f5a-8284-d1f5f2e6094e",
+        "name": "deny_judge",
+        "key": "deny_judge",
+        "type": "throw-error",
+        "position_x": 90,
+        "position_y": 10,
+        "options": {
+          "status": "403",
+          "message": "Club membership change not permitted"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "eeec3136-5442-46c6-b82b-976552a0e13b",
+        "date_created": "2026-11-12T02:24:55.345Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "48a3f1af-defc-4c03-a913-3859729ceb63",
+        "name": "gate",
+        "key": "gate",
+        "type": "likha_sql",
+        "position_x": 20,
+        "position_y": 10,
+        "options": {
+          "sql": "SELECT (\n  ?::uuid = ?::uuid\n  OR EXISTS (SELECT 1 FROM club c WHERE c.id = ?::uuid AND c.user_created = ?::uuid)\n  OR EXISTS (SELECT 1 FROM club_directus_users a WHERE a.club_id = ?::uuid AND a.directus_users_id = ?::uuid)\n  OR EXISTS (SELECT 1 FROM club_directus_users_2 m WHERE m.club_id = ?::uuid AND m.directus_users_id = ?::uuid)\n) AS allowed",
+          "binding": [
+            "{{guard_fields.duid}}",
+            "{{guard_fields.user}}",
+            "{{guard_fields.club_id}}",
+            "{{guard_fields.user}}",
+            "{{guard_fields.club_id}}",
+            "{{guard_fields.user}}",
+            "{{guard_fields.club_id}}",
+            "{{guard_fields.user}}"
+          ]
+        },
+        "resolve": "fb7e9368-9acc-43dc-8a8b-6de7ca335205",
+        "reject": "0f93c79c-57e9-48eb-a177-3af06ba373af",
+        "flow": "eeec3136-5442-46c6-b82b-976552a0e13b",
+        "date_created": "2026-11-12T02:24:56.948Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "4d76b901-8b96-47b5-ac71-d2d01e3ec5ad",
+        "name": "deny_guard",
+        "key": "deny_guard",
+        "type": "throw-error",
+        "position_x": 50,
+        "position_y": 10,
+        "options": {
+          "status": "403",
+          "message": "Club membership change not permitted"
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "eeec3136-5442-46c6-b82b-976552a0e13b",
+        "date_created": "2026-11-12T02:24:56.142Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      },
+      {
+        "id": "fb7e9368-9acc-43dc-8a8b-6de7ca335205",
+        "name": "judge",
+        "key": "judge",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 10,
+        "options": {
+          "code": "module.exports = function(data) {\n    const row = data.gate && data.gate.rows && data.gate.rows[0];\n    if (!row || row.allowed !== true) {\n      throw new Error('club membership write not permitted for this user/club');\n    }\n    return { proceed: true };\n  };"
+        },
+        "resolve": null,
+        "reject": "3e82ba00-effc-4f5a-8284-d1f5f2e6094e",
+        "flow": "eeec3136-5442-46c6-b82b-976552a0e13b",
+        "date_created": "2026-11-12T02:24:56.554Z",
+        "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73"
+      }
+    ]
   }
 ]

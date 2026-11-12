@@ -4,12 +4,14 @@ import { compareWaitingMatches } from '../utils/matchOrdering';
 import {
   ACTION_LOG_CAP,
   CLUB_SETTINGS,
+  ENTITY_STAMP_SKEW_ALLOWANCE_MS,
   MAX_AVOIDS_PER_PLAYER,
   MAX_INCOMING_AVOID_RATIO,
   MatchmakerEngine,
   RatingEngine,
   RESET_LOG_ACTIONS,
   STORAGE_KEY,
+  completedMatchCheckpointTime,
   enforceCompletedCaps,
   enforceConcurrencyLimitOnState,
   enforceOneMatchPerCourtOnState,
@@ -17,6 +19,9 @@ import {
   gcTombstones,
   getStorageKey,
   levelSeedRating,
+  matchCheckpointTime,
+  playerCheckpointTime,
+  queueCheckpointTime,
   rememberCompletedIds,
   type ActionLog,
   type ActiveMatch,
@@ -246,6 +251,11 @@ export class LocalMatchmakingSystem {
 
     // Checkpoint purge: remove any entity created before its reset checkpoint.
     // This prevents stale data from reappearing after a reset on another admin.
+    // Uses the SAME per-entity predicates as mergeAppState's pre-filters
+    // (playerCheckpointTime / queueCheckpointTime / matchCheckpointTime /
+    // completedMatchCheckpointTime) — one rule everywhere, so merge can never
+    // keep an entity that this purge then drops (the merge/saveState flap).
+    const purgeNow = Date.now();
     const playersCheckpoint = this.state.playersResetAt ?? 0;
     const queuesCheckpoint = this.state.queuesResetAt ?? 0;
     const matchesCheckpoint = this.state.matchesResetAt ?? 0;
@@ -254,13 +264,7 @@ export class LocalMatchmakingSystem {
       const keptPlayers: Record<string, Player> = {};
       let dropped = false;
       for (const [key, player] of Object.entries(this.state.players)) {
-        const effectiveTime = Math.max(
-          player.createdAt ?? 0,
-          player.updatedAt ?? 0,
-          player.deletedAt ?? 0,
-          player.statsUpdatedAt ?? 0,
-        );
-        if (effectiveTime >= playersCheckpoint) {
+        if (playerCheckpointTime(player, purgeNow) >= playersCheckpoint) {
           keptPlayers[key] = player;
         } else {
           dropped = true;
@@ -285,26 +289,16 @@ export class LocalMatchmakingSystem {
     }
 
     if (queuesCheckpoint > 0) {
-      const kept = this.state.queues.filter((q) => {
-        const effectiveTime = Math.max(
-          q.createdAt ?? 0,
-          q.updatedAt ?? 0,
-          q.deletedAt ?? 0,
-        );
-        return effectiveTime >= queuesCheckpoint;
-      });
+      const kept = this.state.queues.filter(
+        (q) => queueCheckpointTime(q, purgeNow) >= queuesCheckpoint,
+      );
       if (kept.length !== this.state.queues.length) this.state.queues = kept;
     }
 
     if (matchesCheckpoint > 0) {
-      const kept = this.state.activeMatches.filter((m) => {
-        const effectiveTime = Math.max(
-          m.createdAt ?? 0,
-          m.updatedAt ?? 0,
-          m.deletedAt ?? 0,
-        );
-        return effectiveTime >= matchesCheckpoint;
-      });
+      const kept = this.state.activeMatches.filter(
+        (m) => matchCheckpointTime(m, purgeNow) >= matchesCheckpoint,
+      );
       if (kept.length !== this.state.activeMatches.length)
         this.state.activeMatches = kept;
     }
@@ -318,7 +312,7 @@ export class LocalMatchmakingSystem {
     if (completedCheckpoint > 0) {
       const before = this.state.completedMatches.length;
       const kept = this.state.completedMatches.filter(
-        (m) => m.completedAt > completedCheckpoint,
+        (m) => completedMatchCheckpointTime(m, purgeNow) > completedCheckpoint,
       );
       const dropped = before - kept.length;
       if (dropped > 0) {
@@ -1729,31 +1723,73 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
 
   // Compute effective reset checkpoints (latest reset wins across both sides)
   // A checkpoint stamped in the future comes from a skewed clock — ignore it
-  // rather than wiping valid data club-wide.
-  const guardFutureCheckpoint = (name: string, value: number) => {
+  // rather than wiping valid data club-wide. Guard pairing rule: a future
+  // epoch is rejected only when the PEER does not carry the same value — two
+  // devices agreeing on an epoch is corroborated adoption and must be honored,
+  // otherwise an adopted server checkpoint would be re-zeroed on the next
+  // merge and resurrection returns. The check is symmetric in (value,
+  // peerValue), so merge commutativity is preserved.
+  const guardFutureCheckpoint = (
+    name: string,
+    value: number,
+    peerValue: number,
+  ) => {
     if (value > Date.now()) {
+      if (value === peerValue) return value;
       console.warn(`[mergeAppState] ignoring future-dated ${name}:`, value);
       return 0;
     }
     return value;
   };
   const effectivePlayersResetAt = Math.max(
-    guardFutureCheckpoint('playersResetAt', local.playersResetAt ?? 0),
-    guardFutureCheckpoint('playersResetAt', server.playersResetAt ?? 0),
+    guardFutureCheckpoint(
+      'playersResetAt',
+      local.playersResetAt ?? 0,
+      server.playersResetAt ?? 0,
+    ),
+    guardFutureCheckpoint(
+      'playersResetAt',
+      server.playersResetAt ?? 0,
+      local.playersResetAt ?? 0,
+    ),
   );
   const effectiveQueuesResetAt = Math.max(
-    guardFutureCheckpoint('queuesResetAt', local.queuesResetAt ?? 0),
-    guardFutureCheckpoint('queuesResetAt', server.queuesResetAt ?? 0),
+    guardFutureCheckpoint(
+      'queuesResetAt',
+      local.queuesResetAt ?? 0,
+      server.queuesResetAt ?? 0,
+    ),
+    guardFutureCheckpoint(
+      'queuesResetAt',
+      server.queuesResetAt ?? 0,
+      local.queuesResetAt ?? 0,
+    ),
   );
   const effectiveMatchesResetAt = Math.max(
-    guardFutureCheckpoint('matchesResetAt', local.matchesResetAt ?? 0),
-    guardFutureCheckpoint('matchesResetAt', server.matchesResetAt ?? 0),
+    guardFutureCheckpoint(
+      'matchesResetAt',
+      local.matchesResetAt ?? 0,
+      server.matchesResetAt ?? 0,
+    ),
+    guardFutureCheckpoint(
+      'matchesResetAt',
+      server.matchesResetAt ?? 0,
+      local.matchesResetAt ?? 0,
+    ),
   );
   // Stat blocks statted before this checkpoint are pre-reset data — a stale
   // admin's old stats must never overlay post-reset state.
   const effectiveStatsResetAt = Math.max(
-    guardFutureCheckpoint('statsResetAt', local.statsResetAt ?? 0),
-    guardFutureCheckpoint('statsResetAt', server.statsResetAt ?? 0),
+    guardFutureCheckpoint(
+      'statsResetAt',
+      local.statsResetAt ?? 0,
+      server.statsResetAt ?? 0,
+    ),
+    guardFutureCheckpoint(
+      'statsResetAt',
+      server.statsResetAt ?? 0,
+      local.statsResetAt ?? 0,
+    ),
   );
 
   // Entity-timestamp clock-skew guards. Reset checkpoints already reject
@@ -1763,7 +1799,7 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   // every legitimate write forever, or a stale ghost live entry could beat a
   // real deletion. Real skew is minutes, so 5 min is a safe allowance.
   const skewNow = Date.now();
-  const SKEW_ALLOWANCE = 5 * 60 * 1000;
+  const SKEW_ALLOWANCE = ENTITY_STAMP_SKEW_ALLOWANCE_MS;
   const isFuture = (t?: number) => !!t && t > skewNow + SKEW_ALLOWANCE;
   // Tombstones & generic LWW stamps: clamp to now — a future-dated delete is
   // still a delete (intent preserved), just not "newer than everything".
@@ -1786,19 +1822,12 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     if (checkpoint === 0) return players;
     // A tombstoned player created before the reset but deleted after it must
     // survive so the tombstone can win over stale live copies on other admins.
-    // Also include statsUpdatedAt so a player who got new stats after the
-    // reset is not incorrectly purged.
+    // Dedicated LWW stamps (statsUpdatedAt / linkUpdatedAt / avoidUpdatedAt)
+    // count as post-reset activity too — playerCheckpointTime is the shared
+    // predicate saveState's purge also uses (one rule everywhere).
     const filtered: Record<string, Player> = {};
     for (const [key, p] of Object.entries(players)) {
-      const effectiveTime = Math.max(
-        clampFuture(p.createdAt),
-        clampFuture(p.updatedAt),
-        clampFuture(p.deletedAt),
-        clampFuture(p.statsUpdatedAt),
-        clampFuture(p.linkUpdatedAt),
-        clampFuture(p.avoidUpdatedAt),
-      );
-      if (effectiveTime >= checkpoint) {
+      if (playerCheckpointTime(p, skewNow) >= checkpoint) {
         filtered[key] = p;
       }
     }
@@ -1835,34 +1864,24 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
 
   const filterQueues = (queues: QueueEntry[], checkpoint: number) => {
     if (checkpoint === 0) return queues;
-    // Use the latest of createdAt / updatedAt / deletedAt for the checkpoint.
+    // Use the latest of createdAt / updatedAt / deletedAt / lockUpdatedAt for
+    // the checkpoint (queueCheckpointTime — shared with saveState's purge).
     // enteredAt is a sort-priority value that can be 0 (the 'fairness_first' /
     // Jump-to-Front sentinel) and must never be used here.
     // A tombstoned entry created before the reset but deleted after it must
     // survive so the tombstone can win over stale live copies on other admins.
-    return queues.filter((q) => {
-      const effectiveTime = Math.max(
-        clampFuture(q.createdAt),
-        clampFuture(q.updatedAt),
-        clampFuture(q.deletedAt),
-        clampFuture(q.lockUpdatedAt),
-      );
-      return effectiveTime >= checkpoint;
-    });
+    return queues.filter(
+      (q) => queueCheckpointTime(q, skewNow) >= checkpoint,
+    );
   };
 
   const filterMatches = (matches: ActiveMatch[], checkpoint: number) => {
     if (checkpoint === 0) return matches;
     // A tombstoned match created before the reset but deleted after it must
     // survive so the tombstone can win over stale active copies on other admins.
-    return matches.filter((m) => {
-      const effectiveTime = Math.max(
-        clampFuture(m.createdAt),
-        clampFuture(m.updatedAt),
-        clampFuture(m.deletedAt),
-      );
-      return effectiveTime >= checkpoint;
-    });
+    return matches.filter(
+      (m) => matchCheckpointTime(m, skewNow) >= checkpoint,
+    );
   };
 
   const localPlayers = purgeStaleStats(
@@ -2017,36 +2036,49 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
 
       // Even if the tombstone/liveness winner is chosen by addedAt/deletedAt,
       // still overlay fresher stats from the loser if available.
+      // Copy-on-write: `winner` is a shared entity ref into the input state —
+      // mutating it in place would corrupt the caller's players (merge must
+      // stay pure). Only copy when an overlay actually fires so unchanged
+      // winners keep their original ref.
       const winnerStatsAt = clampFuture(winner.statsUpdatedAt);
       const loserStatsAt = clampFuture(loser?.statsUpdatedAt);
-      if (loser && loserStatsAt > winnerStatsAt) {
-        winner.matchesPlayed = loser.matchesPlayed;
-        winner.wins = loser.wins;
-        winner.losses = loser.losses;
-        winner.history = loser.history ? { ...loser.history } : undefined;
-        winner.statsUpdatedAt = loserStatsAt;
-      }
+      const overlayStats = !!loser && loserStatsAt > winnerStatsAt;
       const winnerRatingAt = clampFuture(winner.ratingUpdatedAt);
       const loserRatingAt = clampFuture(loser?.ratingUpdatedAt);
-      if (loser && loserRatingAt > winnerRatingAt) {
-        winner.rating = loser.rating;
-        winner.ratingUpdatedAt = loserRatingAt;
-      }
+      const overlayRating = !!loser && loserRatingAt > winnerRatingAt;
       const winnerLinkAt = clampFuture(winner.linkUpdatedAt);
       const loserLinkAt = clampFuture(loser?.linkUpdatedAt);
-      if (loser && loserLinkAt > winnerLinkAt) {
-        winner.linkedTo = loser.linkedTo;
-        winner.linkedAt = loser.linkedAt;
-        winner.linkUpdatedAt = loserLinkAt;
-      }
+      const overlayLink = !!loser && loserLinkAt > winnerLinkAt;
       const winnerAvoidAt = clampFuture(winner.avoidUpdatedAt);
       const loserAvoidAt = clampFuture(loser?.avoidUpdatedAt);
-      if (loser && loserAvoidAt > winnerAvoidAt) {
-        winner.avoids = loser.avoids ? { ...loser.avoids } : undefined;
-        winner.avoidUpdatedAt = loserAvoidAt;
+      const overlayAvoid = !!loser && loserAvoidAt > winnerAvoidAt;
+
+      let mergedWinner = winner;
+      if (loser && (overlayStats || overlayRating || overlayLink || overlayAvoid)) {
+        mergedWinner = { ...winner };
+        if (overlayStats) {
+          mergedWinner.matchesPlayed = loser.matchesPlayed;
+          mergedWinner.wins = loser.wins;
+          mergedWinner.losses = loser.losses;
+          mergedWinner.history = loser.history ? { ...loser.history } : undefined;
+          mergedWinner.statsUpdatedAt = loserStatsAt;
+        }
+        if (overlayRating) {
+          mergedWinner.rating = loser.rating;
+          mergedWinner.ratingUpdatedAt = loserRatingAt;
+        }
+        if (overlayLink) {
+          mergedWinner.linkedTo = loser.linkedTo;
+          mergedWinner.linkedAt = loser.linkedAt;
+          mergedWinner.linkUpdatedAt = loserLinkAt;
+        }
+        if (overlayAvoid) {
+          mergedWinner.avoids = loser.avoids ? { ...loser.avoids } : undefined;
+          mergedWinner.avoidUpdatedAt = loserAvoidAt;
+        }
       }
 
-      mergedPlayers[username] = winner;
+      mergedPlayers[username] = mergedWinner;
     }
   }
 
@@ -2279,39 +2311,37 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     }
   });
 
-  // Determine winning completedMatchesResetAt using per-field LWW (consistent
-  // with pickSettings below) so an unrelated newer settings blob can't impose
-  // a stale reset epoch. Falls back to whole-blob LWW when no per-field stamps.
-  const localResetTs =
-    (local.settingsFieldTimestamps ?? {})['completedMatchesResetAt'] ?? 0;
-  const serverResetTs =
-    (server.settingsFieldTimestamps ?? {})['completedMatchesResetAt'] ?? 0;
-  let winningResetAt: number;
-  if (localResetTs > 0 || serverResetTs > 0) {
-    winningResetAt =
-      localResetTs >= serverResetTs
-        ? (local.completedMatchesResetAt ?? 0)
-        : (server.completedMatchesResetAt ?? 0);
-  } else {
-    const settingsSource =
-      localSettingsTime > serverSettingsTime ? local : server;
-    winningResetAt = settingsSource.completedMatchesResetAt ?? 0;
-  }
-
-  // Guard against future-dated resets (from clock skew on another admin's
-  // device): a reset epoch in the future is clearly invalid and would silently
-  // drop all completed matches. Ignore it entirely rather than dropping data
-  // based on a clock bug.
+  // completedMatchesResetAt — Path-3 fix. The merged epoch is the Math.max of
+  // both sides' EFFECTIVE values: per side, max(field value,
+  // settingsFieldTimestamps['completedMatchesResetAt']) — per-field LWW can
+  // persist a regressed field value while the stamp survives, so the stamp is
+  // part of the epoch (same effective-winner computation the reset-detection
+  // contract uses). The guarded value below drives BOTH the completedMatches
+  // filter and the persisted merged-state field, so the two can never diverge.
+  const localCompletedResetEffective = Math.max(
+    local.completedMatchesResetAt ?? 0,
+    (local.settingsFieldTimestamps ?? {})['completedMatchesResetAt'] ?? 0,
+  );
+  const serverCompletedResetEffective = Math.max(
+    server.completedMatchesResetAt ?? 0,
+    (server.settingsFieldTimestamps ?? {})['completedMatchesResetAt'] ?? 0,
+  );
+  // Same future-checkpoint guard pairing as the other *ResetAt fields: accept
+  // epochs <= now, or a future epoch both sides carry (corroborated adoption);
+  // reject only uncorroborated future values.
+  const winningResetAt = Math.max(
+    guardFutureCheckpoint(
+      'completedMatchesResetAt',
+      localCompletedResetEffective,
+      serverCompletedResetEffective,
+    ),
+    guardFutureCheckpoint(
+      'completedMatchesResetAt',
+      serverCompletedResetEffective,
+      localCompletedResetEffective,
+    ),
+  );
   const nowMs = Date.now();
-  if (winningResetAt > nowMs) {
-    console.warn(
-      '[mergeAppState] ignoring future-dated completedMatchesResetAt:',
-      winningResetAt,
-      '> now:',
-      nowMs,
-    );
-    winningResetAt = 0;
-  }
 
   let droppedCount = 0;
   let droppedByCancelCount = 0;
@@ -2329,7 +2359,7 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       droppedByCancelCount++;
       return;
     }
-    if (clampFuture(match.completedAt) > winningResetAt) {
+    if (completedMatchCheckpointTime(match, skewNow) > winningResetAt) {
       mergedCompletedMatches.push(match);
     } else {
       droppedCount++;
@@ -2404,10 +2434,16 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     ...(mergedCompletedIds ?? []),
     ...cappedCompletedMatches.map((m) => m.matchId),
   ]);
-  mergedMatches.forEach((m) => {
+  mergedMatches.forEach((m, idx) => {
     if (!m.deletedAt && completedIdSet.has(m.matchId)) {
-      m.deletedAt = Date.now();
-      m.updatedAt = Date.now();
+      // Copy-on-write: m may be a shared ref into local/server state —
+      // tombstone the merged copy, never the input (merge must stay pure).
+      const tombstoneNow = Date.now();
+      mergedMatches[idx] = {
+        ...m,
+        deletedAt: tombstoneNow,
+        updatedAt: tombstoneNow,
+      };
     }
   });
   // Keep tombstones in activeMatches so deletion records propagate across
@@ -2504,12 +2540,22 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   }
 
   // Merge actionLogs: union + dedup by id + clamp future-dated timestamps +
-  // sort by timestamp desc + cap at ACTION_LOG_CAP. Reset-type logs are
-  // exempt from cap eviction so the audit trail of a reset is never silently
-  // dropped by a flood of newer non-reset entries.
+  // drop pre-reset logs (except reset-audit actions) + sort by timestamp desc
+  // + cap at ACTION_LOG_CAP. The checkpoint uses the same guard-pairing rule
+  // as the other *ResetAt fields. Reset-type logs are exempt from BOTH the
+  // checkpoint filter and cap eviction so the audit trail of a reset is never
+  // silently dropped by a flood of newer non-reset entries.
   const effectiveActionLogsResetAt = Math.max(
-    local.actionLogsResetAt ?? 0,
-    server.actionLogsResetAt ?? 0,
+    guardFutureCheckpoint(
+      'actionLogsResetAt',
+      local.actionLogsResetAt ?? 0,
+      server.actionLogsResetAt ?? 0,
+    ),
+    guardFutureCheckpoint(
+      'actionLogsResetAt',
+      server.actionLogsResetAt ?? 0,
+      local.actionLogsResetAt ?? 0,
+    ),
   );
   const localLogs = local.actionLogs || [];
   const serverLogs = server.actionLogs || [];
@@ -2528,7 +2574,18 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       src.timestamp <= logNowMs ? src : { ...src, timestamp: logNowMs },
     );
   }
-  const sortedLogs = Array.from(logMap.values()).sort(
+  // Checkpoint content filter BEFORE the cap slice: logs at/before
+  // actionLogsResetAt are pre-reset data — drop them unless they are
+  // reset-audit actions (the RESET_LOG_ACTIONS set), whose trail must survive.
+  const checkpointFilteredLogs =
+    effectiveActionLogsResetAt === 0
+      ? Array.from(logMap.values())
+      : Array.from(logMap.values()).filter(
+          (l) =>
+            l.timestamp > effectiveActionLogsResetAt ||
+            RESET_LOG_ACTIONS.has(l.action),
+        );
+  const sortedLogs = checkpointFilteredLogs.sort(
     (a, b) => b.timestamp - a.timestamp,
   );
   let mergedActionLogs = sortedLogs.slice(0, ACTION_LOG_CAP);
@@ -2585,6 +2642,11 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
     statsResetAt: effectiveStatsResetAt,
     queuesResetAt: effectiveQueuesResetAt,
     matchesResetAt: effectiveMatchesResetAt,
+    // Explicit override AFTER ...mergedSettings: pickSettings' per-field LWW
+    // could otherwise persist a completedMatchesResetAt that diverges from
+    // the epoch the completedMatches filter actually used (Path-3). This key
+    // must equal winningResetAt — the guarded effective max computed above.
+    completedMatchesResetAt: winningResetAt,
   } as AppState;
 
   // Ensure no player ends up in multiple active matches after merge.

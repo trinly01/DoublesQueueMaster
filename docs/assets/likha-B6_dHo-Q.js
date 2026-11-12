@@ -1,0 +1,1 @@
+import{x as o,P as i}from"./vendor-BdvIzVWn.js";import{l as a,i as s}from"./index-C4c9jXrp.js";const f=o(async({app:t})=>{if(t.config.globalProperties.$likha=a,s()){const e=i.getItem("likha-data");(!e?.expires_at||e.expires_at<Date.now()+6e4)&&a.refresh().catch(()=>{console.warn("[Boot] Proactive token refresh failed")})}});export{f as default};

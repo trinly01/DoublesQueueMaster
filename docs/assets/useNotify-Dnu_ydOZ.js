@@ -1,1 +1,0 @@
-import{Y as f}from"./vendor-CbliyAze.js";const n=[];function h(){const s=f();function c(e){const t=s.screen.lt.sm,r=t?2:3,a=t?"top":"top-right";for(;n.length>=r;)n.shift()?.();const o={position:a,...e};t&&(o.actions=[...o.actions||[],{icon:"close",color:"white",handler:()=>{}}]);const i=s.notify(o);return n.push(i),i}return{notify:c}}export{h as u};

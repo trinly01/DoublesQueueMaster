@@ -80,10 +80,21 @@ beforeEach(() => {
   MatchmakingApp.state.queues = [];
   MatchmakingApp.state.activeMatches = [];
   MatchmakingApp.state.completedMatches = [];
+  MatchmakingApp.state.completedMatchIds = [];
+  MatchmakingApp.state.actionLogs = [];
+  MatchmakingApp.state.actionLogsResetAt = 0;
+  // Backfill every reset checkpoint + settings stamp the composable's
+  // actions mutate — missing fields leaked state between tests (e.g.
+  // resetSessionData's statsResetAt/completedMatchesResetAt survived into
+  // the next test's merge/purge assertions).
   MatchmakingApp.state.playersResetAt = 0;
+  MatchmakingApp.state.statsResetAt = 0;
   MatchmakingApp.state.queuesResetAt = 0;
   MatchmakingApp.state.matchesResetAt = 0;
-  MatchmakingApp.state.actionLogs = [];
+  MatchmakingApp.state.completedMatchesResetAt = 0;
+  MatchmakingApp.state.settingsFieldTimestamps = {};
+  MatchmakingApp.state.settingsUpdatedAt = 0;
+  MatchmakingApp.state.lastModified = 0;
 });
 
 describe('useDataManagement — resetGamesPlayed', () => {

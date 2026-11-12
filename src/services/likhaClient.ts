@@ -106,12 +106,45 @@ export function isAuthenticated(): boolean {
   return !!storage.get()?.access_token;
 }
 
+// Club-scoped LocalStorage keys written during a club session:
+//  - 'club_meta_<clubId>'         : admin/moderator ids + member list — seeds
+//                                 the sync push-privilege gate on next load
+//  - 'matchmaking_state_<clubId>' : per-club matchmaking cache
+//  - 'matchmaking_state'          : legacy shared key (pre per-club migration)
+// Leaving them behind on logout lets the NEXT user on this browser inherit
+// stale admin roles (privilege fail-open until the next fresh fetch) and the
+// previous user's session state — wipe them together with the session.
+const CLUB_CACHE_KEY_PREFIXES = ['club_meta_', 'matchmaking_state_'];
+const LEGACY_MATCHMAKING_KEY = 'matchmaking_state';
+
+export function clearClubScopedCaches(): void {
+  try {
+    const keys = LocalStorage.getAllKeys() as string[] | undefined;
+    if (!Array.isArray(keys)) return;
+    for (const key of keys) {
+      if (
+        typeof key === 'string' &&
+        (key === LEGACY_MATCHMAKING_KEY ||
+          CLUB_CACHE_KEY_PREFIXES.some((p) => key.startsWith(p)))
+      ) {
+        LocalStorage.remove(key);
+      }
+    }
+  } catch {
+    // Storage enumeration unavailable (locked-down webview / mocked env) —
+    // auth keys are still cleared; stale caches expire via their own TTLs.
+  }
+}
+
 // Clear every auth-related key together so the three indicators can never
-// disagree about whether a session exists.
+// disagree about whether a session exists. Also drops club-scoped caches —
+// they are session-scoped user data, not shared club data (the server copy
+// is authoritative and is refetched on next login).
 export function clearAuthSession(): void {
   storage.set(null); // removes 'likha-data'
   LocalStorage.remove(AUTH_FLAG_KEY);
   LocalStorage.remove(CURRENT_USER_ID_KEY);
+  clearClubScopedCaches();
 }
 
 // Global 401 interceptor: if a request fails with 401, refresh the token

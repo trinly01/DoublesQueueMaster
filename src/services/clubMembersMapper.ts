@@ -34,6 +34,15 @@ export interface ClubMembersPayload {
 
 export interface MappedClubMembers {
   members: ClubMember[];
+  /**
+   * Write-privilege id sets — admins/moderators INTERSECTED with member
+   * (players M2M) ids. These feed the cloud-sync push gate; a user who is in
+   * the admins/moderators M2M but not players M2M gets no member row and no
+   * admin UI, so granting them push rights would be an invisible privileged
+   * write (RESET_DECISION #17). Intersecting keeps gate and UI consistent:
+   * write privilege requires membership. Member rows' isAdmin/isModerator
+   * flags still reflect true roles via the unfiltered sets.
+   */
   adminIds: Set<string>;
   moderatorIds: Set<string>;
 }
@@ -126,5 +135,65 @@ export function mapClubToMembers(
       return acc;
     }, []);
 
-  return { members, adminIds, moderatorIds };
+  // Invisible-writer guard: restrict the returned privilege sets to users
+  // who are also club members (players M2M). See MappedClubMembers docs.
+  const memberIds = new Set(members.map((m) => m.id));
+  const writeAdminIds = new Set(
+    [...adminIds].filter((id) => memberIds.has(id)),
+  );
+  const writeModeratorIds = new Set(
+    [...moderatorIds].filter((id) => memberIds.has(id)),
+  );
+
+  return { members, adminIds: writeAdminIds, moderatorIds: writeModeratorIds };
+}
+
+// ---------------------------------------------------------------------------
+// club_meta_* privilege cache contract (reset-detection contract §4)
+// ---------------------------------------------------------------------------
+
+/**
+ * TTL for the privilege fields (adminIds/moderatorIds) inside club_meta_*
+ * LocalStorage entries. The ids are re-verified by a fresh admins/moderators
+ * M2M fetch on every loadClubData / refreshClubMembers; this TTL bounds how
+ * long a verified entry may keep authorizing cloud-sync pushes without a new
+ * fetch — i.e. the demoted-admin window on a long-lived session.
+ *
+ * 5 minutes chosen per contract §4 ("suggest 5min for privilege fields"):
+ * long enough to cover routine UI seeds between fetches, short enough that a
+ * demotion stops authorizing pushes quickly in practice — resume-sync and
+ * the periodic member refresh both re-fetch club data well inside this
+ * window, so the TTL only binds when fetches are failing.
+ */
+export const CLUB_PRIVILEGE_META_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * Shape of a club_meta_<clubId> LocalStorage entry (privilege fields only —
+ * the entry also carries clubUUID/members/clubName/clubLogo/clubStatus).
+ */
+export interface ClubPrivilegeMeta {
+  adminIds?: string[];
+  moderatorIds?: string[];
+  timestamp?: number;
+  verified?: boolean;
+}
+
+/**
+ * Fail-closed check for cached club privilege. `verified` is written true
+ * only by a fresh admins/moderators M2M fetch; legacy entries written before
+ * this field existed are unverified and must not authorize pushes. The entry
+ * also expires CLUB_PRIVILEGE_META_TTL_MS after its timestamp so a demoted
+ * admin's cached ids stop authorizing pushes even when no fresh fetch has
+ * run. A future-dated timestamp (device clock moved backwards) is treated as
+ * unverified — fail closed.
+ */
+export function isClubPrivilegeMetaVerified(
+  meta: ClubPrivilegeMeta | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (!meta || meta.verified !== true) return false;
+  const ts = meta.timestamp;
+  if (typeof ts !== 'number' || !Number.isFinite(ts)) return false;
+  const age = now - ts;
+  return age >= 0 && age <= CLUB_PRIVILEGE_META_TTL_MS;
 }
