@@ -386,6 +386,11 @@ const elapsedTime = computed(() => {
 <style lang="scss" scoped>
 .match-result {
   overflow-x: hidden;
+  // Skip layout/paint for offscreen rows in the 500-row completed list; the
+  // intrinsic size keeps the scrollbar stable until each row renders once
+  // ('auto' then remembers the real height).
+  content-visibility: auto;
+  contain-intrinsic-size: auto 150px;
 
   // Allow flex cols to shrink below intrinsic content width
   .row > .col {

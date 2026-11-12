@@ -286,7 +286,11 @@ const isPlainObject = (v: unknown): v is Record<string, unknown> =>
  * reuses entity refs for unchanged content, so this is the common fast path.
  * Ref-differing values fall back to jsonEqual, and the first real difference
  * early-exits instead of serializing the rest of the collection.
- * toRaw() unwraps Vue reactive proxies on the left side so raw refs compare.
+ * toRaw() unwraps Vue reactive proxies on BOTH sides: merge results carry
+ * reactive entity refs (MatchmakingApp.state is a reactive() object and
+ * mergeAppState reuses those refs), so unwrapping only `a` left `b`'s proxies
+ * unequal to `a`'s raw targets and defeated the pointer fast-path — every
+ * unchanged entity fell through to 2× JSON.stringify.
  * Same accept/reject semantics as jsonEqual, except dict key order is ignored
  * (stringifying treated reordered keys as different — a false negative, not a
  * correctness feature).
@@ -297,7 +301,7 @@ export const collectionEqual = (a: unknown, b: unknown): boolean => {
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
       const av = toRaw(a[i]);
-      const bv = b[i];
+      const bv = toRaw(b[i]);
       if (av !== bv && !jsonEqual(av, bv)) return false;
     }
     return true;
@@ -308,7 +312,7 @@ export const collectionEqual = (a: unknown, b: unknown): boolean => {
     for (const k of bKeys) {
       if (!(k in a)) return false;
       const av = toRaw(a[k]);
-      const bv = b[k];
+      const bv = toRaw(b[k]);
       if (av !== bv && !jsonEqual(av, bv)) return false;
     }
     return true;

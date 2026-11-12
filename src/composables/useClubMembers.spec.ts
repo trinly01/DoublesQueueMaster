@@ -657,3 +657,66 @@ describe('useClubMembers — adminMatchStats with actionLogsResetAt', () => {
     expect(adminMatchStats.value['Alice'].checkIns).toBe(0);
   });
 });
+
+describe('useClubMembers — adminMatchStats lazy gate (C4)', () => {
+  const STATS_FIXTURE = {
+    matchId: 'm1',
+    meta: { generatedBy: 'Alice', generationType: 'auto', scoredBy: 'Alice' },
+  } as never;
+
+  it('returns {} without scanning when adminMatchStatsEnabled is false', () => {
+    MatchmakingApp.state.completedMatches = [STATS_FIXTURE];
+    MatchmakingApp.state.actionLogs = [];
+    const { context } = makeContext({
+      adminMatchStatsEnabled: ref(false),
+    });
+    const { adminMatchStats } = useClubMembers(context);
+    expect(adminMatchStats.value).toEqual({});
+    // Mutating the scanned collections while gated off must not produce
+    // stats — the computed isn't subscribed to them.
+    MatchmakingApp.state.completedMatches = [
+      STATS_FIXTURE,
+      {
+        matchId: 'm2',
+        meta: { generatedBy: 'Bob', generationType: 'manual' },
+      } as never,
+    ];
+    expect(adminMatchStats.value).toEqual({});
+  });
+
+  it('computes stats while enabled and re-gates when the flag flips', () => {
+    MatchmakingApp.state.completedMatches = [STATS_FIXTURE];
+    MatchmakingApp.state.actionLogs = [];
+    const enabled = ref(false);
+    const { context } = makeContext({ adminMatchStatsEnabled: enabled });
+    const { adminMatchStats } = useClubMembers(context);
+    expect(adminMatchStats.value).toEqual({});
+
+    enabled.value = true;
+    expect(adminMatchStats.value['Alice'].total).toBe(1);
+    expect(adminMatchStats.value['Alice'].auto).toBe(1);
+
+    enabled.value = false;
+    expect(adminMatchStats.value).toEqual({});
+  });
+
+  it('returns a stable empty reference across gated instances', () => {
+    const a = useClubMembers(
+      makeContext({ adminMatchStatsEnabled: ref(false) }).context,
+    );
+    const b = useClubMembers(
+      makeContext({ adminMatchStatsEnabled: ref(false) }).context,
+    );
+    // Same frozen empty object — watchers comparing by reference see no
+    // change instead of a fresh {} on every evaluation.
+    expect(a.adminMatchStats.value).toBe(b.adminMatchStats.value);
+  });
+
+  it('omitting the flag keeps stats always computed (backward compatible)', () => {
+    MatchmakingApp.state.completedMatches = [STATS_FIXTURE];
+    MatchmakingApp.state.actionLogs = [];
+    const { context } = makeContext();
+    const { adminMatchStats } = useClubMembers(context);
+    expect(adminMatchStats.value['Alice'].total).toBe(1);
+  });
+});

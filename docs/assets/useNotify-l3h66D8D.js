@@ -1,0 +1,1 @@
+import{st as e}from"./vendor-sejlSecs.js";var t=[];function n(){let n=e();function r(e){let r=n.screen.lt.sm,i=r?2:3,a=r?`top`:`top-right`;for(;t.length>=i;)t.shift()?.();let o={position:a,...e};r&&(o.actions=[...o.actions||[],{icon:`close`,color:`white`,handler:()=>{}}]);let s=n.notify(o);return t.push(s),s}return{notify:r}}export{n as t};

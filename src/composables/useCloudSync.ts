@@ -29,11 +29,44 @@ import {
   detectServerResetAdvantage,
   applyServerResetAdvantage,
 } from 'src/services/cloudSyncHelpers';
+import { perfMeasure, observeLongTasks } from 'src/utils/perfTelemetry';
 import type { Router } from 'vue-router';
 import { LocalStorage, type QNotifyCreateOptions } from 'quasar';
 
 type NotifyFn = (opts: QNotifyCreateOptions) => void;
 type HandleAuthErrorFn = (err: unknown, router: Router) => Promise<boolean>;
+
+// Async twin of perfTelemetry.perfMeasure — perfMeasure only spans
+// synchronous work, so network awaits get the same mark/measure treatment
+// here. No-ops when performance.mark is unavailable (tests/SSR).
+const perfMeasureAsync = async <T>(
+  name: string,
+  fn: () => Promise<T>,
+): Promise<T> => {
+  if (
+    typeof performance === 'undefined' ||
+    typeof performance.mark !== 'function'
+  ) {
+    return fn();
+  }
+  const start = `perf-${name}-start`;
+  const end = `perf-${name}-end`;
+  try {
+    performance.mark(start);
+    const result = await fn();
+    performance.mark(end);
+    performance.measure(`perf-${name}`, start, end);
+    return result;
+  } catch (err) {
+    try {
+      performance.mark(end);
+      performance.measure(`perf-${name}`, start, end);
+    } catch {
+      /* ignore */
+    }
+    throw err;
+  }
+};
 
 export interface CloudSyncContext {
   currentClubUUID: Ref<string>;
@@ -53,6 +86,9 @@ export interface CloudSyncContext {
 }
 
 export function useCloudSync(ctx: CloudSyncContext) {
+  // PR-A instrumentation: longtask observer for the jank investigation.
+  // Idempotent — safe across composable instances.
+  observeLongTasks();
   const {
     currentClubUUID,
     currentClubId,
@@ -153,9 +189,16 @@ export function useCloudSync(ctx: CloudSyncContext) {
       advantage.completedMatches ||
       advantage.actionLogs ||
       advantage.stats;
-    if (!flagged) return mergeAppState(local, server);
-    const merged = mergeAppState(local, server);
-    applyServerResetAdvantage(merged, server, advantage);
+    if (!flagged) {
+      return perfMeasure('cloudsync.merge', () =>
+        mergeAppState(local, server),
+      );
+    }
+    const merged = perfMeasure('cloudsync.merge', () => {
+      const m = mergeAppState(local, server);
+      applyServerResetAdvantage(m, server, advantage);
+      return m;
+    });
     notify({
       type: 'info',
       message: RESET_DISCARDED_MESSAGE,
@@ -197,11 +240,55 @@ export function useCloudSync(ctx: CloudSyncContext) {
     return serverAppState?.matchmaking;
   };
 
-  // Pre-write verify + CAS probe: one read returning both the matchmaking
-  // blob (for the moved-check merge) and the row's `date_updated`, which
-  // becomes the compare-and-swap token for the conditional PATCH below.
-  const readServerClubRow = async (): Promise<
-    { matchmaking?: AppState; dateUpdated?: string } | undefined
+  // Pre-write verify + CAS probe result. `lastModified` is the moved-check
+  // timestamp; `undefined` means the json() alias couldn't vouch for it
+  // (field absent/unsupported) → caller must fall back to the full blob
+  // read. `matchmaking` is only populated by the full-probe fallback.
+  type ClubRowProbe = {
+    dateUpdated?: string;
+    lastModified?: number;
+    matchmaking?: AppState;
+  };
+
+  // Slim probe (PR-B B2): one read returning the row's `date_updated`
+  // (the compare-and-swap token for the conditional PATCH below) plus the
+  // matchmaking lastModified via the json() field function — NOT the full
+  // appState blob. The blob is only fetched when the timestamp says the
+  // server moved (or can't be trusted), removing 1-2 full-blob reads per
+  // push attempt on the common no-conflict path.
+  const readServerClubRow = async (): Promise<ClubRowProbe | undefined> => {
+    const rows = await likhaClient.request(
+      readItems('club', {
+        filter: { id: { _eq: currentClubUUID.value } },
+        fields: [
+          'date_updated',
+          'json(appState,matchmaking.lastModified)',
+        ] as unknown as string[],
+      }),
+    );
+    const row = rows?.[0] as
+      | {
+          date_updated?: string;
+          appState_matchmaking_lastModified_json?: number | null;
+        }
+      | undefined;
+    if (!row) return undefined;
+    const rawTs = row.appState_matchmaking_lastModified_json;
+    return {
+      dateUpdated: row.date_updated,
+      // Alias key absent → json() path unusable → undefined forces the
+      // full blob read below (pre-slim verify behavior). A present null
+      // legitimately means "no lastModified" → 0.
+      lastModified:
+        rawTs === undefined ? undefined : Number(rawTs ?? 0),
+    };
+  };
+
+  // Full probe — the pre-slim shape (appState + date_updated). Used only
+  // when the slim probe's request itself fails (json() rejected outright),
+  // so the CAS token AND the merge blob arrive in one read.
+  const readServerClubRowFull = async (): Promise<
+    ClubRowProbe | undefined
   > => {
     const rows = await likhaClient.request(
       readItems('club', {
@@ -209,7 +296,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
         fields: ['appState', 'date_updated'],
       }),
     );
-    const row = rows?.[0] as unknown as
+    const row = rows?.[0] as
       | {
           appState?: { matchmaking?: AppState };
           date_updated?: string;
@@ -217,8 +304,9 @@ export function useCloudSync(ctx: CloudSyncContext) {
       | undefined;
     if (!row) return undefined;
     return {
-      matchmaking: row.appState?.matchmaking,
       dateUpdated: row.date_updated,
+      lastModified: row.appState?.matchmaking?.lastModified,
+      matchmaking: row.appState?.matchmaking,
     };
   };
 
@@ -255,7 +343,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
           // When realtime is active, it keeps lastSyncedServerTimestamp current,
           // so a timestamp-only check is sufficient to detect concurrent writes.
           try {
-            serverTimestamp = await readServerTimestamp();
+            serverTimestamp = await perfMeasureAsync(
+              'cloudsync.read-ts',
+              () => readServerTimestamp(),
+            );
 
             // If timestamp matches, skip full read — realtime kept us current.
             if (
@@ -265,17 +356,26 @@ export function useCloudSync(ctx: CloudSyncContext) {
               )
             ) {
               // Timestamp moved — do full read to get changes for merging.
-              serverMatchmaking = await readServerMatchmaking();
+              serverMatchmaking = await perfMeasureAsync(
+                'cloudsync.read-full',
+                () => readServerMatchmaking(),
+              );
               serverTimestamp = serverMatchmaking?.lastModified ?? 0;
             }
           } catch {
             // json() failed — fall back to full read (safe).
-            serverMatchmaking = await readServerMatchmaking();
+            serverMatchmaking = await perfMeasureAsync(
+              'cloudsync.read-full',
+              () => readServerMatchmaking(),
+            );
             serverTimestamp = serverMatchmaking?.lastModified ?? 0;
           }
         } else {
           // Realtime not active — do full read (existing behavior).
-          serverMatchmaking = await readServerMatchmaking();
+          serverMatchmaking = await perfMeasureAsync(
+            'cloudsync.read-full',
+            () => readServerMatchmaking(),
+          );
           serverTimestamp = serverMatchmaking?.lastModified ?? 0;
         }
       }
@@ -317,7 +417,6 @@ export function useCloudSync(ctx: CloudSyncContext) {
           (clubAdminIds.value.has(currentUserId.value) ||
             clubModeratorIds.value.has(currentUserId.value));
         if (!uiPrivileged) clearPendingSync(currentClubId.value);
-        console.log('Skipped cloud sync: not admin or moderator');
         return;
       }
 
@@ -326,9 +425,6 @@ export function useCloudSync(ctx: CloudSyncContext) {
         hasPendingCloudSync.value = false;
         pushFailed = false;
         syncInProgress = false;
-        console.log(
-          'Skipped cloud sync: local state belongs to a different club',
-        );
         return;
       }
 
@@ -347,7 +443,9 @@ export function useCloudSync(ctx: CloudSyncContext) {
         );
         // Assign only keys whose content actually changed — identical merges
         // keep their references and don't invalidate the page's computeds.
-        applyMergedState(MatchmakingApp.state, merged);
+        perfMeasure('cloudsync.apply-state', () =>
+          applyMergedState(MatchmakingApp.state, merged),
+        );
         // Extra safety: ensure no player appears in multiple matches
         MatchmakingApp.enforceOneMatchPerPlayer();
         notify({
@@ -369,35 +467,64 @@ export function useCloudSync(ctx: CloudSyncContext) {
       const MAX_CAS_ATTEMPTS = 2;
       let casConflict = false;
       for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt++) {
-        // Fresh probe: appState for the moved-check merge + date_updated as
-        // the CAS token. No token → abort: an unconditional PATCH would
-        // reopen the clobber window this guard exists to close, and the
-        // outer catch arms pushFailed/pending for a later retry.
-        const probe = await readServerClubRow();
+        // Fresh probe: date_updated CAS token + json() lastModified moved-
+        // check. The full appState blob is fetched ONLY when the timestamp
+        // demands it (moved / unverifiable / CAS retry). No token → abort:
+        // an unconditional PATCH would reopen the clobber window this
+        // guard exists to close, and the outer catch arms pushFailed/
+        // pending for a later retry.
+        let probe: ClubRowProbe | undefined;
+        try {
+          probe = await perfMeasureAsync('cloudsync.cas-probe', () =>
+            readServerClubRow(),
+          );
+        } catch {
+          // json() alias rejected outright (older Directus / field-
+          // function error) — fall back to the full probe shape so both
+          // the CAS token and the merge blob arrive in one read.
+          probe = await perfMeasureAsync('cloudsync.cas-probe-full', () =>
+            readServerClubRowFull(),
+          );
+        }
         const casToken = probe?.dateUpdated;
         if (!casToken) {
           throw new Error(
             '[cloudSync] pre-write verify read returned no club row',
           );
         }
-        const fresh = probe?.matchmaking;
-        const verifyTimestamp = fresh?.lastModified ?? 0;
         const observedTimestamp =
           serverTimestamp || lastSyncedServerTimestamp.value;
-        // On a CAS retry the merge is forced — the conflicting write may
-        // carry a reset whose checkpoint compare alone wouldn't surface.
+        // Blob required when: CAS retry (merge is forced — the conflicting
+        // write may carry a reset whose checkpoint compare alone wouldn't
+        // surface), the slim probe couldn't produce a timestamp (json()
+        // field absent → fallback to the pre-slim full read), or the
+        // server timestamp moved since our observed version.
+        const probeTs = probe?.lastModified;
+        const blobRequired =
+          attempt > 0 ||
+          probeTs === undefined ||
+          probeTs !== observedTimestamp;
+        let fresh = probe?.matchmaking;
+        if (blobRequired && fresh === undefined) {
+          fresh = await perfMeasureAsync('cloudsync.cas-blob', () =>
+            readServerMatchmaking(),
+          );
+        }
+        // The blob's own stamp is the freshest moved-check signal — prefer
+        // it over the probe's json() value (the blob read is the later
+        // request and may reflect a write that landed in between).
+        const verifyTimestamp = fresh?.lastModified ?? probeTs ?? 0;
         if (fresh && (attempt > 0 || verifyTimestamp !== observedTimestamp)) {
           // Same reset-advantage adoption as the pre-push merge — the
           // server may have moved precisely because another admin reset
           // (contract §2, hook point c).
-          applyMergedState(
-            MatchmakingApp.state,
-            mergeWithResetAdvantage(MatchmakingApp.state, fresh),
+          perfMeasure('cloudsync.apply-state', () =>
+            applyMergedState(
+              MatchmakingApp.state,
+              mergeWithResetAdvantage(MatchmakingApp.state, fresh),
+            ),
           );
           MatchmakingApp.enforceOneMatchPerPlayer();
-          console.log(
-            '[cloudSync] server moved during sync — merged fresh state before push',
-          );
         }
 
         // 5. Stamp, push to cloud, persist locally, and advance our base
@@ -412,33 +539,27 @@ export function useCloudSync(ctx: CloudSyncContext) {
           });
         }
 
-        console.log(
-          '[cloudSync] pushing — queues:',
-          MatchmakingApp.state.queues.filter((q) => !q.deletedAt).length,
-          'matches:',
-          MatchmakingApp.state.activeMatches.filter((m) => !m.deletedAt)
-            .length,
-          'ts:',
-          stamp,
-        );
-
         const payload = {
           matchmaking: MatchmakingApp.state,
         };
 
-        const casResult: unknown = await likhaClient.request(
-          updateItems(
-            'club',
-            {
-              filter: {
-                id: { _eq: currentClubUUID.value },
-                date_updated: { _eq: casToken },
-              },
-            },
-            {
-              appState: payload,
-            },
-          ),
+        const casResult: unknown = await perfMeasureAsync(
+          'cloudsync.push',
+          () =>
+            likhaClient.request(
+              updateItems(
+                'club',
+                {
+                  filter: {
+                    id: { _eq: currentClubUUID.value },
+                    date_updated: { _eq: casToken },
+                  },
+                },
+                {
+                  appState: payload,
+                },
+              ),
+            ),
         );
 
         if (Array.isArray(casResult) && casResult.length === 0) {
@@ -453,7 +574,9 @@ export function useCloudSync(ctx: CloudSyncContext) {
         }
         casConflict = false;
 
-        MatchmakingApp.persistSilently();
+        perfMeasure('cloudsync.persist', () =>
+          MatchmakingApp.persistSilently(),
+        );
         lastSyncedServerTimestamp.value = stamp;
         if (currentClubId.value) {
           saveLastSyncedTimestamp(currentClubId.value, stamp);
@@ -462,7 +585,6 @@ export function useCloudSync(ctx: CloudSyncContext) {
         pushFailed = false;
         clearPendingSync(currentClubId.value);
         syncRetryPending = false;
-        console.log('Successfully synced to cloud');
         break;
       }
 
@@ -651,9 +773,6 @@ export function useCloudSync(ctx: CloudSyncContext) {
     if (meta && typeof meta === 'object') {
       LocalStorage.set(metaKey, { ...meta, verified: false });
     }
-    console.log(
-      '[realtime] club role fields changed — privilege meta invalidated, refreshing club data',
-    );
     if (currentClubId.value) {
       void loadClubData(currentClubId.value).catch((err) => {
         console.warn('[realtime] role-change refresh failed:', err);
@@ -661,39 +780,110 @@ export function useCloudSync(ctx: CloudSyncContext) {
     }
   };
 
+  // Non-privileged server-wins overwrite, extracted so the whole sweep is
+  // one perfMeasure span ('cloudsync.apply-serverwins'). collectionEqual
+  // guards keep identical collections' references so the Club page
+  // computeds aren't invalidated by a no-op overwrite; it early-exits at
+  // the first differing element instead of serializing whole collections.
+  const overwriteStateFromServer = (serverMatchmaking: AppState) => {
+    if (
+      serverMatchmaking.players &&
+      !collectionEqual(
+        MatchmakingApp.state.players,
+        serverMatchmaking.players,
+      )
+    ) {
+      MatchmakingApp.state.players = { ...serverMatchmaking.players };
+    }
+    if (
+      serverMatchmaking.queues &&
+      !collectionEqual(MatchmakingApp.state.queues, serverMatchmaking.queues)
+    ) {
+      MatchmakingApp.state.queues = [...serverMatchmaking.queues];
+    }
+    if (
+      serverMatchmaking.activeMatches &&
+      !collectionEqual(
+        MatchmakingApp.state.activeMatches,
+        serverMatchmaking.activeMatches,
+      )
+    ) {
+      MatchmakingApp.state.activeMatches = [
+        ...serverMatchmaking.activeMatches,
+      ];
+    }
+    if (
+      serverMatchmaking.completedMatches &&
+      !collectionEqual(
+        MatchmakingApp.state.completedMatches,
+        serverMatchmaking.completedMatches,
+      )
+    ) {
+      MatchmakingApp.state.completedMatches = [
+        ...serverMatchmaking.completedMatches,
+      ];
+    }
+    if (
+      serverMatchmaking.completedMatchIds &&
+      !collectionEqual(
+        MatchmakingApp.state.completedMatchIds,
+        serverMatchmaking.completedMatchIds,
+      )
+    ) {
+      MatchmakingApp.state.completedMatchIds = [
+        ...serverMatchmaking.completedMatchIds,
+      ];
+    }
+    if (
+      serverMatchmaking.actionLogs &&
+      !collectionEqual(
+        MatchmakingApp.state.actionLogs,
+        serverMatchmaking.actionLogs,
+      )
+    ) {
+      MatchmakingApp.state.actionLogs = [...serverMatchmaking.actionLogs];
+    }
+    // Overwrite settings — non-privileged users don't have local settings to preserve
+    copyServerSettings(serverMatchmaking, SETTINGS_OVERWRITE_FIELDS, false);
+    // Carry checkpoint timestamps
+    MatchmakingApp.state.playersResetAt =
+      serverMatchmaking.playersResetAt ?? 0;
+    MatchmakingApp.state.queuesResetAt = serverMatchmaking.queuesResetAt ?? 0;
+    MatchmakingApp.state.matchesResetAt =
+      serverMatchmaking.matchesResetAt ?? 0;
+    MatchmakingApp.state.statsResetAt = serverMatchmaking.statsResetAt ?? 0;
+    MatchmakingApp.state.completedMatchesResetAt =
+      serverMatchmaking.completedMatchesResetAt ?? 0;
+    MatchmakingApp.state.actionLogsResetAt =
+      serverMatchmaking.actionLogsResetAt ?? 0;
+    if (serverMatchmaking.settingsFieldTimestamps) {
+      MatchmakingApp.state.settingsFieldTimestamps = {
+        ...serverMatchmaking.settingsFieldTimestamps,
+      };
+    }
+    // Server-wins overwrite discards any local unpushed intent — the
+    // durable marker is stale now.
+    clearPendingSync(currentClubId.value);
+  };
+
   const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
     if (!serverMatchmaking) return;
     const incomingTs = serverMatchmaking.lastModified ?? 0;
     // Ignore the echo of our own last write.
     if (incomingTs === lastSyncedServerTimestamp.value) {
-      console.log(
-        '[applyServer] ignoring echo of our own write, ts:',
-        incomingTs,
-      );
       return;
     }
 
     // Bound the incoming history the same way local writes do — an uncapped
     // blob written by an older client otherwise stays large forever here.
-    enforceCompletedCaps(serverMatchmaking);
+    perfMeasure('cloudsync.apply-prep', () =>
+      enforceCompletedCaps(serverMatchmaking),
+    );
 
     const isCurrentUserPrivilegedForSync =
       currentUserId.value &&
       (clubAdminIds.value.has(currentUserId.value) ||
         clubModeratorIds.value.has(currentUserId.value));
-
-    console.log(
-      '[applyServer] incoming — queues:',
-      serverMatchmaking.queues?.length,
-      'matches:',
-      serverMatchmaking.activeMatches?.filter((m) => !m.deletedAt).length,
-      'ts:',
-      incomingTs,
-      'our last synced:',
-      lastSyncedServerTimestamp.value,
-      'isPrivileged:',
-      isCurrentUserPrivilegedForSync,
-    );
 
     // Suppress settings_change logs during programmatic merge —
     // server-driven settings changes should not be attributed to the
@@ -724,99 +914,18 @@ export function useCloudSync(ctx: CloudSyncContext) {
         markPendingSync(currentClubId.value);
         // Assign only keys whose content actually changed — identical merges
         // keep their references and don't invalidate the page's computeds.
-        applyMergedState(MatchmakingApp.state, merged);
+        perfMeasure('cloudsync.apply-state', () =>
+          applyMergedState(MatchmakingApp.state, merged),
+        );
         // Extra safety: ensure no player appears in multiple matches
         // and no court has multiple in-progress matches
         MatchmakingApp.enforceOneMatchPerPlayer();
         MatchmakingApp.enforceOneMatchPerCourt();
       } else {
         // Non-privileged: server is source of truth — direct overwrite, no merge.
-        // collectionEqual guards keep identical collections' references so the
-        // Club page computeds aren't invalidated by a no-op overwrite; it
-        // early-exits at the first differing element instead of serializing
-        // whole collections.
-        if (
-          serverMatchmaking.players &&
-          !collectionEqual(
-            MatchmakingApp.state.players,
-            serverMatchmaking.players,
-          )
-        ) {
-          MatchmakingApp.state.players = { ...serverMatchmaking.players };
-        }
-        if (
-          serverMatchmaking.queues &&
-          !collectionEqual(
-            MatchmakingApp.state.queues,
-            serverMatchmaking.queues,
-          )
-        ) {
-          MatchmakingApp.state.queues = [...serverMatchmaking.queues];
-        }
-        if (
-          serverMatchmaking.activeMatches &&
-          !collectionEqual(
-            MatchmakingApp.state.activeMatches,
-            serverMatchmaking.activeMatches,
-          )
-        ) {
-          MatchmakingApp.state.activeMatches = [
-            ...serverMatchmaking.activeMatches,
-          ];
-        }
-        if (
-          serverMatchmaking.completedMatches &&
-          !collectionEqual(
-            MatchmakingApp.state.completedMatches,
-            serverMatchmaking.completedMatches,
-          )
-        ) {
-          MatchmakingApp.state.completedMatches = [
-            ...serverMatchmaking.completedMatches,
-          ];
-        }
-        if (
-          serverMatchmaking.completedMatchIds &&
-          !collectionEqual(
-            MatchmakingApp.state.completedMatchIds,
-            serverMatchmaking.completedMatchIds,
-          )
-        ) {
-          MatchmakingApp.state.completedMatchIds = [
-            ...serverMatchmaking.completedMatchIds,
-          ];
-        }
-        if (
-          serverMatchmaking.actionLogs &&
-          !collectionEqual(
-            MatchmakingApp.state.actionLogs,
-            serverMatchmaking.actionLogs,
-          )
-        ) {
-          MatchmakingApp.state.actionLogs = [...serverMatchmaking.actionLogs];
-        }
-        // Overwrite settings — non-privileged users don't have local settings to preserve
-        copyServerSettings(serverMatchmaking, SETTINGS_OVERWRITE_FIELDS, false);
-        // Carry checkpoint timestamps
-        MatchmakingApp.state.playersResetAt =
-          serverMatchmaking.playersResetAt ?? 0;
-        MatchmakingApp.state.queuesResetAt =
-          serverMatchmaking.queuesResetAt ?? 0;
-        MatchmakingApp.state.matchesResetAt =
-          serverMatchmaking.matchesResetAt ?? 0;
-        MatchmakingApp.state.statsResetAt = serverMatchmaking.statsResetAt ?? 0;
-        MatchmakingApp.state.completedMatchesResetAt =
-          serverMatchmaking.completedMatchesResetAt ?? 0;
-        MatchmakingApp.state.actionLogsResetAt =
-          serverMatchmaking.actionLogsResetAt ?? 0;
-        if (serverMatchmaking.settingsFieldTimestamps) {
-          MatchmakingApp.state.settingsFieldTimestamps = {
-            ...serverMatchmaking.settingsFieldTimestamps,
-          };
-        }
-        // Server-wins overwrite discards any local unpushed intent — the
-        // durable marker is stale now.
-        clearPendingSync(currentClubId.value);
+        perfMeasure('cloudsync.apply-serverwins', () =>
+          overwriteStateFromServer(serverMatchmaking),
+        );
       }
     } finally {
       // Re-enable settings_change logging now that the merge is complete —
@@ -824,7 +933,9 @@ export function useCloudSync(ctx: CloudSyncContext) {
       MatchmakingApp.suppressSettingsLog = false;
     }
 
-    MatchmakingApp.persistSilently();
+    perfMeasure('cloudsync.persist', () =>
+      MatchmakingApp.persistSilently(),
+    );
     // Base version only moves forward — an out-of-order older realtime
     // message must not regress it and trigger spurious conflict merges.
     lastSyncedServerTimestamp.value = Math.max(
@@ -837,13 +948,62 @@ export function useCloudSync(ctx: CloudSyncContext) {
         lastSyncedServerTimestamp.value,
       );
     }
+  };
 
-    console.log(
-      '[applyServer] applied — queues:',
-      MatchmakingApp.state.queues.filter((q) => !q.deletedAt).length,
-      'matches:',
-      MatchmakingApp.state.activeMatches.filter((m) => !m.deletedAt).length,
-    );
+  // ---- Realtime appState coalescing (PR-B B1) --------------------------
+  // A burst of WS messages (multi-admin edits, or our own push echo
+  // landing in the same window as a remote write) would otherwise run a
+  // full merge + collectionEqual sweep + persist per message. Buffer the
+  // appState payloads and flush the newest-wins winner after a ~50ms
+  // trailing window instead.
+  //
+  // Selection is by MAX lastModified, NOT last-arrived: our own push echo
+  // can arrive AFTER a remote write in the same window, and keeping the
+  // last arrival would retain the echo — which applyServerMatchmaking then
+  // echo-suppresses — while the newer remote write is dropped entirely.
+  // Max-ts keeps the remote write; the echo loses the buffer slot.
+  //
+  // Timer-based (not rAF): rAF stalls in hidden tabs. pagehide /
+  // visibilitychange flush immediately because background-tab timers are
+  // throttled/suspended. Lossless: snapshots supersede — the flushed
+  // payload is a full appState, and lastSyncedServerTimestamp's Math.max
+  // keeps the base version monotonic regardless of flush order.
+  const REALTIME_COALESCE_MS = 50;
+  let realtimeCoalesceTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingRealtimeMatchmaking: AppState | undefined;
+
+  const flushRealtimeMatchmaking = () => {
+    if (realtimeCoalesceTimer) {
+      clearTimeout(realtimeCoalesceTimer);
+      realtimeCoalesceTimer = null;
+    }
+    const pending = pendingRealtimeMatchmaking;
+    pendingRealtimeMatchmaking = undefined;
+    if (pending) {
+      perfMeasure('cloudsync.realtime-flush', () =>
+        applyServerMatchmaking(pending),
+      );
+    }
+  };
+
+  const bufferRealtimeMatchmaking = (matchmaking?: AppState) => {
+    // Stripped/empty payloads never enter the buffer — and must not clear
+    // a pending newer payload either.
+    if (!matchmaking) return;
+    const pendingTs = pendingRealtimeMatchmaking?.lastModified ?? 0;
+    const incomingTs = matchmaking.lastModified ?? 0;
+    if (!pendingRealtimeMatchmaking || incomingTs > pendingTs) {
+      pendingRealtimeMatchmaking = matchmaking;
+    }
+    // Arm the window on the FIRST buffered message only — a fixed trailing
+    // window bounds flush latency to ~50ms even under a sustained burst
+    // (debounce-reset would postpone indefinitely).
+    if (!realtimeCoalesceTimer) {
+      realtimeCoalesceTimer = setTimeout(
+        flushRealtimeMatchmaking,
+        REALTIME_COALESCE_MS,
+      );
+    }
   };
 
   // Watchdog state: distinguishes a dropped stream (retry with backoff)
@@ -902,27 +1062,27 @@ export function useCloudSync(ctx: CloudSyncContext) {
         try {
           for await (const message of subscription) {
             const msg = message as ClubRealtimeMessage;
-            console.log('[realtime] received message:', msg);
             if (msg.type && msg.type !== 'subscription') {
-              console.log(
-                '[realtime] skipping non-subscription message, type:',
-                msg.type,
-              );
               continue;
             }
             // data is an array for create/update, but tolerate a bare object
             // in case a server/SDK version returns the item directly.
             const item = Array.isArray(msg.data) ? msg.data[0] : msg.data;
-            // Role-field diff runs before the matchmaking merge — a role
-            // change invalidates the privilege cache regardless of whether
-            // appState also moved.
+            // Role-field diff runs PER-MESSAGE before buffering — role
+            // changes are tiny but must not wait for (or be dropped by)
+            // the appState coalescer, and they trigger loadClubData.
             handleRealtimeRoleFields(item);
             const matchmaking = item?.appState?.matchmaking;
             // Only a message carrying usable data proves the stream is
             // healthy — stripped/empty payloads (e.g. permission-filtered
-            // appState) must not suppress the staleness poll.
+            // appState) must not suppress the staleness poll. The stamp is
+            // on RECEIPT, not flush: the ~50ms coalesce window must not
+            // look like stream silence to the 20s staleness poll.
             if (matchmaking) lastRealtimeMessageAt = Date.now();
-            applyServerMatchmaking(matchmaking);
+            // Non-appState messages (role fields handled above, other
+            // collections, stripped payloads) bypass coalescing — they
+            // simply never enter the buffer.
+            bufferRealtimeMatchmaking(matchmaking);
           }
         } catch (err) {
           console.warn('Realtime stream ended:', err);
@@ -935,10 +1095,6 @@ export function useCloudSync(ctx: CloudSyncContext) {
         }
       })();
 
-      console.log(
-        'Realtime subscription active for club',
-        currentClubUUID.value,
-      );
       realtimeRetryDelay = 3000; // healthy subscribe → reset backoff
     } catch (err) {
       console.warn(
@@ -957,6 +1113,11 @@ export function useCloudSync(ctx: CloudSyncContext) {
       clearTimeout(realtimeRetryTimer);
       realtimeRetryTimer = null;
     }
+    // Flush any coalesced payload BEFORE unsubscribing — preserves the
+    // pre-coalescing invariant that every received appState is applied.
+    // Runs while MatchmakingApp.state still belongs to this club (club
+    // switches call stopRealtime before resetState).
+    flushRealtimeMatchmaking();
     if (realtimeUnsub) {
       try {
         realtimeUnsub();
@@ -1028,13 +1189,6 @@ export function useCloudSync(ctx: CloudSyncContext) {
       );
       const serverTs = parseLightweightTimestamp(light);
       if (serverTs && serverTs !== lastSyncedServerTimestamp.value) {
-        console.log(
-          '[poll] server moved:',
-          serverTs,
-          'local:',
-          lastSyncedServerTimestamp.value,
-          '— pulling',
-        );
         const full = await likhaClient.request(
           readItems('club', {
             filter: { id: { _eq: currentClubUUID.value } },
@@ -1115,15 +1269,26 @@ export function useCloudSync(ctx: CloudSyncContext) {
       clearTimeout(syncDebounceTimer);
       syncDebounceTimer = null;
     }
+    // Hidden-tab timers are throttled/suspended — apply any coalesced
+    // realtime payload now rather than waiting out the 50ms window.
+    flushRealtimeMatchmaking();
     if (hasPendingCloudSync.value) {
       void performCloudSync();
     }
+  };
+
+  // visibilitychange covers the cases pagehide misses (mobile tab
+  // switchers, bfcache restores): flush the coalescer on either
+  // transition so a buffered burst can't stall behind a suspended timer.
+  const handleVisibilityChange = () => {
+    flushRealtimeMatchmaking();
   };
 
   onMounted(() => {
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
     window.addEventListener('pagehide', handlePageHide);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Player ratings live in directus_users (not in club.appState), so realtime
     // can't observe them. Poll the club.players M2M periodically to keep ratings fresh.
@@ -1145,6 +1310,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
     window.removeEventListener('online', updateOnlineStatus);
     window.removeEventListener('offline', updateOnlineStatus);
     window.removeEventListener('pagehide', handlePageHide);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
     stopRealtime();
     if (ratingsRefreshInterval) {
       clearInterval(ratingsRefreshInterval);
@@ -1208,5 +1374,8 @@ export function useCloudSync(ctx: CloudSyncContext) {
     updateOnlineStatus,
     doResumeSync,
     pollServerState, // exposed for tests — the staleness interval calls it
+    // exposed for tests + pagehide/visibilitychange wiring — applies any
+    // coalesced realtime payload immediately
+    flushRealtimeMatchmaking,
   };
 }

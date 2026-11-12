@@ -1,0 +1,1 @@
+import{ft as e,mt as t}from"./vendor-sejlSecs.js";import{a as n,i as r}from"./likhaClient-8JaikEW-.js";var i=e(async({app:e})=>{if(e.config.globalProperties.$likha=n,r()){let e=t.getItem(`likha-data`);(!e?.expires_at||e.expires_at<Date.now()+6e4)&&n.refresh().catch(()=>{console.warn(`[Boot] Proactive token refresh failed`)})}});export{i as default};

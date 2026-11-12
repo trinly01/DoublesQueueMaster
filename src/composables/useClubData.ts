@@ -964,6 +964,19 @@ export function useClubData(context: UseClubDataContext) {
 
           // Merge club players into local state
           if (club.players && Array.isArray(club.players)) {
+            // A5 persist-gate: mergePlayerFromDB reports {changed} per player —
+            // OR-accumulate and persist() ONLY when a merge actually mutated
+            // state. persist() → saveState() stamps lastModified=now and fires
+            // onStateChange → debouncedCloudSync, so the old unconditional call
+            // armed a guaranteed full-blob probe+PATCH ~1.5s after EVERY
+            // loadClubData (mount / focus-resume / role-refresh / poll-fallback
+            // / join-reload), re-broadcasting ~1MB to all subscribers.
+            // Dirty-privileged pushes are preserved: the mergeEligible branch
+            // above already ran persist() before this loop, so a needed push
+            // stays armed even when the player merge is a no-op. When nothing
+            // changed we skip entirely — the merge/persist block above already
+            // saved current state, so there is nothing new to write.
+            let playersMergeChanged = false;
             club.players.forEach((p) => {
               const user = p.directus_users_id as Record<
                 string,
@@ -982,6 +995,7 @@ export function useClubData(context: UseClubDataContext) {
                     likhaUrl.value,
                     Date.now(),
                   );
+                  if (result.changed) playersMergeChanged = true;
                   if (result.newRating !== undefined) {
                     // Keep clubMembers in sync with the adopted rating so the
                     // settings list reflects the latest DB value immediately.
@@ -994,7 +1008,9 @@ export function useClubData(context: UseClubDataContext) {
                 // Note: We do NOT add new club members automatically - that should be done via the "Add Club Members" UI
               }
             });
-            MatchmakingApp.persist();
+            if (playersMergeChanged) {
+              MatchmakingApp.persist();
+            }
           }
         } catch (mergeErr) {
           console.error('[loadClubData] merge/seed failed:', mergeErr);

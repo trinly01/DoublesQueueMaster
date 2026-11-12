@@ -574,6 +574,11 @@ const handleAvatarError = () => {
 
 .player-item {
   transition: background-color 0.2s ease;
+  // Skip layout/paint for offscreen rows in long player/queue lists; the
+  // intrinsic size keeps the scrollbar stable until each row renders once
+  // ('auto' then remembers the real height).
+  content-visibility: auto;
+  contain-intrinsic-size: auto 88px;
 
   &:hover {
     background-color: rgba(0, 0, 0, 0.02);

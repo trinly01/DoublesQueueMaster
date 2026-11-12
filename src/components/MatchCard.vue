@@ -202,26 +202,9 @@
           </div>
         </div>
       </div>
-      <!-- Generation indicator chips -->
-      <MatchMetaChips
-        :meta="{
-          generatedBy: match.generatedBy,
-          editedBy: match.editedBy,
-          scoredBy: match.scoredBy,
-          cancelledBy: match.cancelledBy,
-          matchmakingMode: match.matchmakingMode,
-          generationType: match.generationType,
-          isEdited: match.isEdited,
-          editedAt: match.editedAt,
-          originalMatchup: match.originalMatchup,
-          originalTeamA: match.originalTeamA,
-          originalTeamB: match.originalTeamB,
-          createdAt: match.createdAt,
-          updatedAt: match.updatedAt,
-          ratingApplied: match.ratingApplied,
-          ratingSkippedReason: match.ratingSkippedReason,
-        }"
-      />
+      <!-- Generation indicator chips — meta is built once per view-model
+           row in ClubPage so its identity survives parent re-renders. -->
+      <MatchMetaChips :meta="match.meta" />
       <!-- <div
         v-if="match.winProbability !== undefined"
         class="text-center text-caption q-mt-xs row justify-center q-gutter-xs"
@@ -345,6 +328,7 @@ import {
   ratingChipText,
 } from '../utils/playerHelpers';
 import type { Player } from '../services/matchmaking';
+import type { MatchMeta } from '../types/matchMeta';
 import MatchMetaChips from './MatchMetaChips.vue';
 
 const isReadOnlyMode = inject('isReadOnlyMode', false);
@@ -377,6 +361,8 @@ interface Match {
   updatedAt?: Date | string | number;
   ratingApplied?: boolean;
   ratingSkippedReason?: 'unrated_mode' | 'unlinked_players';
+  /** Prebuilt MatchMetaChips payload — stable identity per view-model row. */
+  meta?: MatchMeta;
 }
 
 interface Props {
@@ -507,6 +493,11 @@ const elapsed = computed(() => {
 
 .match-item {
   transition: background-color 0.2s ease;
+  // Skip layout/paint for offscreen rows in long match lists; the intrinsic
+  // size keeps the scrollbar stable until each row renders once ('auto'
+  // then remembers the real height).
+  content-visibility: auto;
+  contain-intrinsic-size: auto 132px;
 
   &.self-match {
     box-shadow: inset 3px 0 0 #ffb300;

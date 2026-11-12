@@ -260,10 +260,56 @@ class DuprService {
   private submissionUnsub: (() => void) | null = null;
   private submissionClubId: string | null = null;
 
+  // B3 — dupr_submission refetch throttle (~750ms leading+trailing).
+  // Every WS event used to trigger an immediate limit-500 refetch; during
+  // active-play bursts that meant one full submissions pull per event.
+  // Leading edge fires instantly after a quiet period; events inside the
+  // window coalesce into ONE trailing refetch, so a continuous burst costs
+  // at most ~1 fetch per window — no starvation (unlike a pure debounce,
+  // the trailing edge is guaranteed to fire).
+  private static readonly SUBMISSION_REFETCH_THROTTLE_MS = 750;
+  private submissionRefetchTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastSubmissionRefetchAt = 0;
+  private pendingSubmissionRefetchClubId: string | null = null;
+  // Serializes refetches so overlapping pulls can't resolve out of order
+  // and briefly resurrect stale submission rows.
+  private submissionFetchQueue: Promise<unknown> = Promise.resolve();
+
+  private fireSubmissionRefetch(clubId: string): void {
+    this.lastSubmissionRefetchAt = Date.now();
+    // Inner catch keeps the chain alive even if a fetch ever rejects —
+    // a rejected link would otherwise silently disable all future
+    // throttled refetches.
+    this.submissionFetchQueue = this.submissionFetchQueue.then(() =>
+      this.fetchSubmissions(clubId).catch(() => {}),
+    );
+  }
+
+  private scheduleSubmissionRefetch(clubId: string): void {
+    const elapsed = Date.now() - this.lastSubmissionRefetchAt;
+    if (elapsed >= DuprService.SUBMISSION_REFETCH_THROTTLE_MS) {
+      this.fireSubmissionRefetch(clubId);
+      return;
+    }
+    this.pendingSubmissionRefetchClubId = clubId;
+    if (this.submissionRefetchTimer) return;
+    this.submissionRefetchTimer = setTimeout(() => {
+      this.submissionRefetchTimer = null;
+      const cid = this.pendingSubmissionRefetchClubId;
+      this.pendingSubmissionRefetchClubId = null;
+      // Only refetch while the subscription that scheduled this is still
+      // live — a stopped/switched stream covers itself via its own events.
+      if (cid && this.submissionUnsub && this.submissionClubId === cid) {
+        this.fireSubmissionRefetch(cid);
+      }
+    }, DuprService.SUBMISSION_REFETCH_THROTTLE_MS - elapsed);
+  }
+
   /**
    * Realtime push for dupr_submission — other devices' submissions surface
    * instantly. On any event we re-pull (events never replay missed writes,
    * so the pull stays authoritative — same pattern as appState sync).
+   * Refetches are throttled (~750ms leading+trailing) to coalesce bursts.
    */
   async startSubmissionRealtime(clubId: string): Promise<void> {
     if (this.submissionUnsub || !clubId) return;
@@ -285,7 +331,7 @@ class DuprService {
           for await (const message of subscription) {
             const msg = message as { type?: string };
             if (msg.type && msg.type !== 'subscription') continue;
-            await this.fetchSubmissions(clubId);
+            this.scheduleSubmissionRefetch(clubId);
           }
         } catch (err) {
           console.warn('[DUPR] Submission stream ended:', err);
@@ -312,6 +358,11 @@ class DuprService {
 
   stopSubmissionRealtime(): void {
     this.submissionClubId = null;
+    if (this.submissionRefetchTimer) {
+      clearTimeout(this.submissionRefetchTimer);
+      this.submissionRefetchTimer = null;
+    }
+    this.pendingSubmissionRefetchClubId = null;
     this.submissionUnsub?.();
     this.submissionUnsub = null;
   }

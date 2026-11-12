@@ -532,3 +532,142 @@ describe('useClubData — club_meta privilege cache', () => {
     expect(currentClubUUID.value).toBe(CLUB_UUID);
   });
 });
+
+// ---------------------------------------------------------------------------
+// A5 — player-merge persist gate
+// ---------------------------------------------------------------------------
+// loadClubData's club.players merge loop used to call MatchmakingApp.persist()
+// unconditionally whenever the club had members. persist() → saveState() stamps
+// lastModified=now and fires onStateChange → debouncedCloudSync, so EVERY
+// mount/focus-resume/role-refresh/poll-fallback/join-reload armed a guaranteed
+// full-blob probe+PATCH ~1.5s later. The gate now OR-accumulates mergePlayerFromDB's
+// {changed} flag and only persists when a merge actually mutated state.
+// ---------------------------------------------------------------------------
+describe('useClubData — player-merge persist gate', () => {
+  // Fresh object per payload — mergePlayerFromDB mutates the player in
+  // place, so a shared fixture would leak mutations between tests.
+  const makePlayer = () =>
+    ({
+      username: 'admin1',
+      userId: USER_ID,
+      firstName: 'Admin',
+      lastName: 'One',
+      rating: 1500,
+      ratingUpdatedAt: 0,
+      level: 1,
+      matchesPlayed: 0,
+      wins: 0,
+      losses: 0,
+      createdAt: 1000,
+      updatedAt: 1000,
+    }) as never;
+
+  function makeMemberPayload(
+    dbUserOverrides: Record<string, unknown> = {},
+    opts: { admin?: boolean } = {},
+  ) {
+    return [
+      {
+        id: CLUB_UUID,
+        clubId: CLUB_ID,
+        name: 'Test Club',
+        logo: '',
+        status: 'published',
+        appState: {
+          matchmaking: makeServerState({
+            players: { admin1: makePlayer() },
+          }),
+        },
+        players: [
+          {
+            id: 'pj-1',
+            directus_users_id: {
+              id: USER_ID,
+              username: 'admin1',
+              first_name: 'Admin',
+              last_name: 'One',
+              email: 'a@test.com',
+              rating: 1500,
+              ...dbUserOverrides,
+            },
+          },
+        ],
+        admins: opts.admin
+          ? [
+              {
+                id: 'aj-1',
+                directus_users_id: { id: USER_ID, email: 'a@test.com' },
+              },
+            ]
+          : [],
+        moderators: [],
+      },
+    ];
+  }
+
+  it('no-op player merge does not call persist() or fire onStateChange', async () => {
+    mocks.request.mockResolvedValue(makeMemberPayload());
+    mocks.detectAdvantage.mockReturnValue(NO_FLAGS);
+    const persistSpy = vi.spyOn(MatchmakingApp, 'persist');
+    const onStateChangeSpy = vi.fn();
+    MatchmakingApp.onStateChange = onStateChangeSpy;
+
+    const { context } = makeContext();
+    const { loadClubData } = useClubData(context);
+    await loadClubData(CLUB_ID);
+
+    // The DB fields already match local state — nothing changed, so no
+    // saveState stamp and no cloud-sync arm. This is the regression guard
+    // for the guaranteed push-per-load bug.
+    expect(persistSpy).not.toHaveBeenCalled();
+    expect(onStateChangeSpy).not.toHaveBeenCalled();
+    persistSpy.mockRestore();
+  });
+
+  it('changed player merge calls persist() exactly once and fires onStateChange', async () => {
+    // first_name differs from the local player → mergePlayerFromDB reports
+    // changed=true → the adopted field must be persisted AND propagated.
+    mocks.request.mockResolvedValue(
+      makeMemberPayload({ first_name: 'Administrator' }),
+    );
+    mocks.detectAdvantage.mockReturnValue(NO_FLAGS);
+    const persistSpy = vi.spyOn(MatchmakingApp, 'persist');
+    const onStateChangeSpy = vi.fn();
+    MatchmakingApp.onStateChange = onStateChangeSpy;
+
+    const { context } = makeContext();
+    const { loadClubData } = useClubData(context);
+    await loadClubData(CLUB_ID);
+
+    expect(persistSpy).toHaveBeenCalledTimes(1);
+    expect(onStateChangeSpy).toHaveBeenCalledTimes(1);
+    expect(
+      (MatchmakingApp.state.players['admin1'] as { firstName?: string })
+        .firstName,
+    ).toBe('Administrator');
+    persistSpy.mockRestore();
+  });
+
+  it('dirty-privileged push stays armed even when the player merge is a no-op', async () => {
+    // Privileged + dirty (lastModified > lastSyncedServerTimestamp): the
+    // mergeEligible branch calls persist() BEFORE the player loop, so the
+    // needed push is armed regardless of the gate — and the no-op merge
+    // must not fire a second redundant persist. admins M2M makes the user
+    // privileged; resetMatchmakingState leaves lastModified=now > 0 synced.
+    mocks.request.mockResolvedValue(makeMemberPayload({}, { admin: true }));
+    mocks.detectAdvantage.mockReturnValue(NO_FLAGS);
+    const persistSpy = vi.spyOn(MatchmakingApp, 'persist');
+    const onStateChangeSpy = vi.fn();
+    MatchmakingApp.onStateChange = onStateChangeSpy;
+
+    const { context } = makeContext();
+    const { loadClubData } = useClubData(context);
+    await loadClubData(CLUB_ID);
+
+    // Exactly one persist — from the mergeEligible branch — and one
+    // onStateChange → debouncedCloudSync → the pending push still happens.
+    expect(persistSpy).toHaveBeenCalledTimes(1);
+    expect(onStateChangeSpy).toHaveBeenCalledTimes(1);
+    persistSpy.mockRestore();
+  });
+});

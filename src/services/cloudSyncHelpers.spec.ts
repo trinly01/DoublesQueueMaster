@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { reactive } from 'vue';
 import {
   shouldSkipSync,
   isNonAdmin,
@@ -575,5 +576,67 @@ describe('cloudSyncHelpers — jsonEqual', () => {
 
   it('returns true for both undefined', () => {
     expect(jsonEqual(undefined, undefined)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// collectionEqual / applyMergedState — reactive proxy fast-path (PR-A A3)
+// ---------------------------------------------------------------------------
+// MatchmakingApp.state is a reactive() object and mergeAppState reuses its
+// entity refs, so merge results carry reactive proxies. collectionEqual
+// must toRaw() BOTH sides or the pointer fast-path is defeated and every
+// unchanged entity falls through to 2× JSON.stringify.
+
+describe('cloudSyncHelpers — applyMergedState with reactive proxies', () => {
+  it('skips arrays whose elements are proxies of the same raw entity — no serialization', () => {
+    const entry = { id: 'q1', player: 'alice' };
+    const target = makeState({
+      queues: reactive([entry]) as unknown as AppState['queues'],
+    });
+    const merged = makeState({
+      queues: [reactive(entry)] as unknown as AppState['queues'],
+    });
+
+    const spy = vi.spyOn(JSON, 'stringify');
+    try {
+      const changed = applyMergedState(target, merged);
+      expect(changed).toBe(false);
+      // Both sides unwrap to the same raw entity → pointer fast-path,
+      // zero JSON.stringify calls.
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('skips dicts whose values are proxies of the same raw entity — no serialization', () => {
+    const alice = { username: 'alice', wins: 3 };
+    const target = makeState({
+      players: reactive({ alice }) as unknown as AppState['players'],
+    });
+    const merged = makeState({
+      players: { alice: reactive(alice) } as unknown as AppState['players'],
+    });
+
+    const spy = vi.spyOn(JSON, 'stringify');
+    try {
+      const changed = applyMergedState(target, merged);
+      expect(changed).toBe(false);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('still detects real differences through proxies', () => {
+    const target = makeState({
+      queues: reactive([{ id: 'q1', v: 1 }]) as unknown as AppState['queues'],
+    });
+    const merged = makeState({
+      queues: [reactive({ id: 'q1', v: 2 })] as unknown as AppState['queues'],
+    });
+
+    expect(applyMergedState(target, merged)).toBe(true);
+    expect(target.queues[0]).toEqual({ id: 'q1', v: 2 });
   });
 });

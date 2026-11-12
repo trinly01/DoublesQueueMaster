@@ -765,25 +765,7 @@
                           :winProbability="match.winProbability"
                           :startedAt="match.startedAt?.toString()"
                           :completedAt="match.completedAt"
-                          :meta="{
-                            generatedBy: match.generatedBy,
-                            editedBy: match.editedBy,
-                            scoredBy: match.scoredBy,
-                            cancelledBy: match.cancelledBy,
-                            matchmakingMode: match.matchmakingMode,
-                            generationType: match.generationType,
-                            isEdited: match.isEdited,
-                            editedAt: match.editedAt,
-                            originalMatchup: match.originalMatchup,
-                            originalTeamA: match.originalTeamA,
-                            originalTeamB: match.originalTeamB,
-                            createdAt: match.createdAt,
-                            updatedAt: match.updatedAt,
-                            duprStatus: getDuprStatus(match.id),
-                            duprError: getDuprError(match.id),
-                            ratingApplied: match.ratingApplied,
-                            ratingSkippedReason: match.ratingSkippedReason,
-                          }"
+                          :meta="match.meta"
                         />
                       </q-item-section>
                       <q-item-section side v-if="isCurrentUserAdmin">
@@ -1383,25 +1365,7 @@
                           :winProbability="match.winProbability"
                           :startedAt="match.startedAt?.toString()"
                           :completedAt="match.completedAt"
-                          :meta="{
-                            generatedBy: match.generatedBy,
-                            editedBy: match.editedBy,
-                            scoredBy: match.scoredBy,
-                            cancelledBy: match.cancelledBy,
-                            matchmakingMode: match.matchmakingMode,
-                            generationType: match.generationType,
-                            isEdited: match.isEdited,
-                            editedAt: match.editedAt,
-                            originalMatchup: match.originalMatchup,
-                            originalTeamA: match.originalTeamA,
-                            originalTeamB: match.originalTeamB,
-                            createdAt: match.createdAt,
-                            updatedAt: match.updatedAt,
-                            duprStatus: getDuprStatus(match.id),
-                            duprError: getDuprError(match.id),
-                            ratingApplied: match.ratingApplied,
-                            ratingSkippedReason: match.ratingSkippedReason,
-                          }"
+                          :meta="match.meta"
                         />
                       </q-item-section>
                       <q-item-section side v-if="isCurrentUserAdmin">
@@ -1726,7 +1690,8 @@ import {
   levelSeedRating,
   hasPremiumL1,
 } from '../services/matchmaking';
-import type { Player } from '../services/matchmaking';
+import type { Player, CompletedMatch } from '../services/matchmaking';
+import type { MatchMeta } from '../types/matchMeta';
 import { readItems, readMe } from '@likha-erp/likha-sdk';
 import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import { useAuth } from 'src/composables/useAuth';
@@ -2103,7 +2068,7 @@ const matches = computed(() => {
         username: u,
       }));
       const stats = computeWinProbability(teamA, teamB);
-      return {
+      const row = {
         id: m.matchId,
         teamA,
         teamB,
@@ -2141,6 +2106,7 @@ const matches = computed(() => {
           | 'unlinked_players'
           | undefined,
       };
+      return { ...row, meta: buildMatchMeta(row) };
     });
 });
 
@@ -2242,6 +2208,41 @@ function getDuprError(matchId: string): string | null {
   const key = getMatchKey(matchId);
   if (!key) return null;
   return duprSubmissionMap.value[key]?.error || null;
+}
+
+/**
+ * Builds the stable `meta` prop object consumed by MatchMetaChips (via
+ * MatchCard / MatchResult). Called once per view-model row inside the list
+ * computeds so the prop keeps identity across parent re-renders — the old
+ * inline `:meta="{...}"` template literals allocated a fresh object every
+ * render, forcing every visible row to re-render on any state mutation.
+ * `duprMatchId` is only passed for completed matches (the only rows that can
+ * carry DUPR submission state); omitting it keeps the active/cancelled VMs
+ * free of completedMatchKeyMap/duprSubmissionMap dependencies.
+ */
+function buildMatchMeta(row: MatchMeta, duprMatchId?: string): MatchMeta {
+  const meta: MatchMeta = {
+    generatedBy: row.generatedBy,
+    editedBy: row.editedBy,
+    scoredBy: row.scoredBy,
+    cancelledBy: row.cancelledBy,
+    matchmakingMode: row.matchmakingMode,
+    generationType: row.generationType,
+    isEdited: row.isEdited,
+    editedAt: row.editedAt,
+    originalMatchup: row.originalMatchup,
+    originalTeamA: row.originalTeamA,
+    originalTeamB: row.originalTeamB,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    ratingApplied: row.ratingApplied,
+    ratingSkippedReason: row.ratingSkippedReason,
+  };
+  if (duprMatchId) {
+    meta.duprStatus = getDuprStatus(duprMatchId);
+    meta.duprError = getDuprError(duprMatchId);
+  }
+  return meta;
 }
 
 /**
@@ -2857,18 +2858,9 @@ stopRealtimeFn = stopRealtime;
 
 const isCurrentUserAdmin = computed(() => {
   if (isOpenPlay.value) return true;
-  const isAdmin = clubMembers.value.some(
+  return clubMembers.value.some(
     (m) => m.id === currentUserId.value && m.isAdmin,
   );
-  console.log(
-    'isCurrentUserAdmin:',
-    isAdmin,
-    'currentUserId:',
-    currentUserId.value,
-    'clubMembers:',
-    clubMembers.value,
-  );
-  return isAdmin;
 });
 watch(isCurrentUserAdmin, (val) => setAdminMode(val), { immediate: true });
 
@@ -2929,26 +2921,9 @@ watch(currentClubId, () => {
 
 const isCurrentUserModerator = computed(() => {
   if (isOpenPlay.value) return false;
-  const mod = clubMembers.value.find(
+  return !!clubMembers.value.find(
     (m) => m.id === currentUserId.value && m.isModerator,
   );
-  console.log(
-    'isCurrentUserModerator:',
-    !!mod,
-    'currentUserId:',
-    currentUserId.value,
-    'clubModeratorIds:',
-    clubModeratorIds.value,
-    'clubMembers with isModerator:',
-    clubMembers.value
-      .filter((m) => m.isModerator)
-      .map((m) => ({
-        id: m.id,
-        firstName: m.firstName,
-        isModerator: m.isModerator,
-      })),
-  );
-  return !!mod;
 });
 const canManageSession = computed(
   () => isCurrentUserAdmin.value || isCurrentUserModerator.value,
@@ -2996,13 +2971,6 @@ const {
   currentUserId,
   currentUserName,
 });
-watch(
-  _adminMatchStatsComputed,
-  (val) => {
-    _adminMatchStats.value = val;
-  },
-  { immediate: true },
-);
 
 // Leaderboard composable — extracted fetch/cache logic
 const {
@@ -3584,7 +3552,6 @@ onMounted(async () => {
 
   if (!isOpenPlay.value) {
     // Fetch payment settings
-    console.log('fetching settings');
     void fetchPaymentSettings();
 
     // Fetch current user in background (don't block page load)
@@ -3733,6 +3700,23 @@ watch([showSettingsDialog, settingsTab], ([showDialog, tab]) => {
     void refreshClubInfo().then(() => populateEditClubFields());
   }
 });
+
+// adminMatchStats scans completedMatches + activeMatches + actionLogs
+// (O(700) entities). The getter short-circuits unless the Settings dialog
+// is open on the Club tab — the only place MemberMatchStats renders — so
+// the computed's deps stay unsubscribed and no scan runs while it's closed.
+// (Declared here rather than next to useClubMembers because showSettingsDialog
+// / settingsTab are defined above this point.)
+watch(
+  () =>
+    showSettingsDialog.value && settingsTab.value === 'club'
+      ? _adminMatchStatsComputed.value
+      : undefined,
+  (val) => {
+    _adminMatchStats.value = val ?? {};
+  },
+  { immediate: true },
+);
 
 watch(showLeaderboardDialog, (open) => {
   if (open) {
@@ -3994,7 +3978,7 @@ const cancelledMatches = computed(() => {
         username: u,
       }));
       const stats = computeWinProbability(teamA, teamB);
-      return {
+      const row = {
         id: m.matchId,
         teamA,
         teamB,
@@ -4019,55 +4003,130 @@ const cancelledMatches = computed(() => {
         originalTeamB: m.originalTeamB,
         updatedAt: m.updatedAt,
       };
+      return { ...row, meta: buildMatchMeta(row) };
     });
 });
 
-const completedMatchViewModels = computed(() => {
-  return MatchmakingApp.state.completedMatches.map((m, index) => {
-    const teamA = m.teamA.map((p) => ({
-      ...p,
-      username: p.username,
-    }));
-    const teamB = m.teamB.map((p) => ({
-      ...p,
-      username: p.username,
-    }));
-    const stats = computeWinProbability(
-      teamA as unknown as Player[],
-      teamB as unknown as Player[],
-    );
-    return {
-      id: m.matchId,
-      teamA,
-      teamB,
-      players: [...teamA, ...teamB],
-      expectedDifference: stats.expectedDifference,
-      winProbability: stats.teamA,
-      status: 'completed' as const,
-      teamAScore: m.teamAScore,
-      teamBScore: m.teamBScore,
-      completedAt: new Date(m.completedAt).toISOString(),
-      court: undefined,
-      order: index + 1,
-      createdAt: new Date(m.completedAt || m.updatedAt || 0),
-      startedAt: m.startedAt ? new Date(m.startedAt).toISOString() : undefined,
-      queueSource: undefined,
-      generatedBy: m.meta?.generatedBy,
-      editedBy: m.meta?.editedBy,
-      scoredBy: m.meta?.scoredBy,
-      cancelledBy: undefined,
-      matchmakingMode: m.meta?.matchmakingMode,
-      generationType: m.meta?.generationType,
-      isEdited: m.meta?.isEdited,
-      editedAt: m.meta?.editedAt,
-      originalMatchup: m.meta?.originalMatchup,
-      originalTeamA: m.meta?.originalTeamA,
-      originalTeamB: m.meta?.originalTeamB,
-      ratingApplied: m.meta?.ratingApplied,
-      ratingSkippedReason: m.meta?.ratingSkippedReason,
-    };
-  });
-});
+// Completed-match view models are the expensive rows (≤500 ×
+// computeWinProbability + per-row meta lookups). As a plain computed they
+// rebuilt synchronously on every completedMatches mutation while the
+// Completed/Edited filter was active — a ~0.5-2s freeze at the cap. They are
+// now rebuilt off the sync path in setTimeout chunks, and only while a
+// filter that actually displays them is selected.
+const buildCompletedMatchViewModel = (m: CompletedMatch, index: number) => {
+  const teamA = m.teamA.map((p) => ({
+    ...p,
+    username: p.username,
+  }));
+  const teamB = m.teamB.map((p) => ({
+    ...p,
+    username: p.username,
+  }));
+  const stats = computeWinProbability(
+    teamA as unknown as Player[],
+    teamB as unknown as Player[],
+  );
+  const row = {
+    id: m.matchId,
+    teamA,
+    teamB,
+    players: [...teamA, ...teamB],
+    expectedDifference: stats.expectedDifference,
+    winProbability: stats.teamA,
+    status: 'completed' as const,
+    teamAScore: m.teamAScore,
+    teamBScore: m.teamBScore,
+    completedAt: new Date(m.completedAt).toISOString(),
+    court: undefined,
+    order: index + 1,
+    createdAt: new Date(m.completedAt || m.updatedAt || 0),
+    startedAt: m.startedAt ? new Date(m.startedAt).toISOString() : undefined,
+    queueSource: undefined,
+    generatedBy: m.meta?.generatedBy,
+    editedBy: m.meta?.editedBy,
+    scoredBy: m.meta?.scoredBy,
+    cancelledBy: undefined,
+    matchmakingMode: m.meta?.matchmakingMode,
+    generationType: m.meta?.generationType,
+    isEdited: m.meta?.isEdited,
+    editedAt: m.meta?.editedAt,
+    originalMatchup: m.meta?.originalMatchup,
+    originalTeamA: m.meta?.originalTeamA,
+    originalTeamB: m.meta?.originalTeamB,
+    ratingApplied: m.meta?.ratingApplied,
+    ratingSkippedReason: m.meta?.ratingSkippedReason,
+  };
+  return { ...row, meta: buildMatchMeta(row, m.matchId) };
+};
+type CompletedMatchViewModel = ReturnType<typeof buildCompletedMatchViewModel>;
+
+const completedMatchViewModels = ref<CompletedMatchViewModel[]>([]);
+
+const COMPLETED_VM_CHUNK = 100;
+let completedVmBuilding = false;
+let completedVmDirty = false;
+
+function scheduleCompletedMatchViewModels() {
+  if (completedVmBuilding) {
+    // A rebuild is already running — flag it so the loop picks up the
+    // newest source snapshot instead of dropping this change.
+    completedVmDirty = true;
+    return;
+  }
+  completedVmBuilding = true;
+  void (async () => {
+    try {
+      let src = MatchmakingApp.state.completedMatches;
+      let srcLen = src.length;
+      for (;;) {
+        completedVmDirty = false;
+        const rows = new Array<CompletedMatchViewModel>(srcLen);
+        for (let i = 0; i < srcLen; i += COMPLETED_VM_CHUNK) {
+          const end = Math.min(i + COMPLETED_VM_CHUNK, srcLen);
+          for (let j = i; j < end; j++) {
+            rows[j] = buildCompletedMatchViewModel(src[j], j);
+          }
+          if (end < srcLen) {
+            // Yield between chunks so a 500-row rebuild never blocks a frame.
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+          }
+        }
+        // Atomic swap — the list never renders a half-built array.
+        completedMatchViewModels.value = rows;
+        const now = MatchmakingApp.state.completedMatches;
+        if (!completedVmDirty && now === src && now.length === srcLen) break;
+        src = now;
+        srcLen = now.length;
+      }
+    } finally {
+      completedVmBuilding = false;
+    }
+  })();
+}
+
+// Rebuild triggers: the completedMatches collection (array identity covers
+// merge/reset replacement, length covers push), the DUPR key/submission maps
+// feeding meta.duprStatus/duprError, and the filter itself — the intent
+// gate keeps 'all'/'in-progress'/'waiting'/'cancelled' from ever paying
+// for rows they don't display.
+watch(
+  () => [
+    MatchmakingApp.state.completedMatches,
+    MatchmakingApp.state.completedMatches.length,
+    completedMatchKeyMap.value,
+    duprSubmissionMap.value,
+    matchesFilterBy.value,
+  ],
+  () => {
+    if (
+      matchesFilterBy.value === 'completed' ||
+      matchesFilterBy.value === 'edited'
+    ) {
+      scheduleCompletedMatchViewModels();
+    }
+  },
+  { immediate: true },
+);
 
 const waitingMatches = computed(() =>
   filteredMatches.value.filter((m) => m.status === 'waiting'),
@@ -4080,6 +4139,24 @@ const desktopMatches = computed(() =>
     ? filteredMatches.value
     : filteredMatches.value.filter((m) => m.status !== 'waiting'),
 );
+
+// Epoch parsing for sort keys — replaces the comparator's per-comparison
+// `new Date(v)` allocations. Date.parse matches new Date(str).getTime() for
+// strings, numbers pass through, and NaN propagates exactly like before
+// (?? fallbacks only trigger on null/undefined, never on NaN).
+const epochOf = (v?: Date | string | number | null): number | undefined => {
+  if (v == null) return undefined;
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === 'number') return v;
+  return Date.parse(v);
+};
+
+const MATCH_STATUS_ORDER: Record<string, number> = {
+  'in-progress': 0,
+  waiting: 1,
+  cancelled: 2,
+  completed: 3,
+};
 
 const filteredMatches = computed(() => {
   let filtered: typeof matches.value;
@@ -4106,16 +4183,22 @@ const filteredMatches = computed(() => {
     );
   }
 
-  // Sort by status: in-progress first, then waiting, then cancelled, then completed
-  filtered = [...filtered].sort((a, b) => {
-    const statusOrder: Record<string, number> = {
-      'in-progress': 0,
-      waiting: 1,
-      cancelled: 2,
-      completed: 3,
-    };
+  // Sort by status: in-progress first, then waiting, then cancelled, then completed.
+  // Decorate-sort-undecorate: each row's sort timestamps are parsed once up
+  // front — the old comparator allocated a Date per operand per comparison
+  // (~4.5k allocs @ 500 completed rows) plus a fresh statusOrder map per call.
+  const decorated = filtered.map((row) => ({
+    row,
+    created: epochOf(row.createdAt) ?? 0,
+    edited: epochOf(row.editedAt),
+    updated: epochOf(row.updatedAt),
+    completed: epochOf(row.completedAt),
+    started: epochOf(row.startedAt),
+  }));
+  decorated.sort((a, b) => {
     const statusDiff =
-      (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+      (MATCH_STATUS_ORDER[a.row.status] ?? 99) -
+      (MATCH_STATUS_ORDER[b.row.status] ?? 99);
     if (statusDiff !== 0) return statusDiff;
 
     // FIFO by each status's applicable date:
@@ -4125,35 +4208,26 @@ const filteredMatches = computed(() => {
     //   edited → editedAt — history views show newest first.
     // Queue-priority settings only affect who gets drafted into a match,
     // not the order of matches that already exist.
-    const time = (v?: Date | string | number): number | undefined =>
-      v instanceof Date
-        ? v.getTime()
-        : v != null
-          ? new Date(v).getTime()
-          : undefined;
-    const aCreated = a.createdAt.getTime();
-    const bCreated = b.createdAt.getTime();
     let diff: number;
     if (matchesFilterBy.value === 'edited') {
-      diff = (time(b.editedAt) ?? bCreated) - (time(a.editedAt) ?? aCreated);
-    } else if ((a.status as string) === 'cancelled') {
-      diff = (time(b.updatedAt) ?? bCreated) - (time(a.updatedAt) ?? aCreated);
-    } else if ((a.status as string) === 'completed') {
-      diff =
-        (time(b.completedAt) ?? bCreated) - (time(a.completedAt) ?? aCreated);
-    } else if ((a.status as string) === 'in-progress') {
-      diff = (time(a.startedAt) ?? aCreated) - (time(b.startedAt) ?? bCreated);
+      diff = (b.edited ?? b.created) - (a.edited ?? a.created);
+    } else if ((a.row.status as string) === 'cancelled') {
+      diff = (b.updated ?? b.created) - (a.updated ?? a.created);
+    } else if ((a.row.status as string) === 'completed') {
+      diff = (b.completed ?? b.created) - (a.completed ?? a.created);
+    } else if ((a.row.status as string) === 'in-progress') {
+      diff = (a.started ?? a.created) - (b.started ?? b.created);
     } else {
       // Waiting matches: canonical FIFO — createdAt asc, same-batch ties by
       // queue-priority fields, id last. Shared with merge/auto-advance so all
       // clients render the identical next-in-line order.
-      return compareWaitingMatches(a, b, queuePriorityMode.value);
+      return compareWaitingMatches(a.row, b.row, queuePriorityMode.value);
     }
     if (diff !== 0) return diff;
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    return a.row.id < b.row.id ? -1 : a.row.id > b.row.id ? 1 : 0;
   });
 
-  return filtered;
+  return decorated.map((d) => d.row);
 });
 
 // Filter options with per-status counts appended to the label.

@@ -207,26 +207,47 @@ let serverDateUpdated = INITIAL_DATE_UPDATED;
 // in the read→PATCH gap); 'always' does it on every write.
 let casConflictMode: 'never' | 'once' | 'always' = 'never';
 let writeSeq = 0;
-// When true, full reads omit date_updated → verify probe has no CAS token.
+// When true, reads omit date_updated → verify probe has no CAS token.
 let suppressDateUpdated = false;
+// Slim CAS-probe failure injection (PR-B B2): the probe reads
+// ['date_updated', 'json(appState,matchmaking.lastModified)'] — a
+// timestamp-shaped read that also asks for date_updated.
+//   'throw'         → the request rejects (json() alias unsupported)
+//   'omitTimestamp' → row returns without the json alias key (probe's
+//                     lastModified stays undefined → blob fallback)
+let casProbeMode: 'normal' | 'throw' | 'omitTimestamp' = 'normal';
 
 const isTimestampRead = (op: ReadOp): boolean =>
   (op.opts?.fields ?? []).some(
     (f) => typeof f === 'string' && f.startsWith('json('),
   );
+// The CAS slim probe is the only timestamp-shaped read that also asks for
+// date_updated (step-1 lightweight read + staleness poll use json() alone).
+const isCasProbeRead = (op: ReadOp): boolean =>
+  isTimestampRead(op) &&
+  (op.opts?.fields ?? []).includes('date_updated');
 const isFullRead = (op: ReadOp): boolean =>
   (op.opts?.fields ?? []).includes('appState');
 
 function defaultRead(op: ReadOp): unknown {
   if (isTimestampRead(op)) {
-    return [
-      {
-        appState_matchmaking_lastModified_json:
-          timestampQueue.length > 0
-            ? timestampQueue.shift()
-            : serverTimestamp,
-      },
-    ];
+    const isCasProbe = isCasProbeRead(op);
+    if (isCasProbe && casProbeMode === 'omitTimestamp') {
+      // json() alias key absent → probe.lastModified undefined.
+      return [
+        suppressDateUpdated ? {} : { date_updated: serverDateUpdated },
+      ];
+    }
+    const row: Record<string, unknown> = {
+      appState_matchmaking_lastModified_json:
+        timestampQueue.length > 0
+          ? timestampQueue.shift()
+          : serverTimestamp,
+    };
+    if (isCasProbe && !suppressDateUpdated) {
+      row.date_updated = serverDateUpdated;
+    }
+    return [row];
   }
   if (isFullRead(op)) {
     const row: Record<string, unknown> = {
@@ -267,6 +288,7 @@ beforeEach(() => {
   casConflictMode = 'never';
   writeSeq = 0;
   suppressDateUpdated = false;
+  casProbeMode = 'normal';
   mocks.beforeLogoutHooks.length = 0;
 
   mocks.readItems.mockImplementation(
@@ -322,7 +344,11 @@ beforeEach(() => {
       }
       return {};
     }
-    return defaultRead(op as ReadOp);
+    const readOp = op as ReadOp;
+    if (casProbeMode === 'throw' && isCasProbeRead(readOp)) {
+      throw new Error('json() field function unsupported');
+    }
+    return defaultRead(readOp);
   });
 });
 
@@ -1153,12 +1179,12 @@ describe('useCloudSync — CAS precondition', () => {
 
     // A concurrent writer lands between our verify read and the PATCH.
     casConflictMode = 'once';
-    // Reads in order: initial merge read → verify probe → retry probe.
-    // lastModified stays 100 throughout so the timestamp compare alone
-    // would NOT merge — only the forced post-conflict merge adopts the
-    // reset advantage carried by the retry probe.
+    // Full reads in order: initial merge read → CAS-retry blob fallback.
+    // The slim CAS probes (json()+date_updated) don't consume the blob
+    // queue; lastModified stays 100 throughout so the timestamp compare
+    // alone would NOT merge — only the forced post-conflict merge adopts
+    // the reset advantage carried by the retry blob.
     fullQueue = [
-      makeState({ lastModified: 100 }),
       makeState({ lastModified: 100 }),
       makeState({
         lastModified: 100,
@@ -1348,6 +1374,339 @@ describe('useCloudSync — realtime role fields', () => {
     );
     expect(refs.loadClubData).not.toHaveBeenCalled();
     expect(metaVerified()).toBe(true);
+  });
+});
+
+// ===========================================================================
+// useCloudSync — realtime appState coalescing (PR-B B1)
+// ===========================================================================
+
+describe('useCloudSync — realtime coalescing', () => {
+  const adminJunction = (id: string) => ({ directus_users_id: { id } });
+
+  function mockSubscriptionSequence(messages: unknown[]) {
+    mocks.subscribe.mockImplementation(async () => ({
+      subscription: (async function* () {
+        for (const m of messages) yield m;
+        await new Promise(() => {}); // keep the stream open
+      })(),
+      unsubscribe: vi.fn(),
+    }));
+  }
+
+  function setupRealtime() {
+    seedVerifiedMeta('clubA', ['admin1'], []);
+    const refs = makeCtx();
+    const sync = useCloudSync(refs as unknown as CloudSyncContext);
+    sync.isOnline.value = true;
+    return { refs, sync };
+  }
+
+  const appStateMsg = (
+    matchmaking: AppState,
+    extra: Record<string, unknown> = {},
+  ) => ({
+    type: 'subscription',
+    event: 'update',
+    data: [{ id: 'uuid-A', appState: { matchmaking }, ...extra }],
+  });
+
+  const roleAppStateMsg = (
+    admins: unknown[],
+    moderators: unknown[],
+    lastModified: number,
+  ) =>
+    appStateMsg(makeState({ lastModified }), {
+      admins,
+      moderators,
+    });
+
+  const metaVerified = () =>
+    (
+      LocalStorage.getItem('club_meta_clubA') as {
+        verified?: boolean;
+      } | null
+    )?.verified;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it('selects by MAX lastModified, not arrival order (echo edge case)', async () => {
+    // Remote write W (ts=300) arrives FIRST, then our own push echo E
+    // (ts=100 == lastSynced) lands in the same window. Last-arrived-wins
+    // would buffer E — applyServerMatchmaking then echo-suppresses it and
+    // W is lost entirely. Max-ts keeps W.
+    const remoteW = makeState({
+      lastModified: 300,
+      queues: [{ id: 'remoteW', updatedAt: 300 } as never],
+    });
+    const ownEcho = makeState({ lastModified: 100 });
+    mockSubscriptionSequence([appStateMsg(remoteW), appStateMsg(ownEcho)]);
+    const { refs, sync } = setupRealtime();
+    refs.lastSyncedServerTimestamp.value = 100; // S — echo ts matches
+
+    await sync.startRealtime();
+    await vi.advanceTimersByTimeAsync(60); // receipt + 50ms flush window
+
+    expect(refs.lastSyncedServerTimestamp.value).toBe(300);
+    const queueIds = (
+      MatchmakingApp.state.queues as unknown as Array<{ id: string }>
+    ).map((q) => q.id);
+    expect(queueIds).toContain('remoteW');
+  });
+
+  it('coalesces a burst into a single newest-wins apply', async () => {
+    const persistSpy = vi.spyOn(MatchmakingApp, 'persistSilently');
+    mockSubscriptionSequence([
+      appStateMsg(
+        makeState({
+          lastModified: 200,
+          queues: [{ id: 'q200', updatedAt: 200 } as never],
+        }),
+      ),
+      appStateMsg(
+        makeState({
+          lastModified: 300,
+          queues: [{ id: 'q300', updatedAt: 300 } as never],
+        }),
+      ),
+      // Older payload arriving last must not displace the max-ts winner.
+      appStateMsg(
+        makeState({
+          lastModified: 100,
+          queues: [{ id: 'q100', updatedAt: 100 } as never],
+        }),
+      ),
+    ]);
+    const { refs, sync } = setupRealtime();
+
+    await sync.startRealtime();
+    await vi.advanceTimersByTimeAsync(60);
+
+    expect(refs.lastSyncedServerTimestamp.value).toBe(300);
+    const queueIds = (
+      MatchmakingApp.state.queues as unknown as Array<{ id: string }>
+    ).map((q) => q.id);
+    expect(queueIds).toEqual(['q300']);
+    // One flush — not one apply per message.
+    expect(persistSpy).toHaveBeenCalledTimes(1);
+    persistSpy.mockRestore();
+  });
+
+  it('does not apply anything before the trailing window elapses', async () => {
+    mockSubscriptionSequence([
+      appStateMsg(
+        makeState({
+          lastModified: 500,
+          queues: [{ id: 'q500', updatedAt: 500 } as never],
+        }),
+      ),
+    ]);
+    const { refs, sync } = setupRealtime();
+
+    await sync.startRealtime();
+    await vi.advanceTimersByTimeAsync(10); // inside the 50ms window
+    expect(refs.lastSyncedServerTimestamp.value).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(50); // window elapses → flush
+    expect(refs.lastSyncedServerTimestamp.value).toBe(500);
+  });
+
+  it('flushes the buffered payload immediately on the pagehide/visibilitychange path', async () => {
+    mockSubscriptionSequence([
+      appStateMsg(
+        makeState({
+          lastModified: 700,
+          queues: [{ id: 'q700', updatedAt: 700 } as never],
+        }),
+      ),
+    ]);
+    const { refs, sync } = setupRealtime();
+
+    await sync.startRealtime();
+    await vi.advanceTimersByTimeAsync(10); // received; window not elapsed
+    expect(refs.lastSyncedServerTimestamp.value).toBe(0);
+
+    // handlePageHide / handleVisibilityChange both call this — timers are
+    // unreliable in hidden tabs so the flush cannot wait for the window.
+    sync.flushRealtimeMatchmaking();
+    expect(refs.lastSyncedServerTimestamp.value).toBe(700);
+  });
+
+  it('handles role-field diffs per-message at receipt, ahead of the flush', async () => {
+    mockSubscriptionSequence([
+      roleAppStateMsg([adminJunction('admin1')], [], 1), // baseline
+      roleAppStateMsg([], [adminJunction('mod1')], 2), // admin→mod change
+    ]);
+    const { refs, sync } = setupRealtime();
+
+    await sync.startRealtime();
+    // 10ms — inside the coalesce window: appState is still buffered, but
+    // the role diff already ran at RECEIPT.
+    await vi.advanceTimersByTimeAsync(10);
+    expect(refs.loadClubData).toHaveBeenCalledWith('clubA');
+    expect(metaVerified()).toBe(false);
+    expect(refs.lastSyncedServerTimestamp.value).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(50);
+    // Max-ts appState (lm=2) applied on flush.
+    expect(refs.lastSyncedServerTimestamp.value).toBe(2);
+  });
+
+  it('stamps stream health on receipt — the coalesce window is not staleness', async () => {
+    mockSubscriptionSequence([
+      roleAppStateMsg([adminJunction('admin1')], [], 1), // baseline
+      roleAppStateMsg([], [adminJunction('mod1')], 2), // receipt proof
+    ]);
+    const { refs, sync } = setupRealtime();
+
+    await sync.startRealtime();
+    await vi.advanceTimersByTimeAsync(10);
+    // Receipt proven: the role handler ran (it fires before buffering).
+    expect(refs.loadClubData).toHaveBeenCalledWith('clubA');
+    // The 50ms flush has NOT run — lastSynced still 0 — yet the poll must
+    // see a healthy stream because lastRealtimeMessageAt stamped on receipt.
+    expect(refs.lastSyncedServerTimestamp.value).toBe(0);
+    mocks.request.mockClear();
+    await sync.pollServerState();
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
+
+  it('non-appState messages bypass the buffer without clearing it', async () => {
+    mockSubscriptionSequence([
+      appStateMsg(
+        makeState({
+          lastModified: 400,
+          queues: [{ id: 'q400', updatedAt: 400 } as never],
+        }),
+      ),
+      // Stripped payload — no appState.matchmaking. Must neither enter the
+      // buffer nor evict the pending max-ts payload.
+      {
+        type: 'subscription',
+        event: 'update',
+        data: [{ id: 'uuid-A' }],
+      },
+      appStateMsg(
+        makeState({
+          lastModified: 500,
+          queues: [{ id: 'q500', updatedAt: 500 } as never],
+        }),
+      ),
+    ]);
+    const { refs, sync } = setupRealtime();
+
+    await sync.startRealtime();
+    await vi.advanceTimersByTimeAsync(60);
+
+    expect(refs.lastSyncedServerTimestamp.value).toBe(500);
+    const queueIds = (
+      MatchmakingApp.state.queues as unknown as Array<{ id: string }>
+    ).map((q) => q.id);
+    expect(queueIds).toEqual(['q500']);
+  });
+});
+
+// ===========================================================================
+// useCloudSync — CAS slim probe (PR-B B2)
+// ===========================================================================
+
+describe('useCloudSync — CAS slim probe', () => {
+  function setupCasProbeSync() {
+    seedVerifiedMeta('clubA', ['admin1'], []);
+    const refs = makeCtx();
+    const sync = useCloudSync(refs as unknown as CloudSyncContext);
+    sync.isOnline.value = true;
+    return { refs, sync };
+  }
+
+  const readFieldSets = () =>
+    mocks.readItems.mock.calls.map(
+      (c) =>
+        (((c[1] as { fields?: unknown[] } | undefined)?.fields ??
+          []) as unknown[]),
+    );
+  // Reads shaped like the slim CAS probe: date_updated + json() alias.
+  const slimProbeReads = () =>
+    readFieldSets().filter(
+      (f) =>
+        f.includes('date_updated') &&
+        f.some((x) => typeof x === 'string' && x.startsWith('json(')),
+    );
+  // Reads that fetch the appState blob (step-1 merge read, CAS blob
+  // fallback, full-probe fallback, poll pull).
+  const blobReads = () =>
+    readFieldSets().filter((f) => f.includes('appState'));
+
+  it('verifies with the slim probe — no appState blob read when unchanged', async () => {
+    const { refs, sync } = setupCasProbeSync();
+    refs.lastSyncedServerTimestamp.value = 100;
+    serverMatchmaking = makeState({ lastModified: 100 });
+    serverTimestamp = 100;
+
+    await sync.performCloudSync();
+
+    expect(writeCalls).toHaveLength(1);
+    expect(writeCalls[0].casToken).toBe(INITIAL_DATE_UPDATED);
+    // Step-1 (realtime inactive) does the only blob read; the CAS verify
+    // must not re-fetch appState — the slim probe covers token+moved-check.
+    expect(blobReads()).toHaveLength(1);
+    expect(slimProbeReads().length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('fetches the full blob only when the probe timestamp moved', async () => {
+    const { refs, sync } = setupCasProbeSync();
+    refs.lastSyncedServerTimestamp.value = 100;
+    serverTimestamp = 300; // slim probe reports the server moved
+    // Step-1 blob read → lm 200; CAS blob fallback → lm 300 carrying a
+    // reset advantage the verify re-merge must adopt (hook c path).
+    fullQueue = [
+      makeState({ lastModified: 200 }),
+      makeState({
+        lastModified: 300,
+        queuesResetAt: 9000,
+        queues: [],
+      }),
+    ];
+
+    await sync.performCloudSync();
+
+    expect(writeCalls).toHaveLength(1);
+    // Exactly two blob reads: step-1 merge read + CAS blob fallback.
+    expect(blobReads()).toHaveLength(2);
+    expect(MatchmakingApp.state.queuesResetAt).toBe(9000);
+  });
+
+  it('falls back to the full probe when the slim probe request fails', async () => {
+    const { refs, sync } = setupCasProbeSync();
+    refs.lastSyncedServerTimestamp.value = 100;
+    serverMatchmaking = makeState({ lastModified: 100 });
+    serverTimestamp = 100;
+    casProbeMode = 'throw'; // json() alias rejected outright
+
+    await sync.performCloudSync();
+
+    // Full-probe fallback still yields the CAS token → push lands.
+    expect(writeCalls).toHaveLength(1);
+    expect(writeCalls[0].casToken).toBe(INITIAL_DATE_UPDATED);
+    // Step-1 blob read + the fallback probe's appState+date_updated read.
+    expect(blobReads().length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('falls back to the blob read when the json() alias is absent', async () => {
+    const { refs, sync } = setupCasProbeSync();
+    refs.lastSyncedServerTimestamp.value = 100;
+    serverMatchmaking = makeState({ lastModified: 100 });
+    serverTimestamp = 100;
+    casProbeMode = 'omitTimestamp'; // probe row lacks the alias key
+
+    await sync.performCloudSync();
+
+    expect(writeCalls).toHaveLength(1);
+    expect(writeCalls[0].casToken).toBe(INITIAL_DATE_UPDATED);
+    // probe.lastModified undefined → blob required → second blob read.
+    expect(blobReads()).toHaveLength(2);
   });
 });
 

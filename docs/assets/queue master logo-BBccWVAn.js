@@ -1,0 +1,1 @@
+var e=`/assets/queue%20master%20logo-Bf98LDUx.png`;export{e as t};

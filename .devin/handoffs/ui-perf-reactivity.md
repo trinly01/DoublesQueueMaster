@@ -1,0 +1,14 @@
+# UI Perf — Reactivity & State-Side (ClubPage)
+
+## Findings
+1. **HIGH — Per-realtime-message synchronous pipeline, no batching.** Every WS msg carries full appState (useCloudSync.ts:886-895) → applyServerMatchmaking runs merge/6×collectionEqual (~1MB stringify; cloudSyncHelpers.ts:261-317) + persistSilently→sync LocalStorage.set whole state (:827→matchmaking.ts:160) + enforce scans (:730-731). Burst of msgs = back-to-back ~20-50ms main-thread blocks + full render.
+2. **HIGH — collectionEqual proxy asymmetry defeats ref fast-path.** toRaw only on `a` side (cloudSyncHelpers.ts:299,310); `b` holds reactive proxies from mergeAppState ref-reuse (matchmaking.ts:1946-1994) → `av!==bv` → 2× JSON.stringify per unchanged entity, every merge/message. completedMatches(500) dominates.
+3. **HIGH — Whole-collection replacement on any diff.** mergeAppState emits new containers (matchmaking.ts:1914,2255,2618); applyMergedState assigns whole key (cloudSyncHelpers.ts:324-330) → new identity → ~15-20 computeds invalidate → full column re-render. One player edit = players+queue+matches+displayPlayers cascade (ClubPage.vue:1836-2145,3894-4070).
+4. **HIGH — saveState sweep suite per mutation + stacked calls.** ~10 O(state) passes every call (matchmaking.ts:173-338); addAllPlayersToQueue=2N (:564-576 usePlayerActions), manual match=5 (useManualSelection.ts:304-305), match edit=~5 (useMatchActions.ts:816-817,933), complete=1+courts (:474,490-499→:355), settings=2 (ClubPage.vue:3700-3729).
+5. **MED — Deep reactive() whole blob.** matchmaking.ts:98; no shallowReactive/markRaw. Stats checkpoint purge writes every stale player each saveState when statsResetAt>0 (:279-289) → invalidates all player computeds per call. checkInPlayer reassigns queues unconditionally (:644-649).
+6. **MED — Push path serializes blob 3×.** CAS probe full appState read (useCloudSync.ts:203-223) + PATCH stringify whole reactive state (:425-442) + up to 2 mergeAppState/applyMergedState (:344-357,:389-401), 1.5s after edits (:1069-1078).
+7. **LOW — mergeAppState O(M²).** `localMatches.find/serverMatches.find` per matchId (matchmaking.ts:2209-2213) — small M. JSON.stringify tiebreaks :1944,2149,2199,2294.
+8. **LOW — No cross-tab writers.** No storage listeners; LS keys only via flushPersist/saveToClubCache (:160,429,437,476-477).
+
+## Verdict
+**State-side is the primary driver**: every realtime message and every mutation burst runs synchronous full-blob merge + ~1MB JSON.stringify compares + full LocalStorage write on the main thread; bulk actions multiply saveState sweeps. Render-side (unvirtualized lists × invalidated computeds — see ui-perf-data.md) amplifies each applied change. Top fixes: batch realtime applies (rAF/50ms), toRaw both sides of collectionEqual, per-entity apply instead of whole-key, move flushPersist off persistSilently, batch/bulk saveState.

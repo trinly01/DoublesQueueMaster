@@ -22,6 +22,93 @@ export type ClubSettingsSort =
   | 'ratingDesc'
   | 'ratingAsc';
 
+/** Per-admin/moderator activity counters shown on the settings chips. */
+export interface AdminMatchStatEntry {
+  total: number;
+  auto: number;
+  manual: number;
+  edited: number;
+  scored: number;
+  cancelled: number;
+  checkIns: number;
+  checkOuts: number;
+  playerRemovals: number;
+}
+
+export type AdminMatchStats = Record<string, AdminMatchStatEntry>;
+
+/**
+ * Scan completedMatches + activeMatches + actionLogs and aggregate per-admin
+ * activity counters. O(#completed + #active + #actionLogs) — call only when
+ * a consumer actually needs the stats (see adminMatchStatsEnabled gate).
+ */
+export const computeAdminMatchStats = (): AdminMatchStats => {
+  const stats: AdminMatchStats = {};
+  const ensureStat = (name: string) => {
+    if (!stats[name])
+      stats[name] = {
+        total: 0,
+        auto: 0,
+        manual: 0,
+        edited: 0,
+        scored: 0,
+        cancelled: 0,
+        checkIns: 0,
+        checkOuts: 0,
+        playerRemovals: 0,
+      };
+  };
+  const completed = MatchmakingApp.state.completedMatches;
+  for (const m of completed) {
+    const admin = m.meta?.generatedBy;
+    if (!admin) continue;
+    ensureStat(admin);
+    stats[admin].total++;
+    if (m.meta?.isEdited) {
+      const editor = m.meta?.editedBy || admin;
+      ensureStat(editor);
+      stats[editor].edited++;
+    } else if (m.meta?.generationType === 'auto') stats[admin].auto++;
+    else if (m.meta?.generationType === 'manual') stats[admin].manual++;
+    if (m.meta?.scoredBy) {
+      const scorer = m.meta.scoredBy;
+      ensureStat(scorer);
+      stats[scorer].scored++;
+    }
+  }
+  const active = MatchmakingApp.state.activeMatches;
+  for (const m of active) {
+    if (m.cancelledBy) {
+      ensureStat(m.cancelledBy);
+      stats[m.cancelledBy].cancelled++;
+    }
+  }
+  // Count check-in, check-out, and player removal actions from logs.
+  // Only logs after actionLogsResetAt contribute to chip counts; older
+  // logs remain visible in the Action Logs list but do not count toward
+  // admin/moderator stat chips after a Reset All.
+  const logs = MatchmakingApp.state.actionLogs || [];
+  const logsResetAt = MatchmakingApp.state.actionLogsResetAt ?? 0;
+  for (const log of logs) {
+    if (log.timestamp <= logsResetAt) continue;
+    if (log.action === 'check_in') {
+      ensureStat(log.performedBy);
+      stats[log.performedBy].checkIns++;
+    } else if (log.action === 'check_out') {
+      ensureStat(log.performedBy);
+      stats[log.performedBy].checkOuts++;
+    } else if (log.action === 'remove_player') {
+      ensureStat(log.performedBy);
+      stats[log.performedBy].playerRemovals++;
+    }
+  }
+  return stats;
+};
+
+// Stable empty result for the gated-off path — identical reference every
+// time so watchers see "no change" instead of a fresh {} per evaluation.
+const ADMIN_MATCH_STATS_EMPTY: AdminMatchStats = {};
+
 export interface UseClubMembersContext {
   currentClubId: Ref<string>;
   currentClubUUID: Ref<string>;
@@ -33,6 +120,16 @@ export interface UseClubMembersContext {
   clubSettingsSort: Ref<ClubSettingsSort>;
   currentUserId: Ref<string>;
   currentUserName: Ref<string>;
+  /**
+   * Lazy gate for `adminMatchStats` (UI_PERF C4). Pass a ref/computed that is
+   * true ONLY while a consumer needs the stats (e.g. SettingsDialog club tab
+   * open). When falsy, the computed returns a stable empty object WITHOUT
+   * reading completedMatches/activeMatches/actionLogs — so it never
+   * subscribes to those collections and their mutations cannot invalidate
+   * it (the O(n) scan is skipped entirely). Optional: when omitted the stats
+   * are always computed (backward compatible).
+   */
+  adminMatchStatsEnabled?: Ref<boolean>;
 }
 
 export function useClubMembers(context: UseClubMembersContext) {
@@ -47,6 +144,7 @@ export function useClubMembers(context: UseClubMembersContext) {
     clubSettingsSort,
     currentUserId,
     currentUserName,
+    adminMatchStatsEnabled,
   } = context;
   const $q = useQuasar();
   const { notify: ctxNotify } = useNotify();
@@ -94,80 +192,15 @@ export function useClubMembers(context: UseClubMembersContext) {
     filteredSortedMembers.value.filter((m) => !m.isAdmin && !m.isModerator),
   );
 
-  const adminMatchStats = computed(() => {
-    const stats: Record<
-      string,
-      {
-        total: number;
-        auto: number;
-        manual: number;
-        edited: number;
-        scored: number;
-        cancelled: number;
-        checkIns: number;
-        checkOuts: number;
-        playerRemovals: number;
-      }
-    > = {};
-    const ensureStat = (name: string) => {
-      if (!stats[name])
-        stats[name] = {
-          total: 0,
-          auto: 0,
-          manual: 0,
-          edited: 0,
-          scored: 0,
-          cancelled: 0,
-          checkIns: 0,
-          checkOuts: 0,
-          playerRemovals: 0,
-        };
-    };
-    const completed = MatchmakingApp.state.completedMatches;
-    for (const m of completed) {
-      const admin = m.meta?.generatedBy;
-      if (!admin) continue;
-      ensureStat(admin);
-      stats[admin].total++;
-      if (m.meta?.isEdited) {
-        const editor = m.meta?.editedBy || admin;
-        ensureStat(editor);
-        stats[editor].edited++;
-      } else if (m.meta?.generationType === 'auto') stats[admin].auto++;
-      else if (m.meta?.generationType === 'manual') stats[admin].manual++;
-      if (m.meta?.scoredBy) {
-        const scorer = m.meta.scoredBy;
-        ensureStat(scorer);
-        stats[scorer].scored++;
-      }
+  // Lazy gate (UI_PERF C4): while adminMatchStatsEnabled is falsy this
+  // returns the stable ADMIN_MATCH_STATS_EMPTY without touching the
+  // matchmaking collections — Vue tracks only the flag ref, so collection
+  // mutations can't invalidate the computed and the O(n) scan never runs.
+  const adminMatchStats = computed<AdminMatchStats>(() => {
+    if (adminMatchStatsEnabled && !adminMatchStatsEnabled.value) {
+      return ADMIN_MATCH_STATS_EMPTY;
     }
-    const active = MatchmakingApp.state.activeMatches;
-    for (const m of active) {
-      if (m.cancelledBy) {
-        ensureStat(m.cancelledBy);
-        stats[m.cancelledBy].cancelled++;
-      }
-    }
-    // Count check-in, check-out, and player removal actions from logs.
-    // Only logs after actionLogsResetAt contribute to chip counts; older
-    // logs remain visible in the Action Logs list but do not count toward
-    // admin/moderator stat chips after a Reset All.
-    const logs = MatchmakingApp.state.actionLogs || [];
-    const logsResetAt = MatchmakingApp.state.actionLogsResetAt ?? 0;
-    for (const log of logs) {
-      if (log.timestamp <= logsResetAt) continue;
-      if (log.action === 'check_in') {
-        ensureStat(log.performedBy);
-        stats[log.performedBy].checkIns++;
-      } else if (log.action === 'check_out') {
-        ensureStat(log.performedBy);
-        stats[log.performedBy].checkOuts++;
-      } else if (log.action === 'remove_player') {
-        ensureStat(log.performedBy);
-        stats[log.performedBy].playerRemovals++;
-      }
-    }
-    return stats;
+    return computeAdminMatchStats();
   });
 
   const busyMemberOps = ref(new Map<string, string>());

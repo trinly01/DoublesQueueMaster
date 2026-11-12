@@ -1,6 +1,7 @@
 import { reactive } from 'vue';
 import { LocalStorage } from 'quasar';
 import { compareWaitingMatches } from '../utils/matchOrdering';
+import { perfMeasure } from '../utils/perfTelemetry';
 import {
   ACTION_LOG_CAP,
   CLUB_SETTINGS,
@@ -157,7 +158,9 @@ export class LocalMatchmakingSystem {
       this.pendingPersistTimer = null;
       this.pendingPersistIsIdle = false;
     }
-    LocalStorage.set(getStorageKey(this.state.clubId || undefined), this.state);
+    perfMeasure('persist-write', () =>
+      LocalStorage.set(getStorageKey(this.state.clubId || undefined), this.state),
+    );
   }
 
   // Stamp both global settingsUpdatedAt and a per-field timestamp for granular LWW.
@@ -171,6 +174,10 @@ export class LocalMatchmakingSystem {
   }
 
   private saveState() {
+    perfMeasure('saveState', () => this.saveStateInner());
+  }
+
+  private saveStateInner() {
     // Ensure no player appears in more than one active match.
     // Losing matches are tombstoned and their players returned to queue.
     this.enforceOneMatchPerPlayer();
