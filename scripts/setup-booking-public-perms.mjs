@@ -5,7 +5,9 @@
  * Item filters keep suspended/pending venues and inactive courts hidden.
  * Idempotent.
  */
-const TOKEN = process.env.BOOKING_ADMIN_TOKEN || 'Bearer ***REMOVED***';
+try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch { /* .env optional — vars may come from the shell */ }
+const TOKEN = process.env.BOOKING_ADMIN_TOKEN;
+if (!TOKEN) throw new Error('BOOKING_ADMIN_TOKEN is not set — copy .env.example to .env and fill it in');
 const BASE = 'https://api.dinkmatch.club';
 const POLICY = 'abf8a154-5b1c-4a46-ac9c-7300570f4f17'; // $t:public_label (Public)
 

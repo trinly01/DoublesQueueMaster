@@ -7,7 +7,11 @@
  * directus_users self-update perm (non-member venue must be rejected).
  * Cleans up all fixtures. Usage: node scripts/test-multivenue.mjs
  */
-const ADMIN = process.env.BOOKING_ADMIN_TOKEN || 'Bearer ***REMOVED***';
+try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch { /* .env optional — vars may come from the shell */ }
+const ADMIN = process.env.BOOKING_ADMIN_TOKEN;
+if (!ADMIN) throw new Error('BOOKING_ADMIN_TOKEN is not set — copy .env.example to .env and fill it in');
+const TEST_PASS = process.env.BOOKING_TEST_PASSWORD;
+if (!TEST_PASS) throw new Error('BOOKING_TEST_PASSWORD is not set — copy .env.example to .env and fill it in');
 const BASE = 'https://api.dinkmatch.club';
 const ROLE = '29d2495d-c6a3-4ee8-a1ce-037191610e21'; // book_tenant
 let pass = 0, fail = 0;
@@ -43,7 +47,7 @@ try {
 
   const email = `mv-test-${Date.now()}@example.com`;
   const user = await must('POST', '/users', {
-    email, password: '***REMOVED***', first_name: 'MV', last_name: 'Tester',
+    email, password: TEST_PASS, first_name: 'MV', last_name: 'Tester',
   });
   cleanup.users.push(user.id);
   // NOTE: role is ignored on POST /users on this instance — PATCH it after
@@ -64,7 +68,7 @@ try {
   }
 
   // login as the user
-  const login = await api('POST', '/auth/login', { email, password: '***REMOVED***' });
+  const login = await api('POST', '/auth/login', { email, password: TEST_PASS });
   const tok = 'Bearer ' + login.data?.access_token;
   ok('fixture: user login', !!tok);
 

@@ -4,14 +4,17 @@
  * touch players/ratings/DUPR/matchmaking.
  *
  * Usage: node scripts/test-booking-scenarios.mjs
- * Env: BOOKING_ADMIN_TOKEN (admin bearer), BOOKING_TEST_PASSWORD (default ***REMOVED***)
+ * Env: BOOKING_ADMIN_TOKEN (admin bearer), BOOKING_TEST_PASSWORD (test accounts)
  *
  * Prints PASS/FAIL per check + a summary. Fixtures (tenant B, courts,
  * test users) are idempotent; transactional bookings are cleaned first.
  */
-const TOKEN = process.env.BOOKING_ADMIN_TOKEN || 'Bearer ***REMOVED***';
+try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch { /* .env optional — vars may come from the shell */ }
+const TOKEN = process.env.BOOKING_ADMIN_TOKEN;
+if (!TOKEN) throw new Error('BOOKING_ADMIN_TOKEN is not set — copy .env.example to .env and fill it in');
 const BASE = 'https://api.dinkmatch.club';
-const PASSW = process.env.BOOKING_TEST_PASSWORD || '***REMOVED***';
+const PASSW = process.env.BOOKING_TEST_PASSWORD;
+if (!PASSW) throw new Error('BOOKING_TEST_PASSWORD is not set — copy .env.example to .env and fill it in');
 const ROLE_TENANT = '29d2495d-c6a3-4ee8-a1ce-037191610e21'; // book_tenant
 const ROLE_PLAYER = '2f2b5b78-25ed-4f65-8fe3-0549b4d3a72c'; // Player
 

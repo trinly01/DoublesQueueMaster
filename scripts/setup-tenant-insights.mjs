@@ -9,7 +9,9 @@
  *   (required for the Studio Insights module to list them)
  * Panel shapes verified against Mitmit's build_mitmit_dashboards.py.
  */
-const TOKEN = process.env.BOOKING_ADMIN_TOKEN || 'Bearer ***REMOVED***';
+try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch { /* .env optional — vars may come from the shell */ }
+const TOKEN = process.env.BOOKING_ADMIN_TOKEN;
+if (!TOKEN) throw new Error('BOOKING_ADMIN_TOKEN is not set — copy .env.example to .env and fill it in');
 const BASE = 'https://api.dinkmatch.club';
 const BOOK_TENANT_POLICY = '6dae3bf8-8f04-4223-b011-c64c5c1c2da1';
 

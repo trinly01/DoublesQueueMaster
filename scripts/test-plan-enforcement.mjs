@@ -4,7 +4,9 @@
  *   · slot_init court/tenant status gate
  * Cleans up all fixtures. Usage: node scripts/test-plan-enforcement.mjs
  */
-const ADMIN = process.env.BOOKING_ADMIN_TOKEN || 'Bearer ***REMOVED***';
+try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch { /* .env optional — vars may come from the shell */ }
+const ADMIN = process.env.BOOKING_ADMIN_TOKEN;
+if (!ADMIN) throw new Error('BOOKING_ADMIN_TOKEN is not set — copy .env.example to .env and fill it in');
 const BASE = 'https://api.dinkmatch.club';
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${cond ? 'PASS' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`); };

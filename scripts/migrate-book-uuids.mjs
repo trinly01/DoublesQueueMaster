@@ -14,7 +14,9 @@
 import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 
-const TOKEN = process.env.BOOKING_ADMIN_TOKEN || 'Bearer ***REMOVED***';
+try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch { /* .env optional — vars may come from the shell */ }
+const TOKEN = process.env.BOOKING_ADMIN_TOKEN;
+if (!TOKEN) throw new Error('BOOKING_ADMIN_TOKEN is not set — copy .env.example to .env and fill it in');
 const BASE = 'https://api.dinkmatch.club';
 const DIR = '.tmp-book-uuid';
 

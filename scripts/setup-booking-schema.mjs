@@ -6,7 +6,9 @@
  * Token is read from BOOKING_ADMIN_TOKEN env or the constant below
  * (same admin token used by .tmp-analysis scripts — rotate if exposed).
  */
-const TOKEN = process.env.BOOKING_ADMIN_TOKEN || 'Bearer ***REMOVED***';
+try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch { /* .env optional — vars may come from the shell */ }
+const TOKEN = process.env.BOOKING_ADMIN_TOKEN;
+if (!TOKEN) throw new Error('BOOKING_ADMIN_TOKEN is not set — copy .env.example to .env and fill it in');
 const BASE = 'https://api.dinkmatch.club';
 
 async function api(method, path, body) {

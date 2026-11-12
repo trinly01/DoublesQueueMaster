@@ -4,7 +4,9 @@
  * with schema:{} lack them, which broke the sweeper (b.date_created).
  * Idempotent. Usage: node scripts/add-booking-system-fields.mjs
  */
-const TOKEN = process.env.BOOKING_ADMIN_TOKEN || 'Bearer ***REMOVED***';
+try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch { /* .env optional — vars may come from the shell */ }
+const TOKEN = process.env.BOOKING_ADMIN_TOKEN;
+if (!TOKEN) throw new Error('BOOKING_ADMIN_TOKEN is not set — copy .env.example to .env and fill it in');
 const BASE = 'https://api.dinkmatch.club';
 const COLS = ['book_sport_types','book_tenants','book_tenant_users','book_courts',
   'book_opening_hours','book_closures','book_bookings','book_booking_slots',

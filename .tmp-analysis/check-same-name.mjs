@@ -1,4 +1,6 @@
-const TOKEN = 'Bearer ***REMOVED***';
+try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch { /* .env optional */ }
+const TOKEN = process.env.BOOKING_ADMIN_TOKEN;
+if (!TOKEN) throw new Error('BOOKING_ADMIN_TOKEN is not set — copy .env.example to .env and fill it in');
 const BASE = 'https://api.dinkmatch.club/items';
 const SIKLAB = '22e52ef0-bf60-4bd1-bea8-ef66193edf35';
 

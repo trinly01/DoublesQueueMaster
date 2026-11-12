@@ -3,7 +3,9 @@
  * but Directus requires ['alias','no-data','group'] for group fields to be
  * visible in /fields lists, Data Model, and item forms. Idempotent.
  */
-const TOKEN = process.env.BOOKING_ADMIN_TOKEN || 'Bearer ***REMOVED***';
+try { process.loadEnvFile(new URL('../.env', import.meta.url)); } catch { /* .env optional — vars may come from the shell */ }
+const TOKEN = process.env.BOOKING_ADMIN_TOKEN;
+if (!TOKEN) throw new Error('BOOKING_ADMIN_TOKEN is not set — copy .env.example to .env and fill it in');
 const BASE = 'https://api.dinkmatch.club';
 const GROUPS = {
   book_tenants: ['g_venue', 'g_location', 'g_payments', 'g_rules', 'g_advanced', 'g_billing'],

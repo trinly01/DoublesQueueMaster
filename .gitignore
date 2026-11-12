@@ -30,7 +30,9 @@ yarn-error.log*
 *.sln
 
 # local .env files
+.env
 .env.local*
+!.env.example
 
 # local migration backups (contain user data)
 .tmp-book-uuid/
