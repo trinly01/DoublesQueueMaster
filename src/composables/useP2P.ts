@@ -2,6 +2,13 @@ import { ref, onUnmounted } from 'vue';
 import { joinRoom, selfId, type Room } from '@trystero-p2p/nostr';
 import type { CharacterPalette } from './useRandomPalette';
 import { PlayerProfile } from 'src/services/playerProfile';
+import {
+  netMetrics,
+  recordRtt,
+  recordStateArrival,
+  resetStateGapMark,
+  markJoin,
+} from '../utils/netTelemetry';
 
 export type ConnectionStatus =
   | 'idle'
@@ -139,6 +146,9 @@ async function fetchCloudflareTurnServers(): Promise<RTCIceServer[]> {
   return turnFetchPromise;
 }
 
+// Telemetry: only record the first state packet of each room join
+let firstStateMarked = false;
+
 export function useP2P() {
   const connectionState = ref<ConnectionStatus>('idle');
   const role = ref<PeerRole>(null);
@@ -187,6 +197,9 @@ export function useP2P() {
   const JITTER_BUFFER_SIZE = 3;
 
   async function joinGameRoom(roomId: string) {
+    markJoin('joinStart');
+    resetStateGapMark();
+    firstStateMarked = false;
     if (room) leaveRoom();
 
     currentRoomId = roomId;
@@ -245,10 +258,16 @@ export function useP2P() {
       pingAction.send(data, { target: target ?? null });
 
     stateAction.onMessage = (data) => {
+      recordStateArrival(performance.now());
+      if (!firstStateMarked) {
+        firstStateMarked = true;
+        markJoin('firstState');
+      }
       if (stateCb) stateCb(data as unknown as StatePayload);
     };
 
     inputAction.onMessage = (data) => {
+      netMetrics.lastInputAt = performance.now();
       if (inputCb) inputCb(data as unknown as InputPayload);
     };
 
@@ -256,6 +275,7 @@ export function useP2P() {
       if (eventCb) eventCb(data as unknown as EventPayload);
       // Receiving any event proves the data channel works — same as pong
       if (!peerVerified.value) {
+        markJoin('peerVerified');
         console.log(
           '[SYNC] eventAction: setting peerVerified=true, connState:',
           connectionState.value,
@@ -274,8 +294,10 @@ export function useP2P() {
       if (payload.r) {
         lastPongReceived = performance.now();
         opponentPing.value = Math.round(lastPongReceived - payload.t);
+        recordRtt(opponentPing.value);
         // Mark peer as verified — we received a pong, so data channel works
         if (!peerVerified.value) {
+          markJoin('peerVerified');
           peerVerified.value = true;
           // If we were reconnecting, now we're truly connected
           if (connectionState.value === 'reconnecting') {
@@ -291,6 +313,7 @@ export function useP2P() {
     };
 
     room.onPeerJoin = (peerId: string) => {
+      markJoin('peerJoin');
       opponentId.value = peerId;
       lastPongReceived = performance.now();
 
@@ -538,12 +561,16 @@ export function useP2P() {
     eventSeq = 0;
     lastStateSeq = -1;
     lastEventSeq = -1;
+    resetStateGapMark();
   }
 
   async function rejoinRoom(roomId: string) {
     // Preserve role so host/guest assignment survives reconnection
     const savedRole = role.value;
     currentRoomId = roomId;
+    markJoin('joinStart');
+    resetStateGapMark();
+    firstStateMarked = false;
     if (pingIntervalId) {
       clearInterval(pingIntervalId);
       pingIntervalId = null;
@@ -615,10 +642,16 @@ export function useP2P() {
       pingAction.send(data, { target: target ?? null });
 
     stateAction.onMessage = (data) => {
+      recordStateArrival(performance.now());
+      if (!firstStateMarked) {
+        firstStateMarked = true;
+        markJoin('firstState');
+      }
       if (stateCb) stateCb(data as unknown as StatePayload);
     };
 
     inputAction.onMessage = (data) => {
+      netMetrics.lastInputAt = performance.now();
       if (inputCb) inputCb(data as unknown as InputPayload);
     };
 
@@ -626,6 +659,7 @@ export function useP2P() {
       if (eventCb) eventCb(data as unknown as EventPayload);
       // Receiving any event proves the data channel works — same as pong
       if (!peerVerified.value) {
+        markJoin('peerVerified');
         console.log(
           '[SYNC] eventAction: setting peerVerified=true, connState:',
           connectionState.value,
@@ -644,8 +678,10 @@ export function useP2P() {
       if (payload.r) {
         lastPongReceived = performance.now();
         opponentPing.value = Math.round(lastPongReceived - payload.t);
+        recordRtt(opponentPing.value);
         // Mark peer as verified — we received a pong, so data channel works
         if (!peerVerified.value) {
+          markJoin('peerVerified');
           peerVerified.value = true;
           // If we were reconnecting, now we're truly connected
           if (connectionState.value === 'reconnecting') {
@@ -661,6 +697,7 @@ export function useP2P() {
     };
 
     room.onPeerJoin = (peerId: string) => {
+      markJoin('peerJoin');
       opponentId.value = peerId;
       lastPongReceived = performance.now();
 

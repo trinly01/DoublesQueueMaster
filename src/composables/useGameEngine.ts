@@ -13,6 +13,13 @@ import {
 } from 'src/composables/useRandomPalette';
 import { PlayerProfile } from 'src/services/playerProfile';
 import { serveCourtSign, isRightCourt } from 'src/utils/serveSide';
+import {
+  recordPayloadBytes,
+  recordPosDivergence,
+  recordFrame,
+  recordLongtasks,
+} from 'src/utils/netTelemetry';
+import { observeLongTasks, drainLongTasks } from 'src/utils/perfTelemetry';
 
 // Court dimensions (scaled to scene units: 1 unit = 1 meter)
 const COURT_LENGTH = 13.41; // 44ft
@@ -278,6 +285,37 @@ export function useGameEngine() {
   let guestServeFromX = 0;
   let guestBallClippedNet = false;
 
+  // Guest hit-confirmation visual window: after a locally-detected collision,
+  // the ball dead-reckons on an estimated return trajectory until the
+  // post-hit snapshot arrives (or ~200ms elapses), then snaps to host truth.
+  let pendingHitVisual: {
+    until: number;
+    afterSeq: number;
+    estVel: THREE.Vector3;
+  } | null = null;
+  const HIT_VISUAL_MS = 200;
+  let divSampleTimer = 0;
+  let longtaskDrainTimer = 0;
+
+  // Local SFX dedup: the guest plays own-event sounds immediately; the same
+  // sound arrives ~RTT later inside the snapshot sfx array — skip the echo.
+  const LOCAL_SFX_DEDUP_MS: Record<string, number> = {
+    paddleHit: 600,
+    serve: 800,
+    jump: 400,
+  };
+  const lastLocalSfxAt: Record<string, number> = {};
+  function markLocalSfx(name: string) {
+    lastLocalSfxAt[name] = performance.now();
+  }
+  function shouldSkipGuestSfx(name: string): boolean {
+    const win = LOCAL_SFX_DEDUP_MS[name];
+    return (
+      win !== undefined &&
+      performance.now() - (lastLocalSfxAt[name] ?? 0) < win
+    );
+  }
+
   // Precomputed constants for hot loops
   const HALF_COURT_W = COURT_WIDTH / 2;
   const HALF_COURT_L = COURT_LENGTH / 2;
@@ -307,11 +345,28 @@ export function useGameEngine() {
   // Pre-allocated temp vectors to avoid per-frame allocations
   const _tempVel = new THREE.Vector3();
   const _tempTarget = new THREE.Vector3();
+  const _hermP0 = new THREE.Vector3();
+  const _hermV0 = new THREE.Vector3();
+  const _hermP1 = new THREE.Vector3();
+  const _hermV1 = new THREE.Vector3();
 
   // Sound effects queue — host queues sounds for guest to play
   const sfxQueue: string[] = [];
   function hostPlaySfx(name: string) {
-    sfxQueue.push(name);
+    // Only queue for guest during live match states — prevents unbounded
+    // growth in AI/menu states and a stale-burst on the first PvP broadcast
+    if (
+      isPvP.value &&
+      isHost.value &&
+      sfxQueue.length < 8 &&
+      (gameState.value === 'playing' ||
+        gameState.value === 'point-scored' ||
+        gameState.value === 'paused' ||
+        gameState.value === 'game-over' ||
+        gameState.value === 'reconnecting')
+    ) {
+      sfxQueue.push(name);
+    }
     switch (name) {
       case 'paddleHit':
         sound.paddleHit();
@@ -388,11 +443,30 @@ export function useGameEngine() {
     seq: 0,
   });
   let lastInputSeq = -1;
+  // Host: performance.now() of last received input packet — inputs are
+  // level-state at ~30Hz, so >300ms of silence means the guest stopped
+  // sending (hidden tab / throttle) and remoteInput must decay to neutral
+  // or the paddle slides forever on the host's screen.
+  let lastRemoteInputAt = 0;
 
   // Guest-side interpolation state
   let lastStateReceivedAt = 0;
-  let stateBroadcastTimer = 0;
-  const STATE_BROADCAST_INTERVAL = 0.05; // 20Hz
+  const STATE_BROADCAST_INTERVAL = 1 / 30; // ~30Hz
+  let lastStateArrivalAt = 0;
+  // Measured snapshot interval (EMA of inter-arrival gaps) — the broadcast
+  // rate can change (30Hz) and hosts can run below 60fps, so the guest must
+  // not assume a fixed interval when sweeping interpolation.
+  let measuredSnapshotInterval = STATE_BROADCAST_INTERVAL;
+  // Host-side wall-clock broadcast pacing (independent of sim frame rate)
+  let lastBroadcastAt = 0;
+  // Payload diet: static meta fields are sent once per opponent/match
+  let metaOpponentId = '';
+  let metaSent = false;
+  let sentHn = '';
+  let sentGn = '';
+  let sentPp2: CharacterPalette | null = null;
+  let sentAp2: CharacterPalette | null = null;
+  let sentLpm = '';
 
   // Reconnect handshake: wait for fresh data before resuming
   let waitingForReconnectData = false;
@@ -471,6 +545,9 @@ export function useGameEngine() {
 
     // Set up callbacks
     p2p.onPeerJoin(() => {
+      // A (re)joining peer needs the static meta fields resent — its fresh
+      // page has no palettes/names, and opponentId may be unchanged
+      metaSent = false;
       if (gameState.value === 'waiting' || gameState.value === 'connecting') {
         // Only host starts the game; guest waits for state sync
         if (isHost.value) {
@@ -519,12 +596,27 @@ export function useGameEngine() {
       }
       if (!isGuest.value) return;
       p2p.pushToJitterBuffer(data);
-      lastStateReceivedAt = performance.now();
+      // Measure real inter-arrival gap for interpolation timing —
+      // broadcast rate and host frame rate both vary
+      const arrivalNow = performance.now();
+      if (lastStateArrivalAt > 0) {
+        const gapS = (arrivalNow - lastStateArrivalAt) / 1000;
+        if (gapS > 0.005 && gapS < 0.5) {
+          measuredSnapshotInterval = THREE.MathUtils.clamp(
+            measuredSnapshotInterval * 0.9 + gapS * 0.1,
+            0.015,
+            0.2,
+          );
+        }
+      }
+      lastStateArrivalAt = arrivalNow;
+      lastStateReceivedAt = arrivalNow;
 
-      // Play sound effects queued by host
+      // Play sound effects queued by host — skip echoes of sounds the
+      // guest already played locally for its own events
       if (data.sfx && data.sfx.length > 0) {
         for (const sfxName of data.sfx) {
-          playGuestSfx(sfxName);
+          if (!shouldSkipGuestSfx(sfxName)) playGuestSfx(sfxName);
         }
       }
 
@@ -551,7 +643,7 @@ export function useGameEngine() {
       // Sync last point message immediately (not just in interpolateGuestState)
       // so the guest sees fault messages during point-scored state too.
       // Use seq ordering to prevent older snapshots from regressing the message.
-      if (data.lpm && data.seq > lastPointMsgSeq) {
+      if (data.lpm !== undefined && data.seq > lastPointMsgSeq) {
         lastPointMsgSeq = data.seq;
         lastPointMsg.value = guestLpm(
           data.lpm,
@@ -635,6 +727,7 @@ export function useGameEngine() {
       lastInputSeq = data.seq;
       remoteInput.ax = data.ax;
       remoteInput.az = data.az;
+      lastRemoteInputAt = performance.now();
       if (data.jk) remoteInput.jump = true;
       // Sync guest name
       if (data.gn) opponentName.value = data.gn;
@@ -1456,7 +1549,10 @@ export function useGameEngine() {
 
     // Ball magnet: gently guide player toward ball X when ball is incoming
     // For guest (ps=-1), ball is incoming when ballVel.z < 0 (toward z<0)
+    // Disabled in PvP — it's AI-assist rubber-banding; per-device difficulty
+    // configs would desync the two paddle simulations (phantom faults).
     if (
+      !isPvP.value &&
       cfg.playerMagnet > 0 &&
       refs.ballVel.z * ps > 0 &&
       !servePending.value
@@ -2265,6 +2361,9 @@ export function useGameEngine() {
       if (isGuest.value) {
         // Guest sends serve trigger to host (only when it's guest's turn)
         if (servePending.value && servingTo.value === 'ai') {
+          // Local serve sfx — the host's copy arrives ~RTT later via sfx[]
+          playGuestSfx('serve');
+          markLocalSfx('serve');
           p2p.broadcastInput({
             ax: input.axisX,
             az: input.axisZ,
@@ -2880,14 +2979,24 @@ export function useGameEngine() {
   function updateRemotePlayer(dt: number) {
     prevAiPos.copy(refs.aiPos);
 
-    // Use remote input instead of AI logic
-    let dx = THREE.MathUtils.clamp(remoteInput.ax, -1.2, 1.2);
-    const dz = THREE.MathUtils.clamp(remoteInput.az, -1.2, 1.2);
+    // Use remote input instead of AI logic.
+    // Stale-input decay: >300ms without an input packet (hidden/throttled
+    // guest) → treat axes as neutral so the paddle doesn't drift forever.
+    const inputStale = performance.now() - lastRemoteInputAt > 300;
+    let dx = THREE.MathUtils.clamp(inputStale ? 0 : remoteInput.ax, -1.2, 1.2);
+    const dz = THREE.MathUtils.clamp(
+      inputStale ? 0 : remoteInput.az,
+      -1.2,
+      1.2,
+    );
 
     // Apply same ball magnet as updatePlayer so host's position for guest
-    // matches the guest's local prediction (which includes magnet)
+    // matches the guest's local prediction (which includes magnet).
+    // Disabled in PvP — magnet is disabled on both sides to keep the two
+    // paddle simulations identical (no desync → no phantom kitchen faults).
     const cfg = AI_CONFIGS[difficulty.value];
     if (
+      !isPvP.value &&
       cfg.playerMagnet > 0 &&
       refs.ballVel.z < 0 && // ball incoming toward guest (z<0 side)
       !servePending.value
@@ -3003,6 +3112,14 @@ export function useGameEngine() {
   function checkGuestFaults() {
     if (servePending.value) return;
     if (gameState.value !== 'playing') return;
+
+    // Suspend fault detection during the hit-confirmation visual window —
+    // the ball is on an estimated trajectory, not host truth, so bounce
+    // tracking here could fabricate a fault the host never saw.
+    if (pendingHitVisual && performance.now() < pendingHitVisual.until) {
+      guestPrevBallY = refs.ballPos.y;
+      return;
+    }
 
     // --- Bounce tracking (guest's side = z < 0) ---
     const ballY = refs.ballPos.y;
@@ -3167,6 +3284,24 @@ export function useGameEngine() {
       clearTimeout(pendingGuestInFault.timer);
       pendingGuestInFault = null;
     }
+    if (faultType === 'collision' && isGuest.value) {
+      // Immediate local hit feedback — masks the ~RTT+quantization dead air
+      // before the host's confirmed ball response arrives in a snapshot.
+      // Visual-only: host remains authoritative for scoring/trajectory.
+      refs.playerSwing = 1;
+      playGuestSfx('paddleHit');
+      markLocalSfx('paddleHit');
+      const buf = p2p.getJitterBuffer();
+      pendingHitVisual = {
+        until: performance.now() + HIT_VISUAL_MS,
+        afterSeq: buf.length > 0 ? buf[buf.length - 1].seq : -1,
+        estVel: new THREE.Vector3(
+          -refs.ballVel.x * 0.4,
+          2.6,
+          Math.abs(refs.ballVel.z) * 0.9 + 0.5,
+        ),
+      };
+    }
     p2p.broadcastEvent({
       type: 'fault',
       data: faultType,
@@ -3241,13 +3376,40 @@ export function useGameEngine() {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  // PvP host: broadcast state to guest at 20Hz
-  function broadcastStateToGuest(dt: number) {
-    stateBroadcastTimer += dt;
-    if (stateBroadcastTimer < STATE_BROADCAST_INTERVAL) return;
-    stateBroadcastTimer = 0;
+  // PvP host: broadcast state to guest. Paced by wall clock, not sim dt —
+  // a host running below ~20fps would otherwise emit snapshots slower than
+  // the nominal rate while the guest's interpolation assumes it.
+  function broadcastStateToGuest() {
+    const now = performance.now();
+    const intervalMs = STATE_BROADCAST_INTERVAL * 1000;
+    if (lastBroadcastAt > 0) {
+      const elapsed = now - lastBroadcastAt;
+      if (elapsed < intervalMs) return;
+      // Phase-locked carry while keeping up; hard resync after a stall so a
+      // hidden tab can't trigger a catch-up burst of stale snapshots
+      lastBroadcastAt =
+        elapsed > intervalMs * 1.5 ? now : lastBroadcastAt + intervalMs;
+    } else {
+      lastBroadcastAt = now;
+    }
 
-    p2p.broadcastState({
+    const hn = PlayerProfile.state.firstName || '';
+    const gn = opponentName.value || 'Opp';
+    // Static meta (names + palettes ~55% of payload) is sent once per
+    // opponent/match and on change — guest guards with `if (s1.pp2)` etc.
+    const oppId = p2p.opponentId.value ?? '';
+    if (oppId !== metaOpponentId) {
+      metaOpponentId = oppId;
+      metaSent = false;
+    }
+    const needMeta =
+      !metaSent ||
+      hn !== sentHn ||
+      gn !== sentGn ||
+      playerPalette.value !== sentPp2 ||
+      aiPalette.value !== sentAp2;
+
+    const payload: Omit<StatePayload, 'seq'> = {
       pp: [refs.playerPos.x, refs.playerPos.y, refs.playerPos.z],
       ap: [refs.aiPos.x, refs.aiPos.y, refs.aiPos.z],
       bp: [refs.ballPos.x, refs.ballPos.y, refs.ballPos.z],
@@ -3273,11 +3435,6 @@ export function useGameEngine() {
             refs.ballBouncePredict.z,
           ]
         : null,
-      hn: PlayerProfile.state.firstName || '',
-      gn: opponentName.value || 'Opp',
-      pp2: playerPalette.value,
-      ap2: aiPalette.value,
-      lpm: lastPointMsg.value,
       sfx: sfxQueue.length > 0 ? sfxQueue.slice() : undefined,
       gs: gameState.value,
       ss: scoringSide.value ?? undefined,
@@ -3285,11 +3442,51 @@ export function useGameEngine() {
       lhb: lastHitBy,
       sfx2: serveFromX,
       bcn: ballClippedNet,
-    });
+    };
+    if (needMeta) {
+      payload.hn = hn;
+      payload.gn = gn;
+      payload.pp2 = playerPalette.value;
+      payload.ap2 = aiPalette.value;
+      sentHn = hn;
+      sentGn = gn;
+      sentPp2 = playerPalette.value;
+      sentAp2 = aiPalette.value;
+      metaSent = true;
+    }
+    // lpm sent only on change — guest keeps the last value otherwise
+    if (lastPointMsg.value !== sentLpm) {
+      payload.lpm = lastPointMsg.value;
+      sentLpm = lastPointMsg.value;
+    }
+    recordPayloadBytes(
+      JSON.stringify(payload).length,
+      performance.now(),
+    );
+    p2p.broadcastState(payload);
     sfxQueue.length = 0; // clear queue after broadcast
   }
 
   // PvP guest: interpolate state from host
+  // Dead-reckon ball forward from a snapshot: pos = bp + bv·age + ½g·age².
+  // Renders at ~one-way-delay staleness instead of interpolation-stale, and
+  // hit velocity changes appear at snapshot arrival (not after a blend ramp).
+  function deadReckonBallFromSnapshot(s: StatePayload) {
+    const ageS = Math.min(
+      (performance.now() - lastStateReceivedAt) / 1000,
+      0.25,
+    );
+    refs.ballPos.set(
+      s.bp[0] + s.bv[0] * ageS,
+      Math.max(
+        BALL_RADIUS,
+        s.bp[1] + s.bv[1] * ageS + 0.5 * GRAVITY * ageS * ageS,
+      ),
+      s.bp[2] + s.bv[2] * ageS,
+    );
+    refs.ballVel.set(s.bv[0], s.bv[1] + GRAVITY * ageS, s.bv[2]);
+  }
+
   function interpolateGuestState(dt: number) {
     const buffer = p2p.getJitterBuffer();
     if (buffer.length === 0) {
@@ -3308,6 +3505,10 @@ export function useGameEngine() {
         refs.ballPos.set(s1.bp[0], s1.bp[1], s1.bp[2]);
         refs.ballVel.set(s1.bv[0], s1.bv[1], s1.bv[2]);
         snapBallNextFrame = false;
+      } else {
+        // Single snapshot — dead-reckon instead of freezing (fixes the
+        // serve/first-snapshot stall where ballPos stayed stale)
+        deadReckonBallFromSnapshot(s1);
       }
       // Damp opponent toward host state
       refs.aiPos.x = THREE.MathUtils.damp(refs.aiPos.x, s1.pp[0], 10, dt);
@@ -3330,7 +3531,7 @@ export function useGameEngine() {
       if (s1.ap2) playerPalette.value = s1.ap2;
       // Sync last point message — flip perspective for guest
       // Guard with seq check so older snapshots don't regress the message
-      if (s1.lpm && s1.seq > lastPointMsgSeq) {
+      if (s1.lpm !== undefined && s1.seq > lastPointMsgSeq) {
         lastPointMsgSeq = s1.seq;
         lastPointMsg.value = guestLpm(
           s1.lpm,
@@ -3351,36 +3552,62 @@ export function useGameEngine() {
 
     // Interpolation factor (0..1) between the two snapshots
     const timeSinceLast = (performance.now() - lastStateReceivedAt) / 1000;
-    const snapshotInterval = STATE_BROADCAST_INTERVAL;
+    const snapshotInterval = measuredSnapshotInterval;
     const t = Math.min(timeSinceLast / snapshotInterval, 1.0);
+    const nowMs = performance.now();
 
-    // Snap ball on events
+    // Hit-confirmation window lifecycle: release on the first post-hit
+    // snapshot (seq > afterSeq) or on timeout, then snap to host truth.
+    const hitActive =
+      pendingHitVisual !== null && nowMs < pendingHitVisual.until;
+    if (
+      pendingHitVisual &&
+      (!hitActive || s1.seq > pendingHitVisual.afterSeq)
+    ) {
+      pendingHitVisual = null;
+      snapBallNextFrame = true;
+    }
+
+    // Ball: dead-reckon forward from the newest snapshot — renders at
+    // ~one-way-delay staleness and shows hit changes at snapshot arrival.
     if (snapBallNextFrame) {
       refs.ballPos.set(s1.bp[0], s1.bp[1], s1.bp[2]);
       refs.ballVel.set(s1.bv[0], s1.bv[1], s1.bv[2]);
       snapBallNextFrame = false;
+    } else if (hitActive && pendingHitVisual) {
+      // Estimated return trajectory (display-only; snaps to truth on release)
+      pendingHitVisual.estVel.y += GRAVITY * dt;
+      refs.ballPos.x += pendingHitVisual.estVel.x * dt;
+      refs.ballPos.y += pendingHitVisual.estVel.y * dt;
+      refs.ballPos.z += pendingHitVisual.estVel.z * dt;
+      refs.ballVel.copy(pendingHitVisual.estVel);
     } else {
-      // Hermite interpolation for ball
-      const p0 = new THREE.Vector3(s0.bp[0], s0.bp[1], s0.bp[2]);
-      const v0 = new THREE.Vector3(s0.bv[0], s0.bv[1], s0.bv[2]).multiplyScalar(
-        snapshotInterval,
-      );
-      const p1 = new THREE.Vector3(s1.bp[0], s1.bp[1], s1.bp[2]);
-      const v1 = new THREE.Vector3(s1.bv[0], s1.bv[1], s1.bv[2]).multiplyScalar(
-        snapshotInterval,
-      );
-      const ballPos = hermiteLerp(p0, v0, p1, v1, t);
-      refs.ballPos.copy(ballPos);
-      refs.ballVel.set(s1.bv[0], s1.bv[1], s1.bv[2]);
+      deadReckonBallFromSnapshot(s1);
     }
 
-    // Damp player positions toward latest received state
-    // From guest's perspective: host's playerPos = opponent, host's aiPos = guest (self)
-    // Guest sees opponent at host's playerPos, and self at host's aiPos
-    // Opponent (host's player): damp toward received position
-    refs.aiPos.x = THREE.MathUtils.damp(refs.aiPos.x, s1.pp[0], 10, dt);
-    refs.aiPos.z = THREE.MathUtils.damp(refs.aiPos.z, s1.pp[2], 10, dt);
-    refs.aiPos.y = THREE.MathUtils.damp(refs.aiPos.y, s1.pp[1], 10, dt);
+    // Opponent paddle: Hermite between snapshots with the move-direction
+    // channels as velocity tangents — removes the ~0.35m damp trail at
+    // RTT≈0 while staying smooth (no per-snapshot position pops).
+    {
+      const oppPos = hermiteLerp(
+        _hermP0.set(s0.pp[0], s0.pp[1], s0.pp[2]),
+        _hermV0.set(
+          (s0.pmd ?? 0) * PLAYER_MAX_SPEED * snapshotInterval,
+          0,
+          (s0.pmz ?? 0) * PLAYER_MAX_SPEED * snapshotInterval,
+        ),
+        _hermP1.set(s1.pp[0], s1.pp[1], s1.pp[2]),
+        _hermV1.set(
+          (s1.pmd ?? 0) * PLAYER_MAX_SPEED * snapshotInterval,
+          0,
+          (s1.pmz ?? 0) * PLAYER_MAX_SPEED * snapshotInterval,
+        ),
+        t,
+      );
+      refs.aiPos.x = oppPos.x;
+      refs.aiPos.y = oppPos.y;
+      refs.aiPos.z = oppPos.z;
+    }
 
     // Self (guest): trust local prediction entirely.
     // Only snap to host state on explicit resync event (snapBallNextFrame).
@@ -3408,6 +3635,15 @@ export function useGameEngine() {
     refs.aiMoveDir = THREE.MathUtils.damp(refs.aiMoveDir, s1.pmd, 8, dt);
     refs.aiMoveZ = THREE.MathUtils.damp(refs.aiMoveZ, s1.pmz, 8, dt);
 
+    // Telemetry: guest self-position divergence vs host-authoritative echo
+    divSampleTimer += dt;
+    if (divSampleTimer >= 1) {
+      divSampleTimer = 0;
+      recordPosDivergence(
+        Math.hypot(refs.playerPos.x - s1.ap[0], refs.playerPos.z - s1.ap[2]),
+      );
+    }
+
     // Sync bounce marker from host
     if (s1.bbp) {
       if (!refs.ballBouncePredict) refs.ballBouncePredict = new THREE.Vector3();
@@ -3423,7 +3659,7 @@ export function useGameEngine() {
     if (s1.ap2) playerPalette.value = s1.ap2;
     // Sync last point message — flip perspective for guest
     // Guard with seq check so older snapshots don't regress the message
-    if (s1.lpm && s1.seq > lastPointMsgSeq) {
+    if (s1.lpm !== undefined && s1.seq > lastPointMsgSeq) {
       lastPointMsgSeq = s1.seq;
       lastPointMsg.value = guestLpm(
         s1.lpm,
@@ -3436,16 +3672,6 @@ export function useGameEngine() {
     if (s1.lhb !== undefined) guestLastHitBy = s1.lhb;
     if (s1.sfx2 !== undefined) guestServeFromX = s1.sfx2;
     if (s1.bcn !== undefined) guestBallClippedNet = s1.bcn;
-
-    // Extrapolation: if no state received for >100ms, predict ball with velocity + gravity
-    const timeSinceUpdate = performance.now() - lastStateReceivedAt;
-    if (timeSinceUpdate > 100 && timeSinceUpdate < 200) {
-      const extDt = (timeSinceUpdate - 100) / 1000;
-      refs.ballPos.x += refs.ballVel.x * extDt;
-      refs.ballPos.y += refs.ballVel.y * extDt + 0.5 * GRAVITY * extDt * extDt;
-      refs.ballPos.z += refs.ballVel.z * extDt;
-      refs.ballVel.y += GRAVITY * extDt;
-    }
   }
 
   // PvP guest: send local input to host (rate-limited to 30Hz)
@@ -3489,8 +3715,22 @@ export function useGameEngine() {
 
   function step(time: number) {
     if (lastTime === 0) lastTime = time;
-    const dt = Math.min(time - lastTime, 0.05);
+    const realDt = time - lastTime;
+    const dt = Math.min(realDt, 0.05);
     lastTime = time;
+    recordFrame(realDt);
+    // Drain longtask buffer every 5s of sim time into netMetrics
+    longtaskDrainTimer += dt;
+    if (longtaskDrainTimer >= 5) {
+      longtaskDrainTimer = 0;
+      const tasks = drainLongTasks();
+      if (tasks.length > 0) {
+        recordLongtasks(
+          tasks.length,
+          tasks.reduce((sum, task) => sum + task.duration, 0),
+        );
+      }
+    }
 
     // Retry broadcasting status:synced every 1s until both sides confirm
     if (
@@ -3518,7 +3758,7 @@ export function useGameEngine() {
           updatePlayer(dt);
           updateRemotePlayer(dt);
           updateBall(dt);
-          broadcastStateToGuest(dt);
+          broadcastStateToGuest();
         } else if (isGuest.value) {
           // Guest: predict local player, send input, interpolate ball/state from host
           // Capture jump before updatePlayer consumes it
@@ -3540,7 +3780,7 @@ export function useGameEngine() {
         pointPauseTimer -= dt;
         // Keep broadcasting state during point-scored so guest sees the toast
         if (isPvP.value && isHost.value) {
-          broadcastStateToGuest(dt);
+          broadcastStateToGuest();
         }
         if (pointPauseTimer <= 0) {
           gameState.value = 'playing';
@@ -3550,11 +3790,11 @@ export function useGameEngine() {
     } else if (gameState.value === 'paused') {
       pollGamepadButtons();
       if (isPvP.value && isHost.value) {
-        broadcastStateToGuest(dt);
+        broadcastStateToGuest();
       }
     } else if (gameState.value === 'game-over') {
       if (isPvP.value && isHost.value) {
-        broadcastStateToGuest(dt);
+        broadcastStateToGuest();
       }
     } else if (gameState.value === 'reconnecting') {
       console.log(
@@ -3590,7 +3830,7 @@ export function useGameEngine() {
         }
         // Host keeps broadcasting, guest keeps sending input during grace period
         if (isHost.value) {
-          broadcastStateToGuest(dt);
+          broadcastStateToGuest();
         } else if (isGuest.value) {
           sendInputToHost();
         }
@@ -3774,7 +4014,14 @@ export function useGameEngine() {
       // Play locally for immediate feedback in all modes
       // In PvP host mode, hostPlaySfx in updatePlayer also plays it,
       // so skip here to avoid double sound
-      if (!isHost.value) sound.jump();
+      if (!isHost.value) {
+        if (isGuest.value) {
+          playGuestSfx('jump');
+          markLocalSfx('jump');
+        } else {
+          sound.jump();
+        }
+      }
     }
   }
 
@@ -3811,15 +4058,45 @@ export function useGameEngine() {
     input.axisZ = isGuest.value ? -z : z;
   }
 
+  // Zero local input when the tab hides — a backgrounded guest's paddle
+  // would otherwise keep sliding on the host's screen (inputs are
+  // level-state; an explicit neutral packet stops it immediately instead
+  // of waiting for the host's 300ms stale-input decay).
+  function onHiddenInputReset() {
+    if (!isGuest.value) return;
+    input.left = input.right = false;
+    input.forward = input.backward = false;
+    input.axisX = input.axisZ = 0;
+    input.jump = false;
+    p2p.broadcastInput({ ax: 0, az: 0, sv: false, jk: false });
+  }
+  const onVisibilityChange = () => {
+    if (document.hidden) onHiddenInputReset();
+  };
+  const onPageHide = () => onHiddenInputReset();
+  if (typeof window !== 'undefined') {
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pagehide', onPageHide);
+    observeLongTasks();
+  }
+
   function cleanup() {
     stopLoop();
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('gamepadconnected', onGamepadConnected);
     window.removeEventListener('gamepaddisconnected', onGamepadDisconnected);
+    if (typeof window !== 'undefined') {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pagehide', onPageHide);
+    }
     if (pendingGuestInFault) {
       clearTimeout(pendingGuestInFault.timer);
       pendingGuestInFault = null;
+    }
+    if (pendingFaultAck?.timer) {
+      clearTimeout(pendingFaultAck.timer);
+      pendingFaultAck = null;
     }
   }
 
