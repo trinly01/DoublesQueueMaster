@@ -1546,7 +1546,8 @@ $brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 .legend {
   display: flex;
   justify-content: center;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.5rem;
   margin-bottom: 0.5rem;
 }
 

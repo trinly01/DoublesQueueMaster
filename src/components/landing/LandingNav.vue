@@ -12,20 +12,24 @@
           flat
           no-caps
           color="white"
-          label="Book a Court"
+          :label="$q.screen.lt.sm ? '' : 'Book a Court'"
           icon="event_available"
           class="book-court-btn"
           @click="goBook"
-        />
+        >
+          <q-tooltip v-if="$q.screen.lt.sm">Book a Court</q-tooltip>
+        </q-btn>
         <q-btn
           flat
           no-caps
           color="white"
-          label="Play 3D Game"
+          :label="$q.screen.lt.sm ? '' : 'Play 3D Game'"
           icon="sports_esports"
           class="play-game-btn"
           @click="goPlay"
-        />
+        >
+          <q-tooltip v-if="$q.screen.lt.sm">Play 3D Game</q-tooltip>
+        </q-btn>
         <q-btn
           unelevated
           rounded
