@@ -165,7 +165,7 @@
                and the player has a real DUPR rating; DUPR-less players keep a
                converted chip so they aren't left rating-less -->
           <div
-            v-if="duprDoublesRating === null"
+            v-if="duprDoublesRating === null && !duprRatingPending"
             class="rating-badge"
             :style="{
               background: getRatingGradient(ratingColor),
