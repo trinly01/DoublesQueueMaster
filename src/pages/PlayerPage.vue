@@ -139,11 +139,19 @@
           >
             <div class="column items-center">
               <span class="text-h4 text-weight-bold text-white">
-                {{
-                  duprDoublesRating !== null
-                    ? duprDoublesRating.toFixed(3)
-                    : 'NR'
-                }}
+                <q-skeleton
+                  v-if="duprRatingPending"
+                  type="text"
+                  class="q-my-xs"
+                  style="width: 4.5rem; height: 2rem"
+                />
+                <template v-else>
+                  {{
+                    duprDoublesRating !== null
+                      ? duprDoublesRating.toFixed(3)
+                      : 'NR'
+                  }}
+                </template>
               </span>
               <span class="text-caption text-white">
                 DUPR Doubles
@@ -1817,6 +1825,15 @@ const duprDoublesRating = computed(
   () =>
     Dupr.state.connection?.doubles_rating ?? Dupr.duprDoublesOf(duprId.value),
 );
+// Skeleton while own rating's live DUPR pull is in flight — prevents
+// flashing a stale cached value or 'NR' before fresh data lands. Skipped
+// when the connection row already carries a webhook-maintained rating.
+const duprRatingPending = computed(
+  () =>
+    duprId.value != null &&
+    Dupr.state.connection?.doubles_rating == null &&
+    Dupr.isRatingPending(duprId.value),
+);
 
 const getRatingGradient = (color: string): string => {
   const gradients: Record<string, string> = {
@@ -2984,8 +3001,13 @@ onMounted(async () => {
   // Fetch DUPR settings and connection status
   await Dupr.fetchSettings();
   await Dupr.fetchConnection();
-  // Backfill own DUPR rating into the display map (covers stale connections)
-  if (duprId.value) void Dupr.ensureRatings([duprId.value]);
+  // Backfill own DUPR rating into the display map — invalidate first so a
+  // value fetched before DUPR's latest rating update can't go stale
+  // for the whole session (ratingsMap is in-memory, fetch-once)
+  if (duprId.value) {
+    Dupr.invalidateRating(duprId.value);
+    void Dupr.ensureRatings([duprId.value]);
+  }
 });
 
 const fetchLeaderboard = async () => {

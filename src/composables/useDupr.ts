@@ -67,6 +67,9 @@ interface DuprState {
   // ratings batch flow. Deliberately NOT persisted — DUPR ratings are
   // display data, never written into matchmaking state.
   ratingsMap: Record<string, DuprRatingEntry>;
+  // duprId → live-pull in flight — lets views render a skeleton instead of
+  // a stale cached value or 'NR' while the fresh rating is being fetched
+  ratingsPending: Record<string, boolean>;
   loading: boolean;
   connecting: boolean;
   submitting: boolean;
@@ -101,6 +104,7 @@ class DuprService {
       settings: cachedSettings,
       submissions: cachedSubmissions || [],
       ratingsMap: {},
+      ratingsPending: {},
       loading: false,
       connecting: false,
       submitting: false,
@@ -843,7 +847,10 @@ class DuprService {
       ),
     ];
     if (!missing.length) return;
-    missing.forEach((id) => this.requestedRatingIds.add(id));
+    missing.forEach((id) => {
+      this.requestedRatingIds.add(id);
+      this.state.ratingsPending[id] = true;
+    });
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -860,7 +867,26 @@ class DuprService {
       }
     } catch (err) {
       console.warn('[DUPR] ratings backfill failed:', err);
+    } finally {
+      missing.forEach((id) => {
+        delete this.state.ratingsPending[id];
+      });
     }
+  }
+
+  /** True while a live DUPR rating pull is in flight for this duprId. */
+  isRatingPending(duprId?: string | null): boolean {
+    return !!duprId && !!this.state.ratingsPending[duprId];
+  }
+
+  /**
+   * Drop a cached rating so the next ensureRatings re-pulls it live from
+   * DUPR — used on profile mount so the hero card never serves a value
+   * fetched before DUPR's latest rating update.
+   */
+  invalidateRating(duprId: string) {
+    delete this.state.ratingsMap[duprId];
+    this.requestedRatingIds.delete(duprId);
   }
 
   /**
