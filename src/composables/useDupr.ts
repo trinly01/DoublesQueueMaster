@@ -228,7 +228,13 @@ class DuprService {
           // Connected rows only — Disconnect keeps the row for audit
           // (status 'disconnected', retains dupr_id), and it must never
           // land in state.connection or stale ids/ratings keep rendering.
-          filter: { status: { _eq: 'connected' } },
+          // Admin roles bypass permission row-filters in Directus, so the
+          // user scope must be explicit — otherwise limit:1 returns the
+          // first connected row in the table (another user's DUPR identity).
+          filter: {
+            status: { _eq: 'connected' },
+            ...(uid ? { user: { _eq: uid } } : {}),
+          },
           fields: [
             'id',
             'user',
