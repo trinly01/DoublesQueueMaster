@@ -27,7 +27,7 @@ vi.mock('src/services/likhaClient', () => ({
 }));
 
 vi.mock('src/services/playerProfile', () => ({
-  PlayerProfile: { clearProfile: vi.fn() },
+  PlayerProfile: { clearProfile: vi.fn(), state: { id: '' } },
 }));
 
 vi.mock('src/composables/useNotify', () => ({

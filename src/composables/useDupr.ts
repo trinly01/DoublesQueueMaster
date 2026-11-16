@@ -1,10 +1,12 @@
 import { reactive } from 'vue';
 import { LocalStorage } from 'quasar';
 import { likhaClient } from 'src/services/likhaClient';
+import { PlayerProfile } from 'src/services/playerProfile';
 import { readItems, readSingleton } from '@likha-erp/likha-sdk';
 
 export interface DuprConnection {
   id: string;
+  user?: string | null;
   dupr_id: string;
   environment: string;
   status: string;
@@ -110,6 +112,40 @@ class DuprService {
       submitting: false,
       error: '',
     }) as DuprState;
+
+    // The connection cache is not user-scoped — a previous account's row can
+    // survive logout on a shared browser. Drop it up front when it provably
+    // belongs to someone else so the wrong DUPR identity never renders.
+    const uid = this.currentUserId() || PlayerProfile.state?.id || null;
+    if (
+      uid &&
+      this.state.connection &&
+      this.state.connection.user !== uid
+    ) {
+      this.state.connection = null;
+      LocalStorage.remove(DUPR_CACHE_KEY);
+    }
+  }
+
+  /**
+   * Current session's Directus user id, decoded from the likha-data JWT
+   * (Directus access-token payload carries `id`). Null when unreadable.
+   */
+  private currentUserId(): string | null {
+    try {
+      const data = LocalStorage.getItem('likha-data') as {
+        access_token?: string;
+      } | null;
+      const token = data?.access_token;
+      if (!token) return null;
+      const payload = JSON.parse(atob(token.split('.')[1])) as {
+        id?: string;
+        sub?: string;
+      };
+      return payload.id ?? payload.sub ?? null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -172,6 +208,20 @@ class DuprService {
    */
   async fetchConnection(): Promise<DuprConnection | null> {
     this.state.loading = true;
+    // The connection cache is not user-scoped — a previous account's row can
+    // survive logout on a shared browser. Drop it unless it provably belongs
+    // to this session's user before it can render the wrong DUPR identity.
+    // JWT covers password logins; PlayerProfile.state.id covers SSO sessions
+    // whose access token isn't a decodable JWT in likha-data.
+    const uid = this.currentUserId() || PlayerProfile.state?.id || null;
+    if (
+      uid &&
+      this.state.connection &&
+      this.state.connection.user !== uid
+    ) {
+      this.state.connection = null;
+      LocalStorage.remove(DUPR_CACHE_KEY);
+    }
     try {
       const result = await likhaClient.request(
         readItems('dupr_connection', {
@@ -181,6 +231,7 @@ class DuprService {
           filter: { status: { _eq: 'connected' } },
           fields: [
             'id',
+            'user',
             'dupr_id',
             'environment',
             'status',
@@ -204,6 +255,12 @@ class DuprService {
       return this.state.connection;
     } catch (err) {
       console.warn('[DUPR] Failed to fetch connection:', err);
+      // Fail closed when the session user can't be verified — an
+      // unverifiable cached connection may belong to a previous account.
+      if (!uid && this.state.connection) {
+        this.state.connection = null;
+        LocalStorage.remove(DUPR_CACHE_KEY);
+      }
       return null;
     } finally {
       this.state.loading = false;
@@ -611,6 +668,7 @@ class DuprService {
       // Update local state from flow response
       this.state.connection = {
         id: '',
+        user: this.currentUserId(),
         dupr_id: result.duprId || ssoData.duprId,
         environment: result.environment || settings.environment || 'uat',
         status: 'connected',
@@ -933,6 +991,9 @@ class DuprService {
     this.state.connection = null;
     this.state.settings = null;
     this.state.submissions = [];
+    this.state.ratingsMap = {};
+    this.state.ratingsPending = {};
+    this.requestedRatingIds.clear();
     this.state.error = '';
     LocalStorage.remove(DUPR_CACHE_KEY);
     LocalStorage.remove(SUBMISSIONS_CACHE_KEY);

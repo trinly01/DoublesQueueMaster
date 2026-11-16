@@ -2,6 +2,7 @@ import { LocalStorage } from 'quasar';
 import type { Router } from 'vue-router';
 import { likhaClient, clearAuthSession } from 'src/services/likhaClient';
 import { PlayerProfile } from 'src/services/playerProfile';
+import { useDupr } from 'src/composables/useDupr';
 import { useNotify } from 'src/composables/useNotify';
 
 // Shared authentication helpers for all authenticated pages.
@@ -81,6 +82,9 @@ export function useAuth() {
     clearAuthSession();
     LocalStorage.remove('recent_clubs_cache');
     PlayerProfile.clearProfile();
+    // DUPR connection/ratings caches are per-account — without this the next
+    // login on this browser inherits the previous user's DUPR identity.
+    useDupr().clearAll();
   };
 
   // Full logout: flush pending work, invalidate server session, clear local
