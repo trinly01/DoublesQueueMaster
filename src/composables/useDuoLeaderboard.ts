@@ -96,6 +96,7 @@ export function useDuoLeaderboard(context: UseDuoLeaderboardContext) {
 
   const fetchDuoLeaderboard = async () => {
     if (!currentClubUUID.value) return;
+    if (duoLeaderboardLoading.value) return;
     const cachedFingerprint = loadCached();
     duoLeaderboardLoading.value =
       !cachedFingerprint || duoLeaderboard.value.length === 0;

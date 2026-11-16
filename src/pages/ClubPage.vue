@@ -2876,11 +2876,18 @@ watch(isCurrentUserAdmin, (val) => setAdminMode(val), { immediate: true });
 // stops after ~24s instead of spinning forever).
 let matchKeyRetryTimer: ReturnType<typeof setTimeout> | null = null;
 async function fetchKeysUntilMapped(attemptsLeft = 6) {
+  const hasPending = () =>
+    MatchmakingApp.state.completedMatches.some(
+      (m) => !completedMatchKeyMap.value[m.matchId],
+    );
+  // Skip the GET entirely when nothing is unmapped — previously this
+  // fetched first and checked after, costing every client one
+  // completed_match read per match completion for nothing.
+  if (!hasPending()) return;
   await fetchCompletedMatchKeys();
-  const pending = MatchmakingApp.state.completedMatches.some(
-    (m) => !completedMatchKeyMap.value[m.matchId],
-  );
-  if (pending && attemptsLeft > 0) {
+  // The retry loop only pays off for DUPR submitters (admins) — members
+  // keep the single best-effort fetch above for status chips.
+  if (hasPending() && attemptsLeft > 0 && isCurrentUserAdmin.value) {
     if (matchKeyRetryTimer) clearTimeout(matchKeyRetryTimer);
     matchKeyRetryTimer = setTimeout(
       () => void fetchKeysUntilMapped(attemptsLeft - 1),
@@ -2896,6 +2903,7 @@ async function fetchKeysUntilMapped(attemptsLeft = 6) {
 watch(
   () => MatchmakingApp.state.completedMatches.length,
   () => {
+    leaderboardFetchedAt.value = {};
     void fetchKeysUntilMapped();
     void refreshPlayerRatings();
   },
@@ -3340,6 +3348,8 @@ const fetchMyMatchesLeaderboard = async () => {
 // realtime appState subscription never sees it — we refresh ratings explicitly here.
 const refreshPlayerRatings = async () => {
   if (!isOnline.value || !currentClubUUID.value) return;
+  // Hidden tabs don't need fresh ratings — resume-sync re-pulls on return.
+  if (typeof document !== 'undefined' && document.hidden) return;
   try {
     const result = await likhaClient.request(
       readItems('club', {
@@ -3684,18 +3694,42 @@ watch(
   { immediate: true },
 );
 
+// Leaderboard fetches are heavy (club/duo tabs pull up to ~6.6k
+// completed_match rows per open, duo paginates 10×500) — TTL-gate
+// refetches and invalidate when new matches land so fresh results
+// still appear. No hard guard: the dialog has no manual refresh.
+const LEADERBOARD_TTL_MS = 120_000;
+const leaderboardFetchedAt = ref<Record<string, number>>({});
+const fetchLeaderboardTab = (tab: 'club' | 'duo' | 'global' | 'my') => {
+  const key = `${tab}:${String(includeNonCompetitive.value)}`;
+  if (
+    Date.now() - (leaderboardFetchedAt.value[key] ?? 0) <
+    LEADERBOARD_TTL_MS
+  ) {
+    return;
+  }
+  leaderboardFetchedAt.value = {
+    ...leaderboardFetchedAt.value,
+    [key]: Date.now(),
+  };
+  if (tab === 'club') void fetchClubLeaderboard();
+  else if (tab === 'duo') void fetchDuoLeaderboard();
+  else if (tab === 'global') void fetchGlobalLeaderboard();
+  else void fetchMyMatchesLeaderboard();
+};
+
 watch(showLeaderboardDialog, (open) => {
   if (open) {
-    fetchClubLeaderboard();
-    fetchGlobalLeaderboard();
-    fetchMyMatchesLeaderboard();
-    fetchDuoLeaderboard();
+    fetchLeaderboardTab('club');
+    fetchLeaderboardTab('global');
+    fetchLeaderboardTab('my');
+    fetchLeaderboardTab('duo');
   }
 });
 
 watch(includeNonCompetitive, () => {
-  fetchClubLeaderboard();
-  fetchDuoLeaderboard();
+  fetchLeaderboardTab('club');
+  fetchLeaderboardTab('duo');
 });
 
 const clubFeedback = ref<ClubFeedbackEntry[]>([]);
@@ -3792,8 +3826,20 @@ function saveCachedClubFeedback(items: ClubFeedbackEntry[]) {
   LocalStorage.set(getClubFeedbackCacheKey(), items);
 }
 
+// report_player read is unbounded — TTL-gate refetches per club so tab
+// re-opens and remounts within 5 min don't re-pull the full list.
+const FEEDBACK_TTL_MS = 5 * 60 * 1000;
+const feedbackFetchedAt = ref<Record<string, number>>({});
+
 async function loadClubFeedback() {
   if (!currentClubUUID.value) return;
+  const key = currentClubUUID.value;
+  if (
+    Date.now() - (feedbackFetchedAt.value[key] ?? 0) <
+    FEEDBACK_TTL_MS
+  ) {
+    return;
+  }
   const cached = loadCachedClubFeedback();
   if (cached) {
     clubFeedback.value = cached;
@@ -3805,6 +3851,10 @@ async function loadClubFeedback() {
   clubFeedback.value = fresh;
   saveCachedClubFeedback(fresh);
   clubFeedbackLoading.value = false;
+  feedbackFetchedAt.value = {
+    ...feedbackFetchedAt.value,
+    [key]: Date.now(),
+  };
 }
 
 // Fetch latest members/admins when opening the Club settings tab

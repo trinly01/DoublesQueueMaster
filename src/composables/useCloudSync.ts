@@ -98,7 +98,6 @@ export function useCloudSync(ctx: CloudSyncContext) {
     isOpenPlay,
     likhaUrl,
     loadClubData,
-    refreshPlayerRatings,
     router,
     lastSyncedServerTimestamp,
     saveLastSyncedTimestamp,
@@ -107,6 +106,16 @@ export function useCloudSync(ctx: CloudSyncContext) {
   const { handleAuthError: ctxHandleAuthError } = useAuth();
   const notify = ctxNotify as NotifyFn;
   const handleAuthError = ctxHandleAuthError as HandleAuthErrorFn;
+
+  // Hidden tabs don't need fresh directus_users ratings — resume-sync
+  // (doResumeSync → loadClubData) re-pulls full state, ratings included,
+  // when the user returns. Guarding the injected callback here covers
+  // every caller: the 60s poll plus both reconnect paths in
+  // updateOnlineStatus.
+  const refreshPlayerRatings = async () => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    await ctx.refreshPlayerRatings();
+  };
 
   // Cloud sync state
   const isOnline = ref(navigator.onLine);
@@ -1163,6 +1172,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
   const STALENESS_POLL_MS = 20000;
   let pollInFlight = false;
   const pollServerState = async () => {
+    if (typeof document !== 'undefined' && document.hidden) return;
     if (pollInFlight) return;
     if (isOpenPlay.value || clubSwitchInProgress.value) return;
     if (!isOnline.value || !currentClubUUID.value || !currentClubId.value)

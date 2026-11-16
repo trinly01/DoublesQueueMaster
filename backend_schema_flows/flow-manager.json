@@ -1146,6 +1146,11 @@
                   "environment": {
                     "_eq": "{{ prepare_matches.environment }}"
                   }
+                },
+                {
+                  "user": {
+                    "_in": "{{conn_user_ids.ids}}"
+                  }
                 }
               ]
             },
@@ -1244,11 +1249,12 @@
               "team_a_score",
               "team_b_score",
               "completed_at",
-              "club"
+              "club",
+              "players.directus_users_id.id"
             ]
           }
         },
-        "resolve": "015c4427-a380-4d3b-9886-d8d2cab0ef1f",
+        "resolve": "f005c1ce-cd91-4d79-a7ad-5a29070ab3ef",
         "reject": null
       },
       {
@@ -1385,6 +1391,19 @@
           ]
         },
         "resolve": "0cff3dcc-4ac3-4b77-bfb5-83448a2b530a",
+        "reject": null
+      },
+      {
+        "id": "f005c1ce-cd91-4d79-a7ad-5a29070ab3ef",
+        "name": "conn user ids",
+        "key": "conn_user_ids",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 20,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const matches = data.read_matches || [];\n  const ids = new Set();\n  for (const m of matches) {\n    for (const p of m.players || []) {\n      const u = p && p.directus_users_id;\n      const id = u && typeof u === 'object' ? u.id : u;\n      if (id) ids.add(id);\n    }\n  }\n  return { ids: [...ids] };\n}"
+        },
+        "resolve": "015c4427-a380-4d3b-9886-d8d2cab0ef1f",
         "reject": null
       }
     ],
@@ -4660,8 +4679,73 @@
         "club"
       ]
     },
-    "operation": "851c41dd-c4c0-4862-9b1d-d3618c05fdea",
+    "operation": "eb4cf5d2-c196-43b0-b2f1-541795825a86",
     "operations": [
+      {
+        "id": "eb4cf5d2-c196-43b0-b2f1-541795825a86",
+        "name": "prep match keys",
+        "key": "prep_match_keys",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const mm = data.$trigger?.payload?.appState?.matchmaking;\n  const matches = Array.isArray(mm?.completedMatches) ? mm.completedMatches : [];\n  return { matchKeys: matches.map(m => `${m.completedAt}_${m.matchId}`) };\n}"
+        },
+        "resolve": "f6ddddcf-a5a5-41fb-891c-4b022d43a4e3",
+        "reject": null
+      },
+      {
+        "id": "f6ddddcf-a5a5-41fb-891c-4b022d43a4e3",
+        "name": "existing match keys",
+        "key": "existing_match_keys",
+        "type": "item-read",
+        "position_x": 10,
+        "position_y": 0,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "completed_match",
+          "query": {
+            "filter": {
+              "match_key": {
+                "_in": "{{prep_match_keys.matchKeys}}"
+              }
+            },
+            "fields": [
+              "match_key"
+            ],
+            "limit": -1
+          }
+        },
+        "resolve": "35dd593e-4979-43f6-b44a-a95a405ba576",
+        "reject": "35dd593e-4979-43f6-b44a-a95a405ba576"
+      },
+      {
+        "id": "35dd593e-4979-43f6-b44a-a95a405ba576",
+        "name": "filter new matches",
+        "key": "filter_new_matches",
+        "type": "exec",
+        "position_x": 20,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const mm = data.$trigger?.payload?.appState?.matchmaking;\n  const matches = Array.isArray(mm?.completedMatches) ? mm.completedMatches : [];\n  if (!matches.length) return { newMatches: [] };\n  const existing = new Set(\n    (data.existing_match_keys || [])\n      .map(r => r && r.match_key)\n      .filter(Boolean)\n  );\n  return {\n    newMatches: matches.filter(m => !existing.has(`${m.completedAt}_${m.matchId}`))\n  };\n}"
+        },
+        "resolve": "851c41dd-c4c0-4862-9b1d-d3618c05fdea",
+        "reject": null
+      },
+      {
+        "id": "847929d4-7a36-4fe2-8f35-c11fa654be63",
+        "name": "assert new matches",
+        "key": "assert_new_matches",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const nm = data.filter_new_matches?.newMatches;\n  if (!Array.isArray(nm) || nm.length === 0) {\n    throw new Error('NO_NEW_MATCHES');\n  }\n  return { ok: true };\n}"
+        },
+        "resolve": "51f5df17-a4e7-4b49-85e3-82a0b677deb4",
+        "reject": "3e3081eb-3899-498b-9761-e95993984be8"
+      },
       {
         "id": "3e3081eb-3899-498b-9761-e95993984be8",
         "name": "trigger save player events",
@@ -4687,7 +4771,7 @@
         "options": {
           "iterationMode": "parallel",
           "flow": "daa0ffa5-d040-4efd-af26-3ce063a81bc6",
-          "payload": "{{ $trigger.payload.appState.matchmaking.completedMatches }}"
+          "payload": "{{filter_new_matches.newMatches}}"
         },
         "resolve": "3e3081eb-3899-498b-9761-e95993984be8",
         "reject": null
@@ -4702,7 +4786,7 @@
         "options": {
           "code": "module.exports = async function(data) {\n    const mm = data.$trigger?.payload?.appState?.matchmaking;\n    if (!mm?.players || !mm?.completedMatches) return [];\n\n    const { players, completedMatches } = mm;\n    const result = [];\n\n    const matchPayloads = {};\n    for (const match of completedMatches) {\n        const key = `${match.completedAt}_${match.matchId}`;\n        const playerIds = new Set();\n        const collect = (team) => {\n            if (!team) return;\n            for (const { username } of team) {\n                const p = players[username];\n                if (p?.userId) playerIds.add(p.userId);\n            }\n        };\n        collect(match.teamA);\n        collect(match.teamB);\n\n        matchPayloads[key] = {\n            match_key: key,\n            match_id: match.matchId,\n            match_type: match.matchType,\n            team_a: match.teamA,\n            team_b: match.teamB,\n            team_a_score: match.teamAScore,\n            team_b_score: match.teamBScore,\n            started_at: match.startedAt ? new Date(match.startedAt).toISOString() : null,\n            completed_at: new Date(match.completedAt).toISOString(),\n            players: Array.from(playerIds, id => ({ directus_users_id: id })),\n            club: match.club || mm.clubUUID || null\n        };\n    }\n\n    const processTeam = (team, key) => {\n        if (!team) return;\n        for (const { username } of team) {\n            const player = players[username];\n            if (!player?.userId) continue;\n            if (!player.completed_matches) {\n                player.completed_matches = [];\n                result.push(player);\n            }\n            player.completed_matches.push(matchPayloads[key]);\n        }\n    };\n\n    for (const match of completedMatches) {\n        const key = `${match.completedAt}_${match.matchId}`;\n        processTeam(match.teamA, key);\n        processTeam(match.teamB, key);\n    }\n\n    return result;\n};"
         },
-        "resolve": "51f5df17-a4e7-4b49-85e3-82a0b677deb4",
+        "resolve": "847929d4-7a36-4fe2-8f35-c11fa654be63",
         "reject": null
       }
     ],
