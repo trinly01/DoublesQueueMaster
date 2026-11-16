@@ -944,6 +944,22 @@ class DuprService {
   }
 
   /**
+   * True once a rating pull has resolved for this duprId — a ratingsMap
+   * entry exists, or the request already completed (possibly returning no
+   * rating, i.e. genuinely NR). Until then the value is still expected
+   * and callers should render a skeleton rather than 'NR'.
+   */
+  isRatingResolved(duprId?: string | null): boolean {
+    if (!duprId) return false;
+    if (this.state.ratingsMap[duprId] || this.requestedRatingIds.has(duprId)) {
+      return true;
+    }
+    // Settings loaded but no ratings flow → the pull can never resolve;
+    // treat as resolved so callers don't skeleton forever.
+    return !!this.state.settings && !this.state.settings.ratings_flow_url;
+  }
+
+  /**
    * Drop a cached rating so the next ensureRatings re-pulls it live from
    * DUPR — used on profile mount so the hero card never serves a value
    * fetched before DUPR's latest rating update.

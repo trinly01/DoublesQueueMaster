@@ -155,7 +155,19 @@
               </span>
               <span class="text-caption text-white">
                 DUPR Doubles
-                <template v-if="duprSinglesRating !== null"
+                <template v-if="duprRatingPending">
+                  · S
+                  <q-skeleton
+                    type="text"
+                    style="
+                      width: 2.4rem;
+                      height: 0.7rem;
+                      display: inline-block;
+                      vertical-align: middle;
+                    "
+                  />
+                </template>
+                <template v-else-if="duprSinglesRating !== null"
                   >· S {{ duprSinglesRating.toFixed(3) }}</template
                 >
               </span>
@@ -600,17 +612,27 @@
               v-if="ratingVelocity"
               class="row q-col-gutter-sm q-mb-md"
             >
-              <template v-if="duprDoublesRating !== null">
+              <template v-if="duprDoublesRating !== null || duprRatingPending">
                 <div class="col-4">
                   <q-card flat bordered class="text-center q-pa-sm">
-                    <div class="text-h6 text-weight-bold">
-                      {{ duprDoublesRating.toFixed(2) }}
-                    </div>
-                    <div class="text-caption text-grey-8 ellipsis">
-                      DUPR<template v-if="duprSinglesRating !== null"
-                        > · S {{ duprSinglesRating.toFixed(2) }}</template
-                      >
-                    </div>
+                    <template v-if="duprRatingPending">
+                      <div class="text-h6 text-weight-bold">
+                        <q-skeleton type="text" />
+                      </div>
+                      <div class="text-caption text-grey-8">
+                        <q-skeleton type="text" style="width: 60%" />
+                      </div>
+                    </template>
+                    <template v-else>
+                      <div class="text-h6 text-weight-bold">
+                        {{ duprDoublesRating?.toFixed(2) }}
+                      </div>
+                      <div class="text-caption text-grey-8 ellipsis">
+                        DUPR<template v-if="duprSinglesRating !== null"
+                          > · S {{ duprSinglesRating.toFixed(2) }}</template
+                        >
+                      </div>
+                    </template>
                   </q-card>
                 </div>
                 <div class="col-4">
@@ -1825,14 +1847,16 @@ const duprDoublesRating = computed(
   () =>
     Dupr.state.connection?.doubles_rating ?? Dupr.duprDoublesOf(duprId.value),
 );
-// Skeleton while own rating's live DUPR pull is in flight — prevents
-// flashing a stale cached value or 'NR' before fresh data lands. Skipped
-// when the connection row already carries a webhook-maintained rating.
+// Skeleton while own rating is expected but unresolved — covers the live
+// DUPR pull in flight AND the window before ensureRatings starts (settings/
+// connection fetches). Resolved-NR players (DUPR returned nothing) still
+// see 'NR'; skipped when the connection row already carries a rating.
 const duprRatingPending = computed(
   () =>
-    duprId.value != null &&
+    !!duprId.value &&
     Dupr.state.connection?.doubles_rating == null &&
-    Dupr.isRatingPending(duprId.value),
+    (Dupr.isRatingPending(duprId.value) ||
+      !Dupr.isRatingResolved(duprId.value)),
 );
 
 const getRatingGradient = (color: string): string => {
@@ -2973,6 +2997,12 @@ onMounted(async () => {
   } else {
     dataFetchBar.value?.start();
   }
+
+  // Invalidate own rating up-front — on SPA revisits ratingsMap still holds
+  // the previous pull, and without this the hero flashes that stale value
+  // while connection/settings fetches resolve. Re-invalidated below in case
+  // the connection row resolves a different dupr_id.
+  if (duprId.value) Dupr.invalidateRating(duprId.value);
 
   // Attempt server fetch; silently falls back to cache when offline.
   // A 401 (invalid/expired session) is re-thrown here and triggers logout.
