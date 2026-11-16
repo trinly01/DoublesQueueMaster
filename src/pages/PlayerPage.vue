@@ -241,16 +241,32 @@
               </q-card>
             </q-popup-proxy>
             <q-icon name="analytics" size="16px" class="q-mr-xs text-white" />
-            <span class="replay-rating-value">{{
-              replayRating !== null ? ratingChipText(replayRating) : 'NR'
-            }}</span>
-            <span class="replay-rating-label">{{
-              replayReliable
-                ? replayRatingCategory
-                : replayRating !== null
-                  ? `Provisional · ${replayGames}/${CLUB_RANKING_CONFIG.provisionalThreshold}`
-                  : 'Not Rated'
-            }}</span>
+            <template v-if="matchesReplayPending">
+              <span class="replay-rating-value">
+                <q-skeleton
+                  type="text"
+                  style="width: 2.6rem; height: 1rem"
+                />
+              </span>
+              <span class="replay-rating-label">
+                <q-skeleton
+                  type="text"
+                  style="width: 4.5rem; height: 0.7rem"
+                />
+              </span>
+            </template>
+            <template v-else>
+              <span class="replay-rating-value">{{
+                replayRating !== null ? ratingChipText(replayRating) : 'NR'
+              }}</span>
+              <span class="replay-rating-label">{{
+                replayReliable
+                  ? replayRatingCategory
+                  : replayRating !== null
+                    ? `Provisional · ${replayGames}/${CLUB_RANKING_CONFIG.provisionalThreshold}`
+                    : 'Not Rated'
+              }}</span>
+            </template>
           </q-btn>
 
           <div class="row" style="width: 240px; gap: 8px">
@@ -638,13 +654,19 @@
                 <div class="col-4">
                   <q-card flat bordered class="text-center q-pa-sm">
                     <div class="text-h6 text-weight-bold">
-                      {{
-                        replayReliable
-                          ? ratingChipText(
-                              replayRating ?? ratingVelocity.current,
-                            )
-                          : 'NR'
-                      }}
+                      <q-skeleton
+                        v-if="matchesReplayPending"
+                        type="text"
+                      />
+                      <template v-else>
+                        {{
+                          replayReliable
+                            ? ratingChipText(
+                                replayRating ?? ratingVelocity.current,
+                              )
+                            : 'NR'
+                        }}
+                      </template>
                     </div>
                     <div class="text-caption text-grey-8">Computed (30d)</div>
                   </q-card>
@@ -2020,13 +2042,18 @@ const matchesLeaderboardCache = ref<LeaderboardEntry[]>([]);
 // doesn't blank the tab (leaderboardData falls back to the persisted cache
 // only while this is empty, same as before).
 const matchesLeaderboard = ref<LeaderboardEntry[]>([]);
+// True while the worker replay is in flight — lets the computed-rating chip
+// and stats card skeleton instead of flashing 'NR' before matches load.
+const matchesReplayPending = ref(false);
 let matchesReplaySeq = 0;
 
 const refreshMatchesLeaderboard = async () => {
   const seq = ++matchesReplaySeq;
+  matchesReplayPending.value = true;
   const allMatches = PlayerProfile.state.completedMatches || [];
   if (allMatches.length === 0) {
     matchesLeaderboard.value = [];
+    matchesReplayPending.value = false;
     return;
   }
 
@@ -2037,6 +2064,7 @@ const refreshMatchesLeaderboard = async () => {
   );
   if (matches.length === 0) {
     matchesLeaderboard.value = [];
+    matchesReplayPending.value = false;
     return;
   }
 
@@ -2047,7 +2075,9 @@ const refreshMatchesLeaderboard = async () => {
     return null;
   });
   // A newer refresh started while the worker ran — its result wins.
-  if (!replayed || seq !== matchesReplaySeq) return;
+  if (seq !== matchesReplaySeq) return;
+  matchesReplayPending.value = false;
+  if (!replayed) return;
 
   // Build registered-user info map from the players junction.
   const userMap = new Map<
