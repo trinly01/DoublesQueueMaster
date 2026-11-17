@@ -44,28 +44,31 @@ describe('computeNetworkScores', () => {
     expect(d.losses).toBe(2);
   });
 
-  it('network embeddedness outranks win-loss record (the core spec)', () => {
-    // W5/W6 lose every match but are the SHARED opponents of four mid
-    // players — a pure W/L board buries them; network position lifts them
-    // above players with wins. This is what "not wins or losses" means.
+  it('few-game players rank by own performance, not network volume', () => {
+    // P_lose drops two matches to hub S1 (10-0, high rank → real network
+    // inflow) while P_win beats two weak pairs. Both have 2 games so
+    // λ_i≈0.11 — own performance dominates, and the 2-0 player must
+    // outrank the 0-2 player even though P_lose holds the stronger
+    // network position. Adaptive λ is what makes small samples honest.
+    const hubFiller = Array.from({ length: 8 }, (_, i) =>
+      m(['S1'], [`hf${i}`], 21, 5, `h${i}`, `2025-01-0${i + 1}T00:00:00Z`),
+    );
     const players = computeNetworkScores([
-      m(['A', 'B'], ['W1', 'W2'], 21, 5, 'a1', '2025-01-01T00:00:00Z'),
-      m(['A', 'B'], ['W3', 'W4'], 21, 5, 'a2', '2025-01-02T00:00:00Z'),
-      m(['A'], ['M1'], 21, 5, 'a3', '2025-01-03T00:00:00Z'),
-      m(['B'], ['M2'], 21, 5, 'a4', '2025-01-04T00:00:00Z'),
-      m(['M3', 'X1'], ['W5', 'W6'], 21, 5, 'm1', '2025-01-05T00:00:00Z'),
-      m(['M4', 'X2'], ['W5', 'W6'], 21, 5, 'm2', '2025-01-06T00:00:00Z'),
-      m(['M5', 'X3'], ['W7', 'W8'], 21, 5, 'm3', '2025-01-07T00:00:00Z'),
-      m(['M5'], ['A'], 5, 21, 'm4', '2025-01-08T00:00:00Z'),
+      ...hubFiller,
+      m(['S1', 'S2'], ['P_lose', 'Z1'], 21, 5, 'l1', '2025-01-10T00:00:00Z'),
+      m(['S1', 'S2'], ['P_lose', 'Z2'], 21, 5, 'l2', '2025-01-11T00:00:00Z'),
+      m(['P_win', 'Y1'], ['W1', 'W2'], 21, 5, 'w1', '2025-01-12T00:00:00Z'),
+      m(['P_win', 'Y2'], ['W3', 'W4'], 21, 5, 'w2', '2025-01-13T00:00:00Z'),
     ]);
     const order = players.map((p) => p.username);
-    expect(order[0]).toBe('A'); // most-connected hub tops the board
-    const w5 = byName(players).get('W5')!;
-    const m3 = byName(players).get('M3')!;
-    expect(w5.wins).toBe(0);
-    expect(w5.losses).toBe(2);
-    expect(m3.wins).toBe(1);
-    expect(order.indexOf('W5')).toBeLessThan(order.indexOf('M3'));
+    const pLose = byName(players).get('P_lose')!;
+    const pWin = byName(players).get('P_win')!;
+    // P_lose drew the club's strongest player (S1, 10-0) — a genuinely
+    // tougher schedule — yet at 2 games each λ_i≈0.11 makes own
+    // performance dominant, so the 2-0 player still ranks higher.
+    expect(pLose.matchesPlayed).toBe(pWin.matchesPlayed);
+    expect(pWin.ownPerformance).toBeGreaterThan(pLose.ownPerformance);
+    expect(order.indexOf('P_win')).toBeLessThan(order.indexOf('P_lose'));
   });
 
   it('identical records are differentiated by network position', () => {
@@ -196,7 +199,7 @@ describe('computeNetworkScores', () => {
     expect(vet.gamesToReliable).toBe(0);
   });
 
-  it('satisfies the attribution invariant: raw = (1−λ)·own + networkFlow', () => {
+  it('satisfies the attribution invariant: raw = (1−λ_i)·own + networkFlow', () => {
     const players = computeNetworkScores([
       m(['A', 'B'], ['C', 'D'], 21, 5, 'k1', '2025-01-01T00:00:00Z'),
       m(['A', 'C'], ['B', 'D'], 21, 5, 'k2', '2025-01-02T00:00:00Z'),
@@ -205,7 +208,11 @@ describe('computeNetworkScores', () => {
     for (const p of players) {
       expect(p.ownPerformance).toBeGreaterThanOrEqual(0);
       expect(p.networkFlow).toBeGreaterThanOrEqual(0);
-      expect(p.rawScore).toBeCloseTo(0.2 * p.ownPerformance + p.networkFlow, 6);
+      const lam = (0.8 * p.matchesPlayed) / (p.matchesPlayed + 12);
+      expect(p.rawScore).toBeCloseTo(
+        (1 - lam) * p.ownPerformance + p.networkFlow,
+        6,
+      );
     }
   });
 });

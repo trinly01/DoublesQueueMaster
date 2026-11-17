@@ -116,7 +116,7 @@ const MAX_ITERS = 500;
 const EPSILON = 1e-10;
 
 type EdgeMode = 'base' | 'v4' | 'v5';
-type IterMode = 'base' | 'v2' | 'v3';
+type IterMode = 'base' | 'v2' | 'v3' | 'v6' | 'v7';
 
 type MarginStats = {
   ties: number;
@@ -397,7 +397,17 @@ function runVariant(
   const totalGames = players.reduce((s, p) => s + p.games, 0);
   const meanGames = totalGames / players.length;
 
-  const lambda = iterMode === 'v3' ? 0.45 : 0.8;
+  // v6: adaptive per-player lambda — λ_i = 0.8·games/(games+12), so
+  // low-game players rank ~pure own-performance (no network mass yet)
+  // while veterans keep full network weight. Empirical-Bayes style.
+  const lambdaOf = (games: number) =>
+    (iterMode === 'v6' || iterMode === 'v7')
+      ? (0.8 * games) / (games + SHRINKAGE_C)
+      : iterMode === 'v3' ? 0.45 : 0.8;
+  // v7: also scale the teleport vector into flow units — p̃∈[0,1.25] vs
+  // r∈[0,~3]; κ=3 makes own-performance comparable to network inflow so
+  // low-game players' scores aren't structurally capped below veterans'.
+  const KAPPA = iterMode === 'v7' ? 3 : 1;
   const useGameNorm = iterMode === 'v2';
 
   const r = new Map<string, number>();
@@ -420,7 +430,8 @@ function runVariant(
       const pt = pTilde.get(p.key) ?? 0;
       const raw = inflow.get(p.key) || 0;
       const normed = useGameNorm ? (raw / p.games) * meanGames : raw;
-      const next = (1 - lambda) * pt + lambda * normed;
+      const lam = lambdaOf(p.games);
+      const next = (1 - lam) * pt * KAPPA + lam * normed;
       maxDelta = Math.max(maxDelta, Math.abs(next - (r.get(p.key) ?? 0)));
       r.set(p.key, next);
     }
@@ -555,6 +566,8 @@ report('V3 (λ=0.45 only)', runVariant(inputs, 'base', 'v3'));
 report('V4 (directed loser→winner edges, λ=0.8)', runVariant(inputs, 'v4', 'base'));
 const v5 = runVariant(inputs, 'v5', 'base');
 report('V5 (complementary margin-weighted opponent edges, λ=0.8)', v5);
+report('V6 (V5 edges + adaptive λ_i = 0.8·games/(games+12))', runVariant(inputs, 'v5', 'v6'));
+report('V7 (V6 + teleport κ=3)', runVariant(inputs, 'v5', 'v7'));
 
 // ---------- μw distribution on live data ----------
 {
@@ -643,5 +656,76 @@ report('V5 (complementary margin-weighted opponent edges, λ=0.8)', v5);
     );
     console.log(`      ${mem(rec.k1)}`);
     console.log(`      ${mem(rec.k2)}`);
+  }
+}
+
+
+// ---------- suppression analysis: ownPerformance vs V5+V6 network rank ----------
+{
+  const v6 = runVariant(inputs, 'v5', 'v6');
+  console.log('\n================ V6 TOP 25 (adaptive lambda) ================');
+  v6.players.slice(0, 25).forEach((p, i) => {
+    const wl = `${p.wins}-${p.losses}${p.ties ? `-${p.ties}t` : ''}`;
+    console.log(` ${String(i + 1).padStart(3)}  ${p.display.padEnd(38)} net=${p.networkScore}  g=${p.matchesPlayed}  ${wl}  | v5=#${v5.players.findIndex(q => q.key === p.key) + 1}`);
+  });
+  // key movers: previously-suppressed strong performers
+  const movers = ['jeo', 'shirwin', 'atthan', 'sandro', 'juha', 'trin', 'louis', 'obat', 'obal', 'kay tan'];
+  for (const t of movers) {
+    const hits = v6.players.filter(p =>
+      `${p.display} ${p.firstName} ${p.lastName} ${p.username}`.toLowerCase().includes(t));
+    for (const p of hits) {
+      const i6 = v6.players.indexOf(p) + 1;
+      const i5 = v5.players.findIndex(q => q.key === p.key) + 1;
+      console.log(`  mover '${t}': v5=#${i5} -> v6=#${i6}  ${p.display} g=${p.matchesPlayed} pt=${p.ownPerformance.toFixed(3)}`);
+    }
+  }
+}
+
+// ---------- suppression analysis: ownPerformance vs V5 network rank ----------
+{
+  const v5rank = new Map(v5.players.map((p, i) => [p.key, i + 1]));
+  const baseRank = new Map(base.players.map((p, i) => [p.key, i + 1]));
+  const ptSorted = [...v5.players].sort(
+    (a, b) => b.ownPerformance - a.ownPerformance || (a.key < b.key ? -1 : 1),
+  );
+  const ptRank = new Map(ptSorted.map((p, i) => [p.key, i + 1]));
+
+  // Spearman rho between pTilde rank and V5 rawScore rank (all players)
+  const scoreRanks = ranksBy(v5.players, (p) => p.rawScore, true);
+  const ptRanksArr = ranksBy(v5.players, (p) => p.ownPerformance, true);
+  const rhoPT = pearson(scoreRanks, ptRanksArr);
+
+  console.log('\n================ SUPPRESSION ANALYSIS (pTilde-rank vs V5 network-rank) ================');
+  console.log('Spearman rho(V5 scoreRank, pTildeRank) over all players = ' + rhoPT.toFixed(4));
+
+  const rows = v5.players.map((p) => ({
+    p,
+    v5r: v5rank.get(p.key)!,
+    ptr: ptRank.get(p.key)!,
+    br: baseRank.get(p.key)!,
+    delta: (ptRank.get(p.key) ?? 0) - (v5rank.get(p.key) ?? 0), // + = network UNDER-rates vs performance
+  }));
+  const wl = (p: VariantResult) => `${p.wins}-${p.losses}${p.ties ? `-${p.ties}t` : ''}`;
+
+  console.log('\n--- TOP 20 by pure ownPerformance (pTilde) ---');
+  ptSorted.slice(0, 20).forEach((p, i) => {
+    console.log(` ${String(i + 1).padStart(3)}  ${p.display.padEnd(38)} pt=${p.ownPerformance.toFixed(3)}  g=${p.matchesPlayed}  ${wl(p)}  | v5=#${v5rank.get(p.key)} base=#${baseRank.get(p.key)}`);
+  });
+
+  console.log('\n--- TOP 20 by V5 networkScore ---');
+  v5.players.slice(0, 20).forEach((p, i) => {
+    console.log(` ${String(i + 1).padStart(3)}  ${p.display.padEnd(38)} net=${p.networkScore}  g=${p.matchesPlayed}  ${wl(p)}  | pt=#${ptRank.get(p.key)}`);
+  });
+
+  const suppressed = [...rows].sort((a, b) => b.delta - a.delta).slice(0, 15);
+  console.log('\n--- MOST SUPPRESSED by network term (high pTilde rank, low network rank) ---');
+  for (const r of suppressed) {
+    console.log(`  pt=#${r.ptr} -> v5=#${r.v5r} (d=${r.delta >= 0 ? '+' : ''}${r.delta})  ${r.p.display}  pt=${r.p.ownPerformance.toFixed(3)} g=${r.p.matchesPlayed} ${wl(r.p)}`);
+  }
+
+  const boosted = [...rows].sort((a, b) => a.delta - b.delta).slice(0, 15);
+  console.log('\n--- MOST BOOSTED by network term (low pTilde rank, high network rank) ---');
+  for (const r of boosted) {
+    console.log(`  pt=#${r.ptr} -> v5=#${r.v5r} (d=${r.delta >= 0 ? '+' : ''}${r.delta})  ${r.p.display}  pt=${r.p.ownPerformance.toFixed(3)} g=${r.p.matchesPlayed} ${wl(r.p)}`);
   }
 }

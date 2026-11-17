@@ -2,7 +2,7 @@ fetched 1000 completed_match rows (30d window, limit 1000)
 WARNING: hit limit=1000 — app fetch would truncate identically
 competitive matches after filterCompetitive(false): 594
 
-BASE engine vs computeNetworkScores: players=210 ref=210 max|ΔrawScore|=0.000e+0
+BASE engine vs computeNetworkScores: players=210 ref=210 max|ΔrawScore|=3.846e-1
 
 ================ BASE (λ=0.8, symmetric edges) — reference ================
 players=210 matchesUsed=594 iters=36 meanGames=11.30 outSum[min=1.000,max=62.000,zero=0]
@@ -154,6 +154,66 @@ rank  name                                   net  rawScore   games  W-L(-T)
   tracked 'cara': #4 Cara (@eslabracassieralph#d3c) net=89 raw=2.13643 g=50 31-19
   Spearman ρ(scoreRank, gamesRank) = -0.9620   top20 meanGames=44.0 vs all=11.3
 
+================ V6 (V5 edges + adaptive λ_i = 0.8·games/(games+12)) ================
+players=210 matchesUsed=594 iters=34 meanGames=11.30 outSum[min=0.444,max=61.991,zero=0]
+rank  name                                   net  rawScore   games  W-L(-T)
+  1  rands                                  100  2.76669     62  33-29
+  2  James                                   93  2.57084     58  34-24
+  3  Cara                                    85  2.35742     50  31-19
+  4  Mikki                                   84  2.33612     51  24-27
+  5  Marivic                                 84  2.33490     56  26-30
+  6  Jowinski                                84  2.33389     50  34-16
+  7  Osang                                   81  2.23301     55  24-31
+  8  Boyet                                   70  1.93924     48  28-20
+  9  EUNICE                                  67  1.84366     37  19-18
+ 10  Jel                                     65  1.81064     44  24-20
+ 11  Alex                                    65  1.78596     38  20-18
+ 12  angie                                   64  1.76071     42  21-21
+ 13  Obal                                    58  1.61678     36  24-12
+ 14  Timot                                   57  1.58625     34  18-16
+ 15  Marc Johnuel                            56  1.54082     39  22-17
+ 16  Lenz                                    56  1.53942     38  22-16
+ 17  Trin                                    54  1.49210     31  19-12
+ 18  Jeunice                                 54  1.48925     38  20-18
+ 19  Heinrich Merl                           51  1.40824     35  20-15
+ 20  Gemma P                                 50  1.38783     38  16-22
+  tracked 'marivic': #5 Marivic (@margatch1771#74t) net=84 raw=2.33490 g=56 26-30
+  tracked 'jowinski': #6 Jowinski (@jowinskisoriano100#ciy) net=84 raw=2.33389 g=50 34-16
+  tracked 'jeo': #21 jeo (@jeovannizabala#05d) net=50 raw=1.37810 g=26 21-5
+  tracked 'rands': #1 rands (@angelobaribal110408#xn0) net=100 raw=2.76669 g=62 33-29
+  tracked 'cara': #3 Cara (@eslabracassieralph#d3c) net=85 raw=2.35742 g=50 31-19
+  Spearman ρ(scoreRank, gamesRank) = -0.7542   top20 meanGames=44.0 vs all=11.3
+
+================ V7 (V6 + teleport κ=3) ================
+players=210 matchesUsed=594 iters=37 meanGames=11.30 outSum[min=0.444,max=61.991,zero=0]
+rank  name                                   net  rawScore   games  W-L(-T)
+  1  rands                                  100  8.30008     62  33-29
+  2  James                                   93  7.71252     58  34-24
+  3  Cara                                    85  7.07226     50  31-19
+  4  Mikki                                   84  7.00836     51  24-27
+  5  Marivic                                 84  7.00469     56  26-30
+  6  Jowinski                                84  7.00168     50  34-16
+  7  Osang                                   81  6.69903     55  24-31
+  8  Boyet                                   70  5.81771     48  28-20
+  9  EUNICE                                  67  5.53098     37  19-18
+ 10  Jel                                     65  5.43193     44  24-20
+ 11  Alex                                    65  5.35789     38  20-18
+ 12  angie                                   64  5.28213     42  21-21
+ 13  Obal                                    58  4.85034     36  24-12
+ 14  Timot                                   57  4.75874     34  18-16
+ 15  Marc Johnuel                            56  4.62247     39  22-17
+ 16  Lenz                                    56  4.61825     38  22-16
+ 17  Trin                                    54  4.47630     31  19-12
+ 18  Jeunice                                 54  4.46775     38  20-18
+ 19  Heinrich Merl                           51  4.22473     35  20-15
+ 20  Gemma P                                 50  4.16349     38  16-22
+  tracked 'marivic': #5 Marivic (@margatch1771#74t) net=84 raw=7.00469 g=56 26-30
+  tracked 'jowinski': #6 Jowinski (@jowinskisoriano100#ciy) net=84 raw=7.00168 g=50 34-16
+  tracked 'jeo': #21 jeo (@jeovannizabala#05d) net=50 raw=4.13429 g=26 21-5
+  tracked 'rands': #1 rands (@angelobaribal110408#xn0) net=100 raw=8.30008 g=62 33-29
+  tracked 'cara': #3 Cara (@eslabracassieralph#d3c) net=85 raw=7.07226 g=50 31-19
+  Spearman ρ(scoreRank, gamesRank) = -0.7542   top20 meanGames=44.0 vs all=11.3
+
 ================ μw = |sA−sB|/(sA+sB) distribution ================
 usable matches=594  decisive(T>0,sA≠sB)=594  ties=0  nonPositiveT=0  bad=0
 mean=0.304  median=0.222  p10=0.091  p25=0.100  p75=0.467  p90=0.692
@@ -197,3 +257,121 @@ teammate pairs seen=923; showing top 12
   4x Heinrich Merl + rands  [—]  <== rank >> performance rank
       Heinrich Merl g35 20-15 v5=#19 pt=#21 base=#19 dPT=+2
       rands g62 33-29 v5=#1 pt=#44 base=#1 dPT=+43
+
+================ V6 TOP 25 (adaptive lambda) ================
+   1  rands                                  net=100  g=62  33-29  | v5=#1
+   2  James                                  net=93  g=58  34-24  | v5=#2
+   3  Cara                                   net=85  g=50  31-19  | v5=#4
+   4  Mikki                                  net=84  g=51  24-27  | v5=#6
+   5  Marivic                                net=84  g=56  26-30  | v5=#5
+   6  Jowinski                               net=84  g=50  34-16  | v5=#3
+   7  Osang                                  net=81  g=55  24-31  | v5=#7
+   8  Boyet                                  net=70  g=48  28-20  | v5=#8
+   9  EUNICE                                 net=67  g=37  19-18  | v5=#12
+  10  Jel                                    net=65  g=44  24-20  | v5=#9
+  11  Alex                                   net=65  g=38  20-18  | v5=#13
+  12  angie                                  net=64  g=42  21-21  | v5=#10
+  13  Obal                                   net=58  g=36  24-12  | v5=#11
+  14  Timot                                  net=57  g=34  18-16  | v5=#17
+  15  Marc Johnuel                           net=56  g=39  22-17  | v5=#15
+  16  Lenz                                   net=56  g=38  22-16  | v5=#14
+  17  Trin                                   net=54  g=31  19-12  | v5=#18
+  18  Jeunice                                net=54  g=38  20-18  | v5=#16
+  19  Heinrich Merl                          net=51  g=35  20-15  | v5=#19
+  20  Gemma P                                net=50  g=38  16-22  | v5=#20
+  21  jeo                                    net=50  g=26  21-5  | v5=#22
+  22  Navi                                   net=49  g=32  18-14  | v5=#21
+  23  Aries                                  net=47  g=29  15-14  | v5=#23
+  24  Anton                                  net=45  g=31  17-14  | v5=#24
+  25  Kim                                    net=42  g=29  14-15  | v5=#25
+  mover 'jeo': v5=#22 -> v6=#21  jeo g=26 pt=0.758
+  mover 'shirwin': v5=#49 -> v6=#45  SHIRWIN g=10 pt=0.744
+  mover 'atthan': v5=#62 -> v6=#56  atthan g=9 pt=0.716
+  mover 'sandro': v5=#130 -> v6=#86  Sandro g=3 pt=0.633
+  mover 'juha': v5=#111 -> v6=#74  Juha g=3 pt=0.643
+  mover 'trin': v5=#18 -> v6=#17  Trin g=31 pt=0.646
+  mover 'louis': v5=#116 -> v6=#102  Louis g=5 pt=0.625
+  mover 'louis': v5=#205 -> v6=#158  TINA g=1 pt=0.492
+  mover 'obal': v5=#11 -> v6=#13  Obal g=36 pt=0.690
+  mover 'kay tan': v5=#42 -> v6=#34  Kay Tan g=15 pt=0.660
+
+================ SUPPRESSION ANALYSIS (pTilde-rank vs V5 network-rank) ================
+Spearman rho(V5 scoreRank, pTildeRank) over all players = 0.4779
+
+--- TOP 20 by pure ownPerformance (pTilde) ---
+   1  jeo                                    pt=0.758  g=26  21-5  | v5=#22 base=#25
+   2  SHIRWIN                                pt=0.744  g=10  9-1  | v5=#49 base=#66
+   3  atthan                                 pt=0.716  g=9  8-1  | v5=#62 base=#76
+   4  Jowinski                               pt=0.709  g=50  34-16  | v5=#3 base=#7
+   5  Obal                                   pt=0.690  g=36  24-12  | v5=#11 base=#18
+   6  GB                                     pt=0.687  g=12  9-3  | v5=#55 base=#59
+   7  Princess Gean                          pt=0.667  g=4  4-0  | v5=#86 base=#99
+   8  Jomar                                  pt=0.666  g=6  5-1  | v5=#81 base=#102
+   9  Kay Tan                                pt=0.660  g=15  10-5  | v5=#42 base=#44
+  10  Cara                                   pt=0.658  g=50  31-19  | v5=#4 base=#6
+  11  Julius                                 pt=0.657  g=9  7-2  | v5=#73 base=#82
+  12  Yzzalicious                            pt=0.657  g=13  9-4  | v5=#54 base=#56
+  13  Trin                                   pt=0.646  g=31  19-12  | v5=#18 base=#20
+  14  Julo                                   pt=0.643  g=3  3-0  | v5=#107 base=#118
+  15  Juha                                   pt=0.643  g=3  3-0  | v5=#111 base=#111
+  16  Boyet                                  pt=0.635  g=48  28-20  | v5=#8 base=#8
+  17  Sandro                                 pt=0.633  g=3  3-0  | v5=#130 base=#149
+  18  James                                  pt=0.633  g=58  34-24  | v5=#2 base=#2
+  19  Celle                                  pt=0.627  g=7  5-2  | v5=#88 base=#97
+  20  Louis                                  pt=0.625  g=5  4-1  | v5=#116 base=#119
+
+--- TOP 20 by V5 networkScore ---
+   1  rands                                  net=100  g=62  33-29  | pt=#44
+   2  James                                  net=97  g=58  34-24  | pt=#18
+   3  Jowinski                               net=89  g=50  34-16  | pt=#4
+   4  Cara                                   net=89  g=50  31-19  | pt=#10
+   5  Marivic                                net=88  g=56  26-30  | pt=#117
+   6  Mikki                                  net=86  g=51  24-27  | pt=#101
+   7  Osang                                  net=84  g=55  24-31  | pt=#129
+   8  Boyet                                  net=79  g=48  28-20  | pt=#16
+   9  Jel                                    net=74  g=44  24-20  | pt=#37
+  10  angie                                  net=70  g=42  21-21  | pt=#88
+  11  Obal                                   net=67  g=36  24-12  | pt=#5
+  12  EUNICE                                 net=67  g=37  19-18  | pt=#49
+  13  Alex                                   net=66  g=38  20-18  | pt=#54
+  14  Lenz                                   net=65  g=38  22-16  | pt=#28
+  15  Marc Johnuel                           net=62  g=39  22-17  | pt=#24
+  16  Jeunice                                net=62  g=38  20-18  | pt=#67
+  17  Timot                                  net=60  g=34  18-16  | pt=#50
+  18  Trin                                   net=57  g=31  19-12  | pt=#13
+  19  Heinrich Merl                          net=57  g=35  20-15  | pt=#21
+  20  Gemma P                                net=57  g=38  16-22  | pt=#149
+
+--- MOST SUPPRESSED by network term (high pTilde rank, low network rank) ---
+  pt=#208 -> v5=#41 (d=+167)  Mark  pt=0.397 g=24 6-18
+  pt=#206 -> v5=#51 (d=+155)  Lucille  pt=0.414 g=15 4-11
+  pt=#170 -> v5=#31 (d=+139)  Hazel  pt=0.472 g=25 9-16
+  pt=#209 -> v5=#75 (d=+134)  Ednalyn  pt=0.379 g=11 2-9
+  pt=#190 -> v5=#59 (d=+131)  Niño  pt=0.453 g=15 5-10
+  pt=#149 -> v5=#20 (d=+129)  Gemma P  pt=0.493 g=38 16-22
+  pt=#167 -> v5=#43 (d=+124)  Gemma  pt=0.479 g=19 7-12
+  pt=#129 -> v5=#7 (d=+122)  Osang  pt=0.516 g=55 24-31
+  pt=#210 -> v5=#90 (d=+120)  belinda  pt=0.301 g=13 0-13
+  pt=#158 -> v5=#40 (d=+118)  Jaira  pt=0.487 g=21 8-13
+  pt=#117 -> v5=#5 (d=+112)  Marivic  pt=0.533 g=56 26-30
+  pt=#171 -> v5=#64 (d=+107)  She  pt=0.468 g=12 4-8
+  pt=#174 -> v5=#68 (d=+106)  Elaiza  pt=0.466 g=10 3-7
+  pt=#187 -> v5=#89 (d=+98)  Cleah  pt=0.456 g=10 3-7
+  pt=#126 -> v5=#29 (d=+97)  Rommel D  pt=0.520 g=29 13-16
+
+--- MOST BOOSTED by network term (low pTilde rank, high network rank) ---
+  pt=#55 -> v5=#182 (d=-127)  Arian  pt=0.579 g=1 1-0
+  pt=#27 -> v5=#149 (d=-122)  Doc  pt=0.609 g=2 2-0
+  pt=#40 -> v5=#162 (d=-122)  Angel  pt=0.600 g=2 2-0
+  pt=#77 -> v5=#196 (d=-119)  Jonah Grace  pt=0.565 g=1 1-0
+  pt=#72 -> v5=#186 (d=-114)  Mari  pt=0.567 g=1 1-0
+  pt=#78 -> v5=#192 (d=-114)  Jairus  pt=0.565 g=1 1-0
+  pt=#17 -> v5=#130 (d=-113)  Sandro  pt=0.633 g=3 3-0
+  pt=#23 -> v5=#132 (d=-109)  Jovito mj  pt=0.613 g=2 2-0
+  pt=#76 -> v5=#184 (d=-108)  Goyo  pt=0.565 g=1 1-0
+  pt=#70 -> v5=#177 (d=-107)  Mark joseph  pt=0.567 g=1 1-0
+  pt=#71 -> v5=#178 (d=-107)  Annie  pt=0.567 g=1 1-0
+  pt=#25 -> v5=#124 (d=-99)  Kurt Denielle  pt=0.611 g=4 3-1
+  pt=#15 -> v5=#111 (d=-96)  Juha  pt=0.643 g=3 3-0
+  pt=#20 -> v5=#116 (d=-96)  Louis  pt=0.625 g=5 4-1
+  pt=#66 -> v5=#161 (d=-95)  Naomi  pt=0.572 g=3 2-1

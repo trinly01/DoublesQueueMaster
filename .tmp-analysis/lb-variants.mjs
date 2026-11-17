@@ -143,6 +143,7 @@ var LAMBDA = 0.8;
 var SHRINKAGE_C = 12;
 var MAX_ITERS = 500;
 var EPSILON = 1e-10;
+var lambdaFor = (games) => LAMBDA * games / (games + SHRINKAGE_C);
 var matchPerformance = (ownScore, oppScore) => {
   if (ownScore === oppScore) return { perf: 0.5, outcome: "tie" };
   const total = ownScore + oppScore;
@@ -209,21 +210,29 @@ function computeNetworkScores(matches) {
     if (collision) continue;
     const sideA = [...mapA.entries()].map(([key, p]) => ({
       key,
+      side: "A",
       acc: accFor(accs, key, p)
     }));
     const sideB = [...mapB.entries()].map(([key, p]) => ({
       key,
+      side: "B",
       acc: accFor(accs, key, p)
     }));
     const participants = [...sideA, ...sideB];
     const n = participants.length;
     if (n < 2) continue;
     const edgeW = 1 / (n - 1);
-    for (const side of [sideA, sideB]) {
-      const own = side === sideA ? m.teamAScore : m.teamBScore;
-      const opp = side === sideA ? m.teamBScore : m.teamAScore;
-      const { perf, outcome } = matchPerformance(own, opp);
-      for (const { acc } of side) {
+    const sideOut = {
+      A: matchPerformance(m.teamAScore, m.teamBScore),
+      B: matchPerformance(m.teamBScore, m.teamAScore)
+    };
+    const sides = [
+      { tag: "A", members: sideA },
+      { tag: "B", members: sideB }
+    ];
+    for (const { tag, members } of sides) {
+      const { perf, outcome } = sideOut[tag];
+      for (const { acc } of members) {
         acc.games += 1;
         acc.perfSum += perf;
         if (outcome === "win") acc.wins += 1;
@@ -231,10 +240,24 @@ function computeNetworkScores(matches) {
         else acc.ties += 1;
       }
     }
-    for (const { acc: from } of participants) {
-      for (const { key: to } of participants) {
-        if (to === from.key) continue;
-        from.credit.set(to, (from.credit.get(to) || 0) + edgeW);
+    const totalScore = m.teamAScore + m.teamBScore;
+    const muW = totalScore > 0 && m.teamAScore !== m.teamBScore ? Math.min(1, Math.abs(m.teamAScore - m.teamBScore) / totalScore) : 0;
+    const wUp = edgeW * (1 + muW);
+    const wDown = edgeW * (1 - muW);
+    const oppW = {
+      A: sideOut.A.outcome === "loss" ? wUp : sideOut.A.outcome === "win" ? wDown : edgeW,
+      B: sideOut.B.outcome === "loss" ? wUp : sideOut.B.outcome === "win" ? wDown : edgeW
+    };
+    for (const from of participants) {
+      for (const to of participants) {
+        if (to.key === from.key) continue;
+        const w = from.side === to.side ? edgeW : oppW[from.side];
+        if (w > 0) {
+          from.acc.credit.set(
+            to.key,
+            (from.acc.credit.get(to.key) || 0) + w
+          );
+        }
       }
     }
   }
@@ -271,7 +294,8 @@ function computeNetworkScores(matches) {
     let maxDelta = 0;
     for (const p of players) {
       const pt = pTilde.get(p.key) ?? 0;
-      const next = (1 - LAMBDA) * pt + LAMBDA * (inflow.get(p.key) || 0);
+      const lam = lambdaFor(p.games);
+      const next = (1 - lam) * pt + lam * (inflow.get(p.key) || 0);
       maxDelta = Math.max(maxDelta, Math.abs(next - (r.get(p.key) ?? 0)));
       r.set(p.key, next);
     }
@@ -283,7 +307,10 @@ function computeNetworkScores(matches) {
   const result = players.map((p) => {
     const raw = r.get(p.key) ?? 0;
     const pt = pTilde.get(p.key) ?? 0;
-    const networkFlow = Math.max(0, raw - (1 - LAMBDA) * pt);
+    const networkFlow = Math.max(
+      0,
+      raw - (1 - lambdaFor(p.games)) * pt
+    );
     return {
       key: p.key,
       username: p.username || p.key,
@@ -567,7 +594,8 @@ function runVariant(matches, edgeMode, iterMode) {
   }
   const totalGames = players.reduce((s, p) => s + p.games, 0);
   const meanGames = totalGames / players.length;
-  const lambda = iterMode === "v3" ? 0.45 : 0.8;
+  const lambdaOf = (games) => iterMode === "v6" || iterMode === "v7" ? 0.8 * games / (games + SHRINKAGE_C2) : iterMode === "v3" ? 0.45 : 0.8;
+  const KAPPA = iterMode === "v7" ? 3 : 1;
   const useGameNorm = iterMode === "v2";
   const r = /* @__PURE__ */ new Map();
   for (const p of players) r.set(p.key, pTilde.get(p.key) ?? 0);
@@ -588,7 +616,8 @@ function runVariant(matches, edgeMode, iterMode) {
       const pt = pTilde.get(p.key) ?? 0;
       const raw = inflow.get(p.key) || 0;
       const normed = useGameNorm ? raw / p.games * meanGames : raw;
-      const next = (1 - lambda) * pt + lambda * normed;
+      const lam = lambdaOf(p.games);
+      const next = (1 - lam) * pt * KAPPA + lam * normed;
       maxDelta = Math.max(maxDelta, Math.abs(next - (r.get(p.key) ?? 0)));
       r.set(p.key, next);
     }
@@ -705,6 +734,8 @@ report("V3 (\u03BB=0.45 only)", runVariant(inputs, "base", "v3"));
 report("V4 (directed loser\u2192winner edges, \u03BB=0.8)", runVariant(inputs, "v4", "base"));
 var v5 = runVariant(inputs, "v5", "base");
 report("V5 (complementary margin-weighted opponent edges, \u03BB=0.8)", v5);
+report("V6 (V5 edges + adaptive \u03BB_i = 0.8\xB7games/(games+12))", runVariant(inputs, "v5", "v6"));
+report("V7 (V6 + teleport \u03BA=3)", runVariant(inputs, "v5", "v7"));
 {
   const mg = base.margin;
   const samp = mg.samples.filter(Number.isFinite).sort((a, b) => a - b);
@@ -774,5 +805,62 @@ report("V5 (complementary margin-weighted opponent edges, \u03BB=0.8)", v5);
     );
     console.log(`      ${mem(rec.k1)}`);
     console.log(`      ${mem(rec.k2)}`);
+  }
+}
+{
+  const v6 = runVariant(inputs, "v5", "v6");
+  console.log("\n================ V6 TOP 25 (adaptive lambda) ================");
+  v6.players.slice(0, 25).forEach((p, i) => {
+    const wl = `${p.wins}-${p.losses}${p.ties ? `-${p.ties}t` : ""}`;
+    console.log(` ${String(i + 1).padStart(3)}  ${p.display.padEnd(38)} net=${p.networkScore}  g=${p.matchesPlayed}  ${wl}  | v5=#${v5.players.findIndex((q) => q.key === p.key) + 1}`);
+  });
+  const movers = ["jeo", "shirwin", "atthan", "sandro", "juha", "trin", "louis", "obat", "obal", "kay tan"];
+  for (const t of movers) {
+    const hits = v6.players.filter((p) => `${p.display} ${p.firstName} ${p.lastName} ${p.username}`.toLowerCase().includes(t));
+    for (const p of hits) {
+      const i6 = v6.players.indexOf(p) + 1;
+      const i5 = v5.players.findIndex((q) => q.key === p.key) + 1;
+      console.log(`  mover '${t}': v5=#${i5} -> v6=#${i6}  ${p.display} g=${p.matchesPlayed} pt=${p.ownPerformance.toFixed(3)}`);
+    }
+  }
+}
+{
+  const v5rank = new Map(v5.players.map((p, i) => [p.key, i + 1]));
+  const baseRank = new Map(base.players.map((p, i) => [p.key, i + 1]));
+  const ptSorted = [...v5.players].sort(
+    (a, b) => b.ownPerformance - a.ownPerformance || (a.key < b.key ? -1 : 1)
+  );
+  const ptRank = new Map(ptSorted.map((p, i) => [p.key, i + 1]));
+  const scoreRanks = ranksBy(v5.players, (p) => p.rawScore, true);
+  const ptRanksArr = ranksBy(v5.players, (p) => p.ownPerformance, true);
+  const rhoPT = pearson(scoreRanks, ptRanksArr);
+  console.log("\n================ SUPPRESSION ANALYSIS (pTilde-rank vs V5 network-rank) ================");
+  console.log("Spearman rho(V5 scoreRank, pTildeRank) over all players = " + rhoPT.toFixed(4));
+  const rows = v5.players.map((p) => ({
+    p,
+    v5r: v5rank.get(p.key),
+    ptr: ptRank.get(p.key),
+    br: baseRank.get(p.key),
+    delta: (ptRank.get(p.key) ?? 0) - (v5rank.get(p.key) ?? 0)
+    // + = network UNDER-rates vs performance
+  }));
+  const wl = (p) => `${p.wins}-${p.losses}${p.ties ? `-${p.ties}t` : ""}`;
+  console.log("\n--- TOP 20 by pure ownPerformance (pTilde) ---");
+  ptSorted.slice(0, 20).forEach((p, i) => {
+    console.log(` ${String(i + 1).padStart(3)}  ${p.display.padEnd(38)} pt=${p.ownPerformance.toFixed(3)}  g=${p.matchesPlayed}  ${wl(p)}  | v5=#${v5rank.get(p.key)} base=#${baseRank.get(p.key)}`);
+  });
+  console.log("\n--- TOP 20 by V5 networkScore ---");
+  v5.players.slice(0, 20).forEach((p, i) => {
+    console.log(` ${String(i + 1).padStart(3)}  ${p.display.padEnd(38)} net=${p.networkScore}  g=${p.matchesPlayed}  ${wl(p)}  | pt=#${ptRank.get(p.key)}`);
+  });
+  const suppressed = [...rows].sort((a, b) => b.delta - a.delta).slice(0, 15);
+  console.log("\n--- MOST SUPPRESSED by network term (high pTilde rank, low network rank) ---");
+  for (const r of suppressed) {
+    console.log(`  pt=#${r.ptr} -> v5=#${r.v5r} (d=${r.delta >= 0 ? "+" : ""}${r.delta})  ${r.p.display}  pt=${r.p.ownPerformance.toFixed(3)} g=${r.p.matchesPlayed} ${wl(r.p)}`);
+  }
+  const boosted = [...rows].sort((a, b) => a.delta - b.delta).slice(0, 15);
+  console.log("\n--- MOST BOOSTED by network term (low pTilde rank, high network rank) ---");
+  for (const r of boosted) {
+    console.log(`  pt=#${r.ptr} -> v5=#${r.v5r} (d=${r.delta >= 0 ? "+" : ""}${r.delta})  ${r.p.display}  pt=${r.p.ownPerformance.toFixed(3)} g=${r.p.matchesPlayed} ${wl(r.p)}`);
   }
 }

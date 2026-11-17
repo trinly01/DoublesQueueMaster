@@ -3,15 +3,17 @@
 // embedded they are in the network of teammates and opponents, weighted
 // by those players' performances.
 //
-//   r = (1−λ)·p̃ + λ·Pᵀr        (power iteration, λ = 0.8)
+//   r_i = (1−λ_i)·p̃_i + λ_i·(Pᵀr)_i   (power iteration)
+//   λ_i = 0.8·games_i/(games_i+C)   adaptive — small samples lean on p̃
 //   p̃_i = (perfSum_i + C·p̄) / (games_i + C)   shrunk own-performance
 //   P_ij = A_ij / Σ_k A_ik                    row-normalized co-play credit
 //
 // p̃ is deliberately opponent-blind (what you did); Pᵀr is the only
-// strength-of-schedule term (who you did it with/against). λ=0.8 keeps
-// ~20% own-performance weight; ordering still leans toward activity —
-// players with more games collect inflow from more sources, which is a
-// legitimate part of "embeddedness" (you can't be central without playing).
+// strength-of-schedule term (who you did it with/against). λ_i adapts to
+// sample size: a 3-game player's rank is mostly their own performance —
+// they have no network mass yet — while a 60-game veteran approaches full
+// network weight. Verified on live data: lifts small-sample strong
+// performers without disturbing the established top board.
 //
 // Opponent edges are outcome-directed and margin-weighted (GeM /
 // Power-Rank family): for each cross-side pair, the loser→winner edge
@@ -75,6 +77,15 @@ const LAMBDA = 0.8;
 const SHRINKAGE_C = 12;
 const MAX_ITERS = 500;
 const EPSILON = 1e-10;
+
+// Adaptive damping: λ_i = LAMBDA·games/(games+C). A player's network term
+// can only accumulate from matches they played, so few-game players get
+// mostly own-performance weight (their p̃ is the best available evidence)
+// while veterans approach full network weight. Empirical-Bayes style —
+// same C as the p̃ shrinkage. Verified on live club data: lifts
+// small-sample strong performers without disturbing the top board.
+const lambdaFor = (games: number): number =>
+  (LAMBDA * games) / (games + SHRINKAGE_C);
 
 // Outcome-gated margin performance — outcome classes can never overlap;
 // margin modulates within class only. A narrow loss can never outscore a
@@ -320,7 +331,8 @@ export function computeNetworkScores(
     let maxDelta = 0;
     for (const p of players) {
       const pt = pTilde.get(p.key) ?? 0;
-      const next = (1 - LAMBDA) * pt + LAMBDA * (inflow.get(p.key) || 0);
+      const lam = lambdaFor(p.games);
+      const next = (1 - lam) * pt + lam * (inflow.get(p.key) || 0);
       maxDelta = Math.max(maxDelta, Math.abs(next - (r.get(p.key) ?? 0)));
       r.set(p.key, next);
     }
@@ -335,8 +347,11 @@ export function computeNetworkScores(
   const result: NetworkRankedPlayer[] = players.map((p) => {
     const raw = r.get(p.key) ?? 0;
     const pt = pTilde.get(p.key) ?? 0;
-    // networkFlow = λ·inflow at convergence = r − (1−λ)·p̃.
-    const networkFlow = Math.max(0, raw - (1 - LAMBDA) * pt);
+    // networkFlow = λ_i·inflow at convergence = r − (1−λ_i)·p̃.
+    const networkFlow = Math.max(
+      0,
+      raw - (1 - lambdaFor(p.games)) * pt,
+    );
     return {
       key: p.key,
       username: p.username || p.key,
