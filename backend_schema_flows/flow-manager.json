@@ -5544,5 +5544,117 @@
     ],
     "flow_manager_category": null,
     "accountability": "all"
+  },
+  {
+    "id": "ce0eecd5-df4f-4fd0-9fb8-db6953c065dc",
+    "name": "sync club dupr flags",
+    "icon": "flag",
+    "color": "#6644ff",
+    "description": "Derives club.dupr_only/dupr_plus_only from appState.matchmaking.duprOnly/duprPlusOnly on every club update",
+    "status": "active",
+    "trigger": "event",
+    "accountability": "all",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.update"
+      ],
+      "collections": [
+        "club"
+      ]
+    },
+    "operation": "04e58847-d03f-4068-b790-49f5f46de1ee",
+    "date_created": "2026-11-17T09:05:51.169Z",
+    "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73",
+    "flow_manager_category": null,
+    "flow_manager_order": 0,
+    "flow_manager_last_run_at": "2026-11-17T17:06:32",
+    "flow_manager_run_counter": 1,
+    "flow_manager_last_run_operation": "04e58847-d03f-4068-b790-49f5f46de1ee",
+    "flow_manager_last_run_message": "skip: payload has no appState.matchmaking",
+    "flow_manager_success_counter": 0,
+    "flow_manager_error_counter": 1,
+    "operations": [
+      {
+        "id": "04e58847-d03f-4068-b790-49f5f46de1ee",
+        "name": "extract dupr flags",
+        "key": "extract_dupr_flags",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const t = data.$trigger || {};\n  const p = t.payload || {};\n  const mm = p.appState && p.appState.matchmaking;\n  if (!mm || typeof mm !== 'object') throw new Error('skip: payload has no appState.matchmaking');\n  const id = t.key\n    ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n    ?? (p.keys && p.keys[0])\n    ?? p.id\n    ?? (p.item && p.item.id);\n  if (id == null) throw new Error('no club id in trigger');\n  return {\n    clubId: id,\n    dupr_only: mm.duprOnly === true,\n    dupr_plus_only: mm.duprPlusOnly === true,\n  };\n}"
+        },
+        "resolve": "382a0575-e7df-4724-ba66-f5772891462b",
+        "reject": null,
+        "flow": "ce0eecd5-df4f-4fd0-9fb8-db6953c065dc"
+      },
+      {
+        "id": "16e24043-a244-4d9b-b141-1e342118bfb3",
+        "name": "write dupr flags",
+        "key": "write_dupr_flags",
+        "type": "item-update",
+        "position_x": 60,
+        "position_y": 0,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "club",
+          "key": [
+            "{{diff_dupr_flags.clubId}}"
+          ],
+          "payload": {
+            "dupr_only": "{{diff_dupr_flags.dupr_only}}",
+            "dupr_plus_only": "{{diff_dupr_flags.dupr_plus_only}}"
+          }
+        },
+        "resolve": null,
+        "reject": null,
+        "flow": "ce0eecd5-df4f-4fd0-9fb8-db6953c065dc"
+      },
+      {
+        "id": "382a0575-e7df-4724-ba66-f5772891462b",
+        "name": "read club flags",
+        "key": "read_club_flags",
+        "type": "item-read",
+        "position_x": 20,
+        "position_y": 0,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "club",
+          "query": {
+            "filter": {
+              "id": {
+                "_eq": "{{extract_dupr_flags.clubId}}"
+              }
+            },
+            "fields": [
+              "id",
+              "dupr_only",
+              "dupr_plus_only"
+            ],
+            "limit": 1
+          }
+        },
+        "resolve": "7eb41fe4-a924-4512-8d74-a93d597d7a6e",
+        "reject": null,
+        "flow": "ce0eecd5-df4f-4fd0-9fb8-db6953c065dc"
+      },
+      {
+        "id": "7eb41fe4-a924-4512-8d74-a93d597d7a6e",
+        "name": "diff dupr flags",
+        "key": "diff_dupr_flags",
+        "type": "exec",
+        "position_x": 40,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const want = data.extract_dupr_flags || {};\n  const rows = data.read_club_flags || [];\n  const cur = rows[0] || {};\n  if (cur.dupr_only === want.dupr_only && cur.dupr_plus_only === want.dupr_plus_only) {\n    throw new Error('skip: flags unchanged');\n  }\n  return { clubId: want.clubId, dupr_only: want.dupr_only, dupr_plus_only: want.dupr_plus_only };\n}"
+        },
+        "resolve": "16e24043-a244-4d9b-b141-1e342118bfb3",
+        "reject": null,
+        "flow": "ce0eecd5-df4f-4fd0-9fb8-db6953c065dc"
+      }
+    ]
   }
 ]

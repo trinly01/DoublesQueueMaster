@@ -24584,6 +24584,104 @@
           "foreign_key_table": "directus_files",
           "foreign_key_column": "id"
         }
+      },
+      {
+        "collection": "club",
+        "field": "dupr_only",
+        "type": "boolean",
+        "meta": {
+          "id": 2085,
+          "collection": "club",
+          "field": "dupr_only",
+          "special": [
+            "cast-boolean"
+          ],
+          "interface": "boolean",
+          "options": null,
+          "display": null,
+          "display_options": null,
+          "readonly": true,
+          "hidden": false,
+          "sort": 19,
+          "width": "full",
+          "translations": null,
+          "note": "Derived from appState.matchmaking.duprOnly — do not edit (synced by flow)",
+          "conditions": null,
+          "required": false,
+          "group": null,
+          "validation": null,
+          "validation_message": null,
+          "searchable": false
+        },
+        "schema": {
+          "name": "dupr_only",
+          "table": "club",
+          "data_type": "boolean",
+          "default_value": false,
+          "generation_expression": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_generated": false,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "has_auto_increment": false,
+          "foreign_key_schema": null,
+          "foreign_key_table": null,
+          "foreign_key_column": null,
+          "comment": null
+        }
+      },
+      {
+        "collection": "club",
+        "field": "dupr_plus_only",
+        "type": "boolean",
+        "meta": {
+          "id": 2086,
+          "collection": "club",
+          "field": "dupr_plus_only",
+          "special": [
+            "cast-boolean"
+          ],
+          "interface": "boolean",
+          "options": null,
+          "display": null,
+          "display_options": null,
+          "readonly": true,
+          "hidden": false,
+          "sort": 20,
+          "width": "full",
+          "translations": null,
+          "note": "Derived from appState.matchmaking.duprPlusOnly — do not edit (synced by flow)",
+          "conditions": null,
+          "required": false,
+          "group": null,
+          "validation": null,
+          "validation_message": null,
+          "searchable": false
+        },
+        "schema": {
+          "name": "dupr_plus_only",
+          "table": "club",
+          "data_type": "boolean",
+          "default_value": false,
+          "generation_expression": null,
+          "max_length": null,
+          "numeric_precision": null,
+          "numeric_scale": null,
+          "is_generated": false,
+          "is_nullable": true,
+          "is_unique": false,
+          "is_indexed": false,
+          "is_primary_key": false,
+          "has_auto_increment": false,
+          "foreign_key_schema": null,
+          "foreign_key_table": null,
+          "foreign_key_column": null,
+          "comment": null
+        }
       }
     ],
     "systemFields": [

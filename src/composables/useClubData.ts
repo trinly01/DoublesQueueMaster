@@ -16,6 +16,7 @@ import {
   type ClubMember,
 } from 'src/services/clubMembersMapper';
 import { joinClub as joinClubService } from 'src/services/clubMembership';
+import { useDupr } from 'src/composables/useDupr';
 import { readItems, updateItem, uploadFiles } from '@likha-erp/likha-sdk';
 import {
   mergePlayerFromDB,
@@ -233,6 +234,29 @@ export function useClubData(context: UseClubDataContext) {
 
   const handleJoinClub = async (opts?: { trustFreshMembership?: boolean }) => {
     if (!currentClubId.value || !currentUserId.value) return;
+    // DUPR-gated clubs: duprOnly needs any linked DUPR account,
+    // duprPlusOnly needs DUPR+ (which requires a linked account first).
+    // The queue gate enforces this at match time — blocking here keeps
+    // unlinked users from joining a club they can never play in.
+    const dupr = useDupr();
+    const needsDupr =
+      MatchmakingApp.state.duprOnly === true ||
+      MatchmakingApp.state.duprPlusOnly === true;
+    if (needsDupr) {
+      await dupr.fetchConnection().catch(() => null);
+      const linked =
+        dupr.state.connection?.status === 'connected' &&
+        !!dupr.state.connection?.dupr_id;
+      if (!linked) {
+        notify({
+          color: 'warning',
+          message: MatchmakingApp.state.duprPlusOnly
+            ? 'This club requires DUPR+ — connect your DUPR account on your profile to join.'
+            : 'This club requires a linked DUPR account — connect DUPR on your profile to join.',
+        });
+        return;
+      }
+    }
     try {
       const result = await joinClubService(
         currentClubId.value,

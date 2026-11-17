@@ -141,6 +141,16 @@
 
                   <q-card-actions class="q-px-md q-pb-md q-pt-none">
                     <q-chip
+                      v-if="duprRequirement(club)"
+                      :icon="duprRequirement(club) === 'plus' ? 'verified' : 'link'"
+                      :label="duprRequirement(club) === 'plus' ? 'DUPR+' : 'DUPR'"
+                      color="purple-1"
+                      text-color="purple-9"
+                      dense
+                      size="sm"
+                      class="q-mr-xs"
+                    />
+                    <q-chip
                       icon="people"
                       color="grey-3"
                       text-color="grey-9"
@@ -150,16 +160,25 @@
                       {{ getMemberCount(club) }}
                     </q-chip>
                     <q-space />
-                    <q-btn
-                      v-if="!isMemberOf(club)"
-                      label="Join"
-                      color="accent"
-                      rounded
-                      unelevated
-                      size="sm"
-                      :loading="joiningClubId === club.clubId"
-                      @click.stop="handleJoinClub(club)"
-                    />
+                    <span v-if="!isMemberOf(club)">
+                      <q-btn
+                        label="Join"
+                        color="accent"
+                        rounded
+                        unelevated
+                        size="sm"
+                        :disable="isJoinBlocked(club)"
+                        :loading="joiningClubId === club.clubId"
+                        @click.stop="handleJoinClub(club)"
+                      />
+                      <q-tooltip
+                        v-if="isJoinBlocked(club)"
+                        anchor="top middle"
+                        self="bottom middle"
+                      >
+                        {{ duprBlockReason(club) }}
+                      </q-tooltip>
+                    </span>
                     <q-btn
                       v-else
                       label="Open"
@@ -392,6 +411,7 @@ import { readItems, createItem, updateItem } from '@likha-erp/likha-sdk';
 import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
 import { joinClub } from 'src/services/clubMembership';
 import { PlayerProfile } from 'src/services/playerProfile';
+import { useDupr } from 'src/composables/useDupr';
 import { useNotify } from 'src/composables/useNotify';
 import { useAuth } from 'src/composables/useAuth';
 import { useQuasar, LocalStorage } from 'quasar';
@@ -409,12 +429,15 @@ const $q = useQuasar();
 const router = useRouter();
 const { notify } = useNotify();
 const { handleAuthError } = useAuth();
+const Dupr = useDupr();
 
 interface Club {
   id: string;
   clubId: string;
   name?: string;
   logo?: string;
+  dupr_only?: boolean;
+  dupr_plus_only?: boolean;
   players?: Array<{ id?: string; directus_users_id?: { id: string } }>;
 }
 
@@ -464,6 +487,31 @@ const isMemberOf = (club: Club | RecentClub) => {
   );
 };
 
+// DUPR-gated clubs: dupr_only requires any linked DUPR account,
+// dupr_plus_only requires DUPR+ (which needs a linked account first).
+// Flags are derived server-side from appState.matchmaking by the
+// "sync club dupr flags" flow — never edit the columns directly.
+const hasLinkedDupr = computed(
+  () =>
+    Dupr.state.connection?.status === 'connected' &&
+    !!Dupr.state.connection?.dupr_id,
+);
+
+const duprRequirement = (club: Club | RecentClub): 'linked' | 'plus' | null => {
+  const c = club as Club;
+  if (c.dupr_plus_only) return 'plus';
+  if (c.dupr_only) return 'linked';
+  return null;
+};
+
+const isJoinBlocked = (club: Club | RecentClub) =>
+  !!duprRequirement(club) && !hasLinkedDupr.value;
+
+const duprBlockReason = (club: Club | RecentClub) =>
+  duprRequirement(club) === 'plus'
+    ? 'This club requires DUPR+ — connect your DUPR account to check eligibility'
+    : 'This club requires a linked DUPR account';
+
 const onSearch = async (val: string | number | null) => {
   const query = val ? String(val) : '';
   if (!query || query.length < 2) {
@@ -485,6 +533,8 @@ const onSearch = async (val: string | number | null) => {
           'clubId',
           'name',
           'logo',
+          'dupr_only',
+          'dupr_plus_only',
           'players.id',
           'players.directus_users_id.id',
         ],
@@ -512,6 +562,10 @@ const loadMyClubsWithBar = async () => {
 
 const handleJoinClub = async (club: Club) => {
   if (!currentUserId.value) return;
+  if (isJoinBlocked(club)) {
+    notify({ color: 'warning', message: duprBlockReason(club) });
+    return;
+  }
   joiningClubId.value = club.clubId;
   try {
     const result = await joinClub(club.clubId, currentUserId.value);
@@ -632,6 +686,9 @@ onMounted(async () => {
   if (!currentUserId.value) {
     await PlayerProfile.fetchProfile().catch(() => {});
   }
+  // Populate DUPR connection state (cached, user-scoped) so the
+  // dupr-gate on Join buttons resolves without a dedicated fetch UX.
+  void Dupr.fetchConnection().catch(() => {});
   loadMyClubsWithBar();
 });
 </script>
