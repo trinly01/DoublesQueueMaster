@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeClubRanked,
+  computeDuoEntries,
+  computeDuoNetworkEntries,
   computeMatchesReplay,
   filterCompetitive,
 } from './leaderboardCompute';
@@ -350,5 +352,44 @@ describe('computeClubRanked (reused by the Global leaderboard tab)', () => {
       0,
     );
     expect(gamesAll).toBeGreaterThan(gamesWith);
+  });
+});
+
+describe('computeDuoNetworkEntries (club Best Duo tab)', () => {
+  // A dominant pair (amy|ben) plays 3 shared games; cid|dot share 2.
+  const duoMatches: DirectusCompletedMatch[] = [
+    makeMatch('d1', '2026-02-01T18:00:00Z',
+      [reg('amy', 'Amy'), reg('ben', 'Ben')],
+      [reg('cid', 'Cid'), reg('dot', 'Dot')], 11, 5, 'strict_balance'),
+    makeMatch('d2', '2026-02-02T18:00:00Z',
+      [reg('amy', 'Amy'), reg('ben', 'Ben')],
+      [reg('cid', 'Cid'), reg('dot', 'Dot')], 11, 7, 'strict_balance'),
+    makeMatch('d3', '2026-02-03T18:00:00Z',
+      [reg('amy', 'Amy'), reg('ben', 'Ben')],
+      [reg('eve', 'Eve'), reg('fay', 'Fay')], 11, 9, 'strict_balance'),
+  ];
+
+  it('adds a network bonus on top of the duoScore composite', () => {
+    const base = computeDuoEntries(duoMatches, false);
+    const boosted = computeDuoNetworkEntries(duoMatches, false);
+    expect(boosted.length).toBe(base.length);
+    const baseByKey = new Map(base.map((e) => [e.key, e]));
+    for (const e of boosted) {
+      const b = baseByKey.get(e.key)!;
+      expect(e.networkBonus).toBeGreaterThan(0);
+      // duoScore = base composite + bonus, exactly.
+      expect(e.duoScore - b.duoScore).toBeCloseTo(e.networkBonus!, 6);
+    }
+  });
+
+  it('keeps entries sorted by boosted duoScore descending', () => {
+    const boosted = computeDuoNetworkEntries(duoMatches, false);
+    for (let i = 1; i < boosted.length; i++) {
+      expect(boosted[i - 1].duoScore).toBeGreaterThanOrEqual(boosted[i].duoScore);
+    }
+  });
+
+  it('returns an empty array for no matches', () => {
+    expect(computeDuoNetworkEntries([], false)).toEqual([]);
   });
 });

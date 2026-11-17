@@ -4,7 +4,7 @@ import { readItems } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
 import { resolveAvatarUrl } from 'src/utils/playerHelpers';
 import { matchesFingerprint } from 'src/utils/leaderboardCompute';
-import { runDuoRanking } from 'src/utils/runLeaderboard';
+import { runDuoNetworkRanking } from 'src/utils/runLeaderboard';
 import type { DuoEntry } from 'src/utils/duoStats';
 import type { DirectusCompletedMatch } from 'src/services/playerProfile';
 
@@ -40,7 +40,7 @@ export function useDuoLeaderboard(context: UseDuoLeaderboardContext) {
   const duoLeaderboardLoading = ref(false);
 
   const getCacheKey = () =>
-    `club_duo_leaderboard_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
+    `club_duo_leaderboard_v2_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
 
   const loadCached = (): string | null => {
     const raw = LocalStorage.getItem(getCacheKey());
@@ -113,7 +113,10 @@ export function useDuoLeaderboard(context: UseDuoLeaderboardContext) {
 
       // Heavy work (3-pass Elo replay + duo aggregation) runs in a Web Worker
       // when available — see runLeaderboard.ts for the inline fallback.
-      const entries = await runDuoRanking(matches, includeNonCompetitive.value);
+      const entries = await runDuoNetworkRanking(
+        matches,
+        includeNonCompetitive.value,
+      );
 
       duoLeaderboard.value = entries.map((e) => ({
         ...e,

@@ -6,6 +6,7 @@
 import {
   computeClubRanked,
   computeDuoEntries,
+  computeDuoNetworkEntries,
   computeMatchesReplay,
   computeNetworkRanked,
 } from 'src/utils/leaderboardCompute';
@@ -94,6 +95,20 @@ export function runNetworkRanking(
 ): Promise<NetworkRankedPlayer[]> {
   return run({ kind: 'network', matches, includeNonCompetitive }, () =>
     computeNetworkRanked(matches, includeNonCompetitive),
+  );
+}
+
+/**
+ * Club-tab duo ranking — duoScore composite + member network-centrality
+ * bonus. Separate job kind so PlayerPage's Global Best Duos (rating-only)
+ * is untouched.
+ */
+export function runDuoNetworkRanking(
+  matches: DirectusCompletedMatch[],
+  includeNonCompetitive: boolean,
+): Promise<DuoEntry[]> {
+  return run({ kind: 'duo-network', matches, includeNonCompetitive }, () =>
+    computeDuoNetworkEntries(matches, includeNonCompetitive),
   );
 }
 

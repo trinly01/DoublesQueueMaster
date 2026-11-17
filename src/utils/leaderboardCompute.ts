@@ -12,7 +12,11 @@ import {
   type ReplayMatchInput,
   type ReplayPlayer,
 } from 'src/utils/ratingReplay';
-import { buildDuoEntries, type DuoEntry } from 'src/utils/duoStats';
+import {
+  buildDuoEntries,
+  duoPlayerKey,
+  type DuoEntry,
+} from 'src/utils/duoStats';
 import {
   computeNetworkScores,
   type NetworkRankedPlayer,
@@ -74,6 +78,60 @@ export function computeClubRanked(
     toRankedInputs(filtered),
     includeNonCompetitive,
   );
+}
+
+// Member-network bonus scale for the club duo tab: mean member centrality
+// as a fraction of the top player, mapped to ~10% of the ~1450 rating scale.
+// Small enough that pair record (duoScore) stays dominant; large enough to
+// break ties toward better-networked pairs — and to fill the flat-rating
+// gap for fixed duos whose paired matches never enter the rating replay.
+const DUO_NETWORK_WEIGHT = 150;
+
+/**
+ * Club-tab duo ranking — duoScore composite PLUS a member network-centrality
+ * bonus. Kept separate from computeDuoEntries: PlayerPage's Global Best
+ * Duos tab shares that path and stays rating-only (network scores are
+ * club-scoped by design).
+ *
+ * The bonus uses each member's rawScore (pre-display-normalization) joined
+ * on the shared identity keyspace (duoPlayerKey ≡ playerIdentityKey). The
+ * mutual A↔B echo inside member scores is accepted at this weight — the
+ * rigorous fix (external-inflow subtraction) is a documented follow-up.
+ */
+export function computeDuoNetworkEntries(
+  matches: DirectusCompletedMatch[],
+  includeNonCompetitive: boolean,
+): DuoEntry[] {
+  const filtered = filterCompetitive(matches, includeNonCompetitive);
+  const inputs = toRankedInputs(filtered);
+  const replayed = replayMatchesForRanking(inputs, includeNonCompetitive);
+  const ratingMap = new Map<string, number>();
+  for (const [key, player] of Object.entries(replayed)) {
+    ratingMap.set(key, player.rating);
+  }
+  const entries = buildDuoEntries(inputs, ratingMap);
+
+  const networked = computeNetworkScores(inputs);
+  if (networked.length === 0) return entries;
+  let rMax = 0;
+  const rawByKey = new Map<string, number>();
+  for (const p of networked) {
+    rawByKey.set(p.key, p.rawScore);
+    if (p.rawScore > rMax) rMax = p.rawScore;
+  }
+  if (rMax <= 0) return entries;
+
+  const boosted = entries.map((e) => {
+    const memberScores = [e.player1, e.player2]
+      .map((p) => rawByKey.get(duoPlayerKey(p)))
+      .filter((s): s is number => s !== undefined);
+    if (memberScores.length === 0) return e;
+    const mean = memberScores.reduce((a, b) => a + b, 0) / memberScores.length;
+    const bonus = DUO_NETWORK_WEIGHT * (mean / rMax);
+    return { ...e, duoScore: e.duoScore + bonus, networkBonus: bonus };
+  });
+  boosted.sort((a, b) => b.duoScore - a.duoScore);
+  return boosted;
 }
 
 /**

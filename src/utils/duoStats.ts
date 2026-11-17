@@ -41,6 +41,8 @@ export type DuoEntry = {
   recentForm: number;
   marginPerf: number;
   diversityFactor: number;
+  /** Network-centrality bonus added to duoScore by computeDuoNetworkEntries (club tab only). */
+  networkBonus?: number;
   topOpponentKey?: string;
   topOpponentNames?: string;
   topOpponentGames?: number;

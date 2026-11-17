@@ -14,13 +14,14 @@
 import {
   computeClubRanked,
   computeDuoEntries,
+  computeDuoNetworkEntries,
   computeMatchesReplay,
   computeNetworkRanked,
 } from 'src/utils/leaderboardCompute';
 import type { DirectusCompletedMatch } from 'src/services/playerProfile';
 
 export type LeaderboardJob = {
-  kind: 'club' | 'duo' | 'matches' | 'network';
+  kind: 'club' | 'duo' | 'matches' | 'network' | 'duo-network';
   matches: DirectusCompletedMatch[];
   includeNonCompetitive: boolean;
 };
@@ -30,10 +31,12 @@ self.onmessage = (e: MessageEvent<LeaderboardJob>) => {
   const result =
     job.kind === 'duo'
       ? computeDuoEntries(job.matches, job.includeNonCompetitive)
-      : job.kind === 'matches'
-        ? computeMatchesReplay(job.matches)
-        : job.kind === 'network'
-          ? computeNetworkRanked(job.matches, job.includeNonCompetitive)
-          : computeClubRanked(job.matches, job.includeNonCompetitive);
+      : job.kind === 'duo-network'
+        ? computeDuoNetworkEntries(job.matches, job.includeNonCompetitive)
+        : job.kind === 'matches'
+          ? computeMatchesReplay(job.matches)
+          : job.kind === 'network'
+            ? computeNetworkRanked(job.matches, job.includeNonCompetitive)
+            : computeClubRanked(job.matches, job.includeNonCompetitive);
   (self as unknown as Worker).postMessage(result);
 };
