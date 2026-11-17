@@ -8,6 +8,10 @@ export interface RecentClub {
   clubId: string;
   name: string;
   logoUrl: string;
+  // Derived server-side from appState.matchmaking by the
+  // "sync club dupr flags" flow — same columns the browse search reads.
+  dupr_only?: boolean;
+  dupr_plus_only?: boolean;
   players?: Array<{ id?: string; directus_users_id?: { id: string } }>;
 }
 
@@ -155,6 +159,8 @@ export function useRecentClubs(
               'clubId',
               'name',
               'logo',
+              'dupr_only',
+              'dupr_plus_only',
               'players.id',
               'players.directus_users_id.id',
             ],
@@ -168,6 +174,8 @@ export function useRecentClubs(
           clubId: string;
           name?: string;
           logo?: string;
+          dupr_only?: boolean;
+          dupr_plus_only?: boolean;
           players?: Array<{ id?: string; directus_users_id?: { id: string } }>;
         }[]) {
           memberMap.set(c.id, {
@@ -175,6 +183,8 @@ export function useRecentClubs(
             clubId: c.clubId,
             name: c.name || c.clubId,
             logoUrl: resolveLogoUrl(c.logo),
+            dupr_only: c.dupr_only,
+            dupr_plus_only: c.dupr_plus_only,
             players: c.players,
           });
         }
@@ -182,7 +192,15 @@ export function useRecentClubs(
         // Keep only clubs the user is still a member of (sorted by recent match)
         const filtered: RecentClub[] = sortedClubs
           .filter((c) => memberMap.has(c.id))
-          .map((c) => ({ ...c, players: memberMap.get(c.id)!.players }));
+          .map((c) => {
+            const m = memberMap.get(c.id)!;
+            return {
+              ...c,
+              players: m.players,
+              dupr_only: m.dupr_only,
+              dupr_plus_only: m.dupr_plus_only,
+            };
+          });
 
         // Append member clubs with no matches (joined but never played)
         for (const [id, c] of memberMap) {

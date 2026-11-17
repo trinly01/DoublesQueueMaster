@@ -142,14 +142,28 @@
                   <q-card-actions class="q-px-md q-pb-md q-pt-none">
                     <q-chip
                       v-if="duprRequirement(club)"
-                      :icon="duprRequirement(club) === 'plus' ? 'verified' : 'link'"
-                      :label="duprRequirement(club) === 'plus' ? 'DUPR+' : 'DUPR'"
-                      color="purple-1"
-                      text-color="purple-9"
+                      color="blue-2"
+                      text-color="blue-9"
+                      size="xs"
                       dense
-                      size="sm"
                       class="q-mr-xs"
-                    />
+                    >
+                      <DuprLogo :size="12" class="q-mr-xs" />
+                      {{
+                        duprRequirement(club) === 'plus' ? 'DUPR+' : 'DUPR'
+                      }}
+                      <q-tooltip
+                        anchor="top middle"
+                        self="bottom middle"
+                        :offset="[0, 8]"
+                      >
+                        {{
+                          duprRequirement(club) === 'plus'
+                            ? 'This club requires DUPR+'
+                            : 'This club requires a linked DUPR account'
+                        }}
+                      </q-tooltip>
+                    </q-chip>
                     <q-chip
                       icon="people"
                       color="grey-3"
@@ -265,6 +279,30 @@
                   </q-card-section>
 
                   <q-card-actions class="q-px-md q-pb-md q-pt-none">
+                    <q-chip
+                      v-if="duprRequirement(club)"
+                      color="blue-2"
+                      text-color="blue-9"
+                      size="xs"
+                      dense
+                      class="q-mr-xs"
+                    >
+                      <DuprLogo :size="12" class="q-mr-xs" />
+                      {{
+                        duprRequirement(club) === 'plus' ? 'DUPR+' : 'DUPR'
+                      }}
+                      <q-tooltip
+                        anchor="top middle"
+                        self="bottom middle"
+                        :offset="[0, 8]"
+                      >
+                        {{
+                          duprRequirement(club) === 'plus'
+                            ? 'This club requires DUPR+'
+                            : 'This club requires a linked DUPR account'
+                        }}
+                      </q-tooltip>
+                    </q-chip>
                     <q-chip
                       icon="people"
                       color="grey-3"
@@ -418,6 +456,7 @@ import { useQuasar, LocalStorage } from 'quasar';
 import logoUrl from 'src/assets/queue master logo.png';
 import EmptyState from 'src/components/EmptyState.vue';
 import DialogHeader from 'src/components/DialogHeader.vue';
+import DuprLogo from 'src/components/DuprLogo.vue';
 import {
   useRecentClubs,
   type RecentClub,
