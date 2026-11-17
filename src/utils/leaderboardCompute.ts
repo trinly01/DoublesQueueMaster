@@ -13,6 +13,10 @@ import {
   type ReplayPlayer,
 } from 'src/utils/ratingReplay';
 import { buildDuoEntries, type DuoEntry } from 'src/utils/duoStats';
+import {
+  computeNetworkScores,
+  type NetworkRankedPlayer,
+} from 'src/utils/networkRanking';
 
 // Modes excluded unless the user toggles "Include non-competitive".
 // Mirrors the NON_COMPETITIVE_MODES set in ratingReplay.ts.
@@ -70,6 +74,21 @@ export function computeClubRanked(
     toRankedInputs(filtered),
     includeNonCompetitive,
   );
+}
+
+/**
+ * Club-tab network ranking — personalized PageRank over the match graph.
+ * Deliberately separate from computeClubRanked: the 'club' worker job also
+ * feeds the Global tab, which stays rating-based. Ties, fixed-duo matches,
+ * and non-competitive matches (per the toggle) all build graph edges —
+ * they're real connections even when rating policy excludes them.
+ */
+export function computeNetworkRanked(
+  matches: DirectusCompletedMatch[],
+  includeNonCompetitive: boolean,
+): NetworkRankedPlayer[] {
+  const filtered = filterCompetitive(matches, includeNonCompetitive);
+  return computeNetworkScores(toRankedInputs(filtered));
 }
 
 export function computeDuoEntries(

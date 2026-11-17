@@ -7,11 +7,13 @@ import {
   computeClubRanked,
   computeDuoEntries,
   computeMatchesReplay,
+  computeNetworkRanked,
 } from 'src/utils/leaderboardCompute';
 import type { LeaderboardJob } from 'src/workers/leaderboard.worker';
 import type { DirectusCompletedMatch } from 'src/services/playerProfile';
 import type { RankedPlayer, ReplayPlayer } from 'src/utils/ratingReplay';
 import type { DuoEntry } from 'src/utils/duoStats';
+import type { NetworkRankedPlayer } from 'src/utils/networkRanking';
 
 function run<T>(job: LeaderboardJob, inline: () => T): Promise<T> {
   if (typeof Worker === 'undefined') {
@@ -81,6 +83,20 @@ export function runDuoRanking(
 // tab). The tab never had an include-non-competitive toggle, so the job
 // flag is fixed to false; computeMatchesReplay filters competitive modes
 // unconditionally.
+/**
+ * Club-tab network ranking — personalized PageRank over the match graph
+ * (teammates + opponents + their performances). Separate job kind so the
+ * rating-based 'club' ranking that also feeds the Global tab is untouched.
+ */
+export function runNetworkRanking(
+  matches: DirectusCompletedMatch[],
+  includeNonCompetitive: boolean,
+): Promise<NetworkRankedPlayer[]> {
+  return run({ kind: 'network', matches, includeNonCompetitive }, () =>
+    computeNetworkRanked(matches, includeNonCompetitive),
+  );
+}
+
 export function runMatchesReplay(
   matches: DirectusCompletedMatch[],
 ): Promise<Record<string, ReplayPlayer>> {

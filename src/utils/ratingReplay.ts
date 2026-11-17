@@ -284,7 +284,7 @@ export type RankedPlayer = ReplayPlayer & {
   ratedMatchesPlayed: number;
 };
 
-function playerIdentityKey(p: ReplayPlayerInput): string {
+export function playerIdentityKey(p: ReplayPlayerInput): string {
   if (p.userId) return p.userId;
   if (p.username) return p.username;
   return `guest:${p.firstName || ''}|${p.lastName || ''}|${p.name || ''}`;

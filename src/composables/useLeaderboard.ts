@@ -2,9 +2,8 @@ import { ref, type Ref } from 'vue';
 import { LocalStorage } from 'quasar';
 import { readItems } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
-import { rankClubPlayers } from 'src/utils/ratingReplay';
 import { matchesFingerprint } from 'src/utils/leaderboardCompute';
-import { runClubRanking } from 'src/utils/runLeaderboard';
+import { runNetworkRanking } from 'src/utils/runLeaderboard';
 import { resolveAvatarUrl } from 'src/utils/playerHelpers';
 import type { DirectusCompletedMatch } from 'src/services/playerProfile';
 import type { ClubMember } from 'src/composables/useClubMembers';
@@ -42,7 +41,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
   const includeNonCompetitive = ref(false);
 
   const getClubLeaderboardCacheKey = () =>
-    `club_leaderboard_v2_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
+    `club_leaderboard_v3_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
 
   const loadCachedClubLeaderboard = (): string | null => {
     const raw = LocalStorage.getItem(getClubLeaderboardCacheKey());
@@ -101,10 +100,11 @@ export function useLeaderboard(context: UseLeaderboardContext) {
         return;
       }
 
-      // Replay matches off the main thread (Web Worker with inline fallback)
-      // using the club-ranking path (deterministic sort, tie skip, guest
-      // identity key, level-based seeding, iterated convergence).
-      const replayed = await runClubRanking(
+      // Network ranking off the main thread (Web Worker with inline
+      // fallback) — personalized PageRank over the match graph: teammates
+      // + opponents + their performances, NOT rating/W-L. Returns a
+      // pre-sorted array (centrality desc → matches desc → name asc).
+      const networked = await runNetworkRanking(
         matches,
         includeNonCompetitive.value,
       );
@@ -132,13 +132,13 @@ export function useLeaderboard(context: UseLeaderboardContext) {
 
       const memberMap = new Map(clubMembers.value.map((m) => [m.username, m]));
 
-      // Rank using the deterministic tiebreaker chain.
-      const ranked = rankClubPlayers(replayed);
-      const list = ranked
+      // Map the pre-sorted network ranking to display entries.
+      const list = networked
         .filter((p) => userMap.has(p.username))
         .map((p) => {
           const user = userMap.get(p.username);
           const member = memberMap.get(p.username);
+          const decisive = p.wins + p.losses;
           return {
             id: member?.id || p.username,
             username: p.username,
@@ -152,8 +152,9 @@ export function useLeaderboard(context: UseLeaderboardContext) {
             wins: p.wins,
             losses: p.losses,
             games: p.matchesPlayed,
-            score: Math.round(p.rating),
-            winRate: p.matchesPlayed > 0 ? (p.wins / p.matchesPlayed) * 100 : 0,
+            score: p.networkScore,
+            // Decisive-only win rate — ties are neither win nor loss.
+            winRate: decisive > 0 ? (p.wins / decisive) * 100 : 0,
             reliability: p.reliability,
             provisional: p.provisional,
             gamesToReliable: p.gamesToReliable,

@@ -15,11 +15,12 @@ import {
   computeClubRanked,
   computeDuoEntries,
   computeMatchesReplay,
+  computeNetworkRanked,
 } from 'src/utils/leaderboardCompute';
 import type { DirectusCompletedMatch } from 'src/services/playerProfile';
 
 export type LeaderboardJob = {
-  kind: 'club' | 'duo' | 'matches';
+  kind: 'club' | 'duo' | 'matches' | 'network';
   matches: DirectusCompletedMatch[];
   includeNonCompetitive: boolean;
 };
@@ -31,6 +32,8 @@ self.onmessage = (e: MessageEvent<LeaderboardJob>) => {
       ? computeDuoEntries(job.matches, job.includeNonCompetitive)
       : job.kind === 'matches'
         ? computeMatchesReplay(job.matches)
-        : computeClubRanked(job.matches, job.includeNonCompetitive);
+        : job.kind === 'network'
+          ? computeNetworkRanked(job.matches, job.includeNonCompetitive)
+          : computeClubRanked(job.matches, job.includeNonCompetitive);
   (self as unknown as Worker).postMessage(result);
 };
