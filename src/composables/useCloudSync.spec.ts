@@ -134,6 +134,8 @@ interface CtxRefs {
   router: Router;
   lastSyncedServerTimestamp: Ref<number>;
   saveLastSyncedTimestamp: ReturnType<typeof vi.fn>;
+  lastAppliedCommitTs: Ref<number>;
+  saveLastAppliedCommitTs: ReturnType<typeof vi.fn>;
 }
 
 function makeCtx(overrides: Partial<CloudSyncContext> = {}): CtxRefs {
@@ -150,6 +152,8 @@ function makeCtx(overrides: Partial<CloudSyncContext> = {}): CtxRefs {
     router: {} as Router,
     lastSyncedServerTimestamp: ref(0),
     saveLastSyncedTimestamp: vi.fn(),
+    lastAppliedCommitTs: ref(0),
+    saveLastAppliedCommitTs: vi.fn(),
   };
   return { ...refs, ...overrides } as CtxRefs;
 }
@@ -203,6 +207,13 @@ let writeCalls: WriteOp[] = [];
 // matches, then rotates the token (a real write bumps date_updated).
 const INITIAL_DATE_UPDATED = '2025-01-01T00:00:00.000Z';
 let serverDateUpdated = INITIAL_DATE_UPDATED;
+// Rotated tokens stay ISO-parseable (real Directus date_updated is ISO)
+// and strictly increase — tests can exercise the commit watermark.
+const rotatedDateUpdated = () => {
+  writeSeq += 1;
+  return new Date(Date.parse(INITIAL_DATE_UPDATED) + writeSeq * 1000)
+    .toISOString();
+};
 // 'once' rotates the token before the first write (concurrent writer lands
 // in the read→PATCH gap); 'always' does it on every write.
 let casConflictMode: 'never' | 'once' | 'always' = 'never';
@@ -335,12 +346,13 @@ beforeEach(() => {
         // precondition stale → empty result, no write.
         if (casConflictMode !== 'never') {
           if (casConflictMode === 'once') casConflictMode = 'never';
-          serverDateUpdated = `concurrent-${++writeSeq}`;
+          serverDateUpdated = rotatedDateUpdated();
         }
         if (w.casToken !== serverDateUpdated) return [];
-        // Write lands → date_updated rotates.
-        serverDateUpdated = `write-${++writeSeq}`;
-        return [{ id: 'club-row' }];
+        // Write lands → date_updated rotates; the response carries the
+        // updated row like a real Directus PATCH.
+        serverDateUpdated = rotatedDateUpdated();
+        return [{ id: 'club-row', date_updated: serverDateUpdated }];
       }
       return {};
     }
@@ -1198,8 +1210,11 @@ describe('useCloudSync — CAS precondition', () => {
     // Exactly two PATCH attempts — bounded retry, no loop.
     expect(writeCalls).toHaveLength(2);
     expect(writeCalls[0].casToken).toBe(INITIAL_DATE_UPDATED);
-    // The retry used the rotated token observed on the re-probe.
-    expect(writeCalls[1].casToken).toBe('concurrent-1');
+    // The retry used the rotated token observed on the re-probe
+    // (first rotation = INITIAL + 1s).
+    expect(writeCalls[1].casToken).toBe(
+      new Date(Date.parse(INITIAL_DATE_UPDATED) + 1000).toISOString(),
+    );
     // mergeWithResetAdvantage ran on the retry → advantage adopted + user told.
     expect(MatchmakingApp.state.actionLogsResetAt).toBe(9000);
     expect(mocks.notify).toHaveBeenCalledWith(
@@ -1642,6 +1657,9 @@ describe('useCloudSync — CAS slim probe', () => {
   it('verifies with the slim probe — no appState blob read when unchanged', async () => {
     const { refs, sync } = setupCasProbeSync();
     refs.lastSyncedServerTimestamp.value = 100;
+    // Device already incorporated the server's current commit — nothing
+    // ahead to merge, so the slim probe alone suffices.
+    refs.lastAppliedCommitTs.value = Date.parse(INITIAL_DATE_UPDATED);
     serverMatchmaking = makeState({ lastModified: 100 });
     serverTimestamp = 100;
 
@@ -1766,5 +1784,171 @@ describe('useCloudSync — pre-logout flush hook', () => {
     const hook = mocks.beforeLogoutHooks.at(-1)!;
     await hook();
     expect(mocks.request).not.toHaveBeenCalled();
+  });
+});
+
+
+// ===========================================================================
+// useCloudSync — commit-order watermark (date_updated guards stale applies)
+// ===========================================================================
+
+describe('useCloudSync — commit-order watermark', () => {
+  const T_NEW = '2025-06-01T00:00:00.000Z';
+  const T_MID = '2025-03-01T00:00:00.000Z';
+  // T_OLD coincides with INITIAL_DATE_UPDATED — always older than T_NEW/T_MID.
+  const T_OLD = INITIAL_DATE_UPDATED;
+
+  function setupSync() {
+    seedVerifiedMeta('clubA', ['admin1'], []);
+    const refs = makeCtx();
+    const sync = useCloudSync(refs as unknown as CloudSyncContext);
+    sync.isOnline.value = true;
+    return { refs, sync };
+  }
+
+  const queueIds = () =>
+    (MatchmakingApp.state.queues as unknown as Array<{ id: string }>).map(
+      (q) => q.id,
+    );
+
+  it('poll: drops a payload whose commit is older than the applied watermark', async () => {
+    const { refs, sync } = setupSync();
+    refs.lastSyncedServerTimestamp.value = 100;
+
+    // First pull applies the newest commit T_NEW.
+    serverDateUpdated = T_NEW;
+    serverTimestamp = 500;
+    serverMatchmaking = makeState({
+      lastModified: 500,
+      queues: [{ id: 'q-new', updatedAt: 500 } as never],
+    });
+    await sync.pollServerState();
+    expect(refs.lastAppliedCommitTs.value).toBe(Date.parse(T_NEW));
+    expect(queueIds()).toEqual(['q-new']);
+
+    // A delayed OLDER response lands: commit T_OLD but a much HIGHER
+    // lastModified (skewed writer clock) — the old timestamp checks would
+    // have applied it and regressed both state and the sync base.
+    serverDateUpdated = T_OLD;
+    serverTimestamp = 999999;
+    serverMatchmaking = makeState({
+      lastModified: 999999,
+      queues: [{ id: 'q-stale', updatedAt: 1 } as never],
+    });
+    await sync.pollServerState();
+
+    expect(queueIds()).toEqual(['q-new']);
+    expect(refs.lastAppliedCommitTs.value).toBe(Date.parse(T_NEW));
+    expect(refs.lastSyncedServerTimestamp.value).toBe(500);
+  });
+
+  it('poll: pulls when date_updated moved even though lastModified is unchanged', async () => {
+    const { refs, sync } = setupSync();
+    refs.lastSyncedServerTimestamp.value = 500;
+    refs.lastAppliedCommitTs.value = Date.parse('2024-01-01T00:00:00.000Z');
+
+    serverDateUpdated = T_MID;
+    serverTimestamp = 500; // lastModified identical — old gate would skip
+    serverMatchmaking = makeState({ lastModified: 500 });
+
+    await sync.pollServerState();
+
+    // commitMoved forced the full read; apply echo-skipped on
+    // lastModified but the watermark still advanced to the seen commit.
+    expect(refs.lastAppliedCommitTs.value).toBe(Date.parse(T_MID));
+  });
+
+  it('realtime coalescer keeps the newest commit even when an older commit carries a higher lastModified', async () => {
+    vi.useFakeTimers();
+    const { refs, sync } = setupSync();
+    const appStateMsg = (mm: AppState, date_updated: string) => ({
+      type: 'subscription',
+      event: 'update',
+      data: [
+        { id: 'uuid-A', date_updated, appState: { matchmaking: mm } },
+      ],
+    });
+    mocks.subscribe.mockImplementation(async () => ({
+      subscription: (async function* () {
+        yield appStateMsg(
+          makeState({
+            lastModified: 100,
+            queues: [{ id: 'q-fresh', updatedAt: 2 } as never],
+          }),
+          T_NEW,
+        );
+        yield appStateMsg(
+          makeState({
+            lastModified: 999999,
+            queues: [{ id: 'q-stale', updatedAt: 1 } as never],
+          }),
+          T_OLD,
+        );
+        await new Promise(() => {});
+      })(),
+      unsubscribe: vi.fn(),
+    }));
+
+    await sync.startRealtime();
+    await vi.advanceTimersByTimeAsync(60);
+
+    // Newest COMMIT wins the buffer slot — max-lastModified selection
+    // would have kept the skewed-clock stale payload instead.
+    expect(queueIds()).toEqual(['q-fresh']);
+    expect(refs.lastAppliedCommitTs.value).toBe(Date.parse(T_NEW));
+  });
+
+  it('push: merges the freshest server commit even when lastModified matches', async () => {
+    seedVerifiedMeta('clubA', ['admin1'], []);
+    const refs = makeCtx();
+    const sync = useCloudSync(refs as unknown as CloudSyncContext);
+    sync.isOnline.value = true;
+
+    refs.lastSyncedServerTimestamp.value = 100;
+    // Watermark older than the server's current commit — the server holds
+    // a commit this device hasn't incorporated (realtime dead, poll not
+    // yet run). lastModified still matches, so the timestamp gate alone
+    // would skip the merge and the push would clobber it.
+    refs.lastAppliedCommitTs.value = Date.parse(
+      '2024-01-01T00:00:00.000Z',
+    );
+    serverDateUpdated = T_MID;
+    // players merge per-key — a server-only player survives the merge and
+    // proves the freshest commit was incorporated before the PATCH.
+    serverMatchmaking = makeState({
+      lastModified: 100,
+      players: {
+        srvPlayer: {
+          username: 'srvPlayer',
+          createdAt: 1,
+          updatedAt: 1,
+        } as never,
+      },
+    });
+    serverTimestamp = 100;
+    MatchmakingApp.state.players = {
+      localPlayer: {
+        username: 'localPlayer',
+        createdAt: 2,
+        updatedAt: 2,
+      } as never,
+    };
+    MatchmakingApp.state.lastModified = 5000;
+
+    await sync.performCloudSync();
+
+    expect(writeCalls).toHaveLength(1);
+    const pushed = (
+      writeCalls[0].data as {
+        appState: { matchmaking: AppState };
+      }
+    ).appState.matchmaking;
+    const pushedPlayers = pushed.players as Record<string, unknown>;
+    expect(Object.keys(pushedPlayers)).toContain('srvPlayer');
+    expect(Object.keys(pushedPlayers)).toContain('localPlayer');
+    // Watermark advanced to at least the merged commit.
+    expect(refs.lastAppliedCommitTs.value).toBeGreaterThanOrEqual(
+      Date.parse(T_MID),
+    );
   });
 });

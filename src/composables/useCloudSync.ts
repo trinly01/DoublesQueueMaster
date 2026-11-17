@@ -83,6 +83,13 @@ export interface CloudSyncContext {
   router: Router;
   lastSyncedServerTimestamp: Ref<number>;
   saveLastSyncedTimestamp: (clubId: string, ts: number) => void;
+  // Commit-order token: server row's date_updated (ms) of the newest club
+  // commit whose appState this device has incorporated. date_updated is
+  // stamped by Directus in commit order — unlike lastModified (the
+  // writer's client clock) it cannot invert under clock skew, so it is
+  // the only trustworthy "latest wins" ordering key for inbound payloads.
+  lastAppliedCommitTs: Ref<number>;
+  saveLastAppliedCommitTs: (clubId: string, ts: number) => void;
 }
 
 export function useCloudSync(ctx: CloudSyncContext) {
@@ -101,6 +108,8 @@ export function useCloudSync(ctx: CloudSyncContext) {
     router,
     lastSyncedServerTimestamp,
     saveLastSyncedTimestamp,
+    lastAppliedCommitTs,
+    saveLastAppliedCommitTs,
   } = ctx;
   const { notify: ctxNotify } = useNotify();
   const { handleAuthError: ctxHandleAuthError } = useAuth();
@@ -501,6 +510,15 @@ export function useCloudSync(ctx: CloudSyncContext) {
             '[cloudSync] pre-write verify read returned no club row',
           );
         }
+        // Commit-order check: the probe's date_updated is the newest
+        // server commit. If it is ahead of this device's commit
+        // watermark, the server holds state we haven't incorporated
+        // (realtime dead + poll not yet run) — force the blob read and
+        // merge even when lastModified coincidentally matches, so the
+        // push can't clobber a fresher commit.
+        const probeCommitTs = casToken ? Date.parse(casToken) || 0 : 0;
+        const serverAheadOfApplied =
+          probeCommitTs > 0 && probeCommitTs > lastAppliedCommitTs.value;
         const observedTimestamp =
           serverTimestamp || lastSyncedServerTimestamp.value;
         // Blob required when: CAS retry (merge is forced — the conflicting
@@ -512,7 +530,8 @@ export function useCloudSync(ctx: CloudSyncContext) {
         const blobRequired =
           attempt > 0 ||
           probeTs === undefined ||
-          probeTs !== observedTimestamp;
+          probeTs !== observedTimestamp ||
+          serverAheadOfApplied;
         let fresh = probe?.matchmaking;
         if (blobRequired && fresh === undefined) {
           fresh = await perfMeasureAsync('cloudsync.cas-blob', () =>
@@ -523,7 +542,12 @@ export function useCloudSync(ctx: CloudSyncContext) {
         // it over the probe's json() value (the blob read is the later
         // request and may reflect a write that landed in between).
         const verifyTimestamp = fresh?.lastModified ?? probeTs ?? 0;
-        if (fresh && (attempt > 0 || verifyTimestamp !== observedTimestamp)) {
+        if (
+          fresh &&
+          (attempt > 0 ||
+            verifyTimestamp !== observedTimestamp ||
+            serverAheadOfApplied)
+        ) {
           // Same reset-advantage adoption as the pre-push merge — the
           // server may have moved precisely because another admin reset
           // (contract §2, hook point c).
@@ -534,6 +558,17 @@ export function useCloudSync(ctx: CloudSyncContext) {
             ),
           );
           MatchmakingApp.enforceOneMatchPerPlayer();
+          // The merge just incorporated the server's newest commit —
+          // advance the watermark so delayed older payloads are dropped.
+          if (
+            serverAheadOfApplied &&
+            probeCommitTs > lastAppliedCommitTs.value
+          ) {
+            lastAppliedCommitTs.value = probeCommitTs;
+            if (currentClubId.value) {
+              saveLastAppliedCommitTs(currentClubId.value, probeCommitTs);
+            }
+          }
         }
 
         // 5. Stamp, push to cloud, persist locally, and advance our base
@@ -589,6 +624,22 @@ export function useCloudSync(ctx: CloudSyncContext) {
         lastSyncedServerTimestamp.value = stamp;
         if (currentClubId.value) {
           saveLastSyncedTimestamp(currentClubId.value, stamp);
+        }
+        // Our PATCH just created the newest commit — advance the
+        // watermark so delayed older payloads are dropped on arrival.
+        const pushedRow = (
+          Array.isArray(casResult) ? casResult[0] : casResult
+        ) as { date_updated?: string } | undefined;
+        const pushedCommitTs = pushedRow?.date_updated
+          ? Date.parse(pushedRow.date_updated) || 0
+          : 0;
+        if (
+          pushedCommitTs > 0 &&
+          pushedCommitTs > lastAppliedCommitTs.value &&
+          currentClubId.value
+        ) {
+          lastAppliedCommitTs.value = pushedCommitTs;
+          saveLastAppliedCommitTs(currentClubId.value, pushedCommitTs);
         }
         hasPendingCloudSync.value = false;
         pushFailed = false;
@@ -721,8 +772,16 @@ export function useCloudSync(ctx: CloudSyncContext) {
     type?: string;
     event?: 'init' | 'create' | 'update' | 'delete';
     data?:
-      | Array<{ id?: string; appState?: { matchmaking?: AppState } }>
-      | { id?: string; appState?: { matchmaking?: AppState } };
+      | Array<{
+          id?: string;
+          date_updated?: string;
+          appState?: { matchmaking?: AppState };
+        }>
+      | {
+          id?: string;
+          date_updated?: string;
+          appState?: { matchmaking?: AppState };
+        };
   };
 
   // ---- Realtime role-field watch (contract §4 freshness) ----------------
@@ -875,8 +934,34 @@ export function useCloudSync(ctx: CloudSyncContext) {
     clearPendingSync(currentClubId.value);
   };
 
-  const applyServerMatchmaking = (serverMatchmaking?: AppState) => {
+  const applyServerMatchmaking = (
+    serverMatchmaking?: AppState,
+    rowCommitTs = 0,
+  ) => {
     if (!serverMatchmaking) return;
+    // Commit-order guard: date_updated is stamped by Directus in commit
+    // order — the only trustworthy recency key (lastModified is the
+    // writer's client clock and inverts under skew). A payload whose
+    // commit is older than the newest one this device has already seen
+    // is strictly stale: its appState is an older whole-state snapshot
+    // that can only regress local data. Drop it before any merge.
+    if (
+      rowCommitTs > 0 &&
+      lastAppliedCommitTs.value > 0 &&
+      rowCommitTs < lastAppliedCommitTs.value
+    ) {
+      return;
+    }
+    // Advance the commit watermark on sight — even if the apply below
+    // echo-skips or throws, the next pull re-reads the same (or newer)
+    // commit and self-heals. Equal timestamps pass: same-commit
+    // redelivery is handled idempotently by the merge/echo checks.
+    if (rowCommitTs > lastAppliedCommitTs.value) {
+      lastAppliedCommitTs.value = rowCommitTs;
+      if (currentClubId.value) {
+        saveLastAppliedCommitTs(currentClubId.value, rowCommitTs);
+      }
+    }
     const incomingTs = serverMatchmaking.lastModified ?? 0;
     // Ignore the echo of our own last write.
     if (incomingTs === lastSyncedServerTimestamp.value) {
@@ -979,7 +1064,9 @@ export function useCloudSync(ctx: CloudSyncContext) {
   // keeps the base version monotonic regardless of flush order.
   const REALTIME_COALESCE_MS = 50;
   let realtimeCoalesceTimer: ReturnType<typeof setTimeout> | null = null;
-  let pendingRealtimeMatchmaking: AppState | undefined;
+  let pendingRealtimeMatchmaking:
+    | { matchmaking: AppState; commitTs: number }
+    | undefined;
 
   const flushRealtimeMatchmaking = () => {
     if (realtimeCoalesceTimer) {
@@ -990,19 +1077,32 @@ export function useCloudSync(ctx: CloudSyncContext) {
     pendingRealtimeMatchmaking = undefined;
     if (pending) {
       perfMeasure('cloudsync.realtime-flush', () =>
-        applyServerMatchmaking(pending),
+        applyServerMatchmaking(pending.matchmaking, pending.commitTs),
       );
     }
   };
 
-  const bufferRealtimeMatchmaking = (matchmaking?: AppState) => {
+  const bufferRealtimeMatchmaking = (
+    matchmaking?: AppState,
+    commitTs = 0,
+  ) => {
     // Stripped/empty payloads never enter the buffer — and must not clear
     // a pending newer payload either.
     if (!matchmaking) return;
-    const pendingTs = pendingRealtimeMatchmaking?.lastModified ?? 0;
+    const pending = pendingRealtimeMatchmaking;
+    const pendingTs = pending?.matchmaking.lastModified ?? 0;
     const incomingTs = matchmaking.lastModified ?? 0;
-    if (!pendingRealtimeMatchmaking || incomingTs > pendingTs) {
-      pendingRealtimeMatchmaking = matchmaking;
+    // Newest COMMIT wins the buffer slot: date_updated is stamped in
+    // commit order and cannot invert under client clock skew, so it
+    // beats lastModified whenever both are known. Ties/absent stamps
+    // fall back to the payload's lastModified (pre-commit-token behavior).
+    const pendingCommitTs = pending?.commitTs ?? 0;
+    const wins =
+      !pending ||
+      commitTs > pendingCommitTs ||
+      (commitTs === pendingCommitTs && incomingTs > pendingTs);
+    if (wins) {
+      pendingRealtimeMatchmaking = { matchmaking, commitTs };
     }
     // Arm the window on the FIRST buffered message only — a fixed trailing
     // window bounds flush latency to ~50ms even under a sustained burst
@@ -1055,6 +1155,9 @@ export function useCloudSync(ctx: CloudSyncContext) {
             fields: [
               'id',
               'appState',
+              // Commit-order token — the coalescer/apply guard order by
+              // this, never by the skewable in-payload lastModified.
+              'date_updated',
               // Role M2M ids ride along so a server-side role change can
               // invalidate the verified club_meta_* privilege snapshot
               // (contract §4). Dot-notation M2M verified for Player tokens.
@@ -1082,6 +1185,9 @@ export function useCloudSync(ctx: CloudSyncContext) {
             // the appState coalescer, and they trigger loadClubData.
             handleRealtimeRoleFields(item);
             const matchmaking = item?.appState?.matchmaking;
+            const itemCommitTs = item?.date_updated
+              ? Date.parse(item.date_updated)
+              : 0;
             // Only a message carrying usable data proves the stream is
             // healthy — stripped/empty payloads (e.g. permission-filtered
             // appState) must not suppress the staleness poll. The stamp is
@@ -1091,7 +1197,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
             // Non-appState messages (role fields handled above, other
             // collections, stripped payloads) bypass coalescing — they
             // simply never enter the buffer.
-            bufferRealtimeMatchmaking(matchmaking);
+            bufferRealtimeMatchmaking(
+              matchmaking,
+              Number.isFinite(itemCommitTs) ? itemCommitTs : 0,
+            );
           }
         } catch (err) {
           console.warn('Realtime stream ended:', err);
@@ -1193,24 +1302,48 @@ export function useCloudSync(ctx: CloudSyncContext) {
         readItems('club', {
           filter: { id: { _eq: currentClubUUID.value } },
           fields: [
+            'date_updated',
             'json(appState, matchmaking.lastModified)',
           ] as unknown as string[],
         }),
       );
       const serverTs = parseLightweightTimestamp(light);
-      if (serverTs && serverTs !== lastSyncedServerTimestamp.value) {
+      // Commit moved even when lastModified coincides (non-appState
+      // writes bump date_updated; same-ms stamps can collide) — pull on
+      // either signal. The apply-side commit guard drops the result if
+      // realtime already incorporated a newer commit during the read,
+      // closing the light→full read TOCTOU window.
+      const lightRow = (
+        light as Array<{ date_updated?: string }> | undefined
+      )?.[0];
+      const lightCommitTs = lightRow?.date_updated
+        ? Date.parse(lightRow.date_updated) || 0
+        : 0;
+      const commitMoved =
+        lightCommitTs > 0 && lightCommitTs > lastAppliedCommitTs.value;
+      if (
+        (serverTs && serverTs !== lastSyncedServerTimestamp.value) ||
+        commitMoved
+      ) {
         const full = await likhaClient.request(
           readItems('club', {
             filter: { id: { _eq: currentClubUUID.value } },
-            fields: ['appState'],
+            fields: ['appState', 'date_updated'],
           }),
         );
-        const serverAppState = (
-          full?.[0] as unknown as {
-            appState?: { matchmaking?: AppState };
-          }
-        )?.appState;
-        applyServerMatchmaking(serverAppState?.matchmaking);
+        const fullRow = full?.[0] as
+          | {
+              date_updated?: string;
+              appState?: { matchmaking?: AppState };
+            }
+          | undefined;
+        const fullCommitTs = fullRow?.date_updated
+          ? Date.parse(fullRow.date_updated) || 0
+          : 0;
+        applyServerMatchmaking(
+          fullRow?.appState?.matchmaking,
+          fullCommitTs,
+        );
       }
     } catch (err) {
       console.warn('[poll] staleness check failed:', err);
@@ -1373,6 +1506,7 @@ export function useCloudSync(ctx: CloudSyncContext) {
     isOnline,
     hasPendingCloudSync,
     lastSyncedServerTimestamp,
+    lastAppliedCommitTs,
     syncAjaxBar,
     dataFetchBar,
     clubSwitchInProgress,

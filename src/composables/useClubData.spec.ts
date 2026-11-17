@@ -150,8 +150,10 @@ function makeClubPayload(serverState: AppState) {
 
 function makeContext() {
   const lastSyncedServerTimestamp = ref(0);
+  const lastAppliedCommitTs = ref(0);
   return {
     lastSyncedServerTimestamp,
+    lastAppliedCommitTs,
     context: {
       likhaUrl: ref('https://api.test'),
       currentUserId: ref(USER_ID),
@@ -159,6 +161,8 @@ function makeContext() {
       getDataFetchBar: () => null,
       lastSyncedServerTimestamp,
       saveLastSyncedTimestamp: vi.fn(),
+      lastAppliedCommitTs,
+      saveLastAppliedCommitTs: vi.fn(),
       setClubSwitchInProgress: vi.fn(),
       stopRealtime: vi.fn(),
     },
@@ -669,5 +673,118 @@ describe('useClubData — player-merge persist gate', () => {
     expect(persistSpy).toHaveBeenCalledTimes(1);
     expect(onStateChangeSpy).toHaveBeenCalledTimes(1);
     persistSpy.mockRestore();
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// loadClubData — commit-order guard (date_updated vs applied watermark)
+// ---------------------------------------------------------------------------
+describe('useClubData — commit-order guard', () => {
+  const NEW_COMMIT = '2025-06-01T00:00:00.000Z';
+  const OLD_COMMIT = '2025-01-01T00:00:00.000Z';
+
+  it('skips applying an older commit and keeps state + bases monotonic', async () => {
+    const { context, lastSyncedServerTimestamp, lastAppliedCommitTs } =
+      makeContext();
+    // Device already applied a NEWER commit via realtime/poll.
+    lastAppliedCommitTs.value = Date.parse(NEW_COMMIT);
+
+    // Local dirty privileged state that must survive the stale response.
+    MatchmakingApp.state.players = {
+      localP: {
+        username: 'localP',
+        level: 1,
+        rating: 1500,
+        matchesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        createdAt: 5000,
+        updatedAt: 5000,
+        statsUpdatedAt: 5000,
+      } as never,
+    };
+    MatchmakingApp.state.lastModified = Date.now();
+
+    // In-flight REST response finally lands — but it is an OLDER commit
+    // (reordered/delayed) carrying a HIGHER lastModified from a skewed
+    // writer clock. Old code overwrote local state and regressed bases.
+    const staleState = makeServerState({
+      lastModified: 999999,
+      players: {
+        staleP: {
+          username: 'staleP',
+          level: 1,
+          rating: 999,
+          matchesPlayed: 9,
+          wins: 9,
+          losses: 0,
+          createdAt: 1,
+          updatedAt: 1,
+          statsUpdatedAt: 1,
+        } as never,
+      },
+    });
+    const payload = makeClubPayload(staleState) as Array<
+      Record<string, unknown>
+    >;
+    payload[0].date_updated = OLD_COMMIT;
+    mocks.request.mockResolvedValue(payload);
+    mocks.detectAdvantage.mockReturnValue(NO_FLAGS);
+
+    const { loadClubData } = useClubData(context);
+    await loadClubData(CLUB_ID);
+
+    // Stale commit's appState was not applied — local player survives,
+    // the stale server player was not adopted (member-list player merges
+    // may still add the admin's own row).
+    expect(Object.keys(MatchmakingApp.state.players)).toContain('localP');
+    expect(Object.keys(MatchmakingApp.state.players)).not.toContain(
+      'staleP',
+    );
+    // Neither base may claim the stale version.
+    expect(lastSyncedServerTimestamp.value).toBe(0);
+    expect(lastAppliedCommitTs.value).toBe(Date.parse(NEW_COMMIT));
+  });
+
+  it('applies a fresh commit and advances both bases monotonically', async () => {
+    const { context, lastSyncedServerTimestamp, lastAppliedCommitTs } =
+      makeContext();
+    lastAppliedCommitTs.value = Date.parse(OLD_COMMIT);
+    lastSyncedServerTimestamp.value = 7000;
+
+    const freshState = makeServerState({
+      lastModified: 6000, // lower than the 7000 base — must not regress it
+      players: {
+        srvP: {
+          username: 'srvP',
+          level: 1,
+          rating: 1400,
+          matchesPlayed: 3,
+          wins: 2,
+          losses: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          statsUpdatedAt: 1,
+        } as never,
+      },
+    });
+    const payload = makeClubPayload(freshState) as Array<
+      Record<string, unknown>
+    >;
+    payload[0].date_updated = NEW_COMMIT;
+    mocks.request.mockResolvedValue(payload);
+    mocks.detectAdvantage.mockReturnValue(NO_FLAGS);
+
+    const { loadClubData } = useClubData(context);
+    await loadClubData(CLUB_ID);
+
+    // Fresh commit applied — the server-only player was adopted.
+    expect(
+      Object.keys(MatchmakingApp.state.players),
+    ).toContain('srvP');
+    // lastSynced is Math.max — an older lastModified can't lower the base.
+    expect(lastSyncedServerTimestamp.value).toBe(7000);
+    expect(lastAppliedCommitTs.value).toBe(Date.parse(NEW_COMMIT));
   });
 });

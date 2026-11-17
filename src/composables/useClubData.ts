@@ -42,6 +42,9 @@ export interface UseClubDataContext {
     | null;
   lastSyncedServerTimestamp: Ref<number>;
   saveLastSyncedTimestamp: (clubId: string, ts: number) => void;
+  // Commit-order token (see CloudSyncContext) — guards inbound applies.
+  lastAppliedCommitTs: Ref<number>;
+  saveLastAppliedCommitTs: (clubId: string, ts: number) => void;
   setClubSwitchInProgress: (value: boolean) => void;
   stopRealtime: () => void;
 }
@@ -54,6 +57,8 @@ export function useClubData(context: UseClubDataContext) {
     getDataFetchBar,
     lastSyncedServerTimestamp,
     saveLastSyncedTimestamp,
+    lastAppliedCommitTs,
+    saveLastAppliedCommitTs,
     setClubSwitchInProgress,
     stopRealtime,
   } = context;
@@ -407,6 +412,7 @@ export function useClubData(context: UseClubDataContext) {
       MatchmakingApp.state.settingsFieldTimestamps = {};
       // Reset concurrency token to avoid false conflicts with new club's server state
       lastSyncedServerTimestamp.value = 0;
+      lastAppliedCommitTs.value = 0;
     }
 
     // Capture expected club so we can abort if the user switched clubs while the API was in-flight
@@ -442,6 +448,7 @@ export function useClubData(context: UseClubDataContext) {
               'logo',
               'status',
               'appState',
+              'date_updated',
               'players.id',
               'players.directus_users_id.id',
               'players.directus_users_id.username',
@@ -488,6 +495,7 @@ export function useClubData(context: UseClubDataContext) {
               'logo',
               'status',
               'appState',
+              'date_updated',
               'players.id',
               'players.directus_users_id.id',
               'players.directus_users_id.username',
@@ -537,6 +545,7 @@ export function useClubData(context: UseClubDataContext) {
           name?: string;
           logo?: string;
           status?: string;
+          date_updated?: string;
           appState?: {
             matchmaking?: unknown;
             courtSettings?: {
@@ -617,6 +626,19 @@ export function useClubData(context: UseClubDataContext) {
         const serverMatchmaking = club.appState?.matchmaking as
           | AppState
           | undefined;
+        // Commit-order guard: the row's date_updated is stamped by
+        // Directus in commit order — the only trustworthy recency key
+        // (lastModified inside appState is the writer's client clock and
+        // inverts under skew). A response carrying an older commit than
+        // the newest one this device already applied is strictly stale:
+        // skip the state apply entirely. Member mapping below still runs.
+        const serverCommitTs = club.date_updated
+          ? Date.parse(club.date_updated) || 0
+          : 0;
+        const serverStateIsStale =
+          serverCommitTs > 0 &&
+          lastAppliedCommitTs.value > 0 &&
+          serverCommitTs < lastAppliedCommitTs.value;
 
         // Wrap the entire merge/seed block so a client-side exception (e.g.,
         // malformed appState, unexpected null) is never misdiagnosed as "offline".
@@ -647,18 +669,18 @@ export function useClubData(context: UseClubDataContext) {
           // server-driven settings changes should not be attributed to the
           // local admin in the action log.
           MatchmakingApp.suppressSettingsLog = true;
-          if (serverMatchmaking) {
+          if (serverMatchmaking && !serverStateIsStale) {
             if (mergeEligible) {
               // Admins/Moderators: only merge settings that are missing locally — never overwrite existing
               copyServerSettings(serverMatchmaking, SETTINGS_SEED_FIELDS, true);
             }
             // Non-privileged / clean device: settings are overwritten directly below
-          } else {
+          } else if (!serverMatchmaking) {
             // Cloud appState is blank/null — clear local data so UI starts fresh
             MatchmakingApp.resetState();
             MatchmakingApp.state.clubId = clubId;
           }
-          if (serverMatchmaking) {
+          if (serverMatchmaking && !serverStateIsStale) {
             if (mergeEligible) {
               // Admins/Moderators: smart-merge so a refresh picks up other admins' newly created
               //   queues/matches (latest-writer-wins) while preserving player stats.
@@ -884,7 +906,11 @@ export function useClubData(context: UseClubDataContext) {
             }
           }
           // Backward-compat: migrate old separate settings blocks into MatchmakingApp.state (privileged only)
-          if (isPrivilegedFromData && club.appState?.courtSettings) {
+          if (
+            isPrivilegedFromData &&
+            !serverStateIsStale &&
+            club.appState?.courtSettings
+          ) {
             const ac = club.appState.courtSettings.availableCourts;
             if (MatchmakingApp.state.availableCourts === undefined) {
               MatchmakingApp.state.availableCourts =
@@ -895,7 +921,11 @@ export function useClubData(context: UseClubDataContext) {
                 club.appState.courtSettings.autoAdvanceMatches;
             }
           }
-          if (isPrivilegedFromData && club.appState?.queueSettings) {
+          if (
+            isPrivilegedFromData &&
+            !serverStateIsStale &&
+            club.appState?.queueSettings
+          ) {
             if (MatchmakingApp.state.queueReturnMethod === undefined) {
               MatchmakingApp.state.queueReturnMethod =
                 club.appState.queueSettings.queueReturnMethod;
@@ -913,7 +943,11 @@ export function useClubData(context: UseClubDataContext) {
                 club.appState.queueSettings.matchmakingMode;
             }
           }
-          if (isPrivilegedFromData && club.appState?.uiSettings) {
+          if (
+            isPrivilegedFromData &&
+            !serverStateIsStale &&
+            club.appState?.uiSettings
+          ) {
             if (MatchmakingApp.state.sortBy === undefined) {
               MatchmakingApp.state.sortBy = club.appState.uiSettings.sortBy;
             }
@@ -948,10 +982,31 @@ export function useClubData(context: UseClubDataContext) {
           MatchmakingApp.suppressSettingsLog = false;
 
           // Update our concurrency token to the server's version so subsequent syncs
-          // don't falsely conflict with the state we just merged.
-          if (serverMatchmaking?.lastModified) {
-            lastSyncedServerTimestamp.value = serverMatchmaking.lastModified;
-            saveLastSyncedTimestamp(clubId, serverMatchmaking.lastModified);
+          // don't falsely conflict with the state we just merged. Math.max
+          // keeps the base monotonic — an older in-flight response must not
+          // regress it below a newer realtime/poll version already applied.
+          // A stale commit's state was not applied — don't claim its
+          // lastModified as our sync base either.
+          if (!serverStateIsStale && serverMatchmaking?.lastModified) {
+            lastSyncedServerTimestamp.value = Math.max(
+              lastSyncedServerTimestamp.value,
+              serverMatchmaking.lastModified,
+            );
+            saveLastSyncedTimestamp(
+              clubId,
+              lastSyncedServerTimestamp.value,
+            );
+          }
+          // Advance the commit watermark to this row's commit — Math.max
+          // keeps it monotonic even when an older response lands late.
+          // A stale commit can't lower it; a fresh one records that this
+          // device has now seen the newest server state.
+          if (serverCommitTs > 0) {
+            lastAppliedCommitTs.value = Math.max(
+              lastAppliedCommitTs.value,
+              serverCommitTs,
+            );
+            saveLastAppliedCommitTs(clubId, lastAppliedCommitTs.value);
           }
 
           // Build admin/moderator sets and the member list via the shared

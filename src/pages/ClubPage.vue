@@ -2776,6 +2776,23 @@ const saveLastSyncedTimestamp = (clubId: string, ts: number) => {
   LocalStorage.set(getLastSyncedKey(clubId), ts);
 };
 
+// Commit-order token: server row's date_updated of the newest club commit
+// whose appState this device has incorporated. Unlike lastModified (the
+// writer's client clock), date_updated is stamped by Directus in commit
+// order - the only trustworthy "latest wins" ordering key.
+const lastAppliedCommitTs = ref(0);
+const getLastAppliedKey = (clubId: string) =>
+  `last_applied_commit_ts_${clubId}`;
+const loadLastAppliedCommitTs = (clubId: string) => {
+  const saved = LocalStorage.getItem(getLastAppliedKey(clubId)) as
+    | number
+    | null;
+  return saved || 0;
+};
+const saveLastAppliedCommitTs = (clubId: string, ts: number) => {
+  LocalStorage.set(getLastAppliedKey(clubId), ts);
+};
+
 // Lazy wrapper for refreshPlayerRatings — breaks circular dependency
 // (composable needs refreshPlayerRatings, refreshPlayerRatings needs isOnline from composable)
 let _refreshPlayerRatings: () => Promise<void> = async () => {};
@@ -2819,6 +2836,8 @@ const {
   getDataFetchBar,
   lastSyncedServerTimestamp,
   saveLastSyncedTimestamp,
+  lastAppliedCommitTs,
+  saveLastAppliedCommitTs,
   setClubSwitchInProgress: (v: boolean) => setClubSwitchInProgressFn(v),
   stopRealtime: () => stopRealtimeFn(),
 });
@@ -2854,6 +2873,8 @@ const {
   router,
   lastSyncedServerTimestamp,
   saveLastSyncedTimestamp,
+  lastAppliedCommitTs,
+  saveLastAppliedCommitTs,
 });
 
 getDataFetchBar = () => dataFetchBar.value;
@@ -3553,6 +3574,7 @@ onMounted(async () => {
     // Restore optimistic-concurrency token before loadClubData so the sync guard
     // has the correct token from the start (loadClubData resets it on club switch).
     lastSyncedServerTimestamp.value = loadLastSyncedTimestamp(clubId);
+    lastAppliedCommitTs.value = loadLastAppliedCommitTs(clubId);
     const serverPayloadApplied = await loadClubData(clubId);
     void loadClubFeedback();
     // Auto-join if not a member (lazy join: works offline if cached, joins when online).
