@@ -87,6 +87,22 @@ describe('computeNetworkScores', () => {
     expect(ps.networkScore).not.toBe(pw.networkScore);
   });
 
+  it('margin-weighted opponent edges: blowout win earns more network credit than squeaker', () => {
+    // Both win once vs the same opponent C — identical W-L, different
+    // margin. Under the old symmetric graph their inflow from C would be
+    // equal; directed edges give the blowout winner the larger share of
+    // C's rank. networkFlow isolates the edge effect from p̃.
+    const players = computeNetworkScores([
+      m(['C'], ['P_big'], 3, 21, 'w1', '2025-01-01T00:00:00Z'),
+      m(['C'], ['P_small'], 10, 12, 'w2', '2025-01-02T00:00:00Z'),
+    ]);
+    const big = byName(players).get('P_big')!;
+    const small = byName(players).get('P_small')!;
+    expect(big.wins).toBe(small.wins);
+    expect(big.networkFlow).toBeGreaterThan(small.networkFlow);
+    expect(big.rawScore).toBeGreaterThan(small.rawScore);
+  });
+
   it('tie matches count as ties, build edges, and produce uniform scores', () => {
     const players = computeNetworkScores([
       m(['T1', 'T2'], ['T3', 'T4'], 10, 10, 'k1'),

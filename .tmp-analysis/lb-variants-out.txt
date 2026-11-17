@@ -1,0 +1,199 @@
+fetched 1000 completed_match rows (30d window, limit 1000)
+WARNING: hit limit=1000 — app fetch would truncate identically
+competitive matches after filterCompetitive(false): 594
+
+BASE engine vs computeNetworkScores: players=210 ref=210 max|ΔrawScore|=0.000e+0
+
+================ BASE (λ=0.8, symmetric edges) — reference ================
+players=210 matchesUsed=594 iters=36 meanGames=11.30 outSum[min=1.000,max=62.000,zero=0]
+rank  name                                   net  rawScore   games  W-L(-T)
+  1  rands                                  100  2.43035     62  33-29
+  2  James                                   94  2.29624     58  34-24
+  3  Marivic                                 92  2.24134     56  26-30
+  4  Osang                                   87  2.12533     55  24-31
+  5  Mikki                                   83  2.02786     51  24-27
+  6  Cara                                    82  2.00318     50  31-19
+  7  Jowinski                                81  1.97350     50  34-16
+  8  Boyet                                   75  1.81482     48  28-20
+  9  Jel                                     71  1.73642     44  24-20
+ 10  angie                                   67  1.63328     42  21-21
+ 11  Alex                                    65  1.58841     38  20-18
+ 12  EUNICE                                  63  1.53780     37  19-18
+ 13  Marc Johnuel                            63  1.53569     39  22-17
+ 14  Lenz                                    61  1.47466     38  22-16
+ 15  Jeunice                                 60  1.46809     38  20-18
+ 16  Gemma P                                 60  1.45574     38  16-22
+ 17  Timot                                   59  1.42237     34  18-16
+ 18  Obal                                    58  1.41549     36  24-12
+ 19  Heinrich Merl                           56  1.36045     35  20-15
+ 20  Trin                                    53  1.29867     31  19-12
+  tracked 'marivic': #3 Marivic (@margatch1771#74t) net=92 raw=2.24134 g=56 26-30
+  tracked 'jowinski': #7 Jowinski (@jowinskisoriano100#ciy) net=81 raw=1.97350 g=50 34-16
+  tracked 'jeo': #25 jeo (@jeovannizabala#05d) net=46 raw=1.12689 g=26 21-5
+  tracked 'rands': #1 rands (@angelobaribal110408#xn0) net=100 raw=2.43035 g=62 33-29
+  tracked 'cara': #6 Cara (@eslabracassieralph#d3c) net=82 raw=2.00318 g=50 31-19
+  Spearman ρ(scoreRank, gamesRank) = -0.9812   top20 meanGames=44.0 vs all=11.3
+
+================ V2 (in-degree normalization, λ=0.8) ================
+players=210 matchesUsed=594 iters=500 meanGames=11.30 outSum[min=1.000,max=62.000,zero=0]
+rank  name                                   net  rawScore   games  W-L(-T)
+  1  KM                                     100  3.2788919964047173e+164      2  0-2
+  2  Juha                                    98  3.2287122367623056e+164      3  3-0
+  3  jodee                                   98  3.2287122367623056e+164      3  0-3
+  4  COLYN                                   41  1.353732210503835e+164      8  4-4
+  5  Tenten                                   6  1.815104613534539e+163     17  7-10
+  6  Grace                                    3  8.32758062557095e+162      3  0-3
+  7  Jel                                      2  7.77499566021852e+162     44  24-20
+  8  clyde philip                             2  7.671824273073852e+162      4  2-2
+  9  Arcy                                     2  6.718633363832753e+162      4  2-2
+ 10  Benz                                     1  4.279411780470255e+162      6  4-2
+ 11  Manso                                    1  3.3717848438986866e+162     15  8-7
+ 12  Mari                                     1  2.9012219649628005e+162      1  1-0
+ 13  Ajay                                     1  2.3637251643053445e+162     11  4-7
+ 14  JUSWA                                    1  2.2262731909626906e+162     13  7-6
+ 15  JUR                                      1  2.0457513902297508e+162     17  10-7
+ 16  Gemma P                                  0  1.5361845661340759e+162     38  16-22
+ 17  Celle                                    0  1.2742785872088253e+162      7  5-2
+ 18  Zyrelle                                  0  1.134798861565183e+162      4  1-3
+ 19  Rommel D                                 0  1.1218635722864674e+162     29  13-16
+ 20  Mikki                                    0  1.1177617163902304e+162     51  24-27
+  tracked 'marivic': #98 Marivic (@margatch1771#74t) net=0 raw=1.4595051928983026e+161 g=56 26-30
+  tracked 'jowinski': #151 Jowinski (@jowinskisoriano100#ciy) net=0 raw=5.676578738030262e+160 g=50 34-16
+  tracked 'jeo': #78 jeo (@jeovannizabala#05d) net=0 raw=1.9108018815722488e+161 g=26 21-5
+  tracked 'rands': #108 rands (@angelobaribal110408#xn0) net=0 raw=1.2405346910249806e+161 g=62 33-29
+  tracked 'cara': #24 Cara (@eslabracassieralph#d3c) net=0 raw=7.989710626851265e+161 g=50 31-19
+  Spearman ρ(scoreRank, gamesRank) = -0.1892   top20 meanGames=14.0 vs all=11.3
+
+================ V3 (λ=0.45 only) ================
+players=210 matchesUsed=594 iters=19 meanGames=11.30 outSum[min=1.000,max=62.000,zero=0]
+rank  name                                   net  rawScore   games  W-L(-T)
+  1  rands                                  100  1.60716     62  33-29
+  2  James                                   97  1.56069     58  34-24
+  3  Marivic                                 91  1.46897     56  26-30
+  4  Cara                                    87  1.39809     50  31-19
+  5  Jowinski                                86  1.38450     50  34-16
+  6  Osang                                   86  1.38028     55  24-31
+  7  Mikki                                   86  1.37656     51  24-27
+  8  Boyet                                   75  1.21135     48  28-20
+  9  Jel                                     74  1.18389     44  24-20
+ 10  Alex                                    72  1.15762     38  20-18
+ 11  EUNICE                                  70  1.13093     37  19-18
+ 12  angie                                   69  1.10498     42  21-21
+ 13  Marc Johnuel                            68  1.09940     39  22-17
+ 14  Timot                                   67  1.07859     34  18-16
+ 15  Obal                                    64  1.03529     36  24-12
+ 16  Lenz                                    64  1.03514     38  22-16
+ 17  Trin                                    64  1.02525     31  19-12
+ 18  Jeunice                                 63  1.01816     38  20-18
+ 19  Heinrich Merl                           61  0.97310     35  20-15
+ 20  Gemma P                                 60  0.96612     38  16-22
+  tracked 'marivic': #3 Marivic (@margatch1771#74t) net=91 raw=1.46897 g=56 26-30
+  tracked 'jowinski': #5 Jowinski (@jowinskisoriano100#ciy) net=86 raw=1.38450 g=50 34-16
+  tracked 'jeo': #21 jeo (@jeovannizabala#05d) net=60 raw=0.96050 g=26 21-5
+  tracked 'rands': #1 rands (@angelobaribal110408#xn0) net=100 raw=1.60716 g=62 33-29
+  tracked 'cara': #4 Cara (@eslabracassieralph#d3c) net=87 raw=1.39809 g=50 31-19
+  Spearman ρ(scoreRank, gamesRank) = -0.9142   top20 meanGames=44.0 vs all=11.3
+
+================ V4 (directed loser→winner edges, λ=0.8) ================
+players=210 matchesUsed=594 iters=37 meanGames=11.30 outSum[min=0.333,max=40.000,zero=0]
+rank  name                                   net  rawScore   games  W-L(-T)
+  1  rands                                  100  2.47401     62  33-29
+  2  James                                   95  2.34158     58  34-24
+  3  Jowinski                                94  2.32842     50  34-16
+  4  Cara                                    92  2.28528     50  31-19
+  5  Marivic                                 84  2.07878     56  26-30
+  6  Mikki                                   83  2.04898     51  24-27
+  7  Boyet                                   78  1.92550     48  28-20
+  8  Osang                                   77  1.90592     55  24-31
+  9  Jel                                     71  1.75280     44  24-20
+ 10  Obal                                    67  1.66639     36  24-12
+ 11  Lenz                                    67  1.65788     38  22-16
+ 12  EUNICE                                  67  1.65182     37  19-18
+ 13  angie                                   67  1.65109     42  21-21
+ 14  Marc Johnuel                            66  1.64374     39  22-17
+ 15  jeo                                     66  1.64275     26  21-5
+ 16  Jeunice                                 61  1.52017     38  20-18
+ 17  Alex                                    61  1.50584     38  20-18
+ 18  Heinrich Merl                           58  1.43812     35  20-15
+ 19  Trin                                    58  1.43424     31  19-12
+ 20  Timot                                   58  1.42396     34  18-16
+  tracked 'marivic': #5 Marivic (@margatch1771#74t) net=84 raw=2.07878 g=56 26-30
+  tracked 'jowinski': #3 Jowinski (@jowinskisoriano100#ciy) net=94 raw=2.32842 g=50 34-16
+  tracked 'jeo': #15 jeo (@jeovannizabala#05d) net=66 raw=1.64275 g=26 21-5
+  tracked 'rands': #1 rands (@angelobaribal110408#xn0) net=100 raw=2.47401 g=62 33-29
+  tracked 'cara': #4 Cara (@eslabracassieralph#d3c) net=92 raw=2.28528 g=50 31-19
+  Spearman ρ(scoreRank, gamesRank) = -0.9206   top20 meanGames=43.4 vs all=11.3
+
+================ V5 (complementary margin-weighted opponent edges, λ=0.8) ================
+players=210 matchesUsed=594 iters=35 meanGames=11.30 outSum[min=0.444,max=61.991,zero=0]
+rank  name                                   net  rawScore   games  W-L(-T)
+  1  rands                                  100  2.41308     62  33-29
+  2  James                                   97  2.35114     58  34-24
+  3  Jowinski                                89  2.15557     50  34-16
+  4  Cara                                    89  2.13643     50  31-19
+  5  Marivic                                 88  2.13258     56  26-30
+  6  Mikki                                   86  2.06810     51  24-27
+  7  Osang                                   84  2.01924     55  24-31
+  8  Boyet                                   79  1.91696     48  28-20
+  9  Jel                                     74  1.78299     44  24-20
+ 10  angie                                   70  1.68776     42  21-21
+ 11  Obal                                    67  1.62800     36  24-12
+ 12  EUNICE                                  67  1.61960     37  19-18
+ 13  Alex                                    66  1.60445     38  20-18
+ 14  Lenz                                    65  1.58039     38  22-16
+ 15  Marc Johnuel                            62  1.50460     39  22-17
+ 16  Jeunice                                 62  1.49633     38  20-18
+ 17  Timot                                   60  1.44985     34  18-16
+ 18  Trin                                    57  1.38331     31  19-12
+ 19  Heinrich Merl                           57  1.38132     35  20-15
+ 20  Gemma P                                 57  1.37923     38  16-22
+  tracked 'marivic': #5 Marivic (@margatch1771#74t) net=88 raw=2.13258 g=56 26-30
+  tracked 'jowinski': #3 Jowinski (@jowinskisoriano100#ciy) net=89 raw=2.15557 g=50 34-16
+  tracked 'jeo': #22 jeo (@jeovannizabala#05d) net=55 raw=1.32364 g=26 21-5
+  tracked 'rands': #1 rands (@angelobaribal110408#xn0) net=100 raw=2.41308 g=62 33-29
+  tracked 'cara': #4 Cara (@eslabracassieralph#d3c) net=89 raw=2.13643 g=50 31-19
+  Spearman ρ(scoreRank, gamesRank) = -0.9620   top20 meanGames=44.0 vs all=11.3
+
+================ μw = |sA−sB|/(sA+sB) distribution ================
+usable matches=594  decisive(T>0,sA≠sB)=594  ties=0  nonPositiveT=0  bad=0
+mean=0.304  median=0.222  p10=0.091  p25=0.100  p75=0.467  p90=0.692
+share μw<0.3: 64.8%   0.3–0.6: 23.2%   ≥0.6: 12.0%
+
+================ fixed-duo check (top teammate pairs) ================
+teammate pairs seen=923; showing top 12
+  13x JUR + Cara  [DECLARED ≥8]
+      JUR g17 10-7 v5=#38 pt=#42 base=#43 dPT=+4
+      Cara g50 31-19 v5=#4 pt=#10 base=#6 dPT=+6
+  5x Trin + Osang  [—]  <== rank >> performance rank
+      Trin g31 19-12 v5=#18 pt=#13 base=#20 dPT=-5
+      Osang g55 24-31 v5=#7 pt=#129 base=#4 dPT=+122
+  5x Jowinski + angie  [DECLARED]  <== rank >> performance rank
+      Jowinski g50 34-16 v5=#3 pt=#4 base=#7 dPT=+1
+      angie g42 21-21 v5=#10 pt=#88 base=#10 dPT=+78
+  5x Cara + angie  [—]  <== rank >> performance rank
+      Cara g50 31-19 v5=#4 pt=#10 base=#6 dPT=+6
+      angie g42 21-21 v5=#10 pt=#88 base=#10 dPT=+78
+  4x Boyet + Jeunice  [—]  <== rank >> performance rank
+      Boyet g48 28-20 v5=#8 pt=#16 base=#8 dPT=+8
+      Jeunice g38 20-18 v5=#16 pt=#67 base=#15 dPT=+51
+  4x Boyet + Luv  [—]  <== rank >> performance rank
+      Boyet g48 28-20 v5=#8 pt=#16 base=#8 dPT=+8
+      Luv g25 12-13 v5=#27 pt=#98 base=#29 dPT=+71
+  4x Marivic + Osang  [—]  <== rank >> performance rank
+      Marivic g56 26-30 v5=#5 pt=#117 base=#3 dPT=+112
+      Osang g55 24-31 v5=#7 pt=#129 base=#4 dPT=+122
+  4x Trin + Luv  [DECLARED]  <== rank >> performance rank
+      Trin g31 19-12 v5=#18 pt=#13 base=#20 dPT=-5
+      Luv g25 12-13 v5=#27 pt=#98 base=#29 dPT=+71
+  4x James + Lenz  [—]  <== rank >> performance rank
+      James g58 34-24 v5=#2 pt=#18 base=#2 dPT=+16
+      Lenz g38 22-16 v5=#14 pt=#28 base=#14 dPT=+14
+  4x J-ann + SHIRWIN  [detected:carry]
+      J-ann g12 7-5 v5=#57 pt=#33 base=#60 dPT=-24
+      SHIRWIN g10 9-1 v5=#49 pt=#2 base=#66 dPT=-47
+  4x Obal + Osang  [DECLARED]  <== rank >> performance rank
+      Obal g36 24-12 v5=#11 pt=#5 base=#18 dPT=-6
+      Osang g55 24-31 v5=#7 pt=#129 base=#4 dPT=+122
+  4x Heinrich Merl + rands  [—]  <== rank >> performance rank
+      Heinrich Merl g35 20-15 v5=#19 pt=#21 base=#19 dPT=+2
+      rands g62 33-29 v5=#1 pt=#44 base=#1 dPT=+43

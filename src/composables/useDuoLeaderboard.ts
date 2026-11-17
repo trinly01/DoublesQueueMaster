@@ -40,7 +40,7 @@ export function useDuoLeaderboard(context: UseDuoLeaderboardContext) {
   const duoLeaderboardLoading = ref(false);
 
   const getCacheKey = () =>
-    `club_duo_leaderboard_v2_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
+    `club_duo_leaderboard_v3_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
 
   const loadCached = (): string | null => {
     const raw = LocalStorage.getItem(getCacheKey());

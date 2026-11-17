@@ -41,7 +41,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
   const includeNonCompetitive = ref(false);
 
   const getClubLeaderboardCacheKey = () =>
-    `club_leaderboard_v3_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
+    `club_leaderboard_v4_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
 
   const loadCachedClubLeaderboard = (): string | null => {
     const raw = LocalStorage.getItem(getClubLeaderboardCacheKey());

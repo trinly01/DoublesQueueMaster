@@ -9,22 +9,26 @@
 //
 // p̃ is deliberately opponent-blind (what you did); Pᵀr is the only
 // strength-of-schedule term (who you did it with/against). λ=0.8 keeps
-// ~20% own-performance weight even in near-complete graphs where the
-// network term degenerates toward the mean. (λ sweep 0.5–0.8 on synthetic
-// clubs showed orderings are λ-invariant — it rescales scores, not ranks.)
+// ~20% own-performance weight; ordering still leans toward activity —
+// players with more games collect inflow from more sources, which is a
+// legitimate part of "embeddedness" (you can't be central without playing).
 //
-// Known emergent properties of degree-normalized credit flow (verified on
-// synthetic graphs — inherent to PageRank, not bugs):
-//   - Hub accumulation: the most-connected player tops the board even with
-//     a losing record (they ARE the club's network center).
-//   - Winless connectors can outrank winners: recurring opponents who
-//     everyone faces aggregate inflow from many players.
-//   - Closed weak cliques self-inflate: insular groups reinforce each
-//     other — ranks within the observed network, not absolute skill.
-//   - Leaf dilution: for players with a single connection, "beat a strong
-//     opponent" ≈ "beat a weak one" — the strong player's credit diffuses
-//     across their larger out-degree. Strength-of-schedule shows up in
-//     aggregate, not reliably per-leaf.
+// Opponent edges are outcome-directed and margin-weighted (GeM /
+// Power-Rank family): for each cross-side pair, the loser→winner edge
+// carries edgeW·(1+μw) and winner→loser carries edgeW·(1−μw), where
+// μw = |sA−sB|/(sA+sB) is the margin share. Close games approach the
+// symmetric co-play graph; blowouts approach one-way credit. Teammate
+// edges stay symmetric. This is what makes "who you beat and by how
+// much" the network signal instead of raw co-presence volume — without
+// it, symmetric edges make the stationary distribution proportional to
+// games played (π ∝ degree), collapsing the board to an activity list.
+//
+// Known emergent properties (inherent to centrality, not bugs):
+//   - Hub accumulation: the most-connected player tends to top the board.
+//   - Closed weak cliques partially self-inflate: insular groups still
+//     reinforce each other, dampened by two-way opponent edges.
+//   - Leaf dilution: "beat a strong opponent" ≈ "beat a weak one" for
+//     players with a single connection — SoS shows up in aggregate.
 //
 // Pure functions only — safe inside the leaderboard Web Worker.
 
@@ -100,7 +104,7 @@ type PlayerAcc = {
   losses: number;
   ties: number;
   perfSum: number;
-  /** Raw co-participation credit A_ij — row-normalized after all matches. */
+  /** Outcome-directed credit A_ij — row-normalized after all matches. */
   credit: Map<string, number>;
 };
 
@@ -196,10 +200,12 @@ export function computeNetworkScores(
     // Skip checks passed — now safe to create/update accumulators.
     const sideA = [...mapA.entries()].map(([key, p]) => ({
       key,
+      side: 'A' as const,
       acc: accFor(accs, key, p),
     }));
     const sideB = [...mapB.entries()].map(([key, p]) => ({
       key,
+      side: 'B' as const,
       acc: accFor(accs, key, p),
     }));
 
@@ -208,12 +214,19 @@ export function computeNetworkScores(
     if (n < 2) continue;
     const edgeW = 1 / (n - 1);
 
-    // Outcome + performance from each side's perspective.
-    for (const side of [sideA, sideB] as const) {
-      const own = side === sideA ? m.teamAScore : m.teamBScore;
-      const opp = side === sideA ? m.teamBScore : m.teamAScore;
-      const { perf, outcome } = matchPerformance(own, opp);
-      for (const { acc } of side) {
+    // Outcome + performance from each side's perspective — computed once;
+    // the directed edge weights below reuse the same outcomes.
+    const sideOut = {
+      A: matchPerformance(m.teamAScore, m.teamBScore),
+      B: matchPerformance(m.teamBScore, m.teamAScore),
+    };
+    const sides = [
+      { tag: 'A' as const, members: sideA },
+      { tag: 'B' as const, members: sideB },
+    ];
+    for (const { tag, members } of sides) {
+      const { perf, outcome } = sideOut[tag];
+      for (const { acc } of members) {
         acc.games += 1;
         acc.perfSum += perf;
         if (outcome === 'win') acc.wins += 1;
@@ -222,12 +235,43 @@ export function computeNetworkScores(
       }
     }
 
-    // Co-participation credit: every ordered pair (i,j), i≠j, teammate or
-    // opponent — symmetric by construction, outcome-independent.
-    for (const { acc: from } of participants) {
-      for (const { key: to } of participants) {
-        if (to === from.key) continue;
-        from.credit.set(to, (from.credit.get(to) || 0) + edgeW);
+    // Co-participation credit — teammate edges stay symmetric; opponent
+    // edges are outcome-directed with complementary margin weights (GeM /
+    // Power-Rank family): each cross-side pair emits edgeW·(1+μw) on the
+    // loser→winner direction and edgeW·(1−μw) on winner→loser, conserving
+    // 2·edgeW per unordered pair. Ties and μw→0 reduce to the old
+    // symmetric graph; blowouts approach one-way credit.
+    const totalScore = m.teamAScore + m.teamBScore;
+    const muW =
+      totalScore > 0 && m.teamAScore !== m.teamBScore
+        ? Math.min(1, Math.abs(m.teamAScore - m.teamBScore) / totalScore)
+        : 0;
+    const wUp = edgeW * (1 + muW);
+    const wDown = edgeW * (1 - muW);
+    const oppW = {
+      A:
+        sideOut.A.outcome === 'loss'
+          ? wUp
+          : sideOut.A.outcome === 'win'
+            ? wDown
+            : edgeW,
+      B:
+        sideOut.B.outcome === 'loss'
+          ? wUp
+          : sideOut.B.outcome === 'win'
+            ? wDown
+            : edgeW,
+    };
+    for (const from of participants) {
+      for (const to of participants) {
+        if (to.key === from.key) continue;
+        const w = from.side === to.side ? edgeW : oppW[from.side];
+        if (w > 0) {
+          from.acc.credit.set(
+            to.key,
+            (from.acc.credit.get(to.key) || 0) + w,
+          );
+        }
       }
     }
   }
