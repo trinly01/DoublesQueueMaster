@@ -1,0 +1,58 @@
+window rows: 1000
+
+=== window candidates matching /aira|jaymar|cyyy|shai/ ===
+  48x jaijaipq431#3ka|uid=75fc4a06-fd56-45b6-86d7-0ade30179ca3|name=Jaira pq
+  45x nairettap#yh3|uid=a2a86ed4-fc9f-4165-9eb8-e5cc4945d5cb|name=Aira Pastoral
+  39x maratajaymar187#rqa|uid=e803d0c1-b2d7-4f47-839b-5e82d498d9a3|name=Jaymar Marata
+  35x alceshaikyu#07n|uid=a70c4e89-9627-4ae2-87d2-b00c6e3b90d6|name=Alcss Sazon
+  22x quirimitcyrielle#7ln|uid=45fc34a5-c227-462d-99a4-0f959a9b5c0e|name=Cyyy Quirimit
+  14x shaira.agaceta#k3u|uid=3696e162-05ef-4b49-9620-98ec0dff2cea|name=Shaira Joy Agaceta
+  1x shaira.agaceta#k3u|uid=3696e162-05ef-4b49-9620-98ec0dff2cea|name=Shai Agaceta
+
+### aira (substring 'nairettap') — 286 rows
+  identities: 2
+    279x a2a86ed4-fc9f-4165-9eb8-e5cc4945d5cb|nairettap#yh3|Aira Pastoral
+    7x a2a86ed4-fc9f-4165-9eb8-e5cc4945d5cb|nairettap#yh3|Nairetta Pastoral
+  clubs: 2bf82b31=8  22e52ef0=272  c4921ecb=6
+  ALL-TIME : 286g 156W-130L  WR=54.5%
+  IN-WINDOW: 57g 33W-24L  (club+30d)
+  COMP-WIN  : 26g 15W-11L  (competitive modes only)
+  rating snapshots: n=286 first=1450 min=1395 med=1519 mean=1516 max=1615 latest=1575
+  match span: 2026-07-28 -> 2026-11-17  (286 scored)
+  last10: 2026-11-14 11-5 W  2026-11-14 11-6 W*†  2026-11-14 11-9 W*†  2026-11-14 7-11 L*†  2026-11-14 11-10 L*†  2026-11-16 11-7 W*†  2026-11-17 11-3 L*  2026-11-17 11-3 W*†  2026-11-17 11-6 W*†  2026-11-17 11-7 L*†
+    (*=non-competitive mode, †=outside 30d window)
+
+### jaymar (substring 'jaymar') — 207 rows
+  identities: 1
+    207x e803d0c1-b2d7-4f47-839b-5e82d498d9a3|maratajaymar187#rqa|Jaymar Marata
+  clubs: 2bf82b31=3  22e52ef0=202  c4921ecb=2
+  ALL-TIME : 207g 122W-85L  WR=58.9%
+  IN-WINDOW: 50g 34W-16L  (club+30d)
+  COMP-WIN  : 23g 14W-9L  (competitive modes only)
+  rating snapshots: n=207 first=1450 min=1371 med=1531 mean=1518 max=1652 latest=1637
+  match span: 2026-08-17 -> 2026-11-17  (207 scored)
+  last10: 2026-11-03 11-9 L  2026-11-03 8-11 W  2026-11-04 9-11 W*  2026-11-04 6-11 W*  2026-11-04 11-5 W*  2026-11-16 9-11 L*  2026-11-17 11-10 L*  2026-11-17 11-4 W*†  2026-11-17 8-11 L*†  2026-11-17 15-11 L*†
+    (*=non-competitive mode, †=outside 30d window)
+
+### cyyy (substring 'cyyy') — 0 rows
+  identities: 0
+  clubs: 
+  ALL-TIME : 0g 0W-0L  WR=—%
+  IN-WINDOW: 0g 0W-0L  (club+30d)
+  COMP-WIN  : 0g 0W-0L  (competitive modes only)
+  rating snapshots: n=0 first=— min=— med=— mean=— max=— latest=—
+  match span: — -> —  (0 scored)
+  last10: 
+    (*=non-competitive mode, †=outside 30d window)
+
+### angelo (substring 'baribalangelog') — 183 rows
+  identities: 1
+    183x 049d3771-5352-42c6-838e-d41e1a830c3c|baribalangelog110408#7cx|Angelo Baribal
+  clubs: 2bf82b31=18  22e52ef0=165
+  ALL-TIME : 183g 118W-65L  WR=64.5%
+  IN-WINDOW: 47g 31W-16L  (club+30d)
+  COMP-WIN  : 26g 13W-13L  (competitive modes only)
+  rating snapshots: n=183 first=1450 min=1406 med=1556 mean=1531 max=1636 latest=1549
+  match span: 2026-08-19 -> 2026-11-17  (183 scored)
+  last10: 2026-11-16 4-11 W*†  2026-11-16 9-11 L†  2026-11-16 11-8 L  2026-11-16 11-4 W*†  2026-11-16 11-6 W*  2026-11-17 11-6 L*†  2026-11-17 11-6 W*†  2026-11-17 11-6 W*†  2026-11-17 5-11 W*†  2026-11-17 11-7 W*†
+    (*=non-competitive mode, †=outside 30d window)

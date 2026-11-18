@@ -1,0 +1,32 @@
+
+### cyyy ('cyrielle') — 117 rows
+  identities: 2
+    61x 45fc34a5-c227-462d-99a4-0f959a9b5c0e|quirimitcyrielle#7ln|Cyrielle Quirimit
+    56x 45fc34a5-c227-462d-99a4-0f959a9b5c0e|quirimitcyrielle#7ln|Cyyy Quirimit
+  clubs: 2bf82b31=9  22e52ef0=108
+  ALL-TIME : 117g 55W-62L  WR=47.0%
+  IN-WINDOW: 37g 20W-17L
+  COMP-WIN  : 15g 8W-7L
+  rating: n=117 first=1450 min=1361 med=1449 mean=1442 max=1513 latest=1493
+  span: 2026-09-01 -> 2026-11-17
+
+### jaira ('jaijaipq431') — 192 rows
+  identities: 1
+    192x 75fc4a06-fd56-45b6-86d7-0ade30179ca3|jaijaipq431#3ka|Jaira pq
+  clubs: 22e52ef0=162  2bf82b31=11  b06d80cc=8  db1ba32e=2  c4921ecb=9
+  ALL-TIME : 192g 103W-89L  WR=53.6%
+  IN-WINDOW: 58g 28W-30L
+  COMP-WIN  : 24g 10W-14L
+  rating: n=192 first=1450 min=1415 med=1552 mean=1537 max=1615 latest=1552
+  span: 2026-09-02 -> 2026-11-16
+
+### shai ('shaira.agaceta') — 15 rows
+  identities: 2
+    14x 3696e162-05ef-4b49-9620-98ec0dff2cea|shaira.agaceta#k3u|Shaira Joy Agaceta
+    1x 3696e162-05ef-4b49-9620-98ec0dff2cea|shaira.agaceta#k3u|Shai Agaceta
+  clubs: 22e52ef0=15
+  ALL-TIME : 15g 6W-9L  WR=40.0%
+  IN-WINDOW: 15g 6W-9L
+  COMP-WIN  : 12g 5W-7L
+  rating: n=15 first=1400 min=1342 med=1394 mean=1384 max=1418 latest=1342
+  span: 2026-10-27 -> 2026-11-14

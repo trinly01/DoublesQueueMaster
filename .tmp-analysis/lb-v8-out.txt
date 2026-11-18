@@ -199,6 +199,945 @@ rank  name                                   net  rawScore   games  W-L
     Charomae: v6=#125 -> #114 (Δ11)
     Chyzer: v6=#116 -> #127 (Δ11)
 
+##### COMPETITIVE-ONLY: 594 matches #####
+compV6: players=210 priorMean=0.5267
+comp replay: 210 players
+
+================ PROD-V8c competitive (current live algo) ================
+players=210 iters=33 converged=true NaN=0 uniqNet=50 rho=0.7353
+   1  rands                                net=100 raw=2.688 g= 62 33-29 prior=0.601
+   2  James                                net= 87 raw=2.339 g= 58 34-24 prior=0.661
+   3  Marivic                              net= 87 raw=2.329 g= 56 26-30 prior=0.525
+   4  Mikki                                net= 86 raw=2.318 g= 51 24-27 prior=0.555
+   5  Osang                                net= 84 raw=2.251 g= 55 24-31 prior=0.521
+   6  Jowinski                             net= 83 raw=2.234 g= 50 34-16 prior=0.754
+   7  Cara                                 net= 83 raw=2.228 g= 50 31-19 prior=0.683
+   8  EUNICE                               net= 69 raw=1.868 g= 37 19-18 prior=0.593
+   9  Boyet                                net= 68 raw=1.821 g= 48 28-20 prior=0.660
+  10  angie                                net= 67 raw=1.794 g= 42 21-21 prior=0.552
+  11  Jel                                  net= 65 raw=1.752 g= 44 24-20 prior=0.620
+  12  Alex                                 net= 65 raw=1.738 g= 38 20-18 prior=0.604
+  13  Timot                                net= 59 raw=1.573 g= 34 18-16 prior=0.599
+  14  Marc Johnuel                         net= 56 raw=1.503 g= 39 22-17 prior=0.643
+  15  Lenz                                 net= 55 raw=1.491 g= 38 22-16 prior=0.665
+  tracked 'jeo': #20 jeo g=26 21-5 net=51 prior=0.868 flow=1.028
+  tracked 'trin': #22 Trin g=31 19-12 net=50 prior=0.701 flow=1.070
+  tracked 'angelo': #1 rands g=62 33-29 net=100 prior=0.601 flow=2.492
+  tracked 'angelo': #32 Angelo g=25 13-12 net=35 prior=0.591 flow=0.687
+  tracked 'obal': #17 Obal g=36 24-12 net=54 prior=0.772 flow=1.174
+  tracked 'shirwin': #46 SHIRWIN g=10 9-1 net=29 prior=0.830 flow=0.313
+  tracked 'atthan': #47 atthan g=9 8-1 net=28 prior=0.836 flow=0.295
+  tracked 'sandro': #78 Sandro g=3 3-0 net=23 prior=0.685 flow=0.077
+  tracked 'juha': #69 Juha g=3 3-0 net=23 prior=0.679 flow=0.091
+  tracked 'marivic': #3 Marivic g=56 26-30 net=87 prior=0.525 flow=2.147
+  tracked 'jowinski': #6 Jowinski g=50 34-16 net=83 prior=0.754 flow=1.983
+  tracked 'cara': #7 Cara g=50 31-19 net=83 prior=0.683 flow=1.995
+  tracked 'ednalyn': #143 Ednalyn g=11 2-9 net=17 prior=0.336 flow=0.224
+  tracked 'mark': #45 Mark g=24 6-18 net=29 prior=0.339 flow=0.601
+  tracked 'mark': #72 Mark Anthony g=10 5-5 net=23 prior=0.576 flow=0.277
+  tracked 'mark': #93 Mark Anthony g=9 5-4 net=21 prior=0.598 flow=0.194
+  tracked 'mark': #105 Mark joseph g=1 1-0 net=20 prior=0.567 flow=0.006
+  tracked 'rands': #1 rands g=62 33-29 net=100 prior=0.601 flow=2.492
+  tracked 'aira': #39 Aira g=22 12-10 net=32 prior=0.609 flow=0.569
+  tracked 'aira': #51 Jaira g=21 8-13 net=28 prior=0.480 flow=0.501
+  tracked 'aira': #84 Shai g=12 5-7 net=22 prior=0.508 flow=0.271
+  tracked 'jaymar': #54 Jaymar g=18 10-8 net=27 prior=0.623 flow=0.429
+  tracked 'cyyy': #110 Cyyy g=10 5-5 net=20 prior=0.535 flow=0.186
+
+================ V8a-competitive (latest-rating prior + surprise edges) ================
+players=210 iters=33 converged=true NaN=0 uniqNet=49 rho=0.7422
+   1  rands                                net=100 raw=2.642 g= 62 33-29 prior=0.588
+   2  James                                net= 89 raw=2.356 g= 58 34-24 prior=0.665
+   3  Mikki                                net= 88 raw=2.331 g= 51 24-27 prior=0.550
+   4  Marivic                              net= 87 raw=2.294 g= 56 26-30 prior=0.524
+   5  Cara                                 net= 85 raw=2.241 g= 50 31-19 prior=0.696
+   6  Jowinski                             net= 85 raw=2.235 g= 50 34-16 prior=0.754
+   7  Osang                                net= 83 raw=2.200 g= 55 24-31 prior=0.513
+   8  Boyet                                net= 70 raw=1.844 g= 48 28-20 prior=0.663
+   9  EUNICE                               net= 69 raw=1.819 g= 37 19-18 prior=0.573
+  10  angie                                net= 67 raw=1.772 g= 42 21-21 prior=0.539
+  11  Jel                                  net= 66 raw=1.753 g= 44 24-20 prior=0.644
+  12  Alex                                 net= 66 raw=1.737 g= 38 20-18 prior=0.609
+  13  Timot                                net= 59 raw=1.548 g= 34 18-16 prior=0.583
+  14  Marc Johnuel                         net= 57 raw=1.508 g= 39 22-17 prior=0.650
+  15  Lenz                                 net= 57 raw=1.495 g= 38 22-16 prior=0.653
+  tracked 'jeo': #19 jeo g=26 21-5 net=52 prior=0.857 flow=1.037
+  tracked 'trin': #20 Trin g=31 19-12 net=52 prior=0.731 flow=1.089
+  tracked 'angelo': #1 rands g=62 33-29 net=100 prior=0.588 flow=2.446
+  tracked 'angelo': #31 Angelo g=25 13-12 net=36 prior=0.615 flow=0.698
+  tracked 'obal': #16 Obal g=36 24-12 net=56 prior=0.773 flow=1.199
+  tracked 'shirwin': #37 SHIRWIN g=10 9-1 net=33 prior=0.968 flow=0.406
+  tracked 'atthan': #44 atthan g=9 8-1 net=30 prior=0.852 flow=0.316
+  tracked 'sandro': #59 Sandro g=3 3-0 net=26 prior=0.769 flow=0.149
+  tracked 'juha': #79 Juha g=3 3-0 net=23 prior=0.641 flow=0.060
+  tracked 'marivic': #4 Marivic g=56 26-30 net=87 prior=0.524 flow=2.112
+  tracked 'jowinski': #6 Jowinski g=50 34-16 net=85 prior=0.754 flow=1.983
+  tracked 'cara': #5 Cara g=50 31-19 net=85 prior=0.696 flow=2.008
+  tracked 'ednalyn': #146 Ednalyn g=11 2-9 net=17 prior=0.342 flow=0.225
+  tracked 'mark': #46 Mark g=24 6-18 net=29 prior=0.330 flow=0.591
+  tracked 'mark': #76 Mark Anthony g=10 5-5 net=23 prior=0.543 flow=0.257
+  tracked 'mark': #89 Mark joseph g=1 1-0 net=22 prior=0.605 flow=0.042
+  tracked 'mark': #116 Mark Anthony g=9 5-4 net=20 prior=0.539 flow=0.151
+  tracked 'rands': #1 rands g=62 33-29 net=100 prior=0.588 flow=2.446
+  tracked 'aira': #38 Aira g=22 12-10 net=33 prior=0.644 flow=0.598
+  tracked 'aira': #45 Jaira g=21 8-13 net=30 prior=0.542 flow=0.541
+  tracked 'aira': #103 Shai g=12 5-7 net=21 prior=0.453 flow=0.230
+  tracked 'jaymar': #47 Jaymar g=18 10-8 net=29 prior=0.679 flow=0.474
+  tracked 'cyyy': #99 Cyyy g=10 5-5 net=21 prior=0.580 flow=0.212
+
+================ V9a lambda-cap=0.6 + rating ================
+players=210 iters=24 converged=true NaN=0 uniqNet=51 rho=0.6884
+   1  rands                                net=100 raw=1.987 g= 62 33-29 prior=0.601
+   2  James                                net= 89 raw=1.771 g= 58 34-24 prior=0.661
+   3  Mikki                                net= 87 raw=1.732 g= 51 24-27 prior=0.555
+   4  Jowinski                             net= 87 raw=1.721 g= 50 34-16 prior=0.754
+   5  Marivic                              net= 86 raw=1.713 g= 56 26-30 prior=0.525
+   6  Cara                                 net= 85 raw=1.684 g= 50 31-19 prior=0.683
+   7  Osang                                net= 83 raw=1.644 g= 55 24-31 prior=0.521
+   8  EUNICE                               net= 73 raw=1.453 g= 37 19-18 prior=0.593
+   9  Boyet                                net= 70 raw=1.387 g= 48 28-20 prior=0.660
+  10  Alex                                 net= 68 raw=1.348 g= 38 20-18 prior=0.604
+  11  Jel                                  net= 68 raw=1.348 g= 44 24-20 prior=0.620
+  12  angie                                net= 68 raw=1.343 g= 42 21-21 prior=0.552
+  13  Timot                                net= 63 raw=1.249 g= 34 18-16 prior=0.599
+  14  Marc Johnuel                         net= 60 raw=1.196 g= 39 22-17 prior=0.643
+  15  jeo                                  net= 60 raw=1.183 g= 26 21-5 prior=0.868
+  tracked 'jeo': #15 jeo g=26 21-5 net=60 prior=0.868 flow=0.737
+  tracked 'trin': #20 Trin g=31 19-12 net=56 prior=0.701 flow=0.752
+  tracked 'angelo': #1 rands g=62 33-29 net=100 prior=0.601 flow=1.691
+  tracked 'angelo': #32 Angelo g=25 13-12 net=40 prior=0.591 flow=0.455
+  tracked 'obal': #16 Obal g=36 24-12 net=60 prior=0.772 flow=0.803
+  tracked 'shirwin': #33 SHIRWIN g=10 9-1 net=40 prior=0.830 flow=0.244
+  tracked 'atthan': #37 atthan g=9 8-1 net=39 prior=0.836 flow=0.236
+  tracked 'sandro': #62 Sandro g=3 3-0 net=31 prior=0.685 flow=0.068
+  tracked 'juha': #58 Juha g=3 3-0 net=32 prior=0.679 flow=0.077
+  tracked 'marivic': #5 Marivic g=56 26-30 net=86 prior=0.525 flow=1.443
+  tracked 'jowinski': #4 Jowinski g=50 34-16 net=87 prior=0.754 flow=1.355
+  tracked 'cara': #6 Cara g=50 31-19 net=85 prior=0.683 flow=1.345
+  tracked 'ednalyn': #174 Ednalyn g=11 2-9 net=21 prior=0.336 flow=0.138
+  tracked 'mark': #69 Mark g=24 6-18 net=31 prior=0.339 flow=0.378
+  tracked 'mark': #79 Mark Anthony g=10 5-5 net=30 prior=0.576 flow=0.197
+  tracked 'mark': #97 Mark Anthony g=9 5-4 net=28 prior=0.598 flow=0.140
+  tracked 'mark': #102 Mark joseph g=1 1-0 net=27 prior=0.567 flow=0.004
+  tracked 'rands': #1 rands g=62 33-29 net=100 prior=0.601 flow=1.691
+  tracked 'aira': #42 Aira g=22 12-10 net=37 prior=0.609 flow=0.384
+  tracked 'aira': #61 Jaira g=21 8-13 net=32 prior=0.480 flow=0.333
+  tracked 'aira': #101 Shai g=12 5-7 net=28 prior=0.508 flow=0.182
+  tracked 'jaymar': #55 Jaymar g=18 10-8 net=33 prior=0.623 flow=0.291
+  tracked 'cyyy': #118 Cyyy g=10 5-5 net=26 prior=0.535 flow=0.116
+
+================ V9b flow/games (meanG norm) + rating ================
+players=210 iters=24 converged=true NaN=0 uniqNet=56 rho=0.0576
+   1  Princess Gean                        net=100 raw=1.050 g=  4 4-0 prior=0.744
+   2  SHEYA                                net= 95 raw=0.999 g=  3 2-1 prior=0.606
+   3  Reyna                                net= 90 raw=0.943 g=  5 3-2 prior=0.589
+   4  Juha                                 net= 86 raw=0.899 g=  3 3-0 prior=0.679
+   5  Julo                                 net= 84 raw=0.884 g=  3 3-0 prior=0.690
+   6  Immaculada                           net= 81 raw=0.847 g=  7 4-3 prior=0.614
+   7  Carl                                 net= 81 raw=0.846 g=  5 2-3 prior=0.485
+   8  Tristan                              net= 79 raw=0.825 g=  2 2-0 prior=0.632
+   9  Jerome                               net= 76 raw=0.794 g=  6 4-2 prior=0.638
+  10  COLYN                                net= 75 raw=0.792 g=  8 4-4 prior=0.553
+  11  Jovito mj                            net= 75 raw=0.791 g=  2 2-0 prior=0.641
+  12  SHIRWIN                              net= 75 raw=0.790 g= 10 9-1 prior=0.830
+  13  Jomar                                net= 74 raw=0.781 g=  6 5-1 prior=0.725
+  14  Kay Tan                              net= 72 raw=0.752 g= 15 10-5 prior=0.696
+  15  jeo                                  net= 72 raw=0.752 g= 26 21-5 prior=0.868
+  tracked 'jeo': #15 jeo g=26 21-5 net=72 prior=0.868 flow=0.409
+  tracked 'trin': #59 Trin g=31 19-12 net=57 prior=0.701 flow=0.323
+  tracked 'angelo': #99 rands g=62 33-29 net=51 prior=0.601 flow=0.336
+  tracked 'angelo': #165 Angelo g=25 13-12 net=44 prior=0.591 flow=0.197
+  tracked 'obal': #88 Obal g=36 24-12 net=52 prior=0.772 flow=0.272
+  tracked 'shirwin': #12 SHIRWIN g=10 9-1 net=75 prior=0.830 flow=0.317
+  tracked 'atthan': #16 atthan g=9 8-1 net=71 prior=0.836 flow=0.279
+  tracked 'sandro': #26 Sandro g=3 3-0 net=64 prior=0.685 flow=0.144
+  tracked 'juha': #4 Juha g=3 3-0 net=86 prior=0.679 flow=0.359
+  tracked 'marivic': #114 Marivic g=56 26-30 net=49 prior=0.525 flow=0.336
+  tracked 'jowinski': #62 Jowinski g=50 34-16 net=56 prior=0.754 flow=0.339
+  tracked 'cara': #77 Cara g=50 31-19 net=54 prior=0.683 flow=0.336
+  tracked 'ednalyn': #193 Ednalyn g=11 2-9 net=37 prior=0.336 flow=0.158
+  tracked 'mark': #41 Mark joseph g=1 1-0 net=60 prior=0.567 flow=0.094
+  tracked 'mark': #61 Mark Anthony g=10 5-5 net=56 prior=0.576 flow=0.242
+  tracked 'mark': #102 Mark Anthony g=9 5-4 net=50 prior=0.598 flow=0.161
+  tracked 'mark': #202 Mark g=24 6-18 net=34 prior=0.339 flow=0.170
+  tracked 'rands': #99 rands g=62 33-29 net=51 prior=0.601 flow=0.336
+  tracked 'aira': #112 Shai g=12 5-7 net=50 prior=0.508 flow=0.207
+  tracked 'aira': #144 Aira g=22 12-10 net=45 prior=0.609 flow=0.198
+  tracked 'aira': #183 Jaira g=21 8-13 net=40 prior=0.480 flow=0.181
+  tracked 'jaymar': #152 Jaymar g=18 10-8 net=45 prior=0.623 flow=0.168
+  tracked 'cyyy': #155 Cyyy g=10 5-5 net=44 prior=0.535 flow=0.121
+
+================ V9d lambda0.6 + flow/games + rating ================
+players=210 iters=19 converged=true NaN=0 uniqNet=49 rho=0.1455
+   1  Princess Gean                        net=100 raw=0.949 g=  4 4-0 prior=0.744
+   2  SHEYA                                net= 92 raw=0.877 g=  3 2-1 prior=0.606
+   3  Reyna                                net= 88 raw=0.832 g=  5 3-2 prior=0.589
+   4  Julo                                 net= 86 raw=0.819 g=  3 3-0 prior=0.690
+   5  Juha                                 net= 86 raw=0.816 g=  3 3-0 prior=0.679
+   6  SHIRWIN                              net= 84 raw=0.797 g= 10 9-1 prior=0.830
+   7  jeo                                  net= 82 raw=0.775 g= 26 21-5 prior=0.868
+   8  atthan                               net= 81 raw=0.773 g=  9 8-1 prior=0.836
+   9  Immaculada                           net= 81 raw=0.772 g=  7 4-3 prior=0.614
+  10  Jomar                                net= 81 raw=0.766 g=  6 5-1 prior=0.725
+  11  Tristan                              net= 80 raw=0.762 g=  2 2-0 prior=0.632
+  12  Jerome                               net= 78 raw=0.741 g=  6 4-2 prior=0.638
+  13  Jovito mj                            net= 78 raw=0.740 g=  2 2-0 prior=0.641
+  14  Carl                                 net= 78 raw=0.736 g=  5 2-3 prior=0.485
+  15  GB                                   net= 77 raw=0.732 g= 12 9-3 prior=0.786
+  tracked 'jeo': #7 jeo g=26 21-5 net=82 prior=0.868 flow=0.328
+  tracked 'trin': #35 Trin g=31 19-12 net=66 prior=0.701 flow=0.257
+  tracked 'angelo': #94 rands g=62 33-29 net=58 prior=0.601 flow=0.255
+  tracked 'angelo': #139 Angelo g=25 13-12 net=52 prior=0.591 flow=0.156
+  tracked 'obal': #47 Obal g=36 24-12 net=64 prior=0.772 flow=0.227
+  tracked 'shirwin': #6 SHIRWIN g=10 9-1 net=84 prior=0.830 flow=0.256
+  tracked 'atthan': #8 atthan g=9 8-1 net=81 prior=0.836 flow=0.242
+  tracked 'sandro': #22 Sandro g=3 3-0 net=71 prior=0.685 flow=0.121
+  tracked 'juha': #5 Juha g=3 3-0 net=86 prior=0.679 flow=0.250
+  tracked 'marivic': #116 Marivic g=56 26-30 net=54 prior=0.525 flow=0.244
+  tracked 'jowinski': #29 Jowinski g=50 34-16 net=67 prior=0.754 flow=0.269
+  tracked 'cara': #52 Cara g=50 31-19 net=63 prior=0.683 flow=0.257
+  tracked 'ednalyn': #193 Ednalyn g=11 2-9 net=40 prior=0.336 flow=0.109
+  tracked 'mark': #48 Mark joseph g=1 1-0 net=64 prior=0.567 flow=0.062
+  tracked 'mark': #60 Mark Anthony g=10 5-5 net=62 prior=0.576 flow=0.188
+  tracked 'mark': #95 Mark Anthony g=9 5-4 net=58 prior=0.598 flow=0.133
+  tracked 'mark': #200 Mark g=24 6-18 net=37 prior=0.339 flow=0.114
+  tracked 'rands': #94 rands g=62 33-29 net=58 prior=0.601 flow=0.255
+  tracked 'aira': #115 Shai g=12 5-7 net=54 prior=0.508 flow=0.150
+  tracked 'aira': #117 Aira g=22 12-10 net=54 prior=0.609 flow=0.159
+  tracked 'aira': #175 Jaira g=21 8-13 net=46 prior=0.480 flow=0.137
+  tracked 'jaymar': #120 Jaymar g=18 10-8 net=54 prior=0.623 flow=0.141
+  tracked 'cyyy': #146 Cyyy g=10 5-5 net=51 prior=0.535 flow=0.089
+
+================ V10 flowPerGame K=8 + rating ================
+players=210 iters=17 converged=true NaN=0 uniqNet=52 rho=-0.2621
+   1  Princess Gean                        net=100 raw=0.872 g=  4 4-0 prior=0.744
+   2  SHEYA                                net= 93 raw=0.810 g=  3 2-1 prior=0.606
+   3  Julo                                 net= 87 raw=0.762 g=  3 3-0 prior=0.690
+   4  Juha                                 net= 87 raw=0.760 g=  3 3-0 prior=0.679
+   5  Reyna                                net= 87 raw=0.758 g=  5 3-2 prior=0.589
+   6  Tristan                              net= 82 raw=0.718 g=  2 2-0 prior=0.632
+   7  Jovito mj                            net= 80 raw=0.700 g=  2 2-0 prior=0.641
+   8  Immaculada                           net= 79 raw=0.689 g=  7 4-3 prior=0.614
+   9  SHIRWIN                              net= 79 raw=0.688 g= 10 9-1 prior=0.830
+  10  Jomar                                net= 79 raw=0.688 g=  6 5-1 prior=0.725
+  11  atthan                               net= 77 raw=0.675 g=  9 8-1 prior=0.836
+  12  Carl                                 net= 77 raw=0.669 g=  5 2-3 prior=0.485
+  13  Jerome                               net= 77 raw=0.668 g=  6 4-2 prior=0.638
+  14  Doc                                  net= 74 raw=0.647 g=  2 2-0 prior=0.634
+  15  Benz                                 net= 73 raw=0.638 g=  6 4-2 prior=0.666
+  tracked 'jeo': #21 jeo g=26 21-5 net=70 prior=0.868 flow=0.271
+  tracked 'trin': #78 Trin g=31 19-12 net=56 prior=0.701 flow=0.213
+  tracked 'angelo': #160 rands g=62 33-29 net=47 prior=0.601 flow=0.212
+  tracked 'angelo': #179 Angelo g=25 13-12 net=44 prior=0.591 flow=0.125
+  tracked 'obal': #109 Obal g=36 24-12 net=52 prior=0.772 flow=0.181
+  tracked 'shirwin': #9 SHIRWIN g=10 9-1 net=79 prior=0.830 flow=0.215
+  tracked 'atthan': #11 atthan g=9 8-1 net=77 prior=0.836 flow=0.204
+  tracked 'sandro': #16 Sandro g=3 3-0 net=73 prior=0.685 flow=0.104
+  tracked 'juha': #4 Juha g=3 3-0 net=87 prior=0.679 flow=0.220
+  tracked 'marivic': #180 Marivic g=56 26-30 net=44 prior=0.525 flow=0.203
+  tracked 'jowinski': #95 Jowinski g=50 34-16 net=54 prior=0.754 flow=0.219
+  tracked 'cara': #121 Cara g=50 31-19 net=51 prior=0.683 flow=0.212
+  tracked 'ednalyn': #198 Ednalyn g=11 2-9 net=37 prior=0.336 flow=0.090
+  tracked 'mark': #32 Mark joseph g=1 1-0 net=67 prior=0.567 flow=0.053
+  tracked 'mark': #60 Mark Anthony g=10 5-5 net=59 prior=0.576 flow=0.162
+  tracked 'mark': #92 Mark Anthony g=9 5-4 net=55 prior=0.598 flow=0.109
+  tracked 'mark': #207 Mark g=24 6-18 net=32 prior=0.339 flow=0.093
+  tracked 'rands': #160 rands g=62 33-29 net=47 prior=0.601 flow=0.212
+  tracked 'aira': #129 Shai g=12 5-7 net=50 prior=0.508 flow=0.125
+  tracked 'aira': #163 Aira g=22 12-10 net=47 prior=0.609 flow=0.127
+  tracked 'aira': #194 Jaira g=21 8-13 net=40 prior=0.480 flow=0.108
+  tracked 'jaymar': #152 Jaymar g=18 10-8 net=47 prior=0.623 flow=0.113
+  tracked 'cyyy': #149 Cyyy g=10 5-5 net=48 prior=0.535 flow=0.071
+
+================ V10 flowPerGame K=12 + rating ================
+players=210 iters=26 converged=true NaN=0 uniqNet=54 rho=0.1092
+   1  Princess Gean                        net=100 raw=1.095 g=  4 4-0 prior=0.744
+   2  SHEYA                                net= 96 raw=1.047 g=  3 2-1 prior=0.606
+   3  Reyna                                net= 90 raw=0.989 g=  5 3-2 prior=0.589
+   4  Juha                                 net= 85 raw=0.936 g=  3 3-0 prior=0.679
+   5  Julo                                 net= 84 raw=0.915 g=  3 3-0 prior=0.690
+   6  Carl                                 net= 81 raw=0.889 g=  5 2-3 prior=0.485
+   7  Immaculada                           net= 81 raw=0.887 g=  7 4-3 prior=0.614
+   8  Tristan                              net= 78 raw=0.852 g=  2 2-0 prior=0.632
+   9  COLYN                                net= 76 raw=0.835 g=  8 4-4 prior=0.553
+  10  Jerome                               net= 75 raw=0.826 g=  6 4-2 prior=0.638
+  11  SHIRWIN                              net= 74 raw=0.816 g= 10 9-1 prior=0.830
+  12  Jovito mj                            net= 74 raw=0.815 g=  2 2-0 prior=0.641
+  13  Jomar                                net= 73 raw=0.805 g=  6 5-1 prior=0.725
+  14  Kay Tan                              net= 72 raw=0.787 g= 15 10-5 prior=0.696
+  15  jeo                                  net= 72 raw=0.786 g= 26 21-5 prior=0.868
+  tracked 'jeo': #15 jeo g=26 21-5 net=72 prior=0.868 flow=0.443
+  tracked 'trin': #54 Trin g=31 19-12 net=57 prior=0.701 flow=0.350
+  tracked 'angelo': #92 rands g=62 33-29 net=51 prior=0.601 flow=0.367
+  tracked 'angelo': #157 Angelo g=25 13-12 net=43 prior=0.591 flow=0.214
+  tracked 'obal': #85 Obal g=36 24-12 net=52 prior=0.772 flow=0.295
+  tracked 'shirwin': #11 SHIRWIN g=10 9-1 net=74 prior=0.830 flow=0.342
+  tracked 'atthan': #16 atthan g=9 8-1 net=70 prior=0.836 flow=0.298
+  tracked 'sandro': #27 Sandro g=3 3-0 net=63 prior=0.685 flow=0.153
+  tracked 'juha': #4 Juha g=3 3-0 net=85 prior=0.679 flow=0.396
+  tracked 'marivic': #103 Marivic g=56 26-30 net=50 prior=0.525 flow=0.369
+  tracked 'jowinski': #56 Jowinski g=50 34-16 net=57 prior=0.754 flow=0.369
+  tracked 'cara': #71 Cara g=50 31-19 net=55 prior=0.683 flow=0.366
+  tracked 'ednalyn': #189 Ednalyn g=11 2-9 net=37 prior=0.336 flow=0.175
+  tracked 'mark': #44 Mark joseph g=1 1-0 net=58 prior=0.567 flow=0.105
+  tracked 'mark': #61 Mark Anthony g=10 5-5 net=56 prior=0.576 flow=0.261
+  tracked 'mark': #109 Mark Anthony g=9 5-4 net=49 prior=0.598 flow=0.174
+  tracked 'mark': #200 Mark g=24 6-18 net=34 prior=0.339 flow=0.190
+  tracked 'rands': #92 rands g=62 33-29 net=51 prior=0.601 flow=0.367
+  tracked 'aira': #108 Shai g=12 5-7 net=49 prior=0.508 flow=0.227
+  tracked 'aira': #141 Aira g=22 12-10 net=45 prior=0.609 flow=0.216
+  tracked 'aira': #178 Jaira g=21 8-13 net=40 prior=0.480 flow=0.199
+  tracked 'jaymar': #151 Jaymar g=18 10-8 net=44 prior=0.623 flow=0.182
+  tracked 'cyyy': #156 Cyyy g=10 5-5 net=44 prior=0.535 flow=0.134
+
+================ V10 flowPerGame K=16 + rating ================
+players=210 iters=39 converged=true NaN=0 uniqNet=56 rho=0.3637
+   1  Princess Gean                        net=100 raw=1.431 g=  4 4-0 prior=0.744
+   2  SHEYA                                net= 98 raw=1.401 g=  3 2-1 prior=0.606
+   3  Reyna                                net= 92 raw=1.323 g=  5 3-2 prior=0.589
+   4  Juha                                 net= 87 raw=1.240 g=  3 3-0 prior=0.679
+   5  Carl                                 net= 84 raw=1.204 g=  5 2-3 prior=0.485
+   6  Immaculada                           net= 82 raw=1.179 g=  7 4-3 prior=0.614
+   7  COLYN                                net= 82 raw=1.173 g=  8 4-4 prior=0.553
+   8  Julo                                 net= 80 raw=1.147 g=  3 3-0 prior=0.690
+   9  Jerome                               net= 74 raw=1.061 g=  6 4-2 prior=0.638
+  10  Tristan                              net= 74 raw=1.060 g=  2 2-0 prior=0.632
+  11  Kay Tan                              net= 73 raw=1.042 g= 15 10-5 prior=0.696
+  12  jeo                                  net= 73 raw=1.039 g= 26 21-5 prior=0.868
+  13  SHIRWIN                              net= 70 raw=1.005 g= 10 9-1 prior=0.830
+  14  Jovito mj                            net= 69 raw=0.993 g=  2 2-0 prior=0.641
+  15  Jomar                                net= 68 raw=0.972 g=  6 5-1 prior=0.725
+  tracked 'jeo': #12 jeo g=26 21-5 net=73 prior=0.868 flow=0.695
+  tracked 'trin': #42 Trin g=31 19-12 net=57 prior=0.701 flow=0.538
+  tracked 'angelo': #55 rands g=62 33-29 net=54 prior=0.601 flow=0.584
+  tracked 'angelo': #130 Angelo g=25 13-12 net=42 prior=0.591 flow=0.344
+  tracked 'obal': #73 Obal g=36 24-12 net=51 prior=0.772 flow=0.457
+  tracked 'shirwin': #13 SHIRWIN g=10 9-1 net=70 prior=0.830 flow=0.531
+  tracked 'atthan': #24 atthan g=9 8-1 net=63 prior=0.836 flow=0.429
+  tracked 'sandro': #68 Sandro g=3 3-0 net=53 prior=0.685 flow=0.224
+  tracked 'juha': #4 Juha g=3 3-0 net=87 prior=0.679 flow=0.700
+  tracked 'marivic': #48 Marivic g=56 26-30 net=56 prior=0.525 flow=0.615
+  tracked 'jowinski': #34 Jowinski g=50 34-16 net=58 prior=0.754 flow=0.579
+  tracked 'cara': #38 Cara g=50 31-19 net=57 prior=0.683 flow=0.585
+  tracked 'ednalyn': #166 Ednalyn g=11 2-9 net=37 prior=0.336 flow=0.294
+  tracked 'mark': #72 Mark Anthony g=10 5-5 net=52 prior=0.576 flow=0.390
+  tracked 'mark': #83 Mark joseph g=1 1-0 net=50 prior=0.567 flow=0.188
+  tracked 'mark': #120 Mark Anthony g=9 5-4 net=44 prior=0.598 flow=0.269
+  tracked 'mark': #168 Mark g=24 6-18 net=36 prior=0.339 flow=0.333
+  tracked 'rands': #55 rands g=62 33-29 net=54 prior=0.601 flow=0.584
+  tracked 'aira': #100 Shai g=12 5-7 net=48 prior=0.508 flow=0.372
+  tracked 'aira': #124 Aira g=22 12-10 net=44 prior=0.609 flow=0.346
+  tracked 'aira': #144 Jaira g=21 8-13 net=40 prior=0.480 flow=0.334
+  tracked 'jaymar': #139 Jaymar g=18 10-8 net=41 prior=0.623 flow=0.283
+  tracked 'cyyy': #142 Cyyy g=10 5-5 net=40 prior=0.535 flow=0.230
+
+================ V10 flowPerGame K=20 + rating ================
+players=210 iters=64 converged=true NaN=0 uniqNet=59 rho=0.4975
+   1  SHEYA                                net=100 raw=1.995 g=  3 2-1 prior=0.606
+   2  Princess Gean                        net= 99 raw=1.985 g=  4 4-0 prior=0.744
+   3  Juha                                 net= 93 raw=1.865 g=  3 3-0 prior=0.679
+   4  Reyna                                net= 93 raw=1.861 g=  5 3-2 prior=0.589
+   5  COLYN                                net= 91 raw=1.822 g=  8 4-4 prior=0.553
+   6  Carl                                 net= 85 raw=1.704 g=  5 2-3 prior=0.485
+   7  Immaculada                           net= 83 raw=1.651 g=  7 4-3 prior=0.614
+   8  Julo                                 net= 77 raw=1.536 g=  3 3-0 prior=0.690
+   9  Kay Tan                              net= 73 raw=1.449 g= 15 10-5 prior=0.696
+  10  Jerome                               net= 73 raw=1.447 g=  6 4-2 prior=0.638
+  11  jeo                                  net= 72 raw=1.445 g= 26 21-5 prior=0.868
+  12  Tristan                              net= 71 raw=1.415 g=  2 2-0 prior=0.632
+  13  jodee                                net= 71 raw=1.410 g=  3 0-3 prior=0.383
+  14  EUNICE                               net= 68 raw=1.347 g= 37 19-18 prior=0.593
+  15  KM                                   net= 67 raw=1.334 g=  2 0-2 prior=0.419
+  tracked 'jeo': #11 jeo g=26 21-5 net=72 prior=0.868 flow=1.102
+  tracked 'trin': #45 Trin g=31 19-12 net=55 prior=0.701 flow=0.823
+  tracked 'angelo': #41 rands g=62 33-29 net=56 prior=0.601 flow=0.918
+  tracked 'angelo': #114 Angelo g=25 13-12 net=41 prior=0.591 flow=0.549
+  tracked 'obal': #69 Obal g=36 24-12 net=49 prior=0.772 flow=0.712
+  tracked 'shirwin': #16 SHIRWIN g=10 9-1 net=66 prior=0.830 flow=0.838
+  tracked 'atthan': #44 atthan g=9 8-1 net=55 prior=0.836 flow=0.630
+  tracked 'sandro': #101 Sandro g=3 3-0 net=43 prior=0.685 flow=0.333
+  tracked 'juha': #3 Juha g=3 3-0 net=93 prior=0.679 flow=1.325
+  tracked 'marivic': #27 Marivic g=56 26-30 net=60 prior=0.525 flow=1.015
+  tracked 'jowinski': #33 Jowinski g=50 34-16 net=58 prior=0.754 flow=0.903
+  tracked 'cara': #32 Cara g=50 31-19 net=58 prior=0.683 flow=0.924
+  tracked 'ednalyn': #142 Ednalyn g=11 2-9 net=35 prior=0.336 flow=0.474
+  tracked 'mark': #87 Mark Anthony g=10 5-5 net=46 prior=0.576 flow=0.576
+  tracked 'mark': #102 Mark joseph g=1 1-0 net=43 prior=0.567 flow=0.333
+  tracked 'mark': #121 Mark Anthony g=9 5-4 net=39 prior=0.598 flow=0.420
+  tracked 'mark': #131 Mark g=24 6-18 net=37 prior=0.339 flow=0.562
+  tracked 'rands': #41 rands g=62 33-29 net=56 prior=0.601 flow=0.918
+  tracked 'aira': #92 Shai g=12 5-7 net=46 prior=0.508 flow=0.594
+  tracked 'aira': #110 Aira g=22 12-10 net=42 prior=0.609 flow=0.552
+  tracked 'aira': #119 Jaira g=21 8-13 net=40 prior=0.480 flow=0.551
+  tracked 'jaymar': #134 Jaymar g=18 10-8 net=37 prior=0.623 flow=0.441
+  tracked 'cyyy': #138 Cyyy g=10 5-5 net=36 prior=0.535 flow=0.382
+
+================ V11 lambdaCap=0.25 + rating ================
+players=210 iters=13 converged=true NaN=0 uniqNet=58 rho=0.5682
+   1  rands                                net=100 raw=1.099 g= 62 33-29 prior=0.601
+   2  Jowinski                             net=100 raw=1.096 g= 50 34-16 prior=0.754
+   3  James                                net= 96 raw=1.060 g= 58 34-24 prior=0.661
+   4  Cara                                 net= 94 raw=1.030 g= 50 31-19 prior=0.683
+   5  Mikki                                net= 89 raw=0.983 g= 51 24-27 prior=0.555
+   6  jeo                                  net= 89 raw=0.973 g= 26 21-5 prior=0.868
+   7  Marivic                              net= 86 raw=0.945 g= 56 26-30 prior=0.525
+   8  EUNICE                               net= 83 raw=0.911 g= 37 19-18 prior=0.593
+   9  Osang                                net= 83 raw=0.910 g= 55 24-31 prior=0.521
+  10  Obal                                 net= 82 raw=0.900 g= 36 24-12 prior=0.772
+  11  Boyet                                net= 82 raw=0.899 g= 48 28-20 prior=0.660
+  12  Jel                                  net= 79 raw=0.870 g= 44 24-20 prior=0.620
+  13  Alex                                 net= 79 raw=0.866 g= 38 20-18 prior=0.604
+  14  Trin                                 net= 77 raw=0.848 g= 31 19-12 prior=0.701
+  15  Timot                                net= 76 raw=0.837 g= 34 18-16 prior=0.599
+  tracked 'jeo': #6 jeo g=26 21-5 net=89 prior=0.868 flow=0.345
+  tracked 'trin': #14 Trin g=31 19-12 net=77 prior=0.701 flow=0.319
+  tracked 'angelo': #1 rands g=62 33-29 net=100 prior=0.601 flow=0.630
+  tracked 'angelo': #45 Angelo g=25 13-12 net=59 prior=0.591 flow=0.173
+  tracked 'obal': #10 Obal g=36 24-12 net=82 prior=0.772 flow=0.339
+  tracked 'shirwin': #20 SHIRWIN g=10 9-1 net=73 prior=0.830 flow=0.148
+  tracked 'atthan': #21 atthan g=9 8-1 net=73 prior=0.836 flow=0.162
+  tracked 'sandro': #40 Sandro g=3 3-0 net=60 prior=0.685 flow=0.058
+  tracked 'juha': #38 Juha g=3 3-0 net=60 prior=0.679 flow=0.053
+  tracked 'marivic': #7 Marivic g=56 26-30 net=86 prior=0.525 flow=0.522
+  tracked 'jowinski': #2 Jowinski g=50 34-16 net=100 prior=0.754 flow=0.530
+  tracked 'cara': #4 Cara g=50 31-19 net=94 prior=0.683 flow=0.504
+  tracked 'ednalyn': #196 Ednalyn g=11 2-9 net=33 prior=0.336 flow=0.024
+  tracked 'mark': #81 Mark Anthony g=10 5-5 net=53 prior=0.576 flow=0.089
+  tracked 'mark': #84 Mark Anthony g=9 5-4 net=52 prior=0.598 flow=0.075
+  tracked 'mark': #96 Mark joseph g=1 1-0 net=51 prior=0.567 flow=0.001
+  tracked 'mark': #166 Mark g=24 6-18 net=39 prior=0.339 flow=0.097
+  tracked 'rands': #1 rands g=62 33-29 net=100 prior=0.601 flow=0.630
+  tracked 'aira': #47 Aira g=22 12-10 net=58 prior=0.609 flow=0.155
+  tracked 'aira': #109 Jaira g=21 8-13 net=48 prior=0.480 flow=0.118
+  tracked 'aira': #115 Shai g=12 5-7 net=47 prior=0.508 flow=0.059
+  tracked 'jaymar': #60 Jaymar g=18 10-8 net=56 prior=0.623 flow=0.129
+  tracked 'cyyy': #118 Cyyy g=10 5-5 net=47 prior=0.535 flow=0.034
+
+================ V11 lambdaCap=0.3 + rating ================
+players=210 iters=14 converged=true NaN=0 uniqNet=60 rho=0.5860
+   1  rands                                net=100 raw=1.209 g= 62 33-29 prior=0.601
+   2  Jowinski                             net= 97 raw=1.172 g= 50 34-16 prior=0.754
+   3  James                                net= 95 raw=1.148 g= 58 34-24 prior=0.661
+   4  Cara                                 net= 92 raw=1.109 g= 50 31-19 prior=0.683
+   5  Mikki                                net= 89 raw=1.077 g= 51 24-27 prior=0.555
+   6  Marivic                              net= 86 raw=1.039 g= 56 26-30 prior=0.525
+   7  Osang                                net= 83 raw=0.998 g= 55 24-31 prior=0.521
+   8  jeo                                  net= 82 raw=0.998 g= 26 21-5 prior=0.868
+   9  EUNICE                               net= 81 raw=0.979 g= 37 19-18 prior=0.593
+  10  Boyet                                net= 79 raw=0.956 g= 48 28-20 prior=0.660
+  11  Obal                                 net= 77 raw=0.931 g= 36 24-12 prior=0.772
+  12  Jel                                  net= 77 raw=0.927 g= 44 24-20 prior=0.620
+  13  Alex                                 net= 76 raw=0.925 g= 38 20-18 prior=0.604
+  14  Timot                                net= 73 raw=0.888 g= 34 18-16 prior=0.599
+  15  Trin                                 net= 73 raw=0.881 g= 31 19-12 prior=0.701
+  tracked 'jeo': #8 jeo g=26 21-5 net=82 prior=0.868 flow=0.395
+  tracked 'trin': #15 Trin g=31 19-12 net=73 prior=0.701 flow=0.375
+  tracked 'angelo': #1 rands g=62 33-29 net=100 prior=0.601 flow=0.765
+  tracked 'angelo': #41 Angelo g=25 13-12 net=55 prior=0.591 flow=0.207
+  tracked 'obal': #11 Obal g=36 24-12 net=77 prior=0.772 flow=0.396
+  tracked 'shirwin': #22 SHIRWIN g=10 9-1 net=66 prior=0.830 flow=0.161
+  tracked 'atthan': #23 atthan g=9 8-1 net=66 prior=0.836 flow=0.172
+  tracked 'sandro': #43 Sandro g=3 3-0 net=54 prior=0.685 flow=0.059
+  tracked 'juha': #39 Juha g=3 3-0 net=55 prior=0.679 flow=0.056
+  tracked 'marivic': #6 Marivic g=56 26-30 net=86 prior=0.525 flow=0.638
+  tracked 'jowinski': #2 Jowinski g=50 34-16 net=97 prior=0.754 flow=0.635
+  tracked 'cara': #4 Cara g=50 31-19 net=92 prior=0.683 flow=0.610
+  tracked 'ednalyn': #195 Ednalyn g=11 2-9 net=30 prior=0.336 flow=0.039
+  tracked 'mark': #82 Mark Anthony g=10 5-5 net=48 prior=0.576 flow=0.103
+  tracked 'mark': #87 Mark Anthony g=9 5-4 net=47 prior=0.598 flow=0.083
+  tracked 'mark': #94 Mark joseph g=1 1-0 net=46 prior=0.567 flow=0.002
+  tracked 'mark': #162 Mark g=24 6-18 net=37 prior=0.339 flow=0.132
+  tracked 'rands': #1 rands g=62 33-29 net=100 prior=0.601 flow=0.765
+  tracked 'aira': #46 Aira g=22 12-10 net=54 prior=0.609 flow=0.184
+  tracked 'aira': #108 Jaira g=21 8-13 net=45 prior=0.480 flow=0.145
+  tracked 'aira': #113 Shai g=12 5-7 net=43 prior=0.508 flow=0.075
+  tracked 'jaymar': #60 Jaymar g=18 10-8 net=51 prior=0.623 flow=0.148
+  tracked 'cyyy': #119 Cyyy g=10 5-5 net=42 prior=0.535 flow=0.044
+
+================ V11 lambdaCap=0.35 + rating ================
+players=210 iters=16 converged=true NaN=0 uniqNet=57 rho=0.6123
+   1  rands                                net=100 raw=1.324 g= 62 33-29 prior=0.601
+   2  Jowinski                             net= 95 raw=1.252 g= 50 34-16 prior=0.754
+   3  James                                net= 94 raw=1.240 g= 58 34-24 prior=0.661
+   4  Cara                                 net= 90 raw=1.191 g= 50 31-19 prior=0.683
+   5  Mikki                                net= 89 raw=1.174 g= 51 24-27 prior=0.555
+   6  Marivic                              net= 86 raw=1.138 g= 56 26-30 prior=0.525
+   7  Osang                                net= 82 raw=1.091 g= 55 24-31 prior=0.521
+   8  EUNICE                               net= 79 raw=1.050 g= 37 19-18 prior=0.593
+   9  jeo                                  net= 77 raw=1.024 g= 26 21-5 prior=0.868
+  10  Boyet                                net= 77 raw=1.016 g= 48 28-20 prior=0.660
+  11  Jel                                  net= 75 raw=0.987 g= 44 24-20 prior=0.620
+  12  Alex                                 net= 75 raw=0.987 g= 38 20-18 prior=0.604
+  13  Obal                                 net= 73 raw=0.965 g= 36 24-12 prior=0.772
+  14  angie                                net= 71 raw=0.945 g= 42 21-21 prior=0.552
+  15  Timot                                net= 71 raw=0.942 g= 34 18-16 prior=0.599
+  tracked 'jeo': #9 jeo g=26 21-5 net=77 prior=0.868 flow=0.447
+  tracked 'trin': #18 Trin g=31 19-12 net=69 prior=0.701 flow=0.432
+  tracked 'angelo': #1 rands g=62 33-29 net=100 prior=0.601 flow=0.904
+  tracked 'angelo': #39 Angelo g=25 13-12 net=51 prior=0.591 flow=0.243
+  tracked 'obal': #13 Obal g=36 24-12 net=73 prior=0.772 flow=0.456
+  tracked 'shirwin': #23 SHIRWIN g=10 9-1 net=60 prior=0.830 flow=0.174
+  tracked 'atthan': #24 atthan g=9 8-1 net=60 prior=0.836 flow=0.181
+  tracked 'sandro': #47 Sandro g=3 3-0 net=49 prior=0.685 flow=0.060
+  tracked 'juha': #46 Juha g=3 3-0 net=50 prior=0.679 flow=0.060
+  tracked 'marivic': #6 Marivic g=56 26-30 net=86 prior=0.525 flow=0.759
+  tracked 'jowinski': #2 Jowinski g=50 34-16 net=95 prior=0.754 flow=0.743
+  tracked 'cara': #4 Cara g=50 31-19 net=90 prior=0.683 flow=0.719
+  tracked 'ednalyn': #194 Ednalyn g=11 2-9 net=28 prior=0.336 flow=0.054
+  tracked 'mark': #81 Mark Anthony g=10 5-5 net=44 prior=0.576 flow=0.117
+  tracked 'mark': #87 Mark Anthony g=9 5-4 net=43 prior=0.598 flow=0.091
+  tracked 'mark': #96 Mark joseph g=1 1-0 net=42 prior=0.567 flow=0.002
+  tracked 'mark': #137 Mark g=24 6-18 net=36 prior=0.339 flow=0.168
+  tracked 'rands': #1 rands g=62 33-29 net=100 prior=0.601 flow=0.904
+  tracked 'aira': #45 Aira g=22 12-10 net=50 prior=0.609 flow=0.213
+  tracked 'aira': #100 Jaira g=21 8-13 net=42 prior=0.480 flow=0.173
+  tracked 'aira': #111 Shai g=12 5-7 net=40 prior=0.508 flow=0.091
+  tracked 'jaymar': #59 Jaymar g=18 10-8 net=47 prior=0.623 flow=0.168
+  tracked 'cyyy': #120 Cyyy g=10 5-5 net=38 prior=0.535 flow=0.054
+
+================ V11 lambdaCap=0.4 + rating ================
+players=210 iters=17 converged=true NaN=0 uniqNet=56 rho=0.6280
+   1  rands                                net=100 raw=1.444 g= 62 33-29 prior=0.601
+   2  James                                net= 93 raw=1.336 g= 58 34-24 prior=0.661
+   3  Jowinski                             net= 92 raw=1.335 g= 50 34-16 prior=0.754
+   4  Cara                                 net= 89 raw=1.279 g= 50 31-19 prior=0.683
+   5  Mikki                                net= 88 raw=1.276 g= 51 24-27 prior=0.555
+   6  Marivic                              net= 86 raw=1.241 g= 56 26-30 prior=0.525
+   7  Osang                                net= 82 raw=1.189 g= 55 24-31 prior=0.521
+   8  EUNICE                               net= 78 raw=1.124 g= 37 19-18 prior=0.593
+   9  Boyet                                net= 75 raw=1.080 g= 48 28-20 prior=0.660
+  10  Alex                                 net= 73 raw=1.051 g= 38 20-18 prior=0.604
+  11  jeo                                  net= 73 raw=1.051 g= 26 21-5 prior=0.868
+  12  Jel                                  net= 73 raw=1.051 g= 44 24-20 prior=0.620
+  13  angie                                net= 70 raw=1.015 g= 42 21-21 prior=0.552
+  14  Obal                                 net= 69 raw=1.001 g= 36 24-12 prior=0.772
+  15  Timot                                net= 69 raw=0.998 g= 34 18-16 prior=0.599
+  tracked 'jeo': #11 jeo g=26 21-5 net=73 prior=0.868 flow=0.501
+  tracked 'trin': #18 Trin g=31 19-12 net=66 prior=0.701 flow=0.492
+  tracked 'angelo': #1 rands g=62 33-29 net=100 prior=0.601 flow=1.049
+  tracked 'angelo': #35 Angelo g=25 13-12 net=48 prior=0.591 flow=0.281
+  tracked 'obal': #14 Obal g=36 24-12 net=69 prior=0.772 flow=0.518
+  tracked 'shirwin': #27 SHIRWIN g=10 9-1 net=55 prior=0.830 flow=0.187
+  tracked 'atthan': #28 atthan g=9 8-1 net=54 prior=0.836 flow=0.191
+  tracked 'sandro': #52 Sandro g=3 3-0 net=45 prior=0.685 flow=0.062
+  tracked 'juha': #48 Juha g=3 3-0 net=45 prior=0.679 flow=0.063
+  tracked 'marivic': #6 Marivic g=56 26-30 net=86 prior=0.525 flow=0.884
+  tracked 'jowinski': #3 Jowinski g=50 34-16 net=92 prior=0.754 flow=0.855
+  tracked 'cara': #4 Cara g=50 31-19 net=89 prior=0.683 flow=0.833
+  tracked 'ednalyn': #194 Ednalyn g=11 2-9 net=26 prior=0.336 flow=0.070
+  tracked 'mark': #82 Mark Anthony g=10 5-5 net=40 prior=0.576 flow=0.132
+  tracked 'mark': #91 Mark Anthony g=9 5-4 net=39 prior=0.598 flow=0.100
+  tracked 'mark': #96 Mark joseph g=1 1-0 net=38 prior=0.567 flow=0.003
+  tracked 'mark': #125 Mark g=24 6-18 net=34 prior=0.339 flow=0.206
+  tracked 'rands': #1 rands g=62 33-29 net=100 prior=0.601 flow=1.049
+  tracked 'aira': #44 Aira g=22 12-10 net=47 prior=0.609 flow=0.243
+  tracked 'aira': #90 Jaira g=21 8-13 net=39 prior=0.480 flow=0.202
+  tracked 'aira': #112 Shai g=12 5-7 net=37 prior=0.508 flow=0.108
+  tracked 'jaymar': #61 Jaymar g=18 10-8 net=44 prior=0.623 flow=0.190
+  tracked 'cyyy': #119 Cyyy g=10 5-5 net=35 prior=0.535 flow=0.065
+
+================ V11 lambdaCap=0.5 + rating ================
+players=210 iters=20 converged=true NaN=0 uniqNet=58 rho=0.6616
+   1  rands                                net=100 raw=1.701 g= 62 33-29 prior=0.601
+   2  James                                net= 91 raw=1.541 g= 58 34-24 prior=0.661
+   3  Jowinski                             net= 89 raw=1.516 g= 50 34-16 prior=0.754
+   4  Mikki                                net= 88 raw=1.492 g= 51 24-27 prior=0.555
+   5  Cara                                 net= 86 raw=1.469 g= 50 31-19 prior=0.683
+   6  Marivic                              net= 86 raw=1.464 g= 56 26-30 prior=0.525
+   7  Osang                                net= 82 raw=1.402 g= 55 24-31 prior=0.521
+   8  EUNICE                               net= 75 raw=1.281 g= 37 19-18 prior=0.593
+   9  Boyet                                net= 72 raw=1.222 g= 48 28-20 prior=0.660
+  10  Alex                                 net= 70 raw=1.191 g= 38 20-18 prior=0.604
+  11  Jel                                  net= 70 raw=1.189 g= 44 24-20 prior=0.620
+  12  angie                                net= 69 raw=1.168 g= 42 21-21 prior=0.552
+  13  Timot                                net= 66 raw=1.117 g= 34 18-16 prior=0.599
+  14  jeo                                  net= 65 raw=1.112 g= 26 21-5 prior=0.868
+  15  Obal                                 net= 64 raw=1.084 g= 36 24-12 prior=0.772
+  tracked 'jeo': #14 jeo g=26 21-5 net=65 prior=0.868 flow=0.614
+  tracked 'trin': #19 Trin g=31 19-12 net=61 prior=0.701 flow=0.616
+  tracked 'angelo': #1 rands g=62 33-29 net=100 prior=0.601 flow=1.355
+  tracked 'angelo': #33 Angelo g=25 13-12 net=43 prior=0.591 flow=0.363
+  tracked 'obal': #15 Obal g=36 24-12 net=64 prior=0.772 flow=0.653
+  tracked 'shirwin': #30 SHIRWIN g=10 9-1 net=46 prior=0.830 flow=0.215
+  tracked 'atthan': #31 atthan g=9 8-1 net=46 prior=0.836 flow=0.213
+  tracked 'sandro': #60 Sandro g=3 3-0 net=37 prior=0.685 flow=0.065
+  tracked 'juha': #54 Juha g=3 3-0 net=38 prior=0.679 flow=0.070
+  tracked 'marivic': #6 Marivic g=56 26-30 net=86 prior=0.525 flow=1.150
+  tracked 'jowinski': #3 Jowinski g=50 34-16 net=89 prior=0.754 flow=1.093
+  tracked 'cara': #5 Cara g=50 31-19 net=86 prior=0.683 flow=1.076
+  tracked 'ednalyn': #190 Ednalyn g=11 2-9 net=23 prior=0.336 flow=0.102
+  tracked 'mark': #79 Mark Anthony g=10 5-5 net=35 prior=0.576 flow=0.163
+  tracked 'mark': #93 Mark Anthony g=9 5-4 net=33 prior=0.598 flow=0.119
+  tracked 'mark': #97 Mark g=24 6-18 net=32 prior=0.339 flow=0.288
+  tracked 'mark': #101 Mark joseph g=1 1-0 net=32 prior=0.567 flow=0.003
+  tracked 'rands': #1 rands g=62 33-29 net=100 prior=0.601 flow=1.355
+  tracked 'aira': #42 Aira g=22 12-10 net=41 prior=0.609 flow=0.310
+  tracked 'aira': #74 Jaira g=21 8-13 net=35 prior=0.480 flow=0.264
+  tracked 'aira': #107 Shai g=12 5-7 net=32 prior=0.508 flow=0.144
+  tracked 'jaymar': #55 Jaymar g=18 10-8 net=38 prior=0.623 flow=0.237
+  tracked 'cyyy': #119 Cyyy g=10 5-5 net=30 prior=0.535 flow=0.088
+
+================ V12 relSoS omega=0.3 + rating ================
+players=210 iters=11 converged=true NaN=0 uniqNet=57 rho=0.2796
+   1  jeo                                  net=100 raw=0.899 g= 26 21-5 prior=0.868 relSoS=1.12
+   2  SHIRWIN                              net= 96 raw=0.867 g= 10 9-1 prior=0.830 relSoS=1.15
+   3  Princess Gean                        net= 96 raw=0.865 g=  4 4-0 prior=0.744 relSoS=1.65
+   4  atthan                               net= 95 raw=0.851 g=  9 8-1 prior=0.836 relSoS=1.06
+   5  GB                                   net= 90 raw=0.806 g= 12 9-3 prior=0.786 relSoS=1.09
+   6  Jomar                                net= 86 raw=0.775 g=  6 5-1 prior=0.725 relSoS=1.25
+   7  Julo                                 net= 85 raw=0.764 g=  3 3-0 prior=0.690 relSoS=1.41
+   8  Jowinski                             net= 83 raw=0.749 g= 50 34-16 prior=0.754 relSoS=0.98
+   9  Juha                                 net= 83 raw=0.745 g=  3 3-0 prior=0.679 relSoS=1.36
+  10  Kay Tan                              net= 83 raw=0.743 g= 15 10-5 prior=0.696 relSoS=1.25
+  11  Julius                               net= 82 raw=0.734 g=  9 7-2 prior=0.746 relSoS=0.95
+  12  Obal                                 net= 81 raw=0.732 g= 36 24-12 prior=0.772 relSoS=0.84
+  13  SHEYA                                net= 80 raw=0.722 g=  3 2-1 prior=0.606 relSoS=1.79
+  14  Benz                                 net= 78 raw=0.701 g=  6 4-2 prior=0.666 relSoS=1.19
+  15  Trin                                 net= 78 raw=0.700 g= 31 19-12 prior=0.701 relSoS=0.99
+  tracked 'jeo': #1 jeo g=26 21-5 net=100 prior=0.868 flow=0.031 relSoS=1.12
+  tracked 'trin': #15 Trin g=31 19-12 net=78 prior=0.701 flow=0.000 relSoS=0.99
+  tracked 'angelo': #65 rands g=62 33-29 net=66 prior=0.601 flow=0.000 relSoS=0.96
+  tracked 'angelo': #98 Angelo g=25 13-12 net=61 prior=0.591 flow=0.000 relSoS=0.79
+  tracked 'obal': #12 Obal g=36 24-12 net=81 prior=0.772 flow=0.000 relSoS=0.84
+  tracked 'shirwin': #2 SHIRWIN g=10 9-1 net=96 prior=0.830 flow=0.037 relSoS=1.15
+  tracked 'atthan': #4 atthan g=9 8-1 net=95 prior=0.836 flow=0.016 relSoS=1.06
+  tracked 'sandro': #20 Sandro g=3 3-0 net=77 prior=0.685 flow=0.009 relSoS=1.05
+  tracked 'juha': #9 Juha g=3 3-0 net=83 prior=0.679 flow=0.066 relSoS=1.36
+  tracked 'marivic': #115 Marivic g=56 26-30 net=57 prior=0.525 flow=0.000 relSoS=0.93
+  tracked 'jowinski': #8 Jowinski g=50 34-16 net=83 prior=0.754 flow=0.000 relSoS=0.98
+  tracked 'cara': #26 Cara g=50 31-19 net=75 prior=0.683 flow=0.000 relSoS=0.96
+  tracked 'ednalyn': #200 Ednalyn g=11 2-9 net=37 prior=0.336 flow=0.000 relSoS=0.97
+  tracked 'mark': #66 Mark Anthony g=10 5-5 net=66 prior=0.576 flow=0.013 relSoS=1.08
+  tracked 'mark': #70 Mark Anthony g=9 5-4 net=65 prior=0.598 flow=0.000 relSoS=0.91
+  tracked 'mark': #74 Mark joseph g=1 1-0 net=65 prior=0.567 flow=0.013 relSoS=1.08
+  tracked 'mark': #205 Mark g=24 6-18 net=35 prior=0.339 flow=0.000 relSoS=0.80
+  tracked 'rands': #65 rands g=62 33-29 net=66 prior=0.601 flow=0.000 relSoS=0.96
+  tracked 'aira': #82 Aira g=22 12-10 net=64 prior=0.609 flow=0.000 relSoS=0.81
+  tracked 'aira': #121 Shai g=12 5-7 net=56 prior=0.508 flow=0.000 relSoS=0.99
+  tracked 'aira': #156 Jaira g=21 8-13 net=50 prior=0.480 flow=0.000 relSoS=0.82
+  tracked 'jaymar': #79 Jaymar g=18 10-8 net=64 prior=0.623 flow=0.000 relSoS=0.77
+  tracked 'cyyy': #122 Cyyy g=10 5-5 net=56 prior=0.535 flow=0.000 relSoS=0.84
+
+================ V12 relSoS omega=0.5 + rating ================
+players=210 iters=14 converged=true NaN=0 uniqNet=55 rho=0.2246
+   1  Princess Gean                        net=100 raw=0.972 g=  4 4-0 prior=0.744 relSoS=1.71
+   2  jeo                                  net= 95 raw=0.926 g= 26 21-5 prior=0.868 relSoS=1.14
+   3  SHIRWIN                              net= 92 raw=0.896 g= 10 9-1 prior=0.830 relSoS=1.17
+   4  atthan                               net= 89 raw=0.861 g=  9 8-1 prior=0.836 relSoS=1.06
+   5  Julo                                 net= 85 raw=0.830 g=  3 3-0 prior=0.690 relSoS=1.45
+   6  SHEYA                                net= 85 raw=0.823 g=  3 2-1 prior=0.606 relSoS=1.84
+   7  GB                                   net= 84 raw=0.817 g= 12 9-3 prior=0.786 relSoS=1.08
+   8  Jomar                                net= 83 raw=0.811 g=  6 5-1 prior=0.725 relSoS=1.25
+   9  Juha                                 net= 83 raw=0.802 g=  3 3-0 prior=0.679 relSoS=1.39
+  10  Kay Tan                              net= 80 raw=0.780 g= 15 10-5 prior=0.696 relSoS=1.26
+  11  Reyna                                net= 80 raw=0.780 g=  5 3-2 prior=0.589 relSoS=1.76
+  12  Immaculada                           net= 78 raw=0.754 g=  7 4-3 prior=0.614 relSoS=1.51
+  13  Tristan                              net= 77 raw=0.752 g=  2 2-0 prior=0.632 relSoS=1.42
+  14  Jowinski                             net= 76 raw=0.741 g= 50 34-16 prior=0.754 relSoS=0.97
+  15  Jerome                               net= 76 raw=0.741 g=  6 4-2 prior=0.638 relSoS=1.35
+  tracked 'jeo': #2 jeo g=26 21-5 net=95 prior=0.868 flow=0.057 relSoS=1.14
+  tracked 'trin': #22 Trin g=31 19-12 net=72 prior=0.701 flow=0.000 relSoS=0.99
+  tracked 'angelo': #70 rands g=62 33-29 net=60 prior=0.601 flow=0.000 relSoS=0.95
+  tracked 'angelo': #115 Angelo g=25 13-12 net=54 prior=0.591 flow=0.000 relSoS=0.78
+  tracked 'obal': #20 Obal g=36 24-12 net=72 prior=0.772 flow=0.000 relSoS=0.83
+  tracked 'shirwin': #3 SHIRWIN g=10 9-1 net=92 prior=0.830 flow=0.066 relSoS=1.17
+  tracked 'atthan': #4 atthan g=9 8-1 net=89 prior=0.836 flow=0.025 relSoS=1.06
+  tracked 'sandro': #21 Sandro g=3 3-0 net=72 prior=0.685 flow=0.016 relSoS=1.05
+  tracked 'juha': #9 Juha g=3 3-0 net=83 prior=0.679 flow=0.123 relSoS=1.39
+  tracked 'marivic': #117 Marivic g=56 26-30 net=52 prior=0.525 flow=0.000 relSoS=0.94
+  tracked 'jowinski': #14 Jowinski g=50 34-16 net=76 prior=0.754 flow=0.000 relSoS=0.97
+  tracked 'cara': #29 Cara g=50 31-19 net=69 prior=0.683 flow=0.000 relSoS=0.95
+  tracked 'ednalyn': #200 Ednalyn g=11 2-9 net=34 prior=0.336 flow=0.000 relSoS=0.96
+  tracked 'mark': #64 Mark Anthony g=10 5-5 net=61 prior=0.576 flow=0.021 relSoS=1.07
+  tracked 'mark': #66 Mark joseph g=1 1-0 net=61 prior=0.567 flow=0.027 relSoS=1.10
+  tracked 'mark': #82 Mark Anthony g=9 5-4 net=59 prior=0.598 flow=0.000 relSoS=0.91
+  tracked 'mark': #205 Mark g=24 6-18 net=31 prior=0.339 flow=0.000 relSoS=0.80
+  tracked 'rands': #70 rands g=62 33-29 net=60 prior=0.601 flow=0.000 relSoS=0.95
+  tracked 'aira': #97 Aira g=22 12-10 net=56 prior=0.609 flow=0.000 relSoS=0.80
+  tracked 'aira': #120 Shai g=12 5-7 net=52 prior=0.508 flow=0.000 relSoS=0.99
+  tracked 'aira': #169 Jaira g=21 8-13 net=45 prior=0.480 flow=0.000 relSoS=0.82
+  tracked 'jaymar': #98 Jaymar g=18 10-8 net=56 prior=0.623 flow=0.000 relSoS=0.76
+  tracked 'cyyy': #132 Cyyy g=10 5-5 net=50 prior=0.535 flow=0.000 relSoS=0.84
+
+================ V12 relSoS omega=0.7 + rating ================
+players=210 iters=18 converged=true NaN=0 uniqNet=56 rho=0.1675
+   1  Princess Gean                        net=100 raw=1.113 g=  4 4-0 prior=0.744 relSoS=1.78
+   2  jeo                                  net= 86 raw=0.959 g= 26 21-5 prior=0.868 relSoS=1.15
+   3  SHEYA                                net= 86 raw=0.954 g=  3 2-1 prior=0.606 relSoS=1.91
+   4  SHIRWIN                              net= 84 raw=0.931 g= 10 9-1 prior=0.830 relSoS=1.18
+   5  Julo                                 net= 83 raw=0.918 g=  3 3-0 prior=0.690 relSoS=1.50
+   6  Reyna                                net= 80 raw=0.894 g=  5 3-2 prior=0.589 relSoS=1.82
+   7  Juha                                 net= 79 raw=0.876 g=  3 3-0 prior=0.679 relSoS=1.44
+   8  atthan                               net= 78 raw=0.869 g=  9 8-1 prior=0.836 relSoS=1.06
+   9  Jomar                                net= 76 raw=0.850 g=  6 5-1 prior=0.725 relSoS=1.25
+  10  Immaculada                           net= 75 raw=0.831 g=  7 4-3 prior=0.614 relSoS=1.54
+  11  GB                                   net= 74 raw=0.825 g= 12 9-3 prior=0.786 relSoS=1.07
+  12  Kay Tan                              net= 74 raw=0.824 g= 15 10-5 prior=0.696 relSoS=1.27
+  13  Tristan                              net= 74 raw=0.823 g=  2 2-0 prior=0.632 relSoS=1.46
+  14  Jerome                               net= 72 raw=0.796 g=  6 4-2 prior=0.638 relSoS=1.37
+  15  Jovito mj                            net= 71 raw=0.793 g=  2 2-0 prior=0.641 relSoS=1.36
+  tracked 'jeo': #2 jeo g=26 21-5 net=86 prior=0.868 flow=0.090 relSoS=1.15
+  tracked 'trin': #28 Trin g=31 19-12 net=62 prior=0.701 flow=0.000 relSoS=0.98
+  tracked 'angelo': #78 rands g=62 33-29 net=52 prior=0.601 flow=0.000 relSoS=0.94
+  tracked 'angelo': #133 Angelo g=25 13-12 net=44 prior=0.591 flow=0.000 relSoS=0.76
+  tracked 'obal': #30 Obal g=36 24-12 net=61 prior=0.772 flow=0.000 relSoS=0.82
+  tracked 'shirwin': #4 SHIRWIN g=10 9-1 net=84 prior=0.830 flow=0.101 relSoS=1.18
+  tracked 'atthan': #8 atthan g=9 8-1 net=78 prior=0.836 flow=0.033 relSoS=1.06
+  tracked 'sandro': #24 Sandro g=3 3-0 net=64 prior=0.685 flow=0.022 relSoS=1.05
+  tracked 'juha': #7 Juha g=3 3-0 net=79 prior=0.679 flow=0.196 relSoS=1.44
+  tracked 'marivic': #117 Marivic g=56 26-30 net=45 prior=0.525 flow=0.000 relSoS=0.95
+  tracked 'jowinski': #19 Jowinski g=50 34-16 net=65 prior=0.754 flow=0.000 relSoS=0.95
+  tracked 'cara': #33 Cara g=50 31-19 net=59 prior=0.683 flow=0.000 relSoS=0.95
+  tracked 'ednalyn': #200 Ednalyn g=11 2-9 net=29 prior=0.336 flow=0.000 relSoS=0.95
+  tracked 'mark': #56 Mark joseph g=1 1-0 net=55 prior=0.567 flow=0.047 relSoS=1.12
+  tracked 'mark': #61 Mark Anthony g=10 5-5 net=54 prior=0.576 flow=0.027 relSoS=1.07
+  tracked 'mark': #93 Mark Anthony g=9 5-4 net=50 prior=0.598 flow=0.000 relSoS=0.90
+  tracked 'mark': #207 Mark g=24 6-18 net=26 prior=0.339 flow=0.000 relSoS=0.80
+  tracked 'rands': #78 rands g=62 33-29 net=52 prior=0.601 flow=0.000 relSoS=0.94
+  tracked 'aira': #111 Aira g=22 12-10 net=47 prior=0.609 flow=0.000 relSoS=0.79
+  tracked 'aira': #118 Shai g=12 5-7 net=45 prior=0.508 flow=0.000 relSoS=0.99
+  tracked 'aira': #177 Jaira g=21 8-13 net=37 prior=0.480 flow=0.000 relSoS=0.81
+  tracked 'jaymar': #115 Jaymar g=18 10-8 net=46 prior=0.623 flow=0.000 relSoS=0.75
+  tracked 'cyyy': #141 Cyyy g=10 5-5 net=42 prior=0.535 flow=0.000 relSoS=0.84
+
+================ V12b relSoS w=0.3 CF=30 + rating ================
+players=210 iters=8 converged=true NaN=0 uniqNet=56 rho=0.3121
+   1  jeo                                  net=100 raw=0.888 g= 26 21-5 prior=0.868 relSoS=1.08
+   2  SHIRWIN                              net= 96 raw=0.850 g= 10 9-1 prior=0.830 relSoS=1.08
+   3  atthan                               net= 95 raw=0.844 g=  9 8-1 prior=0.836 relSoS=1.03
+   4  Princess Gean                        net= 90 raw=0.803 g=  4 4-0 prior=0.744 relSoS=1.29
+   5  GB                                   net= 90 raw=0.798 g= 12 9-3 prior=0.786 relSoS=1.05
+   6  Jowinski                             net= 85 raw=0.751 g= 50 34-16 prior=0.754 relSoS=0.99
+   7  Jomar                                net= 85 raw=0.751 g=  6 5-1 prior=0.725 relSoS=1.12
+   8  Obal                                 net= 84 raw=0.744 g= 36 24-12 prior=0.772 relSoS=0.89
+   9  Julius                               net= 83 raw=0.740 g=  9 7-2 prior=0.746 relSoS=0.97
+  10  Kay Tan                              net= 82 raw=0.724 g= 15 10-5 prior=0.696 relSoS=1.14
+  11  Julo                                 net= 81 raw=0.724 g=  3 3-0 prior=0.690 relSoS=1.17
+  12  Juha                                 net= 80 raw=0.709 g=  3 3-0 prior=0.679 relSoS=1.15
+  13  Yzzalicious                          net= 79 raw=0.706 g= 13 9-4 prior=0.715 relSoS=0.96
+  14  Trin                                 net= 79 raw=0.701 g= 31 19-12 prior=0.701 relSoS=1.00
+  15  Khyre Stephen                        net= 78 raw=0.690 g=  6 4-2 prior=0.688 relSoS=1.01
+  tracked 'jeo': #1 jeo g=26 21-5 net=100 prior=0.868 flow=0.020 relSoS=1.08
+  tracked 'trin': #14 Trin g=31 19-12 net=79 prior=0.701 flow=0.000 relSoS=1.00
+  tracked 'angelo': #56 rands g=62 33-29 net=67 prior=0.601 flow=0.000 relSoS=0.97
+  tracked 'angelo': #88 Angelo g=25 13-12 net=64 prior=0.591 flow=0.000 relSoS=0.86
+  tracked 'obal': #8 Obal g=36 24-12 net=84 prior=0.772 flow=0.000 relSoS=0.89
+  tracked 'shirwin': #2 SHIRWIN g=10 9-1 net=96 prior=0.830 flow=0.020 relSoS=1.08
+  tracked 'atthan': #3 atthan g=9 8-1 net=95 prior=0.836 flow=0.009 relSoS=1.03
+  tracked 'sandro': #16 Sandro g=3 3-0 net=78 prior=0.685 flow=0.004 relSoS=1.02
+  tracked 'juha': #12 Juha g=3 3-0 net=80 prior=0.679 flow=0.030 relSoS=1.15
+  tracked 'marivic': #119 Marivic g=56 26-30 net=58 prior=0.525 flow=0.000 relSoS=0.94
+  tracked 'jowinski': #6 Jowinski g=50 34-16 net=85 prior=0.754 flow=0.000 relSoS=0.99
+  tracked 'cara': #19 Cara g=50 31-19 net=76 prior=0.683 flow=0.000 relSoS=0.97
+  tracked 'ednalyn': #202 Ednalyn g=11 2-9 net=38 prior=0.336 flow=0.000 relSoS=0.98
+  tracked 'mark': #62 Mark Anthony g=9 5-4 net=66 prior=0.598 flow=0.000 relSoS=0.95
+  tracked 'mark': #72 Mark Anthony g=10 5-5 net=66 prior=0.576 flow=0.008 relSoS=1.04
+  tracked 'mark': #83 Mark joseph g=1 1-0 net=64 prior=0.567 flow=0.005 relSoS=1.03
+  tracked 'mark': #204 Mark g=24 6-18 net=37 prior=0.339 flow=0.000 relSoS=0.87
+  tracked 'rands': #56 rands g=62 33-29 net=67 prior=0.601 flow=0.000 relSoS=0.97
+  tracked 'aira': #69 Aira g=22 12-10 net=66 prior=0.609 flow=0.000 relSoS=0.88
+  tracked 'aira': #124 Shai g=12 5-7 net=57 prior=0.508 flow=0.000 relSoS=1.00
+  tracked 'aira': #150 Jaira g=21 8-13 net=52 prior=0.480 flow=0.000 relSoS=0.89
+  tracked 'jaymar': #57 Jaymar g=18 10-8 net=67 prior=0.623 flow=0.000 relSoS=0.86
+  tracked 'cyyy': #112 Cyyy g=10 5-5 net=59 prior=0.535 flow=0.000 relSoS=0.91
+
+================ V12b relSoS w=0.3 CF=50 + rating ================
+players=210 iters=7 converged=true NaN=0 uniqNet=55 rho=0.3235
+   1  jeo                                  net=100 raw=0.883 g= 26 21-5 prior=0.868 relSoS=1.06
+   2  SHIRWIN                              net= 96 raw=0.843 g= 10 9-1 prior=0.830 relSoS=1.05
+   3  atthan                               net= 95 raw=0.841 g=  9 8-1 prior=0.836 relSoS=1.02
+   4  GB                                   net= 90 raw=0.794 g= 12 9-3 prior=0.786 relSoS=1.04
+   5  Princess Gean                        net= 89 raw=0.781 g=  4 4-0 prior=0.744 relSoS=1.18
+   6  Jowinski                             net= 85 raw=0.752 g= 50 34-16 prior=0.754 relSoS=0.99
+   7  Obal                                 net= 85 raw=0.751 g= 36 24-12 prior=0.772 relSoS=0.91
+   8  Julius                               net= 84 raw=0.742 g=  9 7-2 prior=0.746 relSoS=0.98
+   9  Jomar                                net= 84 raw=0.742 g=  6 5-1 prior=0.725 relSoS=1.08
+  10  Kay Tan                              net= 81 raw=0.715 g= 15 10-5 prior=0.696 relSoS=1.10
+  11  Julo                                 net= 81 raw=0.711 g=  3 3-0 prior=0.690 relSoS=1.11
+  12  Yzzalicious                          net= 80 raw=0.709 g= 13 9-4 prior=0.715 relSoS=0.97
+  13  Trin                                 net= 79 raw=0.701 g= 31 19-12 prior=0.701 relSoS=1.00
+  14  Juha                                 net= 79 raw=0.698 g=  3 3-0 prior=0.679 relSoS=1.09
+  15  Khyre Stephen                        net= 78 raw=0.689 g=  6 4-2 prior=0.688 relSoS=1.00
+  tracked 'jeo': #1 jeo g=26 21-5 net=100 prior=0.868 flow=0.015 relSoS=1.06
+  tracked 'trin': #13 Trin g=31 19-12 net=79 prior=0.701 flow=0.000 relSoS=1.00
+  tracked 'angelo': #57 rands g=62 33-29 net=68 prior=0.601 flow=0.000 relSoS=0.98
+  tracked 'angelo': #82 Angelo g=25 13-12 net=65 prior=0.591 flow=0.000 relSoS=0.90
+  tracked 'obal': #7 Obal g=36 24-12 net=85 prior=0.772 flow=0.000 relSoS=0.91
+  tracked 'shirwin': #2 SHIRWIN g=10 9-1 net=96 prior=0.830 flow=0.013 relSoS=1.05
+  tracked 'atthan': #3 atthan g=9 8-1 net=95 prior=0.836 flow=0.006 relSoS=1.02
+  tracked 'sandro': #16 Sandro g=3 3-0 net=78 prior=0.685 flow=0.003 relSoS=1.01
+  tracked 'juha': #14 Juha g=3 3-0 net=79 prior=0.679 flow=0.019 relSoS=1.09
+  tracked 'marivic': #116 Marivic g=56 26-30 net=59 prior=0.525 flow=0.000 relSoS=0.95
+  tracked 'jowinski': #6 Jowinski g=50 34-16 net=85 prior=0.754 flow=0.000 relSoS=0.99
+  tracked 'cara': #17 Cara g=50 31-19 net=77 prior=0.683 flow=0.000 relSoS=0.98
+  tracked 'ednalyn': #203 Ednalyn g=11 2-9 net=38 prior=0.336 flow=0.000 relSoS=0.99
+  tracked 'mark': #61 Mark Anthony g=9 5-4 net=67 prior=0.598 flow=0.000 relSoS=0.97
+  tracked 'mark': #72 Mark Anthony g=10 5-5 net=66 prior=0.576 flow=0.005 relSoS=1.03
+  tracked 'mark': #84 Mark joseph g=1 1-0 net=65 prior=0.567 flow=0.003 relSoS=1.02
+  tracked 'mark': #204 Mark g=24 6-18 net=37 prior=0.339 flow=0.000 relSoS=0.91
+  tracked 'rands': #57 rands g=62 33-29 net=68 prior=0.601 flow=0.000 relSoS=0.98
+  tracked 'aira': #60 Aira g=22 12-10 net=67 prior=0.609 flow=0.000 relSoS=0.91
+  tracked 'aira': #125 Shai g=12 5-7 net=58 prior=0.508 flow=0.000 relSoS=1.00
+  tracked 'aira': #147 Jaira g=21 8-13 net=53 prior=0.480 flow=0.000 relSoS=0.92
+  tracked 'jaymar': #54 Jaymar g=18 10-8 net=68 prior=0.623 flow=0.000 relSoS=0.90
+  tracked 'cyyy': #109 Cyyy g=10 5-5 net=60 prior=0.535 flow=0.000 relSoS=0.94
+
+================ V13 relSoS w=0.3 CF=30 + LATEST-rating prior (career) ================
+players=210 iters=8 converged=true NaN=0 uniqNet=50 rho=0.3159
+   1  SHIRWIN                              net=100 raw=0.994 g= 10 9-1 prior=0.968 relSoS=1.09
+   2  jeo                                  net= 89 raw=0.880 g= 26 21-5 prior=0.857 relSoS=1.09
+   3  atthan                               net= 87 raw=0.866 g=  9 8-1 prior=0.852 relSoS=1.06
+   4  Princess Gean                        net= 78 raw=0.776 g=  4 4-0 prior=0.720 relSoS=1.28
+   5  Sandro                               net= 78 raw=0.775 g=  3 3-0 prior=0.769 relSoS=1.03
+   6  Jowinski                             net= 76 raw=0.753 g= 50 34-16 prior=0.754 relSoS=0.99
+   7  Obal                                 net= 76 raw=0.751 g= 36 24-12 prior=0.773 relSoS=0.91
+   8  GB                                   net= 75 raw=0.749 g= 12 9-3 prior=0.740 relSoS=1.04
+   9  Jerome                               net= 74 raw=0.736 g=  6 4-2 prior=0.704 relSoS=1.16
+  10  Trin                                 net= 74 raw=0.732 g= 31 19-12 prior=0.731 relSoS=1.01
+  11  Benz                                 net= 73 raw=0.723 g=  6 4-2 prior=0.705 relSoS=1.09
+  12  Jomar                                net= 73 raw=0.722 g=  6 5-1 prior=0.696 relSoS=1.13
+  13  Julo                                 net= 71 raw=0.708 g=  3 3-0 prior=0.676 relSoS=1.17
+  14  Yzzalicious                          net= 71 raw=0.707 g= 13 9-4 prior=0.718 relSoS=0.95
+  15  Kay Tan                              net= 71 raw=0.707 g= 15 10-5 prior=0.680 relSoS=1.13
+  tracked 'jeo': #2 jeo g=26 21-5 net=89 prior=0.857 flow=0.023 relSoS=1.09
+  tracked 'trin': #10 Trin g=31 19-12 net=74 prior=0.731 flow=0.002 relSoS=1.01
+  tracked 'angelo': #71 Angelo g=25 13-12 net=59 prior=0.615 flow=0.000 relSoS=0.86
+  tracked 'angelo': #77 rands g=62 33-29 net=58 prior=0.588 flow=0.000 relSoS=0.96
+  tracked 'obal': #7 Obal g=36 24-12 net=76 prior=0.773 flow=0.000 relSoS=0.91
+  tracked 'shirwin': #1 SHIRWIN g=10 9-1 net=100 prior=0.968 flow=0.026 relSoS=1.09
+  tracked 'atthan': #3 atthan g=9 8-1 net=87 prior=0.852 flow=0.014 relSoS=1.06
+  tracked 'sandro': #5 Sandro g=3 3-0 net=78 prior=0.769 flow=0.006 relSoS=1.03
+  tracked 'juha': #23 Juha g=3 3-0 net=67 prior=0.641 flow=0.029 relSoS=1.16
+  tracked 'marivic': #116 Marivic g=56 26-30 net=52 prior=0.524 flow=0.000 relSoS=0.93
+  tracked 'jowinski': #6 Jowinski g=50 34-16 net=76 prior=0.754 flow=0.000 relSoS=0.99
+  tracked 'cara': #16 Cara g=50 31-19 net=70 prior=0.696 flow=0.000 relSoS=0.98
+  tracked 'ednalyn': #200 Ednalyn g=11 2-9 net=34 prior=0.342 flow=0.000 relSoS=0.98
+  tracked 'mark': #55 Mark joseph g=1 1-0 net=61 prior=0.605 flow=0.005 relSoS=1.03
+  tracked 'mark': #94 Mark Anthony g=10 5-5 net=55 prior=0.543 flow=0.008 relSoS=1.05
+  tracked 'mark': #103 Mark Anthony g=9 5-4 net=53 prior=0.539 flow=0.000 relSoS=0.95
+  tracked 'mark': #204 Mark g=24 6-18 net=32 prior=0.330 flow=0.000 relSoS=0.87
+  tracked 'rands': #77 rands g=62 33-29 net=58 prior=0.588 flow=0.000 relSoS=0.96
+  tracked 'aira': #49 Aira g=22 12-10 net=63 prior=0.644 flow=0.000 relSoS=0.90
+  tracked 'aira': #109 Jaira g=21 8-13 net=53 prior=0.542 flow=0.000 relSoS=0.90
+  tracked 'aira': #147 Shai g=12 5-7 net=45 prior=0.453 flow=0.000 relSoS=0.99
+  tracked 'jaymar': #31 Jaymar g=18 10-8 net=66 prior=0.679 flow=0.000 relSoS=0.88
+  tracked 'cyyy': #86 Cyyy g=10 5-5 net=57 prior=0.580 flow=0.000 relSoS=0.91
+
+================ V13b relSoS w=0.3 CF=30 + REPLAY prior (control) ================
+players=210 iters=8 converged=true NaN=0 uniqNet=56 rho=0.3121
+   1  jeo                                  net=100 raw=0.888 g= 26 21-5 prior=0.868 relSoS=1.08
+   2  SHIRWIN                              net= 96 raw=0.850 g= 10 9-1 prior=0.830 relSoS=1.08
+   3  atthan                               net= 95 raw=0.844 g=  9 8-1 prior=0.836 relSoS=1.03
+   4  Princess Gean                        net= 90 raw=0.803 g=  4 4-0 prior=0.744 relSoS=1.29
+   5  GB                                   net= 90 raw=0.798 g= 12 9-3 prior=0.786 relSoS=1.05
+   6  Jowinski                             net= 85 raw=0.751 g= 50 34-16 prior=0.754 relSoS=0.99
+   7  Jomar                                net= 85 raw=0.751 g=  6 5-1 prior=0.725 relSoS=1.12
+   8  Obal                                 net= 84 raw=0.744 g= 36 24-12 prior=0.772 relSoS=0.89
+   9  Julius                               net= 83 raw=0.740 g=  9 7-2 prior=0.746 relSoS=0.97
+  10  Kay Tan                              net= 82 raw=0.724 g= 15 10-5 prior=0.696 relSoS=1.14
+  11  Julo                                 net= 81 raw=0.724 g=  3 3-0 prior=0.690 relSoS=1.17
+  12  Juha                                 net= 80 raw=0.709 g=  3 3-0 prior=0.679 relSoS=1.15
+  13  Yzzalicious                          net= 79 raw=0.706 g= 13 9-4 prior=0.715 relSoS=0.96
+  14  Trin                                 net= 79 raw=0.701 g= 31 19-12 prior=0.701 relSoS=1.00
+  15  Khyre Stephen                        net= 78 raw=0.690 g=  6 4-2 prior=0.688 relSoS=1.01
+  tracked 'jeo': #1 jeo g=26 21-5 net=100 prior=0.868 flow=0.020 relSoS=1.08
+  tracked 'trin': #14 Trin g=31 19-12 net=79 prior=0.701 flow=0.000 relSoS=1.00
+  tracked 'angelo': #56 rands g=62 33-29 net=67 prior=0.601 flow=0.000 relSoS=0.97
+  tracked 'angelo': #88 Angelo g=25 13-12 net=64 prior=0.591 flow=0.000 relSoS=0.86
+  tracked 'obal': #8 Obal g=36 24-12 net=84 prior=0.772 flow=0.000 relSoS=0.89
+  tracked 'shirwin': #2 SHIRWIN g=10 9-1 net=96 prior=0.830 flow=0.020 relSoS=1.08
+  tracked 'atthan': #3 atthan g=9 8-1 net=95 prior=0.836 flow=0.009 relSoS=1.03
+  tracked 'sandro': #16 Sandro g=3 3-0 net=78 prior=0.685 flow=0.004 relSoS=1.02
+  tracked 'juha': #12 Juha g=3 3-0 net=80 prior=0.679 flow=0.030 relSoS=1.15
+  tracked 'marivic': #119 Marivic g=56 26-30 net=58 prior=0.525 flow=0.000 relSoS=0.94
+  tracked 'jowinski': #6 Jowinski g=50 34-16 net=85 prior=0.754 flow=0.000 relSoS=0.99
+  tracked 'cara': #19 Cara g=50 31-19 net=76 prior=0.683 flow=0.000 relSoS=0.97
+  tracked 'ednalyn': #202 Ednalyn g=11 2-9 net=38 prior=0.336 flow=0.000 relSoS=0.98
+  tracked 'mark': #62 Mark Anthony g=9 5-4 net=66 prior=0.598 flow=0.000 relSoS=0.95
+  tracked 'mark': #72 Mark Anthony g=10 5-5 net=66 prior=0.576 flow=0.008 relSoS=1.04
+  tracked 'mark': #83 Mark joseph g=1 1-0 net=64 prior=0.567 flow=0.005 relSoS=1.03
+  tracked 'mark': #204 Mark g=24 6-18 net=37 prior=0.339 flow=0.000 relSoS=0.87
+  tracked 'rands': #56 rands g=62 33-29 net=67 prior=0.601 flow=0.000 relSoS=0.97
+  tracked 'aira': #69 Aira g=22 12-10 net=66 prior=0.609 flow=0.000 relSoS=0.88
+  tracked 'aira': #124 Shai g=12 5-7 net=57 prior=0.508 flow=0.000 relSoS=1.00
+  tracked 'aira': #150 Jaira g=21 8-13 net=52 prior=0.480 flow=0.000 relSoS=0.89
+  tracked 'jaymar': #57 Jaymar g=18 10-8 net=67 prior=0.623 flow=0.000 relSoS=0.86
+  tracked 'cyyy': #112 Cyyy g=10 5-5 net=59 prior=0.535 flow=0.000 relSoS=0.91
+
+================ RATING-BOARD (rankClubPlayers / DUPR-style) ================
+rank  name                                   rating  games  W-L   prov
+   1  jeo                                     1760   25  20-5  
+   2  Obal                                    1733   31  24-7  
+   3  Lenz                                    1640   32  20-12  
+   4  Jowinski                                1637   43  31-12  
+   5  atthan                                  1616    9  8-1  PROV
+   6  Trin                                    1606   30  18-12  
+   7  GB                                      1606   12  9-3  
+   8  James                                   1578   52  32-20  
+   9  Jeunice                                 1576   35  19-16  
+  10  SHIRWIN                                 1574    6  5-1  PROV
+  11  Heinrich Merl                           1573   26  16-10  
+  12  Julius                                  1571    9  7-2  PROV
+  13  Mikyla Yu                               1570   19  11-8  
+  14  Kim                                     1562   26  14-12  
+  15  Anton                                   1560   28  16-12  
+  16  Marc Johnuel                            1552   35  20-15  
+  17  Cara                                    1551   34  20-14  
+  18  Khyre Stephen                           1549    6  4-2  PROV
+  19  Boyet                                   1548   46  27-19  
+  20  Yzzalicious                             1547   12  8-4  
+  rating-board 'jeo': #1 jeo rating=1760 g=25 20-5
+  rating-board 'trin': #6 Trin rating=1606 g=30 18-12
+  rating-board 'angelo': #32 Angelo rating=1511 g=20 11-9
+  rating-board 'obal': #2 Obal rating=1733 g=31 24-7
+  rating-board 'shirwin': #10 SHIRWIN rating=1574 g=6 5-1 PROV
+  rating-board 'atthan': #5 atthan rating=1616 g=9 8-1 PROV
+  rating-board 'sandro': #39 Sandro rating=1505 g=3 3-0 PROV
+  rating-board 'juha': #53 Juha rating=1492 g=3 3-0 PROV
+  rating-board 'marivic': #146 Marivic rating=1431 g=55 25-30
+  rating-board 'jowinski': #4 Jowinski rating=1637 g=43 31-12
+  rating-board 'cara': #17 Cara rating=1551 g=34 20-14
+  rating-board 'ednalyn': #185 Ednalyn rating=1402 g=8 2-6 PROV
+  rating-board 'mark': #36 Mark Anthony rating=1508 g=9 5-4 PROV
+  rating-board 'rands': #55 rands rating=1489 g=59 30-29
+  rating-board 'aira': #30 Aira rating=1518 g=19 10-9
+  rating-board 'jaymar': #22 Jaymar rating=1540 g=16 8-8
+  rating-board 'cyyy': #99 Cyyy rating=1453 g=8 3-5 PROV
+
+================ DIAG prior-only (perf+rating, no network) ================
+   1  jeo                                  prior=0.868 g= 26 21-5
+   2  atthan                               prior=0.836 g=  9 8-1
+   3  SHIRWIN                              prior=0.830 g= 10 9-1
+   4  GB                                   prior=0.786 g= 12 9-3
+   5  Obal                                 prior=0.772 g= 36 24-12
+   6  Jowinski                             prior=0.754 g= 50 34-16
+   7  Julius                               prior=0.746 g=  9 7-2
+   8  Princess Gean                        prior=0.744 g=  4 4-0
+   9  Jomar                                prior=0.725 g=  6 5-1
+  10  Yzzalicious                          prior=0.715 g= 13 9-4
+  11  Trin                                 prior=0.701 g= 31 19-12
+  12  Kay Tan                              prior=0.696 g= 15 10-5
+  13  Julo                                 prior=0.690 g=  3 3-0
+  14  Khyre Stephen                        prior=0.688 g=  6 4-2
+  15  Sandro                               prior=0.685 g=  3 3-0
+  prior-only 'jeo': #1 jeo prior=0.868
+  prior-only 'trin': #11 Trin prior=0.701
+  prior-only 'angelo': #55 rands prior=0.601
+  prior-only 'obal': #5 Obal prior=0.772
+  prior-only 'shirwin': #3 SHIRWIN prior=0.830
+  prior-only 'atthan': #2 atthan prior=0.836
+  prior-only 'sandro': #15 Sandro prior=0.685
+  prior-only 'juha': #17 Juha prior=0.679
+  prior-only 'marivic': #109 Marivic prior=0.525
+  prior-only 'jowinski': #6 Jowinski prior=0.754
+  prior-only 'cara': #16 Cara prior=0.683
+  prior-only 'ednalyn': #204 Ednalyn prior=0.336
+  prior-only 'mark': #58 Mark Anthony prior=0.598
+  prior-only 'rands': #55 rands prior=0.601
+  prior-only 'aira': #52 Aira prior=0.609
+  prior-only 'jaymar': #39 Jaymar prior=0.623
+  prior-only 'cyyy': #104 Cyyy prior=0.535
+
 û stats: cross-side ordered pairs=3997 bothRated=3997 mean|û|=0.122
 (κ=0.4 → mean edge multiplier deviation ≈ 0.049)
 DONE

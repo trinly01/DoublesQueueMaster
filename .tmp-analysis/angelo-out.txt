@@ -1,0 +1,127 @@
+angelo junction-filter rows: 183
+team-JSON filter failed: auth failed
+club window rows: 1000
+
+=== ANGELO MATCH SET ===
+total rows (all-time, all clubs): 183
+of which inside current 30d club window: 46
+clubs seen: 2bf82b31-5217-4237-820b-b06bc3439754=18  22e52ef0-bf60-4bd1-bea8-ef66193edf35=165
+date range: 2026-08-19T10:15:37.288Z -> 2026-11-17T15:57:54.115Z
+distinct participant tuples (identity check): 89
+  9x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1428,"level":2}
+  8x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","duprId":"Q69645","rating":1571,"level":2}
+  8x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1568,"level":2}
+  8x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1578,"level":2}
+  8x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1409,"level":2}
+  7x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","duprId":"Q69645","rating":1549,"level":2}
+  6x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","duprId":"Q69645","rating":1590,"level":2}
+  6x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1535,"level":2}
+  6x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1556,"level":2}
+  5x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1608,"level":2}
+  5x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1582,"level":2}
+  5x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1513,"level":2}
+  4x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1597,"level":2}
+  4x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1450,"level":2}
+  3x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1593,"level":2}
+  3x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1569,"level":2}
+  3x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1470,"level":2}
+  3x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1445,"level":2}
+  2x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1579,"level":2}
+  2x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1560,"level":2}
+  2x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1606,"level":2}
+  2x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1590,"level":2}
+  2x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1625,"level":2}
+  2x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1491,"level":2}
+  2x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1472,"level":2}
+  2x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1427,"level":2}
+  2x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1449,"level":2}
+  2x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1455,"level":2}
+  2x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1463,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","duprId":"Q69645","rating":1577,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1598,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1583,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1610,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1591,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1585,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1623,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1602,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1619,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1577,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1594,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1600,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1628,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1613,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1601,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1629,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1588,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1571,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1551,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1520,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1541,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1562,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1549,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1575,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1573,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1559,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1580,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1607,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1636,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1617,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1589,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1555,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1543,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1523,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1502,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1482,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1462,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1481,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1501,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1522,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1504,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1483,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1505,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1525,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1508,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1490,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1511,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1533,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1492,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1443,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1465,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1432,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1433,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1413,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1430,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1429,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1426,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1407,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1406,"level":2}
+  1x {"userId":"049d3771-5352-42c6-838e-d41e1a830c3c","username":"baribalangelog110408#7cx","firstName":"Angelo","lastName":"Baribal","rating":1425,"level":2}
+
+=== ANGELO RESULTS (all fetched matches) ===
+games=183 W=118 L=65 T=0  winrate(decisive)=64.5%
+modes: variety_first=65  strict_balance=65  balanced_variety=20  (none)=17  balance_first=12  fair_balance=4
+margin |diff|: mean=4.93 median=4 min=1 max=11
+blowout losses (lost by >=5): 28
+top teammates: maratajaymar187#rqa(24)  antonrafaelcatalan#71o(7)  lauricemichelle#aq1(7)  margatch1771#74t(5)  dexterclauna#op3(5)  Timdev0421#tru(5)  adamjedrix#6js(5)  kinjilungay#n8s(5)
+top opponents : angelobaribal110408#xn0(21)  jamesmanganaan1808#1xb(15)  eslabracassieralph#d3c(15)  marienelgatchalian03#o58(12)  hjohnuel21#d2u(12)  joelivan.bautista86#tyh(10)  Timdev0421#tru(9)  rose_n_raf#sg8(9)
+no score anomalies
+
+=== RATING SNAPSHOTS + W/L inside 30d club window ===
+angelo   : appearances=46 keys=049d3771-5352-42c6-838e-d41e1a830c3c W-L=31-15 rating n=46 min=1549 med=1582 mean=1584 max=1623 latest=1623
+jeo      : appearances=47 keys=e80aacf4-e09a-4e64-996b-f1019c6a4e04 W-L=35-12 rating n=47 min=1556 med=1586 mean=1592 max=1699 latest=1699
+obal     : appearances=60 keys=3bda75ac-beff-46e5-b112-28dc89af3bae W-L=44-16 rating n=60 min=1665 med=1762 mean=1761 max=1813 latest=1813
+trin     : appearances=55 keys=0ad68234-236f-46d3-bc42-8b5cf35e8e73 W-L=35-20 rating n=55 min=1665 med=1748 mean=1758 max=1808 latest=1808
+rands    : appearances=105 keys=c2148af8-9b1e-4e00-a28d-dfc9dc5ca77c W-L=53-52 rating n=105 min=1417 med=1475 mean=1477 max=1570 latest=1570
+marivic  : appearances=97 keys=09103229-9d57-454b-9861-9ca6d0dc3de4 W-L=44-53 rating n=97 min=1342 med=1410 mean=1403 max=1460 latest=1460
+jowinski : appearances=86 keys=3c0bc517-f6f6-43c1-adc4-d9ebc84911fe W-L=53-33 rating n=86 min=1380 med=1538 mean=1522 max=1620 latest=1620
+cara     : appearances=78 keys=62a044eb-9bd1-43b2-86d3-b737ec6fd032 W-L=49-29 rating n=78 min=1499 med=1552 mean=1557 max=1616 latest=1616
+
+=== all usernames containing 'angelo' in window ===
+  105x angelobaribal110408#xn0|uid=c2148af8-9b1e-4e00-a28d-dfc9dc5ca77c|name=rands baribal
+  46x baribalangelog110408#7cx|uid=049d3771-5352-42c6-838e-d41e1a830c3c|name=Angelo Baribal
+
+=== DUPR field presence (first 300 window matches) ===
+participant slots=1198 with duprId=147 (12.3%)
+dupr-ish fields seen: duprId, junc.dupr_id, junc.dupr_entitlements, junc.dupr_singles_rating, junc.dupr_doubles_rating
+junction dupr fields non-null count=1108

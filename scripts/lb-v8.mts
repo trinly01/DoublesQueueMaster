@@ -157,7 +157,15 @@ const sideKeys = (team: ReplayPlayerInput[]) => {
 
 function runVariant(
   matches: RankedMatchInput[],
-  opts: { surpriseEdges: boolean; priorQ: Map<string, number> | null },
+  opts: {
+    surpriseEdges: boolean;
+    priorQ: Map<string, number> | null;
+    lambdaCap?: number;      // default 0.8 — V9a tests 0.6
+    flowGamesNorm?: boolean; // V9b: inflow × meanGames/games (per-game SoS)
+    flowPerGameK?: number;   // V10: inflow/games × K — per-game endorsement, volume-free
+    relSoSOmega?: number;    // V12: score = prior · relSoS^ω (designer formula)
+    relSoSCF?: number;       // V12b: relSoS shrinkage constant (default 12)
+  },
 ) {
   const accs = new Map<string, Acc>();
   const accFor = (key: string, p: ReplayPlayerInput): Acc => {
@@ -277,6 +285,8 @@ function runVariant(
   const r = new Map<string, number>();
   for (const p of players) r.set(p.key, prior.get(p.key) ?? 0);
 
+  const meanG = players.reduce((sm, pp) => sm + pp.games, 0) / players.length;
+  const lastRelSoS = new Map<string, number>();
   let iters = 0, converged = false;
   for (let iter = 0; iter < MAX_ITERS; iter++) {
     iters = iter + 1;
@@ -288,11 +298,33 @@ function runVariant(
       for (const [to, w] of p.credit) inflow.set(to, (inflow.get(to) || 0) + w * f);
     }
     let maxDelta = 0;
-    for (const p of players) {
-      const lam = (0.8 * p.games) / (p.games + SHRINKAGE_C);
-      const next = (1 - lam) * (prior.get(p.key) ?? 0) + lam * (inflow.get(p.key) || 0);
-      maxDelta = Math.max(maxDelta, Math.abs(next - (r.get(p.key) ?? 0)));
-      r.set(p.key, next);
+    if (opts.relSoSOmega !== undefined) {
+      // V12 designer formula: score = prior · relSoS^ω
+      // relSoS = shrunk per-game credit rate / club mean per-game credit rate
+      let sumInfl = 0, sumG = 0;
+      for (const p of players) { sumInfl += inflow.get(p.key) || 0; sumG += p.games; }
+      const phiBar = sumG > 0 ? sumInfl / sumG : 0;
+      const CF = opts.relSoSCF ?? 12;
+      for (const p of players) {
+        const infl = inflow.get(p.key) || 0;
+        const phiHat = (infl + CF * phiBar) / (p.games + CF);
+        const relSoS = phiBar > 1e-12 ? phiHat / phiBar : 1;
+        lastRelSoS.set(p.key, relSoS);
+        const next = (prior.get(p.key) ?? 0) * Math.pow(Math.max(0.05, relSoS), opts.relSoSOmega);
+        maxDelta = Math.max(maxDelta, Math.abs(next - (r.get(p.key) ?? 0)));
+        r.set(p.key, next);
+      }
+    } else {
+      const lamCap = opts.lambdaCap ?? 0.8;
+      for (const p of players) {
+        const lam = (lamCap * p.games) / (p.games + SHRINKAGE_C);
+        let infl = inflow.get(p.key) || 0;
+        if (opts.flowPerGameK) infl = (infl / Math.max(1, p.games)) * opts.flowPerGameK;
+        else if (opts.flowGamesNorm) infl = infl * (meanG / Math.max(1, p.games));
+        const next = (1 - lam) * (prior.get(p.key) ?? 0) + lam * infl;
+        maxDelta = Math.max(maxDelta, Math.abs(next - (r.get(p.key) ?? 0)));
+        r.set(p.key, next);
+      }
     }
     if (maxDelta < EPSILON) { converged = true; break; }
   }
@@ -302,7 +334,7 @@ function runVariant(
   const result = players.map((p) => {
     const raw = r.get(p.key) ?? 0;
     const pt = pTilde.get(p.key) ?? 0;
-    const lam = (0.8 * p.games) / (p.games + SHRINKAGE_C);
+    const lam = ((opts.lambdaCap ?? 0.8) * p.games) / (p.games + SHRINKAGE_C);
     return {
       key: p.key,
       display: p.name || p.firstName || p.username || p.key,
@@ -312,7 +344,11 @@ function runVariant(
       networkScore: rMax > 0 ? Math.round((100 * raw) / rMax) : 0,
       rawScore: raw,
       ownPerformance: pt,
-      networkFlow: Math.max(0, raw - (1 - lam) * pt),
+      priorScore: prior.get(p.key) ?? 0,
+      relSoS: lastRelSoS.get(p.key),
+      networkFlow: opts.relSoSOmega !== undefined
+        ? Math.max(0, raw - (prior.get(p.key) ?? 0))
+        : Math.max(0, raw - (1 - lam) * pt),
     };
   });
   result.sort((a, b) => {
@@ -326,15 +362,23 @@ function runVariant(
 }
 
 // ---------- rating_i per source → q_i map ----------
-function buildQ(source: 'latest' | 'mean' | 'replay', playerKeys: Set<string>, priorMeanForQ: number) {
+function buildQ(
+  source: 'latest' | 'mean' | 'replay',
+  playerKeys: Set<string>,
+  priorMeanForQ: number,
+  replayOverride?: Record<string, { rating: number }>,
+  aggOverride?: Map<string, { vals: number[]; latest?: number }>,
+) {
   // rating_i per key
   const ratingOf = new Map<string, number>();
+  const replaySrc = replayOverride ?? replayed;
+  const aggSrc = aggOverride ?? ratingAgg;
   for (const key of playerKeys) {
     if (source === 'replay') {
-      const rv = replayed[key]?.rating;
+      const rv = replaySrc[key]?.rating;
       if (typeof rv === 'number' && Number.isFinite(rv)) ratingOf.set(key, rv);
     } else {
-      const agg = ratingAgg.get(key);
+      const agg = aggSrc.get(key);
       if (agg && agg.vals.length) {
         if (source === 'latest') ratingOf.set(key, agg.latest ?? agg.vals[agg.vals.length - 1]);
         else ratingOf.set(key, agg.vals.reduce((a, b) => a + b, 0) / agg.vals.length);
@@ -468,6 +512,124 @@ report('V8b (teleport=mean + surprise edges)', runVariant(inputs, { surpriseEdge
 if (replayOk) report('V8c (teleport=replayed + surprise edges)', runVariant(inputs, { surpriseEdges: true, priorQ: qSources.replay.q }), v6rank);
 report('V8d (surprise edges only, p̃ teleport)', runVariant(inputs, { surpriseEdges: true, priorQ: null }), v6rank);
 
+// ============================================================
+// COMPETITIVE-ONLY section — matches the user's screenshot dataset
+// (toggle OFF: excludes fair_balance + variety_first modes)
+// ============================================================
+const NON_COMP = new Set(['fair_balance', 'variety_first']);
+const compInputs = inputs.filter((m) => !NON_COMP.has(m.matchmakingMode || ''));
+console.log(`
+##### COMPETITIVE-ONLY: ${compInputs.length} matches #####`);
+
+const compV6 = runVariant(compInputs, { surpriseEdges: false, priorQ: null });
+const compKeys = new Set(compV6.players.map((p) => p.key));
+console.log(`compV6: players=${compV6.players.length} priorMean=${compV6.priorMean.toFixed(4)}`);
+
+let compReplayed: Record<string, { rating: number }> = {};
+try {
+  compReplayed = replayMatchesForRanking(compInputs, false) as Record<string, { rating: number }>;
+  console.log(`comp replay: ${Object.keys(compReplayed).length} players`);
+} catch (e) {
+  console.log(`comp replay FAILED: ${(e as Error).message}`);
+}
+const compQ = buildQ('replay', compKeys, compV6.priorMean, compReplayed);
+const compQLatest = buildQ('latest', compKeys, compV6.priorMean); // career-memory prior (TASK: V8a on competitive)
+
+const COMP_TRACKED = ['jeo', 'trin', 'angelo', 'obal', 'shirwin', 'atthan', 'sandro', 'juha', 'marivic', 'jowinski', 'cara', 'ednalyn', 'mark', 'rands', 'aira', 'jaymar', 'cyyy'];
+function compReport(name: string, res: ReturnType<typeof runVariant>) {
+  const players = res.players;
+  console.log(`
+================ ${name} ================`);
+  console.log(`players=${players.length} iters=${res.iters} converged=${res.converged} NaN=${res.nanCount} uniqNet=${res.uniqScores} rho=${spearman(players).toFixed(4)}`);
+  players.slice(0, 15).forEach((p, i) => {
+    const wl = `${p.wins}-${p.losses}${p.ties ? `-${p.ties}t` : ''}`;
+    console.log(` ${String(i + 1).padStart(3)}  ${p.display.padEnd(36)} net=${String(p.networkScore).padStart(3)} raw=${p.rawScore.toFixed(3)} g=${String(p.matchesPlayed).padStart(3)} ${wl} prior=${p.priorScore.toFixed(3)}${p.relSoS !== undefined ? ` relSoS=${p.relSoS.toFixed(2)}` : ''}`);
+  });
+  for (const t of COMP_TRACKED) {
+    const hits = players.filter((p) =>
+      (`${p.display} ${p.username} ${p.key}`.toLowerCase()).includes(t));
+    for (const p of hits) {
+      const idx = players.findIndex((q) => q.key === p.key) + 1;
+      console.log(`  tracked '${t}': #${idx} ${p.display} g=${p.matchesPlayed} ${p.wins}-${p.losses} net=${p.networkScore} prior=${p.priorScore.toFixed(3)} flow=${p.networkFlow.toFixed(3)}${p.relSoS !== undefined ? ` relSoS=${p.relSoS.toFixed(2)}` : ''}`);
+    }
+  }
+}
+
+const prodV8c = runVariant(compInputs, { surpriseEdges: true, priorQ: compQ.q });
+compReport('PROD-V8c competitive (current live algo)', prodV8c);
+compReport('V8a-competitive (latest-rating prior + surprise edges)', runVariant(compInputs, { surpriseEdges: true, priorQ: compQLatest.q }));
+compReport('V9a lambda-cap=0.6 + rating', runVariant(compInputs, { surpriseEdges: true, priorQ: compQ.q, lambdaCap: 0.6 }));
+compReport('V9b flow/games (meanG norm) + rating', runVariant(compInputs, { surpriseEdges: true, priorQ: compQ.q, flowGamesNorm: true }));
+compReport('V9d lambda0.6 + flow/games + rating', runVariant(compInputs, { surpriseEdges: true, priorQ: compQ.q, lambdaCap: 0.6, flowGamesNorm: true }));
+// V10: per-game endorsement — inflow/games × K removes volume, K rescales to prior units.
+// inflow/games ≈ 0.04 typical → K≈12-15 puts flow term on prior scale (~0.5).
+for (const K of [8, 12, 16, 20]) {
+  compReport(`V10 flowPerGame K=${K} + rating`, runVariant(compInputs, { surpriseEdges: true, priorQ: compQ.q, flowPerGameK: K }));
+}
+// V11: lambda-cap sweep — lower cap = prior (perf+rating) dominates more,
+// total flow kept (volume regularizes small samples via lambda_i->0).
+for (const cap of [0.25, 0.3, 0.35, 0.4, 0.5]) {
+  compReport(`V11 lambdaCap=${cap} + rating`, runVariant(compInputs, { surpriseEdges: true, priorQ: compQ.q, lambdaCap: cap }));
+}
+// V12: designer formula score = prior · relSoS^ω — network as bounded SoS multiplier
+for (const w of [0.3, 0.5, 0.7]) {
+  compReport(`V12 relSoS omega=${w} + rating`, runVariant(compInputs, { surpriseEdges: true, priorQ: compQ.q, relSoSOmega: w }));
+}
+// V12b: relSoS with stronger small-sample damping (CF=30,50) at omega=0.3
+for (const cf of [30, 50]) {
+  compReport(`V12b relSoS w=0.3 CF=${cf} + rating`, runVariant(compInputs, { surpriseEdges: true, priorQ: compQ.q, relSoSOmega: 0.3, relSoSCF: cf }));
+}
+// V13: relSoS + CAREER-memory prior (latest stored rating) — fixes Angelo/Jaymar tail
+compReport('V13 relSoS w=0.3 CF=30 + LATEST-rating prior (career)', runVariant(compInputs, { surpriseEdges: true, priorQ: compQLatest.q, relSoSOmega: 0.3, relSoSCF: 30 }));
+compReport('V13b relSoS w=0.3 CF=30 + REPLAY prior (control)', runVariant(compInputs, { surpriseEdges: true, priorQ: compQ.q, relSoSOmega: 0.3, relSoSCF: 30 }));
+
+// ============================================================
+// RATING-BOARD check — what rankClubPlayers (Global/My Matches tabs)
+// produces on the SAME competitive dataset. This is the DUPR-style
+// opponent-adjusted rating the user wants the Club tab to match.
+// ============================================================
+{
+  const rated = Object.values(compReplayed as Record<string, {
+    rating: number; ratedMatchesPlayed: number; matchesPlayed: number;
+    wins: number; losses: number; username: string; name: string; firstName: string;
+    provisional: boolean;
+  }>);
+  const sorted = [...rated].sort((a, b) =>
+    b.rating - a.rating || b.ratedMatchesPlayed - a.ratedMatchesPlayed ||
+    (b.matchesPlayed > 0 ? b.wins / b.matchesPlayed : 0) - (a.matchesPlayed > 0 ? a.wins / a.matchesPlayed : 0) ||
+    a.username.localeCompare(b.username));
+  console.log(`
+================ RATING-BOARD (rankClubPlayers / DUPR-style) ================`);
+  console.log('rank  name                                   rating  games  W-L   prov');
+  sorted.slice(0, 20).forEach((p, i) => {
+    console.log(` ${String(i + 1).padStart(3)}  ${(p.name || p.firstName || p.username).padEnd(38)} ${String(Math.round(p.rating)).padStart(5)}  ${String(p.matchesPlayed).padStart(3)}  ${p.wins}-${p.losses}  ${p.provisional ? 'PROV' : ''}`);
+  });
+  for (const t of COMP_TRACKED) {
+    const p = sorted.find((q) =>
+      (`${q.name} ${q.username}`.toLowerCase()).includes(t));
+    if (p) {
+      const idx = sorted.indexOf(p) + 1;
+      console.log(`  rating-board '${t}': #${idx} ${p.name || p.username} rating=${Math.round(p.rating)} g=${p.matchesPlayed} ${p.wins}-${p.losses}${p.provisional ? ' PROV' : ''}`);
+    }
+  }
+}
+
+// DIAG: pure prior (perf+rating, no network) ordering
+{
+  const byPrior = [...prodV8c.players].sort((a, b) => b.priorScore - a.priorScore || b.matchesPlayed - a.matchesPlayed);
+  console.log('\n================ DIAG prior-only (perf+rating, no network) ================');
+  byPrior.slice(0, 15).forEach((p, i) => {
+    console.log(` ${String(i + 1).padStart(3)}  ${p.display.padEnd(36)} prior=${p.priorScore.toFixed(3)} g=${String(p.matchesPlayed).padStart(3)} ${p.wins}-${p.losses}`);
+  });
+  for (const t of COMP_TRACKED) {
+    const p = byPrior.find((q) => (`${q.display} ${q.username} ${q.key}`.toLowerCase()).includes(t));
+    if (p) {
+      const idx = byPrior.indexOf(p) + 1;
+      console.log(`  prior-only '${t}': #${idx} ${p.display} prior=${p.priorScore.toFixed(3)}`);
+    }
+  }
+}
+
 // û distribution sanity (how often factor ≠ 1)
 let pairCount = 0, ratedPairs = 0, sumAbsU = 0;
 {
@@ -484,4 +646,4 @@ let pairCount = 0, ratedPairs = 0, sumAbsU = 0;
 }
 console.log(`\nû stats: cross-side ordered pairs=${pairCount} bothRated=${ratedPairs} mean|û|=${ratedPairs ? (sumAbsU / ratedPairs).toFixed(3) : '—'}`);
 console.log('(κ=0.4 → mean edge multiplier deviation ≈ ' + (ratedPairs ? ((sumAbsU / ratedPairs) * KAPPA).toFixed(3) : '—') + ')');
-console.log('DONE');
+console.log('DONE');
