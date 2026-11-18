@@ -4,24 +4,25 @@
 // duo aggregation runs off the main thread.
 //
 // Job kinds:
-//   'club'    — club-ranking replay (Record<userKey, RankedPlayer>); also
-//               used by the Global leaderboard tab, whose post-filters
-//               (registered users, last club, top 30) stay in the page.
-//   'duo'     — same replay + duo aggregation (DuoEntry[]).
-//   'matches' — legacy single-pass replay for the "My Matches" tab
-//               (Record<username, ReplayPlayer>); always competitive-only.
+//   'club'         — club-ranking replay (Record<userKey, RankedPlayer>); also
+//                    used by the Club & Global leaderboard tabs, whose
+//                    post-filters (registered users, last club, top 30)
+//                    stay in the page.
+//   'duo'          — same replay + duo aggregation (DuoEntry[]).
+//   'matches'      — legacy single-pass replay for the "My Matches" tab
+//                    (Record<username, ReplayPlayer>); always competitive-only.
+//   'duo-network'  — duoScore + member network-centrality bonus (DuoEntry[]).
 
 import {
   computeClubRanked,
   computeDuoEntries,
   computeDuoNetworkEntries,
   computeMatchesReplay,
-  computeNetworkRanked,
 } from 'src/utils/leaderboardCompute';
 import type { DirectusCompletedMatch } from 'src/services/playerProfile';
 
 export type LeaderboardJob = {
-  kind: 'club' | 'duo' | 'matches' | 'network' | 'duo-network';
+  kind: 'club' | 'duo' | 'matches' | 'duo-network';
   matches: DirectusCompletedMatch[];
   includeNonCompetitive: boolean;
 };
@@ -35,8 +36,6 @@ self.onmessage = (e: MessageEvent<LeaderboardJob>) => {
         ? computeDuoNetworkEntries(job.matches, job.includeNonCompetitive)
         : job.kind === 'matches'
           ? computeMatchesReplay(job.matches)
-          : job.kind === 'network'
-            ? computeNetworkRanked(job.matches, job.includeNonCompetitive)
-            : computeClubRanked(job.matches, job.includeNonCompetitive);
+          : computeClubRanked(job.matches, job.includeNonCompetitive);
   (self as unknown as Worker).postMessage(result);
 };

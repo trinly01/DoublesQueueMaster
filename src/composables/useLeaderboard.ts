@@ -3,7 +3,8 @@ import { LocalStorage } from 'quasar';
 import { readItems } from '@likha-erp/likha-sdk';
 import { likhaClient } from 'src/services/likhaClient';
 import { matchesFingerprint } from 'src/utils/leaderboardCompute';
-import { runNetworkRanking } from 'src/utils/runLeaderboard';
+import { runClubRanking } from 'src/utils/runLeaderboard';
+import { rankClubPlayers } from 'src/utils/ratingReplay';
 import { resolveAvatarUrl } from 'src/utils/playerHelpers';
 import type { DirectusCompletedMatch } from 'src/services/playerProfile';
 import type { ClubMember } from 'src/composables/useClubMembers';
@@ -41,7 +42,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
   const includeNonCompetitive = ref(false);
 
   const getClubLeaderboardCacheKey = () =>
-    `club_leaderboard_v6_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
+    `club_leaderboard_v7_${currentClubUUID.value}${includeNonCompetitive.value ? '_all' : ''}`;
 
   const loadCachedClubLeaderboard = (): string | null => {
     const raw = LocalStorage.getItem(getClubLeaderboardCacheKey());
@@ -100,14 +101,15 @@ export function useLeaderboard(context: UseLeaderboardContext) {
         return;
       }
 
-      // Network ranking off the main thread (Web Worker with inline
-      // fallback) — personalized PageRank over the match graph: teammates
-      // + opponents + their performances, NOT rating/W-L. Returns a
-      // pre-sorted array (centrality desc → matches desc → name asc).
-      const networked = await runNetworkRanking(
+      // DUPR-style rating ranking off the main thread (Web Worker with
+      // inline fallback) — the same opponent-adjusted, margin-aware,
+      // teammate-aware rating the Global/My Matches tabs display. Returns
+      // a pre-sorted array (rating desc → rated games → win rate → name).
+      const replayed = await runClubRanking(
         matches,
         includeNonCompetitive.value,
       );
+      const ranked = rankClubPlayers(replayed);
 
       // Build registered-user info map from the players junction.
       const userMap = new Map<
@@ -132,8 +134,8 @@ export function useLeaderboard(context: UseLeaderboardContext) {
 
       const memberMap = new Map(clubMembers.value.map((m) => [m.username, m]));
 
-      // Map the pre-sorted network ranking to display entries.
-      const list = networked
+      // Map the pre-sorted rating ranking to display entries.
+      const list = ranked
         .filter((p) => userMap.has(p.username))
         .map((p) => {
           const user = userMap.get(p.username);
@@ -152,7 +154,7 @@ export function useLeaderboard(context: UseLeaderboardContext) {
             wins: p.wins,
             losses: p.losses,
             games: p.matchesPlayed,
-            score: p.networkScore,
+            score: p.rating,
             // Decisive-only win rate — ties are neither win nor loss.
             winRate: decisive > 0 ? (p.wins / decisive) * 100 : 0,
             reliability: p.reliability,

@@ -19,7 +19,6 @@ import {
 } from 'src/utils/duoStats';
 import {
   computeNetworkScores,
-  type NetworkRankedPlayer,
 } from 'src/utils/networkRanking';
 
 // Modes excluded unless the user toggles "Include non-competitive".
@@ -132,29 +131,6 @@ export function computeDuoNetworkEntries(
   });
   boosted.sort((a, b) => b.duoScore - a.duoScore);
   return boosted;
-}
-
-/**
- * Club-tab network ranking — personalized PageRank over the match graph.
- * Deliberately separate from computeClubRanked: the 'club' worker job also
- * feeds the Global tab, which stays rating-based. Ties, fixed-duo matches,
- * and non-competitive matches (per the toggle) all build graph edges —
- * they're real connections even when rating policy excludes them.
- */
-export function computeNetworkRanked(
-  matches: DirectusCompletedMatch[],
-  includeNonCompetitive: boolean,
-): NetworkRankedPlayer[] {
-  const filtered = filterCompetitive(matches, includeNonCompetitive);
-  const inputs = toRankedInputs(filtered);
-  // Replayed rating feeds the network prior — same shrunk Elo the club
-  // rating board displays, so the two leaderboards tell one story.
-  const replayed = replayMatchesForRanking(inputs, includeNonCompetitive);
-  const ratingMap = new Map<string, number>();
-  for (const [key, player] of Object.entries(replayed)) {
-    ratingMap.set(key, player.rating);
-  }
-  return computeNetworkScores(inputs, ratingMap);
 }
 
 export function computeDuoEntries(

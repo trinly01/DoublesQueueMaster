@@ -140,63 +140,59 @@ vi.mock('src/utils/ratingReplay', () => ({
 }));
 
 // Mock the worker boundary — the composable's contract is "call
-// runNetworkRanking, map the sorted result". The algorithm itself is
-// covered by networkRanking.spec.ts.
+// runClubRanking, then rankClubPlayers, map the sorted result". The
+// algorithm itself is covered by ratingReplay.spec.ts.
 vi.mock('src/utils/runLeaderboard', () => ({
-  runNetworkRanking: vi.fn(async (matches: Array<{
+  runClubRanking: vi.fn(async (matches: Array<{
     team_a?: Array<{ username?: string; firstName?: string; lastName?: string; rating?: number; avatar?: string }>;
     team_b?: Array<{ username?: string; firstName?: string; lastName?: string; rating?: number; avatar?: string }>;
     team_a_score: number;
     team_b_score: number;
   }>) => {
     const players: Record<string, {
-      key: string; username: string; name: string; firstName: string;
-      lastName: string; avatar: string; rating: number;
-      matchesPlayed: number; wins: number; losses: number; ties: number;
-      networkScore: number; rawScore: number; ownPerformance: number;
-      networkFlow: number; reliability: number; provisional: boolean;
+      username: string; firstName: string; lastName: string;
+      rating: number; initialRating: number; matchesPlayed: number;
+      ratedMatchesPlayed: number; wins: number; losses: number;
+      avatar: string; reliability: number; provisional: boolean;
       gamesToReliable: number;
     }> = {};
-    const acc = (p: { username?: string; firstName?: string; lastName?: string; rating?: number; avatar?: string }, won: boolean) => {
+    const acc = (
+      p: { username?: string; firstName?: string; lastName?: string; rating?: number; avatar?: string },
+      won: boolean,
+      tied: boolean,
+    ) => {
       const key = p.username || `guest:${p.firstName}|${p.lastName}`;
       if (!players[key]) {
         players[key] = {
-          key, username: p.username || key, name: p.firstName || p.username || key,
-          firstName: p.firstName || '', lastName: p.lastName || '',
-          avatar: p.avatar || '', rating: p.rating || 1450,
-          matchesPlayed: 0, wins: 0, losses: 0, ties: 0,
-          networkScore: 0, rawScore: 0, ownPerformance: 0, networkFlow: 0,
-          reliability: 0, provisional: true, gamesToReliable: 12,
+          username: p.username || key,
+          firstName: p.firstName || '',
+          lastName: p.lastName || '',
+          rating: p.rating || 1450,
+          initialRating: 1450,
+          matchesPlayed: 0,
+          ratedMatchesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          avatar: p.avatar || '',
+          reliability: 0,
+          provisional: true,
+          gamesToReliable: 12,
         };
       }
       const pl = players[key];
       pl.matchesPlayed++;
-      if (won) pl.wins++; else pl.losses++;
+      if (!tied) {
+        pl.ratedMatchesPlayed++;
+        if (won) pl.wins++; else pl.losses++;
+      }
     };
     for (const m of matches) {
       const aWon = m.team_a_score > m.team_b_score;
-      const tie = m.team_a_score === m.team_b_score;
-      for (const p of m.team_a || []) {
-        acc(p, tie ? false : aWon);
-        if (tie) players[p.username || `guest:${p.firstName}|${p.lastName}`].ties++;
-      }
-      for (const p of m.team_b || []) {
-        acc(p, tie ? false : !aWon);
-        if (tie) players[p.username || `guest:${p.firstName}|${p.lastName}`].ties++;
-      }
+      const tied = m.team_a_score === m.team_b_score;
+      for (const p of m.team_a || []) acc(p, aWon, tied);
+      for (const p of m.team_b || []) acc(p, !aWon, tied);
     }
-    const list = Object.values(players).map((p) => ({
-      ...p,
-      networkScore: p.matchesPlayed * 10 + p.wins,
-      rawScore: p.matchesPlayed * 10 + p.wins,
-      ownPerformance: 1,
-      networkFlow: 0,
-      reliability: p.matchesPlayed / (p.matchesPlayed + 12),
-      provisional: p.matchesPlayed < 12,
-      gamesToReliable: Math.max(0, 12 - p.matchesPlayed),
-    }));
-    list.sort((a, b) => b.rawScore - a.rawScore || b.matchesPlayed - a.matchesPlayed || a.username.localeCompare(b.username));
-    return list;
+    return players;
   }),
 }));
 
@@ -208,7 +204,7 @@ vi.mock('src/utils/playerHelpers', () => ({
 import { useLeaderboard } from './useLeaderboard';
 import { likhaClient } from 'src/services/likhaClient';
 import { LocalStorage } from 'quasar';
-import { runNetworkRanking } from 'src/utils/runLeaderboard';
+import { runClubRanking } from 'src/utils/runLeaderboard';
 
 function makeContext(overrides: Record<string, unknown> = {}) {
   const currentClubUUID = ref('uuid-123');
@@ -524,15 +520,15 @@ describe('useLeaderboard — fetchClubLeaderboard', () => {
     expect(clubLeaderboardLoading.value).toBe(false);
   });
 
-  it('calls runNetworkRanking with match data', async () => {
+  it('calls runClubRanking with match data', async () => {
     (likhaClient.request as ReturnType<typeof vi.fn>).mockResolvedValue(
       mockMatches,
     );
     const { context } = makeContext();
     const { fetchClubLeaderboard } = useLeaderboard(context);
     await fetchClubLeaderboard();
-    expect(runNetworkRanking).toHaveBeenCalled();
-    const arg = (runNetworkRanking as ReturnType<typeof vi.fn>).mock
+    expect(runClubRanking).toHaveBeenCalled();
+    const arg = (runClubRanking as ReturnType<typeof vi.fn>).mock
       .calls[0][0];
     expect(Array.isArray(arg)).toBe(true);
     expect(arg.length).toBe(mockMatches.length);

@@ -14,9 +14,25 @@
  *
  * Run: npx esbuild scripts/lb-refresh.mts --bundle --platform=node --format=esm --outfile=.tmp-analysis/lb-refresh.mjs && node .tmp-analysis/lb-refresh.mjs | tee .tmp-analysis/lb-refresh-out.txt
  */
-import { computeNetworkRanked } from '../src/utils/leaderboardCompute';
-import { playerIdentityKey } from '../src/utils/ratingReplay';
+import { computeClubRanked } from '../src/utils/leaderboardCompute';
+import { playerIdentityKey, rankClubPlayers, type RankedPlayer } from '../src/utils/ratingReplay';
 import type { DirectusCompletedMatch } from '../src/services/playerProfile';
+
+// Adapt the DUPR-style rating result to the field names this diagnostic
+// was written against (key, networkScore, rawScore, ties). The displayed
+// score is now the rating itself - there is no separate network term.
+const toNet = (list: RankedPlayer[]) =>
+  list.map((p) => ({
+    ...p,
+    key: playerIdentityKey(p),
+    ties: Math.max(0, p.matchesPlayed - p.wins - p.losses),
+    networkScore: p.rating,
+    rawScore: p.rating,
+    ownPerformance: p.rating,
+    networkFlow: 0,
+  }));
+const runRanked = (ms: DirectusCompletedMatch[], flag: boolean) =>
+  toNet(rankClubPlayers(computeClubRanked(ms, flag)));
 
 const CLUB = '22e52ef0-bf60-4bd1-bea8-ef66193edf35';
 const BASE = 'https://api.dinkmatch.club';
@@ -75,9 +91,9 @@ for (const m of matches) {
 console.log(`registered usernames (junction): ${registered.size}`);
 
 // ---------- run production algorithm on BOTH datasets ----------
-const comp = computeNetworkRanked(matches, false);   // includeNonCompetitive=false
-const all = computeNetworkRanked(matches, true);     // includeNonCompetitive=true
-console.log(`\ncomputeNetworkRanked(false): ${comp.length} players | (true): ${all.length} players`);
+const comp = runRanked(matches, false);   // includeNonCompetitive=false
+const all = runRanked(matches, true);     // includeNonCompetitive=true
+console.log(`\nrunRanked(false): ${comp.length} players | (true): ${all.length} players`);
 
 const ANCHORS: Record<string, { g: number; w: number; l: number }> = {
   rands: { g: 105, w: 53, l: 52 },

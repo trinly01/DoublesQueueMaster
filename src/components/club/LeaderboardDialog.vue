@@ -68,12 +68,7 @@
                     competitive only.
                   </p>
                   <p class="lb-line">
-                    Club: network score — how embedded each player is in the
-                    club's match graph, weighted by teammates' and
-                    opponents' performances. Not a rating.
-                  </p>
-                  <p class="lb-line">
-                    My Matches &amp; Global: Win → up. Lose → down. Beat a
+                    Club &amp; My Matches: Win → up. Lose → down. Beat a
                     stronger opponent for more points. Everyone starts with a
                     seed rating.
                   </p>
@@ -323,47 +318,26 @@
             <q-item-section side class="text-right" style="min-width: 0">
               <div class="row items-center justify-end no-wrap">
                 <q-chip
-                  v-if="leaderboardTab === 'club' || showRatingChip(player)"
-                  :color="
-                    leaderboardTab === 'club'
-                      ? 'blue-2'
-                      : getRatingColor(player.rating || 1450)
-                  "
-                  :text-color="leaderboardTab === 'club' ? 'blue-9' : 'white'"
+                  v-if="showRatingChip(player)"
+                  :color="getRatingColor(player.rating || 1450)"
+                  text-color="white"
                   size="sm"
                   dense
-                  :class="[
-                    'text-weight-bold',
-                    'q-mb-xs',
-                    { 'club-score-chip': leaderboardTab === 'club' },
-                  ]"
+                  class="text-weight-bold q-mb-xs"
                 >
                   <span
                     v-if="player.provisional"
                     class="provisional-dot q-mr-xs"
                     ><span class="provisional-dot-inner"
                   /></span>
-                  {{
-                    leaderboardTab === 'club'
-                      ? Math.round(player.score || 0)
-                      : ratingChipText(player.score)
-                  }}
+                  {{ ratingChipText(player.score) }}
                   <q-tooltip
                     v-if="player.provisional !== undefined"
                     anchor="center left"
                     self="center right"
                     :offset="[8, 0]"
-                    :class="
-                      leaderboardTab === 'club'
-                        ? 'club-score-tip'
-                        : 'text-no-wrap'
-                    "
+                    class="text-no-wrap"
                   >
-                    <template v-if="leaderboardTab === 'club'">
-                      Network score — how embedded this player is in the
-                      club's match graph, weighted by teammates' and
-                      opponents' performances. Not a rating.<br />
-                    </template>
                     <template v-if="player.provisional">
                       Provisional: {{ player.gamesToReliable }} game{{
                         player.gamesToReliable === 1 ? '' : 's'
@@ -857,17 +831,6 @@ const activeLoading = computed(() => {
     opacity: 0.4;
     transform: scale(0.8);
   }
-}
-
-/* Club tab ranks by network score, not rating — the chip uses the neutral
-   blue-2/blue-9 accent (same pairing as the DUPR chips) instead of
-   rating-tier colors. */
-.club-score-chip .provisional-dot-inner {
-  background-color: #1565c0; /* blue-9 — visible on the light blue-2 chip */
-}
-.club-score-tip {
-  max-width: 280px;
-  text-align: left;
 }
 
 /* Thin scrollbar — must be unscoped for ::-webkit-scrollbar to work */
