@@ -29,6 +29,14 @@ import {
   detectServerResetAdvantage,
   applyServerResetAdvantage,
 } from 'src/services/cloudSyncHelpers';
+import {
+  buildLocalForMerge,
+  captureBaseline,
+  computeDirtyUnits,
+  loadBaseline,
+  refreshBaselineAfterMerge,
+  saveBaseline,
+} from 'src/services/syncDirtyTracker';
 import { perfMeasure, observeLongTasks } from 'src/utils/perfTelemetry';
 import type { Router } from 'vue-router';
 import { LocalStorage, type QNotifyCreateOptions } from 'quasar';
@@ -223,6 +231,39 @@ export function useCloudSync(ctx: CloudSyncContext) {
       timeout: 4000,
     });
     return merged;
+  };
+
+  // Push-path merge with dirty-unit tracking (stale-sync fix): only
+  // units genuinely edited since the last sync baseline compete in
+  // mergeAppState's client-clock LWW — clean units are pre-seeded with
+  // the server version so a stale offline admin's untouched carryover
+  // can't out-stamp newer server content and re-propagate. baseline=null
+  // → all units dirty → identical to the pre-fix merge.
+  const mergeForPush = (serverMatchmaking: AppState) => {
+    const clubUUID = currentClubUUID.value;
+    const baseline = loadBaseline(clubUUID);
+    const dirty = computeDirtyUnits(MatchmakingApp.state, baseline);
+    const merged = mergeWithResetAdvantage(
+      buildLocalForMerge(MatchmakingApp.state, serverMatchmaking, dirty),
+      serverMatchmaking,
+    );
+    // Assign only keys whose content actually changed — identical merges
+    // keep their references and don't invalidate the page's computeds.
+    perfMeasure('cloudsync.apply-state', () =>
+      applyMergedState(MatchmakingApp.state, merged),
+    );
+    // Re-baseline the clean (server-adopted) units so a later merge in
+    // the same push — e.g. a CAS-retry re-merge — or the next push
+    // doesn't mistake adopted content for local edits. Dirty units keep
+    // their pre-merge fingerprints: still owed to the server.
+    const nextBaseline = refreshBaselineAfterMerge(
+      baseline,
+      MatchmakingApp.state,
+      dirty,
+    );
+    if (nextBaseline && nextBaseline !== baseline) {
+      saveBaseline(clubUUID, nextBaseline);
+    }
   };
 
   // Realtime subscription handle — declared early so performCloudSync can
@@ -452,18 +493,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
         serverMatchmaking &&
         serverTimestamp !== lastSyncedServerTimestamp.value
       ) {
-        // mergeWithResetAdvantage: wholesale-adopts any collection whose
-        // server reset checkpoint beats ours before the LWW merge result is
-        // applied (reset-detection contract §2, hook point b).
-        const merged = mergeWithResetAdvantage(
-          MatchmakingApp.state,
-          serverMatchmaking,
-        );
-        // Assign only keys whose content actually changed — identical merges
-        // keep their references and don't invalidate the page's computeds.
-        perfMeasure('cloudsync.apply-state', () =>
-          applyMergedState(MatchmakingApp.state, merged),
-        );
+        // mergeForPush: dirty-unit tracked merge — clean units adopt the
+        // server version wholesale, dirty units LWW; reset-advantage
+        // adoption still runs inside (contract §2, hook point b).
+        mergeForPush(serverMatchmaking);
         // Extra safety: ensure no player appears in multiple matches
         MatchmakingApp.enforceOneMatchPerPlayer();
         notify({
@@ -550,13 +583,9 @@ export function useCloudSync(ctx: CloudSyncContext) {
         ) {
           // Same reset-advantage adoption as the pre-push merge — the
           // server may have moved precisely because another admin reset
-          // (contract §2, hook point c).
-          perfMeasure('cloudsync.apply-state', () =>
-            applyMergedState(
-              MatchmakingApp.state,
-              mergeWithResetAdvantage(MatchmakingApp.state, fresh),
-            ),
-          );
+          // (contract §2, hook point c). Dirty-unit tracked like the
+          // pre-push merge so clean units adopt this fresher blob.
+          mergeForPush(fresh);
           MatchmakingApp.enforceOneMatchPerPlayer();
           // The merge just incorporated the server's newest commit —
           // advance the watermark so delayed older payloads are dropped.
@@ -586,6 +615,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
         const payload = {
           matchmaking: MatchmakingApp.state,
         };
+        // Dirty-tracker baseline for THIS pushed blob — fingerprint now,
+        // before the network await, so edits landing mid-flight are not
+        // in the accepted commit and must stay dirty for the next merge.
+        const pushedBaseline = captureBaseline(MatchmakingApp.state);
 
         const casResult: unknown = await perfMeasureAsync(
           'cloudsync.push',
@@ -644,6 +677,13 @@ export function useCloudSync(ctx: CloudSyncContext) {
         hasPendingCloudSync.value = false;
         pushFailed = false;
         clearPendingSync(currentClubId.value);
+        // Dirty-tracker baseline: the pushed blob is now the sync point —
+        // re-fingerprint so only post-push edits count as dirty next time.
+        // pushedBaseline was captured at payload-build time (pre-await) so
+        // it describes exactly what the server accepted.
+        if (currentClubUUID.value) {
+          saveBaseline(currentClubUUID.value, pushedBaseline);
+        }
         syncRetryPending = false;
         break;
       }
@@ -932,6 +972,15 @@ export function useCloudSync(ctx: CloudSyncContext) {
     // Server-wins overwrite discards any local unpushed intent — the
     // durable marker is stale now.
     clearPendingSync(currentClubId.value);
+    // Wholesale adoption: the adopted content is synced, not a local
+    // edit — refresh the dirty-tracker baseline so it isn't flagged
+    // dirty (and re-competed in LWW) on the next push.
+    if (currentClubUUID.value) {
+      saveBaseline(
+        currentClubUUID.value,
+        captureBaseline(MatchmakingApp.state),
+      );
+    }
   };
 
   const applyServerMatchmaking = (

@@ -81,6 +81,11 @@ vi.mock('quasar', () => {
 });
 
 import { LocalStorage } from 'quasar';
+import {
+  captureBaseline,
+  loadBaseline,
+  saveBaseline,
+} from 'src/services/syncDirtyTracker';
 import { useCloudSync, type CloudSyncContext } from './useCloudSync';
 
 // ---------------------------------------------------------------------------
@@ -286,6 +291,8 @@ beforeEach(() => {
     'matchmaking_state_clubA',
     'matchmaking_state_clubB',
     'matchmaking_state',
+    'sync_dirty_baseline_uuid-A',
+    'sync_dirty_baseline_uuid-B',
   ]) {
     LocalStorage.remove(key);
   }
@@ -1725,6 +1732,112 @@ describe('useCloudSync — CAS slim probe', () => {
     expect(writeCalls[0].casToken).toBe(INITIAL_DATE_UPDATED);
     // probe.lastModified undefined → blob required → second blob read.
     expect(blobReads()).toHaveLength(2);
+  });
+});
+
+// ===========================================================================
+// useCloudSync — dirty-unit tracked push merge (stale-sync fix)
+// ===========================================================================
+
+describe('useCloudSync — dirty-unit tracked push merge', () => {
+  function setupDirtySync() {
+    seedVerifiedMeta('clubA', ['admin1'], []);
+    const refs = makeCtx();
+    const sync = useCloudSync(refs as unknown as CloudSyncContext);
+    sync.isOnline.value = true;
+    return { refs, sync };
+  }
+
+  const pushedMatchmaking = () =>
+    (writeCalls[0].data as { appState: { matchmaking: AppState } }).appState
+      .matchmaking;
+
+  it('clean units adopt the server version at the pre-push merge', async () => {
+    const { refs, sync } = setupDirtySync();
+    refs.lastSyncedServerTimestamp.value = 7000;
+
+    // Local state == baseline (every unit clean): alice carries a
+    // fast-clock stamp (9000) over old content (wins 5).
+    MatchmakingApp.state.players = {
+      alice: { username: 'alice', wins: 5, updatedAt: 9000 } as never,
+    };
+    MatchmakingApp.state.lastModified = 8000;
+    saveBaseline('uuid-A', captureBaseline(MatchmakingApp.state));
+
+    // Server moved on: alice wins 9 written by a slower clock (5000).
+    serverMatchmaking = makeState({
+      players: {
+        alice: { username: 'alice', wins: 9, updatedAt: 5000 } as never,
+      },
+      lastModified: 9500,
+    });
+    serverTimestamp = 9500;
+
+    await sync.performCloudSync();
+
+    expect(writeCalls).toHaveLength(1);
+    // Clean alice adopted the server version — the stale local copy did
+    // NOT win on its higher client stamp (pre-fix LWW would push wins 5).
+    expect(pushedMatchmaking().players.alice.wins).toBe(9);
+    // Successful push re-baselined the synced content.
+    expect(loadBaseline('uuid-A')).not.toBeNull();
+  });
+
+  it('a genuine local edit still wins LWW against the server', async () => {
+    const { refs, sync } = setupDirtySync();
+    refs.lastSyncedServerTimestamp.value = 7000;
+
+    MatchmakingApp.state.players = {
+      alice: { username: 'alice', wins: 5, updatedAt: 9000 } as never,
+    };
+    MatchmakingApp.state.lastModified = 8000;
+    saveBaseline('uuid-A', captureBaseline(MatchmakingApp.state));
+
+    // Genuine edit after the baseline: alice wins 5 → 7.
+    MatchmakingApp.state.players.alice.wins = 7;
+    MatchmakingApp.state.players.alice.updatedAt = 9500;
+
+    serverMatchmaking = makeState({
+      players: {
+        alice: { username: 'alice', wins: 9, updatedAt: 5000 } as never,
+      },
+      lastModified: 9600,
+    });
+    serverTimestamp = 9600;
+
+    await sync.performCloudSync();
+
+    expect(writeCalls).toHaveLength(1);
+    // Dirty alice kept its local edit — LWW on the newer stamp.
+    expect(pushedMatchmaking().players.alice.wins).toBe(7);
+  });
+
+  it('no baseline → all units dirty → pre-fix LWW behavior preserved', async () => {
+    const { refs, sync } = setupDirtySync();
+    refs.lastSyncedServerTimestamp.value = 7000;
+
+    // Same stale-carryover shape as the clean test but NO baseline —
+    // first run after deploy / cleared storage must not regress.
+    MatchmakingApp.state.players = {
+      alice: { username: 'alice', wins: 5, updatedAt: 9000 } as never,
+    };
+    MatchmakingApp.state.lastModified = 8000;
+
+    serverMatchmaking = makeState({
+      players: {
+        alice: { username: 'alice', wins: 9, updatedAt: 5000 } as never,
+      },
+      lastModified: 9500,
+    });
+    serverTimestamp = 9500;
+
+    await sync.performCloudSync();
+
+    expect(writeCalls).toHaveLength(1);
+    // All-dirty → local high stamp wins exactly like before the fix.
+    expect(pushedMatchmaking().players.alice.wins).toBe(5);
+    // …and the successful push heals the baseline for next time.
+    expect(loadBaseline('uuid-A')).not.toBeNull();
   });
 });
 
