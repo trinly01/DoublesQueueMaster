@@ -3,9 +3,11 @@
 // embedded they are in the network of teammates and opponents, weighted
 // by those players' performances.
 //
-//   r_i = (1−λ_i)·p̃_i + λ_i·(Pᵀr)_i   (power iteration)
-//   λ_i = 0.8·games_i/(games_i+C)   adaptive — small samples lean on p̃
-//   p̃_i = (perfSum_i + C·p̄) / (games_i + C)   shrunk own-performance
+//   r_i = (1−λ_i)·π_i + λ_i·(Pᵀr)_i   (power iteration)
+//   λ_i = 0.8·games_i/(games_i+C)   adaptive — small samples lean on π
+//   π_i = (perfSum_i + C·q_i) / (games_i + C)   shrunk own-evidence prior
+//   q_i = p̄ + EloExp(rating_i vs r̄) − 0.5       rating-aware pseudo-count
+//   (q_i = p̄ when no rating supplied → π_i = p̃_i, the pure-performance case)
 //   P_ij = A_ij / Σ_k A_ik                    row-normalized co-play credit
 //
 // p̃ is deliberately opponent-blind (what you did); Pᵀr is the only
@@ -15,15 +17,19 @@
 // network weight. Verified on live data: lifts small-sample strong
 // performers without disturbing the established top board.
 //
-// Opponent edges are outcome-directed and margin-weighted (GeM /
-// Power-Rank family): for each cross-side pair, the loser→winner edge
-// carries edgeW·(1+μw) and winner→loser carries edgeW·(1−μw), where
-// μw = |sA−sB|/(sA+sB) is the margin share. Close games approach the
-// symmetric co-play graph; blowouts approach one-way credit. Teammate
-// edges stay symmetric. This is what makes "who you beat and by how
-// much" the network signal instead of raw co-presence volume — without
-// it, symmetric edges make the stationary distribution proportional to
-// games played (π ∝ degree), collapsing the board to an activity list.
+// Opponent edges are outcome-directed, margin-weighted, and
+// rating-surprise scaled (GeM / Power-Rank family): for each cross-side
+// pair, the loser→winner edge carries edgeW·(1+μw)·(1+κû) and
+// winner→loser carries edgeW·(1−μw)·(1+κû), where μw = |sA−sB|/(sA+sB)
+// is the margin share and û = clamp((r_src−r_tgt)/800, −1, 1) uses the
+// match-embedded rating snapshots — beating a higher-rated opponent
+// earns more of their rank. Close games approach the symmetric co-play
+// graph; blowouts approach one-way credit. Teammate edges stay symmetric
+// (rating surprise never applies same-side). This is what makes "who you
+// beat, by how much, and how good they were" the network signal instead
+// of raw co-presence volume — without it, symmetric edges make the
+// stationary distribution proportional to games played (π ∝ degree),
+// collapsing the board to an activity list.
 //
 // Known emergent properties (inherent to centrality, not bugs):
 //   - Hub accumulation: the most-connected player tends to top the board.
@@ -61,7 +67,7 @@ export type NetworkRankedPlayer = {
   networkScore: number;
   /** Fixed-point centrality before display normalization. */
   rawScore: number;
-  /** Shrunk own-performance p̃_i — attribution: own-results component. */
+  /** Shrunk own-evidence prior — performance p̃ blended with career rating when supplied. */
   ownPerformance: number;
   /** λ·Σ P_ji·r_j at convergence — attribution: network-inflow component. */
   networkFlow: number;
@@ -77,6 +83,12 @@ const LAMBDA = 0.8;
 const SHRINKAGE_C = 12;
 const MAX_ITERS = 500;
 const EPSILON = 1e-10;
+// Rating-surprise edge factor: per directed opponent edge, the source's
+// match-embedded rating advantage over the target scales the edge by
+// (1 + κ·û), û = clamp((r_src−r_tgt)/800, −1, 1). Beating a higher-rated
+// opponent earns more of their rank; losing to one earns less consolation.
+// κ=0.4 keeps factors in [0.6, 1.4]; unrated or tied matches → û=0.
+const SURPRISE_KAPPA = 0.4;
 
 // Adaptive damping: λ_i = LAMBDA·games/(games+C). A player's network term
 // can only accumulate from matches they played, so few-game players get
@@ -179,6 +191,7 @@ const sideKeys = (
  */
 export function computeNetworkScores(
   matches: RankedMatchInput[],
+  ratingMap?: ReadonlyMap<string, number>,
 ): NetworkRankedPlayer[] {
   const accs = new Map<string, PlayerAcc>();
 
@@ -212,11 +225,13 @@ export function computeNetworkScores(
     const sideA = [...mapA.entries()].map(([key, p]) => ({
       key,
       side: 'A' as const,
+      rating: p.rating,
       acc: accFor(accs, key, p),
     }));
     const sideB = [...mapB.entries()].map(([key, p]) => ({
       key,
       side: 'B' as const,
+      rating: p.rating,
       acc: accFor(accs, key, p),
     }));
 
@@ -273,10 +288,22 @@ export function computeNetworkScores(
             ? wDown
             : edgeW,
     };
+    const isTieMatch = m.teamAScore === m.teamBScore;
     for (const from of participants) {
       for (const to of participants) {
         if (to.key === from.key) continue;
-        const w = from.side === to.side ? edgeW : oppW[from.side];
+        let w = from.side === to.side ? edgeW : oppW[from.side];
+        if (w > 0 && !isTieMatch && from.side !== to.side) {
+          // Rating surprise: this match's embedded ratings, not career
+          // aggregates — captures the pre-outcome strength gap.
+          const rs = from.rating;
+          const rt = to.rating;
+          const u =
+            typeof rs === 'number' && typeof rt === 'number'
+              ? Math.max(-1, Math.min(1, (rs - rt) / 800))
+              : 0;
+          w = w * (1 + SURPRISE_KAPPA * u);
+        }
         if (w > 0) {
           from.acc.credit.set(
             to.key,
@@ -305,6 +332,42 @@ export function computeNetworkScores(
     );
   }
 
+  // Rating-aware prior: when a replayed-rating map is supplied, the
+  // shrinkage pseudo-count becomes q_i — the player's Elo expectation vs
+  // the club mean rating — instead of flat priorMean. Matches are the
+  // evidence (perfSum), rating is the prior; few-game players lean on
+  // q_i, veterans on perfSum. Replayed ratings are already
+  // reliability-shrunk, so thin samples get a near-neutral prior.
+  // Unrated players keep p̃ exactly (q_i = priorMean).
+  const prior = new Map<string, number>(pTilde);
+  if (ratingMap && ratingMap.size > 0) {
+    let rSum = 0;
+    let rN = 0;
+    for (const p of players) {
+      const rt = ratingMap.get(p.key);
+      if (typeof rt === 'number') {
+        rSum += rt;
+        rN += 1;
+      }
+    }
+    if (rN > 0) {
+      const rBar = rSum / rN;
+      for (const p of players) {
+        const rt = ratingMap.get(p.key);
+        if (typeof rt !== 'number') continue;
+        const e = 1 / (1 + Math.pow(10, (rBar - rt) / 400));
+        const q = Math.max(0, Math.min(1.3, priorMean + (e - 0.5)));
+        prior.set(
+          p.key,
+          Math.max(
+            0,
+            (p.perfSum + SHRINKAGE_C * q) / (p.games + SHRINKAGE_C),
+          ),
+        );
+      }
+    }
+  }
+
   // Row-normalize credit into P implicitly during iteration:
   // inflow_i = Σ_j (A_ji / outSum_j) · r_j — computed by distributing each
   // r_j across j's out-edges, O(E) per iteration.
@@ -316,7 +379,7 @@ export function computeNetworkScores(
   }
 
   const r = new Map<string, number>();
-  for (const p of players) r.set(p.key, pTilde.get(p.key) ?? 0);
+  for (const p of players) r.set(p.key, prior.get(p.key) ?? 0);
 
   for (let iter = 0; iter < MAX_ITERS; iter++) {
     const inflow = new Map<string, number>();
@@ -330,7 +393,7 @@ export function computeNetworkScores(
     }
     let maxDelta = 0;
     for (const p of players) {
-      const pt = pTilde.get(p.key) ?? 0;
+      const pt = prior.get(p.key) ?? 0;
       const lam = lambdaFor(p.games);
       const next = (1 - lam) * pt + lam * (inflow.get(p.key) || 0);
       maxDelta = Math.max(maxDelta, Math.abs(next - (r.get(p.key) ?? 0)));
@@ -346,8 +409,8 @@ export function computeNetworkScores(
   const { provisionalThreshold } = CLUB_RANKING_CONFIG;
   const result: NetworkRankedPlayer[] = players.map((p) => {
     const raw = r.get(p.key) ?? 0;
-    const pt = pTilde.get(p.key) ?? 0;
-    // networkFlow = λ_i·inflow at convergence = r − (1−λ_i)·p̃.
+    const pt = prior.get(p.key) ?? 0;
+    // networkFlow = λ_i·inflow at convergence = r − (1−λ_i)·prior.
     const networkFlow = Math.max(
       0,
       raw - (1 - lambdaFor(p.games)) * pt,

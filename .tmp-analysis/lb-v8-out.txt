@@ -1,0 +1,204 @@
+fetched 1000 completed_match rows (all modes — includeNonCompetitive=true dataset)
+replayMatchesForRanking: 250 players
+
+V6 baseline: players=250 matchesUsed=1000 priorMean=0.5358
+
+[source latest] rating_i: n=250/250 rated, missing→neutral=0, r̄=1437.3 rating[min=1239, med=1419, max=1848] q[min=0.278, med=0.509, max=0.950]
+
+[source mean] rating_i: n=250/250 rated, missing→neutral=0, r̄=1435.5 rating[min=1248.5357142857142, med=1413.1, max=1821.7272727272727] q[min=0.290, med=0.504, max=0.938]
+
+[source replay] rating_i: n=250/250 rated, missing→neutral=0, r̄=1460.2 rating[min=1124, med=1454, max=1754] q[min=0.162, med=0.527, max=0.880]
+replay coverage: 250 replayed players; graph keys missing from replay (→neutral q): 0
+
+================ V6 BASELINE (V5 edges + adaptive λ, p̃ teleport) ================
+players=250 matchesUsed=1000 iters=41 converged=true priorMean=0.5358 NaN=0 uniqNetScores=47
+rank  name                                   net  rawScore   games  W-L
+  1  rands                                  100  3.50663    105  53-52
+  2  Mikki                                   94  3.28978     95  50-45
+  3  Jowinski                                92  3.20969     86  53-33
+  4  James                                   91  3.19798     93  50-43
+  5  Marivic                                 89  3.13545     97  44-53
+  6  Osang                                   82  2.88667     81  43-38
+  7  Cara                                    82  2.86514     78  49-29
+  8  EUNICE                                  73  2.56616     69  34-35
+  9  Jel                                     73  2.55692     75  42-33
+ 10  Boyet                                   73  2.54710     75  43-32
+ 11  Marc Johnuel                            72  2.51336     73  45-28
+ 12  angie                                   71  2.49797     78  30-48
+ 13  Obal                                    68  2.36866     60  44-16
+ 14  Alex                                    63  2.21233     67  36-31
+ 15  Navi                                    59  2.05507     58  34-24
+  Spearman ρ(scoreRank, gamesRank) = 0.7262
+  tracked 'jeo': #21 jeo (@jeovannizabala#05d) net=51 g=47 35-12
+  tracked 'shirwin': #66 SHIRWIN (@shirwin.delacuadra#7la) net=20 g=11 9-2
+  tracked 'atthan': #49 atthan (@juguilonatthanjames#2mk) net=26 g=17 12-5
+  tracked 'sandro': #106 Sandro (@sandroquinto1107#fhh) net=16 g=3 3-0
+  tracked 'juha': #76 Juha (@juhadojillo1122#06g) net=18 g=4 4-0
+  tracked 'trin': #17 Trin (@trinmar.boado) net=54 g=55 35-20
+  tracked 'marivic': #5 Marivic (@margatch1771#74t) net=89 g=97 44-53
+  tracked 'jowinski': #3 Jowinski (@jowinskisoriano100#ciy) net=92 g=86 53-33
+  tracked 'cara': #7 Cara (@eslabracassieralph#d3c) net=82 g=78 49-29
+  tracked 'ednalyn': #59 Ednalyn (@pasaoaednalyn830#flz) net=22 g=24 9-15
+  players with |Δrank|>10 vs V6: 0
+
+================ V8a (teleport=latest + surprise edges) ================
+players=250 matchesUsed=1000 iters=41 converged=true priorMean=0.5358 NaN=0 uniqNetScores=53
+rank  name                                   net  rawScore   games  W-L
+  1  rands                                  100  3.38041    105  53-52
+  2  Mikki                                   97  3.28203     95  50-45
+  3  Marivic                                 92  3.11517     97  44-53
+  4  Jowinski                                91  3.07921     86  53-33
+  5  James                                   85  2.87238     93  50-43
+  6  Osang                                   85  2.86203     81  43-38
+  7  Cara                                    81  2.72929     78  49-29
+  8  angie                                   77  2.60420     78  30-48
+  9  EUNICE                                  76  2.56266     69  34-35
+ 10  Jel                                     72  2.43069     75  42-33
+ 11  Marc Johnuel                            71  2.40297     73  45-28
+ 12  Boyet                                   71  2.38768     75  43-32
+ 13  Alex                                    64  2.15431     67  36-31
+ 14  Obal                                    60  2.04227     60  44-16
+ 15  Navi                                    59  2.00739     58  34-24
+  Spearman ρ(scoreRank, gamesRank) = 0.7186
+  tracked 'jeo': #20 jeo (@jeovannizabala#05d) net=51 g=47 35-12
+  tracked 'shirwin': #55 SHIRWIN (@shirwin.delacuadra#7la) net=23 g=11 9-2
+  tracked 'atthan': #47 atthan (@juguilonatthanjames#2mk) net=29 g=17 12-5
+  tracked 'sandro': #69 Sandro (@sandroquinto1107#fhh) net=20 g=3 3-0
+  tracked 'juha': #82 Juha (@juhadojillo1122#06g) net=19 g=4 4-0
+  tracked 'trin': #22 Trin (@trinmar.boado) net=49 g=55 35-20
+  tracked 'marivic': #3 Marivic (@margatch1771#74t) net=92 g=97 44-53
+  tracked 'jowinski': #4 Jowinski (@jowinskisoriano100#ciy) net=91 g=86 53-33
+  tracked 'cara': #7 Cara (@eslabracassieralph#d3c) net=81 g=78 49-29
+  tracked 'ednalyn': #65 Ednalyn (@pasaoaednalyn830#flz) net=22 g=24 9-15
+  players with |Δrank|>10 vs V6: 84
+    Miguel: v6=#237 -> #160 (Δ77)
+    Yzza: v6=#132 -> #197 (Δ65)
+    steven: v6=#120 -> #64 (Δ56)
+    JC: v6=#158 -> #112 (Δ46)
+    Jairus: v6=#138 -> #95 (Δ43)
+    Jeyster: v6=#189 -> #146 (Δ43)
+    Kermet: v6=#153 -> #115 (Δ38)
+    Nishiki: v6=#112 -> #150 (Δ38)
+    Sandro: v6=#106 -> #69 (Δ37)
+    Jimboy: v6=#215 -> #178 (Δ37)
+
+================ V8b (teleport=mean + surprise edges) ================
+players=250 matchesUsed=1000 iters=41 converged=true priorMean=0.5358 NaN=0 uniqNetScores=54
+rank  name                                   net  rawScore   games  W-L
+  1  rands                                  100  3.39830    105  53-52
+  2  Mikki                                   97  3.29056     95  50-45
+  3  Marivic                                 92  3.12705     97  44-53
+  4  Jowinski                                91  3.08388     86  53-33
+  5  James                                   85  2.88389     93  50-43
+  6  Osang                                   84  2.87014     81  43-38
+  7  Cara                                    81  2.74203     78  49-29
+  8  angie                                   77  2.61295     78  30-48
+  9  EUNICE                                  76  2.56860     69  34-35
+ 10  Jel                                     72  2.43269     75  42-33
+ 11  Boyet                                   71  2.40228     75  43-32
+ 12  Marc Johnuel                            71  2.40135     73  45-28
+ 13  Alex                                    64  2.15994     67  36-31
+ 14  Obal                                    60  2.05091     60  44-16
+ 15  Navi                                    59  2.00367     58  34-24
+  Spearman ρ(scoreRank, gamesRank) = 0.7240
+  tracked 'jeo': #20 jeo (@jeovannizabala#05d) net=50 g=47 35-12
+  tracked 'shirwin': #57 SHIRWIN (@shirwin.delacuadra#7la) net=23 g=11 9-2
+  tracked 'atthan': #48 atthan (@juguilonatthanjames#2mk) net=28 g=17 12-5
+  tracked 'sandro': #72 Sandro (@sandroquinto1107#fhh) net=20 g=3 3-0
+  tracked 'juha': #83 Juha (@juhadojillo1122#06g) net=18 g=4 4-0
+  tracked 'trin': #22 Trin (@trinmar.boado) net=49 g=55 35-20
+  tracked 'marivic': #3 Marivic (@margatch1771#74t) net=92 g=97 44-53
+  tracked 'jowinski': #4 Jowinski (@jowinskisoriano100#ciy) net=91 g=86 53-33
+  tracked 'cara': #7 Cara (@eslabracassieralph#d3c) net=81 g=78 49-29
+  tracked 'ednalyn': #62 Ednalyn (@pasaoaednalyn830#flz) net=22 g=24 9-15
+  players with |Δrank|>10 vs V6: 88
+    Miguel: v6=#237 -> #150 (Δ87)
+    Yzza: v6=#132 -> #198 (Δ66)
+    steven: v6=#120 -> #63 (Δ57)
+    JC: v6=#158 -> #107 (Δ51)
+    Jeyster: v6=#189 -> #140 (Δ49)
+    Nishiki: v6=#112 -> #151 (Δ39)
+    Jairus: v6=#138 -> #100 (Δ38)
+    Kermet: v6=#153 -> #117 (Δ36)
+    Banong: v6=#192 -> #156 (Δ36)
+    Jimboy: v6=#215 -> #179 (Δ36)
+
+================ V8c (teleport=replayed + surprise edges) ================
+players=250 matchesUsed=1000 iters=41 converged=true priorMean=0.5358 NaN=0 uniqNetScores=51
+rank  name                                   net  rawScore   games  W-L
+  1  rands                                  100  3.38509    105  53-52
+  2  Mikki                                   96  3.26204     95  50-45
+  3  Marivic                                 92  3.11997     97  44-53
+  4  Jowinski                                91  3.07839     86  53-33
+  5  James                                   85  2.89303     93  50-43
+  6  Osang                                   85  2.88180     81  43-38
+  7  Cara                                    79  2.67582     78  49-29
+  8  EUNICE                                  76  2.57609     69  34-35
+  9  angie                                   75  2.55307     78  30-48
+ 10  Jel                                     72  2.44902     75  42-33
+ 11  Marc Johnuel                            72  2.43773     73  45-28
+ 12  Boyet                                   70  2.36490     75  43-32
+ 13  Alex                                    63  2.14435     67  36-31
+ 14  Obal                                    60  2.04025     60  44-16
+ 15  Navi                                    59  2.01260     58  34-24
+  Spearman ρ(scoreRank, gamesRank) = 0.7043
+  tracked 'jeo': #20 jeo (@jeovannizabala#05d) net=50 g=47 35-12
+  tracked 'shirwin': #62 SHIRWIN (@shirwin.delacuadra#7la) net=22 g=11 9-2
+  tracked 'atthan': #48 atthan (@juguilonatthanjames#2mk) net=28 g=17 12-5
+  tracked 'sandro': #90 Sandro (@sandroquinto1107#fhh) net=18 g=3 3-0
+  tracked 'juha': #70 Juha (@juhadojillo1122#06g) net=20 g=4 4-0
+  tracked 'trin': #22 Trin (@trinmar.boado) net=49 g=55 35-20
+  tracked 'marivic': #3 Marivic (@margatch1771#74t) net=92 g=97 44-53
+  tracked 'jowinski': #4 Jowinski (@jowinskisoriano100#ciy) net=91 g=86 53-33
+  tracked 'cara': #7 Cara (@eslabracassieralph#d3c) net=79 g=78 49-29
+  tracked 'ednalyn': #61 Ednalyn (@pasaoaednalyn830#flz) net=22 g=24 9-15
+  players with |Δrank|>10 vs V6: 46
+    Elizabeth: v6=#98 -> #134 (Δ36)
+    Cleah: v6=#99 -> #132 (Δ33)
+    Charomae: v6=#125 -> #155 (Δ30)
+    Nishiki: v6=#112 -> #140 (Δ28)
+    Khyre Stephen: v6=#117 -> #91 (Δ26)
+    corrales: v6=#164 -> #190 (Δ26)
+    Yzza: v6=#132 -> #108 (Δ24)
+    Grace: v6=#80 -> #103 (Δ23)
+    Jairus: v6=#138 -> #115 (Δ23)
+    Mac Biala: v6=#234 -> #211 (Δ23)
+
+================ V8d (surprise edges only, p̃ teleport) ================
+players=250 matchesUsed=1000 iters=41 converged=true priorMean=0.5358 NaN=0 uniqNetScores=47
+rank  name                                   net  rawScore   games  W-L
+  1  rands                                  100  3.47690    105  53-52
+  2  Mikki                                   95  3.31433     95  50-45
+  3  Marivic                                 92  3.20964     97  44-53
+  4  Jowinski                                90  3.13071     86  53-33
+  5  Osang                                   86  2.97727     81  43-38
+  6  James                                   85  2.93888     93  50-43
+  7  Cara                                    79  2.75554     78  49-29
+  8  EUNICE                                  77  2.66045     69  34-35
+  9  angie                                   75  2.62278     78  30-48
+ 10  Jel                                     71  2.47233     75  42-33
+ 11  Marc Johnuel                            70  2.44683     73  45-28
+ 12  Boyet                                   70  2.42602     75  43-32
+ 13  Alex                                    64  2.21286     67  36-31
+ 14  Obal                                    59  2.05703     60  44-16
+ 15  Navi                                    59  2.03874     58  34-24
+  Spearman ρ(scoreRank, gamesRank) = 0.7316
+  tracked 'jeo': #21 jeo (@jeovannizabala#05d) net=48 g=47 35-12
+  tracked 'shirwin': #70 SHIRWIN (@shirwin.delacuadra#7la) net=19 g=11 9-2
+  tracked 'atthan': #49 atthan (@juguilonatthanjames#2mk) net=26 g=17 12-5
+  tracked 'sandro': #109 Sandro (@sandroquinto1107#fhh) net=16 g=3 3-0
+  tracked 'juha': #76 Juha (@juhadojillo1122#06g) net=18 g=4 4-0
+  tracked 'trin': #23 Trin (@trinmar.boado) net=48 g=55 35-20
+  tracked 'marivic': #3 Marivic (@margatch1771#74t) net=92 g=97 44-53
+  tracked 'jowinski': #4 Jowinski (@jowinskisoriano100#ciy) net=90 g=86 53-33
+  tracked 'cara': #7 Cara (@eslabracassieralph#d3c) net=79 g=78 49-29
+  tracked 'ednalyn': #58 Ednalyn (@pasaoaednalyn830#flz) net=22 g=24 9-15
+  players with |Δrank|>10 vs V6: 4
+    Lyn: v6=#147 -> #133 (Δ14)
+    JC: v6=#158 -> #172 (Δ14)
+    Charomae: v6=#125 -> #114 (Δ11)
+    Chyzer: v6=#116 -> #127 (Δ11)
+
+û stats: cross-side ordered pairs=3997 bothRated=3997 mean|û|=0.122
+(κ=0.4 → mean edge multiplier deviation ≈ 0.049)
+DONE

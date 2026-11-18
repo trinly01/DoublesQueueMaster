@@ -199,6 +199,93 @@ describe('computeNetworkScores', () => {
     expect(vet.gamesToReliable).toBe(0);
   });
 
+  it('rating-aware prior: career rating lifts the teleport component', () => {
+    // K4 graph, identical matches — the only difference is the rating map.
+    // A high replayed rating raises A's shrinkage pseudo-count q_i, so
+    // A's prior (and rawScore) must exceed the no-rating baseline.
+    const matches = [
+      m(['A', 'B'], ['C', 'D'], 21, 5, 'k1', '2025-01-01T00:00:00Z'),
+      m(['A', 'C'], ['B', 'D'], 21, 5, 'k2', '2025-01-02T00:00:00Z'),
+    ];
+    const base = computeNetworkScores(matches);
+    const rated = computeNetworkScores(
+      matches,
+      new Map([
+        ['A', 1800],
+        ['B', 1450],
+        ['C', 1450],
+        ['D', 1450],
+      ]),
+    );
+    const aBase = byName(base).get('A')!;
+    const aRated = byName(rated).get('A')!;
+    expect(aRated.ownPerformance).toBeGreaterThan(aBase.ownPerformance);
+    expect(aRated.rawScore).toBeGreaterThan(aBase.rawScore);
+  });
+
+  it('partial rating coverage: unrated players keep the pure p̃ prior', () => {
+    const matches = [
+      m(['A', 'B'], ['C', 'D'], 21, 5, 'k1', '2025-01-01T00:00:00Z'),
+      m(['A', 'C'], ['B', 'D'], 21, 5, 'k2', '2025-01-02T00:00:00Z'),
+    ];
+    const base = computeNetworkScores(matches);
+    const partial = computeNetworkScores(matches, new Map([['A', 1800]]));
+    const bBase = byName(base).get('B')!;
+    const bPartial = byName(partial).get('B')!;
+    // B has no rating → prior stays p̃ exactly, even though A's rating
+    // shifted the club mean r̄ for everyone else.
+    expect(bPartial.ownPerformance).toBe(bBase.ownPerformance);
+  });
+
+  it('rating-surprise edges: upset wins earn more network credit', () => {
+    // A (low rated) beats B (high rated) — an upset. The loser→winner
+    // edge B→A is boosted by (1+κ·û), so A's networkFlow must exceed the
+    // same fixture with equal ratings.
+    const fixture = (ra?: number, rb?: number) =>
+      computeNetworkScores([
+        {
+          teamAScore: 21,
+          teamBScore: 5,
+          completedAt: '2025-01-01T00:00:00Z',
+          matchKey: 'x',
+          teamA: [
+            { username: 'A', rating: ra },
+            { username: 'T1' },
+          ],
+          teamB: [
+            { username: 'B', rating: rb },
+            { username: 'T2' },
+          ],
+        },
+      ]);
+    const upset = byName(fixture(1400, 1800)).get('A')!;
+    const even = byName(fixture(1500, 1500)).get('A')!;
+    expect(upset.networkFlow).toBeGreaterThan(even.networkFlow);
+  });
+
+  it('tie matches ignore rating surprise — stay fully symmetric', () => {
+    const players = computeNetworkScores([
+      {
+        teamAScore: 10,
+        teamBScore: 10,
+        completedAt: '2025-01-01T00:00:00Z',
+        matchKey: 'k1',
+        teamA: [
+          { username: 'T1', rating: 1800 },
+          { username: 'T2', rating: 1400 },
+        ],
+        teamB: [
+          { username: 'T3', rating: 1500 },
+          { username: 'T4', rating: 1500 },
+        ],
+      },
+    ]);
+    expect(players).toHaveLength(4);
+    for (const p of players) {
+      expect(p.networkScore).toBe(100);
+    }
+  });
+
   it('satisfies the attribution invariant: raw = (1−λ_i)·own + networkFlow', () => {
     const players = computeNetworkScores([
       m(['A', 'B'], ['C', 'D'], 21, 5, 'k1', '2025-01-01T00:00:00Z'),

@@ -1,0 +1,97 @@
+fetched 1000 completed_match rows
+window: 2026-10-22T11:43:29.930Z -> 2026-11-17T15:18:49.995Z
+WARNING: limit=1000 hit — truncation identical to app fetch
+matchmakingMode histogram: balanced_variety=440  variety_first=383  strict_balance=125  (none)=29  fair_balance=23
+registered usernames (junction): 221
+
+computeNetworkRanked(false): 210 players | (true): 250 players
+
+--- competitive-only (includeNonCompetitive=false) ---
+  rands: g=62 w=33 l=29  net=100 raw=2.7667 | screenshot 105G 53W-52L 
+  mikki: g=51 w=24 l=27  net=84 raw=2.3361 | screenshot 95G 50W-45L 
+  jowinski: g=50 w=34 l=16  net=84 raw=2.3339 | screenshot 86G 53W-33L 
+
+--- all matches (includeNonCompetitive=true) ---
+  rands: g=105 w=53 l=52  net=100 raw=3.5066 | screenshot 105G 53W-52L << MATCH
+  mikki: g=95 w=50 l=45  net=94 raw=3.2898 | screenshot 95G 50W-45L << MATCH
+  jowinski: g=86 w=53 l=33  net=92 raw=3.2097 | screenshot 86G 53W-33L << MATCH
+
+>>> screenshot dataset = ALL MATCHES (includeNonCompetitive=true) (anchor hits: comp=0/9, all=9/9)
+display-filtered players: 221 (of 250 engine players)
+
+Spearman ρ(scoreRank, gamesRank) on display list = 0.7753
+
+=== TOP 15 (production algorithm, display-filtered) ===
+rk  name                                   net  raw      g    W-L
+  1  rands                                  100  3.5066   105  53-52
+  2  Mikki                                   94  3.2898    95  50-45
+  3  Jowinski                                92  3.2097    86  53-33
+  4  James                                   91  3.1980    93  50-43
+  5  Marivic                                 89  3.1354    97  44-53
+  6  Osang                                   82  2.8867    81  43-38
+  7  Cara                                    82  2.8651    78  49-29
+  8  EUNICE                                  73  2.5662    69  34-35
+  9  Jel                                     73  2.5569    75  42-33
+ 10  Boyet                                   73  2.5471    75  43-32
+ 11  Marc Johnuel                            72  2.5134    73  45-28
+ 12  angie                                   71  2.4980    78  30-48
+ 13  Obal                                    68  2.3687    60  44-16
+ 14  Alex                                    63  2.2123    67  36-31
+ 15  Navi                                    59  2.0551    58  34-24
+
+=== tracked positions (engine rank / display rank) ===
+  'jeo': jeo (@jeovannizabala#05d) net=51 g=47 35-12 | engine=#21 display=#21
+  'shirwin': SHIRWIN (@shirwin.delacuadra#7la) net=20 g=11 9-2 | engine=#66 display=#66
+  'atthan': atthan (@juguilonatthanjames#2mk) net=26 g=17 12-5 | engine=#49 display=#49
+  'sandro': Sandro (@sandroquinto1107#fhh) net=16 g=3 3-0 | engine=#106 display=#105
+  'juha': Juha (@juhadojillo1122#06g) net=18 g=4 4-0 | engine=#76 display=#76
+  'trin': Trin (@trinmar.boado) net=54 g=55 35-20 | engine=#17 display=#17
+  'marivic': Marivic (@margatch1771#74t) net=89 g=97 44-53 | engine=#5 display=#5
+  'jowinski': Jowinski (@jowinskisoriano100#ciy) net=92 g=86 53-33 | engine=#3 display=#3
+  'cara': Cara (@eslabracassieralph#d3c) net=82 g=78 49-29 | engine=#7 display=#7
+  'mark': Mark (@markequirimit27#z1v) net=24 g=26 8-18 | engine=#51 display=#51
+  'mark': Mark Anthony (@prestozamarkanthony#e8a) net=18 g=13 7-6 | engine=#82 display=#82
+  'mark': Mark joseph (@markjosephbalolong293#9ry) net=16 g=1 1-0 | engine=#121 display=#118
+  'mark': Mark Anthony (@annihilator99abril#tpe) net=15 g=9 5-4 | engine=#139 display=#133
+  'ednalyn': Ednalyn (@pasaoaednalyn830#flz) net=22 g=24 9-15 | engine=#59 display=#59
+
+totals: fetched=1000 chosenSet=1000 usableMatches=1000 skipped=0 enginePlayers=250 displayPlayers=221
+
+=== rating availability (chosen dataset participants) ===
+participant slots=3998  withRating=3998 (100.0%)
+guest slots=0  guestWithRating=0 (0.0%)
+rating values: n=3998 min=1207 p10=1356 median=1450 p90=1589 max=1848
+
+=== top-30 display players: rating field behavior ===
+   1 rands (@angelobaribal110408#xn0) g=105: VARIES n=40 range=[1417,1570] cov=105/105 latest=1417
+   2 Mikki (@lauricemichelle#aq1) g=95: VARIES n=42 range=[1341,1528] cov=95/95 latest=1450
+   3 Jowinski (@jowinskisoriano100#ciy) g=86: VARIES n=37 range=[1380,1620] cov=86/86 latest=1620
+   4 James (@jamesmanganaan1808#1xb) g=93: VARIES n=40 range=[1559,1705] cov=93/93 latest=1580
+   5 Marivic (@margatch1771#74t) g=97: VARIES n=40 range=[1342,1460] cov=97/97 latest=1410
+   6 Osang (@rose_n_raf#sg8) g=81: VARIES n=45 range=[1288,1434] cov=81/81 latest=1434
+   7 Cara (@eslabracassieralph#d3c) g=78: VARIES n=37 range=[1499,1616] cov=78/78 latest=1587
+   8 EUNICE (@eunicekuan1982#f8n) g=69: VARIES n=28 range=[1329,1416] cov=69/69 latest=1413
+   9 Jel (@jelenamanganaan1012#zv5) g=75: VARIES n=38 range=[1420,1589] cov=75/75 latest=1589
+  10 Boyet (@boyet.castillo74#p2l) g=75: VARIES n=40 range=[1439,1637] cov=75/75 latest=1544
+  11 Marc Johnuel (@hjohnuel21#d2u) g=73: VARIES n=34 range=[1454,1588] cov=73/73 latest=1558
+  12 angie (@adamjedrix#6js) g=78: VARIES n=34 range=[1247,1444] cov=78/78 latest=1374
+  13 Obal (@crisnrose556#ois) g=60: VARIES n=27 range=[1665,1813] cov=60/60 latest=1722
+  14 Alex (@alexmalasan082#m0e) g=67: VARIES n=31 range=[1404,1541] cov=67/67 latest=1530
+  15 Navi (@joelivan.bautista86#tyh) g=58: VARIES n=23 range=[1443,1558] cov=58/58 latest=1544
+  16 Timot (@Timdev0421#tru) g=56: VARIES n=23 range=[1424,1507] cov=56/56 latest=1447
+  17 Trin (@trinmar.boado) g=55: VARIES n=27 range=[1665,1808] cov=55/55 latest=1688
+  18 Gemma P (@gemmapedral099#lc0) g=60: VARIES n=29 range=[1339,1457] cov=60/60 latest=1373
+  19 Anton (@antonrafaelcatalan#71o) g=52: VARIES n=26 range=[1447,1550] cov=52/52 latest=1506
+  20 Heinrich Merl (@heinryyyy#qj9) g=54: VARIES n=29 range=[1313,1525] cov=54/54 latest=1525
+  21 jeo (@jeovannizabala#05d) g=47: VARIES n=18 range=[1556,1699] cov=47/47 latest=1699
+  22 Jeunice (@jeunicegachallan#hry) g=49: VARIES n=33 range=[1382,1552] cov=49/49 latest=1552
+  23 Marienel (@marienelgatchalian03#o58) g=51: VARIES n=20 range=[1434,1533] cov=51/51 latest=1434
+  24 Lenz (@gachallanf#mpr) g=51: VARIES n=31 range=[1508,1629] cov=51/51 latest=1583
+  25 Aira (@nairettap#yh3) g=45: VARIES n=20 range=[1529,1615] cov=45/45 latest=1575
+  26 Angelo (@baribalangelog110408#7cx) g=46: VARIES n=21 range=[1549,1623] cov=46/46 latest=1549
+  27 Jaira (@jaijaipq431#3ka) g=48: VARIES n=19 range=[1505,1615] cov=48/48 latest=1552
+  28 Luv (@lovely.boado24#5lh) g=52: VARIES n=21 range=[1482,1617] cov=52/52 latest=1482
+  29 Beverly (@beverlydisu2021#tz4) g=49: VARIES n=19 range=[1388,1481] cov=49/49 latest=1435
+  30 Aries (@avmostoles27#xaw) g=38: VARIES n=20 range=[1383,1473] cov=38/38 latest=1462
+top30 summary: constant=0 varies=30 noRating=0
+all players: with≥2 rated appearances=237, of which varying=196 (82.7%)

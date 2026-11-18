@@ -111,7 +111,7 @@ export function computeDuoNetworkEntries(
   }
   const entries = buildDuoEntries(inputs, ratingMap);
 
-  const networked = computeNetworkScores(inputs);
+  const networked = computeNetworkScores(inputs, ratingMap);
   if (networked.length === 0) return entries;
   let rMax = 0;
   const rawByKey = new Map<string, number>();
@@ -146,7 +146,15 @@ export function computeNetworkRanked(
   includeNonCompetitive: boolean,
 ): NetworkRankedPlayer[] {
   const filtered = filterCompetitive(matches, includeNonCompetitive);
-  return computeNetworkScores(toRankedInputs(filtered));
+  const inputs = toRankedInputs(filtered);
+  // Replayed rating feeds the network prior — same shrunk Elo the club
+  // rating board displays, so the two leaderboards tell one story.
+  const replayed = replayMatchesForRanking(inputs, includeNonCompetitive);
+  const ratingMap = new Map<string, number>();
+  for (const [key, player] of Object.entries(replayed)) {
+    ratingMap.set(key, player.rating);
+  }
+  return computeNetworkScores(inputs, ratingMap);
 }
 
 export function computeDuoEntries(
