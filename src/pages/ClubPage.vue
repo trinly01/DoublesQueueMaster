@@ -3750,8 +3750,12 @@ watch(showLeaderboardDialog, (open) => {
 });
 
 watch(includeNonCompetitive, () => {
-  fetchLeaderboardTab('club');
-  fetchLeaderboardTab('duo');
+  // The toggle switches datasets, not freshness — bypass the TTL gate or
+  // the just-fetched opposite variant keeps rendering until expiry.
+  // fetchClubLeaderboard still fingerprint-gates the compute, so a
+  // toggle costs one match fetch, not a recompute.
+  void fetchClubLeaderboard();
+  void fetchDuoLeaderboard();
 });
 
 const clubFeedback = ref<ClubFeedbackEntry[]>([]);
