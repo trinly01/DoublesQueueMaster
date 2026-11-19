@@ -1750,6 +1750,7 @@ import { useLeaderboard } from '../composables/useLeaderboard';
 import { useDuoLeaderboard } from '../composables/useDuoLeaderboard';
 import { rankClubPlayers } from 'src/utils/ratingReplay';
 import { runClubRanking, runMatchesReplay } from 'src/utils/runLeaderboard';
+import { fetchLeaderboardMatches } from 'src/utils/leaderboardFetch';
 import { resolveAvatarUrl } from 'src/utils/playerHelpers';
 import { compareWaitingMatches } from 'src/utils/matchOrdering';
 import { PlayerProfile } from 'src/services/playerProfile';
@@ -3076,16 +3077,7 @@ const fetchGlobalLeaderboard = async () => {
   globalLeaderboardLoading.value = !hasCache;
   try {
     // Global leaderboard — last 30 days across all clubs
-    const matches = (await likhaClient.request(
-      readItems('completed_match', {
-        filter: {
-          completed_at: { _gte: '$NOW(-30 days)' },
-        },
-        fields: ['*', 'players.directus_users_id.*'],
-        sort: ['-completed_at'],
-        limit: 1000,
-      }),
-    )) as DirectusCompletedMatch[];
+    const matches = await fetchLeaderboardMatches();
 
     const competitiveMatches = matches.filter((m) => {
       const mode = m.meta?.matchmakingMode;

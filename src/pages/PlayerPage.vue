@@ -1809,6 +1809,7 @@ import {
   runDuoRanking,
   runMatchesReplay,
 } from 'src/utils/runLeaderboard';
+import { fetchLeaderboardMatches } from 'src/utils/leaderboardFetch';
 import type { DuoLeaderboardEntry } from 'src/composables/useDuoLeaderboard';
 import { useRecentClubs } from 'src/composables/useRecentClubs';
 import { useDupr } from 'src/composables/useDupr';
@@ -3082,16 +3083,7 @@ const fetchLeaderboard = async () => {
   try {
     // Fetch completed matches from the last 30 days (global leaderboard)
     // and replay them through the same rating engine as the club leaderboard.
-    const matches = (await likhaClient.request(
-      readItems('completed_match', {
-        filter: {
-          completed_at: { _gte: '$NOW(-30 days)' },
-        },
-        fields: ['*', 'players.directus_users_id.*'],
-        sort: ['-completed_at'],
-        limit: 1000,
-      }),
-    )) as DirectusCompletedMatch[];
+    const matches = await fetchLeaderboardMatches();
 
     // Filter to competitive modes only (exclude Casual and Social)
     const competitiveMatches = matches.filter((m) => {

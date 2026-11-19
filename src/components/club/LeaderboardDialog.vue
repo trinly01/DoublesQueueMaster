@@ -30,7 +30,7 @@
                     <div class="lb-row">
                       <span class="lb-label">Club</span>
                       <span class="lb-desc"
-                        >top 30 in this club by network score (last 30
+                        >top 30 in this club by rating (last 30
                         days)</span
                       >
                     </div>

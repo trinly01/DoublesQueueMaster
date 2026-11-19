@@ -1,12 +1,10 @@
 import { ref, type Ref } from 'vue';
 import { LocalStorage } from 'quasar';
-import { readItems } from '@likha-erp/likha-sdk';
-import { likhaClient } from 'src/services/likhaClient';
 import { matchesFingerprint } from 'src/utils/leaderboardCompute';
 import { runClubRanking } from 'src/utils/runLeaderboard';
 import { rankClubPlayers } from 'src/utils/ratingReplay';
 import { resolveAvatarUrl } from 'src/utils/playerHelpers';
-import type { DirectusCompletedMatch } from 'src/services/playerProfile';
+import { fetchLeaderboardMatches } from 'src/utils/leaderboardFetch';
 import type { ClubMember } from 'src/composables/useClubMembers';
 
 export type ClubLeaderboardEntry = {
@@ -78,20 +76,8 @@ export function useLeaderboard(context: UseLeaderboardContext) {
     clubLeaderboardLoading.value =
       !cachedFingerprint || clubLeaderboard.value.length === 0;
     try {
-      // Club leaderboard — last 30 days, limit 1000
-      const matches = (await likhaClient.request(
-        readItems('completed_match', {
-          filter: {
-            _and: [
-              { club: { _eq: currentClubUUID.value } },
-              { completed_at: { _gte: '$NOW(-30 days)' } },
-            ],
-          },
-          fields: ['*', 'players.directus_users_id.*'],
-          sort: ['-completed_at'],
-          limit: 1000,
-        }),
-      )) as DirectusCompletedMatch[];
+      // Club leaderboard — last 30 days, paginated past the old 1000-row cap
+      const matches = await fetchLeaderboardMatches(currentClubUUID.value);
 
       // Skip the replay entirely when the fetched data is identical to what
       // produced the cached leaderboard.
