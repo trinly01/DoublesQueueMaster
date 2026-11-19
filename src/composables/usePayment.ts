@@ -38,8 +38,16 @@ export function usePayment() {
       return;
     }
     // Must open synchronously within the click handler — popup blockers
-    // kill window.open() calls that happen after an await.
-    const popup = window.open('', '_blank');
+    // kill window.open() calls that happen after an await. iOS Safari can't
+    // drive a blank popup opened earlier: window.open returns a reference
+    // we aren't allowed to navigate post-await, so the payment silently
+    // never opens. Navigate same-tab on iOS instead (iPadOS 13+ reports
+    // MacIntel, so maxTouchPoints catches it too); keep the popup for
+    // fine-pointer desktops.
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const popup = isIOS ? null : window.open('', '_blank');
     paymentLoading.value = true;
     try {
       const token = await likhaClient.getToken();
