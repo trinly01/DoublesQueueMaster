@@ -76,6 +76,12 @@ vi.mock('src/services/cloudSyncHelpers', async (importOriginal) => {
 
 import { useClubData } from './useClubData';
 import { LocalStorage } from 'quasar';
+import {
+  captureBaseline,
+  computeDirtyUnits,
+  loadBaseline,
+  saveBaseline,
+} from 'src/services/syncDirtyTracker';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -471,6 +477,94 @@ describe('useClubData — server reset advantage adoption', () => {
       'bob',
     ]);
     expect(mocks.notify).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// loadClubData — dirty-unit tracked inbound merge (read-path fix)
+// ---------------------------------------------------------------------------
+describe('useClubData — dirty-unit tracked inbound merge', () => {
+  it('adopts server content for clean units and preserves dirty pending edits', async () => {
+    // Local synced state == baseline: alice is clean carryover with a
+    // fast-clock stamp; bob gets a genuine edit below.
+    MatchmakingApp.state.players = {
+      alice: {
+        username: 'alice',
+        level: 1,
+        rating: 1500,
+        matchesPlayed: 0,
+        wins: 5,
+        losses: 0,
+        createdAt: 2000,
+        updatedAt: 9000,
+      } as never,
+      bob: {
+        username: 'bob',
+        level: 1,
+        rating: 1400,
+        matchesPlayed: 0,
+        wins: 2,
+        losses: 0,
+        createdAt: 2000,
+        updatedAt: 9000,
+      } as never,
+    };
+    MatchmakingApp.state.lastModified = 8000;
+    saveBaseline(CLUB_UUID, captureBaseline(MatchmakingApp.state));
+
+    // Genuine pending edit after the baseline: bob wins 2 → 6.
+    const bob = MatchmakingApp.state.players.bob as {
+      wins: number;
+      updatedAt: number;
+    };
+    bob.wins = 6;
+    bob.updatedAt = 9500;
+
+    const serverState = makeServerState({
+      players: {
+        alice: {
+          username: 'alice',
+          level: 1,
+          rating: 1500,
+          matchesPlayed: 3,
+          wins: 9,
+          losses: 1,
+          createdAt: 2000,
+          updatedAt: 5000,
+        } as never,
+        bob: {
+          username: 'bob',
+          level: 1,
+          rating: 1400,
+          matchesPlayed: 0,
+          wins: 4,
+          losses: 0,
+          createdAt: 2000,
+          updatedAt: 5000,
+        } as never,
+      },
+      lastModified: 9600,
+    });
+    mocks.request.mockResolvedValue(makeClubPayload(serverState));
+    mocks.detectAdvantage.mockReturnValue(NO_FLAGS);
+
+    const { context } = makeContext();
+    const { loadClubData } = useClubData(context);
+    await loadClubData(CLUB_ID);
+
+    const s = MatchmakingApp.state;
+    // Clean alice adopted the server version — the stale local wins-5 copy
+    // did NOT win on its higher client stamp (pre-fix read-path LWW would
+    // have laundered it into state and re-pushed it later).
+    expect(s.players.alice.wins).toBe(9);
+    // Dirty bob kept its pending edit — LWW on the newer stamp (9500>5000).
+    expect(s.players.bob.wins).toBe(6);
+
+    // refreshBaselineAfterMerge (NOT captureBaseline): bob stays dirty —
+    // still owed to the server — while alice re-fingerprinted clean.
+    const postDirty = computeDirtyUnits(s, loadBaseline(CLUB_UUID));
+    expect(postDirty.has('players:bob')).toBe(true);
+    expect(postDirty.has('players:alice')).toBe(false);
   });
 });
 

@@ -28,7 +28,13 @@ import {
   buildLocalForMerge,
 } from './syncDirtyTracker';
 import { mergeAppState } from './matchmaking';
-import type { AppState, Player, QueueEntry } from './matchmaking';
+import type {
+  AppState,
+  Player,
+  QueueEntry,
+  ActiveMatch,
+  CompletedMatch,
+} from './matchmaking';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -50,6 +56,33 @@ const makeQueueEntry = (over: Partial<QueueEntry> = {}): QueueEntry => ({
   enteredAt: 1000,
   updatedAt: 1000,
   queuedAt: 1000,
+  ...over,
+});
+
+const makeMatch = (over: Partial<ActiveMatch> = {}): ActiveMatch => ({
+  matchId: 'm1',
+  queueSource: 'GENERAL',
+  teamA: ['alice'],
+  teamB: ['bob'],
+  expectedDifference: 0,
+  status: 'waiting',
+  createdAt: 1000,
+  updatedAt: 1000,
+  ...over,
+});
+
+const makeCompletedMatch = (
+  over: Partial<CompletedMatch> = {},
+): CompletedMatch => ({
+  matchId: 'm1',
+  matchType: 'doubles',
+  teamA: [],
+  teamB: [],
+  teamAScore: 0,
+  teamBScore: 0,
+  completedAt: 1000,
+  updatedAt: 1000,
+  club: 'club-1',
   ...over,
 });
 
@@ -101,13 +134,28 @@ describe('syncDirtyTracker — computeDirtyUnits', () => {
     const state = makeState({
       players: { alice: makePlayer() },
       queues: [makeQueueEntry()],
+      completedMatches: [makeCompletedMatch({ matchId: 'm1' })],
+      completedMatchIds: ['m1'],
+      actionLogs: [
+        {
+          id: 'l1',
+          action: 'test',
+          performedBy: 'alice',
+          performedById: 'u1',
+          timestamp: 1,
+        },
+      ],
       sortBy: 'rating',
     });
     const dirty = computeDirtyUnits(state, null);
     expect(dirty.has('players:alice')).toBe(true);
-    expect(dirty.has('coll:queues')).toBe(true);
+    // Per-entity keys for the entity collections; whole-unit keys for the
+    // derived/append-only companions.
+    expect(dirty.has('coll:queues:alice')).toBe(true);
+    expect(dirty.has('coll:completedMatches:m1')).toBe(true);
+    expect(dirty.has('coll:completedMatchIds')).toBe(true);
+    expect(dirty.has('coll:actionLogs')).toBe(true);
     expect(dirty.has('settings:sortBy')).toBe(true);
-    expect(dirty.has('coll:completedMatches')).toBe(true);
     // Scalar/meta keys are never units.
     expect(dirty.has('lastModified')).toBe(false);
     expect(dirty.has('teamSize')).toBe(false);
@@ -170,15 +218,40 @@ describe('syncDirtyTracker — computeDirtyUnits', () => {
     expect(dirty.size).toBe(1);
   });
 
-  it('flags a whole collection when any element changes', () => {
+  it('flags only the edited queue entity — per-entity granularity', () => {
     const baseline = captureBaseline(
-      makeState({ queues: [makeQueueEntry({ username: 'alice' })] }),
+      makeState({
+        queues: [
+          makeQueueEntry({
+            username: 'alice',
+            queuedAt: 100,
+            updatedAt: 100,
+          }),
+          makeQueueEntry({
+            username: 'bob',
+            queuedAt: 200,
+            updatedAt: 200,
+          }),
+        ],
+      }),
     );
     const state = makeState({
-      queues: [makeQueueEntry({ username: 'alice', updatedAt: 2000 })],
+      queues: [
+        makeQueueEntry({
+          username: 'alice',
+          queuedAt: 100,
+          updatedAt: 2000,
+        }),
+        makeQueueEntry({
+          username: 'bob',
+          queuedAt: 200,
+          updatedAt: 200,
+        }),
+      ],
     });
     const dirty = computeDirtyUnits(state, baseline);
-    expect(dirty.has('coll:queues')).toBe(true);
+    expect(dirty.has('coll:queues:alice')).toBe(true);
+    expect(dirty.has('coll:queues:bob')).toBe(false);
   });
 
   it('ignores scalar/meta key changes entirely', () => {
@@ -472,7 +545,7 @@ describe('syncDirtyTracker — buildLocalForMerge', () => {
     });
     const baseline = captureBaseline(local); // queues clean
     const dirty = computeDirtyUnits(local, baseline);
-    expect(dirty.has('coll:queues')).toBe(false);
+    expect(dirty.has('coll:queues:staleQ')).toBe(false);
 
     const merged = mergeAppState(
       buildLocalForMerge(local, server, dirty),
@@ -502,16 +575,20 @@ describe('syncDirtyTracker — buildLocalForMerge', () => {
       ],
     });
     const dirty = computeDirtyUnits(local, baseline);
-    expect(dirty.has('coll:queues')).toBe(true);
+    // Per-entity: only the local-only newQ is dirty; unchanged oldQ is clean.
+    expect(dirty.has('coll:queues:newQ')).toBe(true);
+    expect(dirty.has('coll:queues:oldQ')).toBe(false);
 
     const merged = mergeAppState(
       buildLocalForMerge(local, server, dirty),
       server,
     );
     const usernames = merged.queues.map((q) => q.username).sort();
-    // Union merge: local newQ + server serverQ both survive (oldQ dedups).
+    // Per-entity merge: dirty local-only newQ appends, server serverQ is
+    // adopted; clean local-only oldQ drops (absent from server).
     expect(usernames).toContain('newQ');
     expect(usernames).toContain('serverQ');
+    expect(usernames).not.toContain('oldQ');
   });
 
   it('stale-offline simulation: clean fields take server, dirty edit survives', () => {
@@ -567,7 +644,7 @@ describe('syncDirtyTracker — buildLocalForMerge', () => {
     const dirty = computeDirtyUnits(local, baseline);
     expect(dirty.has('players:bob')).toBe(true); // genuine edit
     expect(dirty.has('players:alice')).toBe(false); // clean carryover
-    expect(dirty.has('coll:queues')).toBe(false);
+    expect(dirty.has('coll:queues:q1')).toBe(false);
     expect(dirty.has('settings:sortBy')).toBe(false);
     expect(dirty.has('settings:availableCourts')).toBe(false);
 
@@ -586,6 +663,357 @@ describe('syncDirtyTracker — buildLocalForMerge', () => {
     // Clean settings → server values.
     expect(merged.sortBy).toBe('wins');
     expect(merged.availableCourts).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Per-entity collection granularity (queues / matches by entity key)
+// ---------------------------------------------------------------------------
+
+describe('syncDirtyTracker — per-entity collection granularity', () => {
+  it('fingerprints entity collections per entity; ids/logs stay whole-unit', () => {
+    const state = makeState({
+      queues: [makeQueueEntry({ username: 'alice' })],
+      activeMatches: [makeMatch({ matchId: 'm1' })],
+      completedMatches: [makeCompletedMatch({ matchId: 'm2' })],
+      completedMatchIds: ['m2'],
+      actionLogs: [
+        {
+          id: 'l1',
+          action: 'test',
+          performedBy: 'alice',
+          performedById: 'u1',
+          timestamp: 1,
+        },
+      ],
+    });
+    const baseline = captureBaseline(state);
+    expect(baseline['coll:queues:alice']).toBeDefined();
+    expect(baseline['coll:activeMatches:m1']).toBeDefined();
+    expect(baseline['coll:completedMatches:m2']).toBeDefined();
+    // Whole-unit companions keep the legacy key shape.
+    expect(baseline['coll:completedMatchIds']).toBeDefined();
+    expect(baseline['coll:actionLogs']).toBeDefined();
+    // No whole-unit keys for the entity collections.
+    expect(baseline['coll:queues']).toBeUndefined();
+    expect(baseline['coll:activeMatches']).toBeUndefined();
+    expect(baseline['coll:completedMatches']).toBeUndefined();
+  });
+
+  it('clean queue entity adopts server inside a dirty collection; order preserved', () => {
+    // Baseline: q1 synced carrying a fast-clock stamp, q2 synced.
+    const baseline = captureBaseline(
+      makeState({
+        queues: [
+          makeQueueEntry({
+            username: 'q1',
+            queueType: 'GENERAL',
+            queuedAt: 100,
+            updatedAt: 9000,
+          }),
+          makeQueueEntry({
+            username: 'q2',
+            queueType: 'GENERAL',
+            queuedAt: 200,
+            updatedAt: 200,
+          }),
+        ],
+      }),
+    );
+    // Local: q1 untouched carryover (clean — fingerprint-identical to
+    // baseline, so its 9000 stamp must NOT compete); q2 genuinely edited
+    // to LOSERS (dirty, local-only — server never saw it).
+    const local = makeState({
+      lastModified: 8000,
+      queues: [
+        makeQueueEntry({
+          username: 'q1',
+          queueType: 'GENERAL',
+          queuedAt: 100,
+          updatedAt: 9000,
+        }),
+        makeQueueEntry({
+          username: 'q2',
+          queueType: 'LOSERS',
+          queuedAt: 200,
+          updatedAt: 9500,
+        }),
+      ],
+    });
+    const server = makeState({
+      lastModified: 9600,
+      queues: [
+        makeQueueEntry({
+          username: 'q1',
+          queueType: 'WINNERS',
+          queuedAt: 100,
+          updatedAt: 5000,
+        }),
+        makeQueueEntry({
+          username: 'q3',
+          queueType: 'GENERAL',
+          queuedAt: 300,
+          updatedAt: 5000,
+        }),
+      ],
+    });
+    const dirty = computeDirtyUnits(local, baseline);
+    expect(dirty.has('coll:queues:q1')).toBe(false); // clean carryover
+    expect(dirty.has('coll:queues:q2')).toBe(true); // genuine edit
+
+    const merged = mergeAppState(
+      buildLocalForMerge(local, server, dirty),
+      server,
+    );
+    const byUser = new Map(merged.queues.map((q) => [q.username, q]));
+    // q1 clean → server version adopted despite the local stamp being
+    // newer (whole-collection dirty tracking would have let it win).
+    expect(byUser.get('q1')?.queueType).toBe('WINNERS');
+    // q2 dirty local-only → appended and kept through the merge.
+    expect(byUser.get('q2')?.queueType).toBe('LOSERS');
+    // Server-only q3 merges in normally.
+    expect(byUser.get('q3')).toBeDefined();
+    // Order: server order for server entities, dirty local-only appended —
+    // queue order is FIFO-semantic and must never be reordered.
+    expect(merged.queues.map((q) => q.username)).toEqual(['q1', 'q3', 'q2']);
+  });
+
+  it('drops a local-only CLEAN entity — stale copy cannot resurrect', () => {
+    const baseline = captureBaseline(
+      makeState({
+        queues: [
+          makeQueueEntry({
+            username: 'g1',
+            queuedAt: 100,
+            updatedAt: 100,
+          }),
+          makeQueueEntry({
+            username: 'g2',
+            queuedAt: 200,
+            updatedAt: 200,
+          }),
+        ],
+      }),
+    );
+    const local = makeState({
+      queues: [
+        makeQueueEntry({
+          username: 'g1',
+          queuedAt: 100,
+          updatedAt: 100,
+        }),
+        makeQueueEntry({
+          username: 'g2',
+          queuedAt: 200,
+          updatedAt: 200,
+        }),
+      ],
+    });
+    // Server no longer carries g2 (removed via tombstone then purged).
+    const server = makeState({
+      queues: [
+        makeQueueEntry({
+          username: 'g1',
+          queuedAt: 100,
+          updatedAt: 500,
+        }),
+      ],
+    });
+    const dirty = computeDirtyUnits(local, baseline);
+    expect(dirty.size).toBe(0);
+
+    const merged = mergeAppState(
+      buildLocalForMerge(local, server, dirty),
+      server,
+    );
+    // g2's clean local copy dropped — it cannot union-merge back.
+    expect(merged.queues.map((q) => q.username)).toEqual(['g1']);
+  });
+
+  it('tombstoned queue entity re-fingerprints dirty and propagates the delete', () => {
+    const baseline = captureBaseline(
+      makeState({
+        queues: [
+          makeQueueEntry({
+            username: 'alice',
+            queueType: 'GENERAL',
+            queuedAt: 100,
+            updatedAt: 100,
+          }),
+        ],
+      }),
+    );
+    // Local deleted alice via tombstone (deletedAt) — the entity keeps
+    // its key, so the fingerprint change marks exactly this unit dirty.
+    const local = makeState({
+      queues: [
+        makeQueueEntry({
+          username: 'alice',
+          queueType: 'GENERAL',
+          queuedAt: 100,
+          updatedAt: 9000,
+          deletedAt: 9000,
+        }),
+      ],
+    });
+    const server = makeState({
+      queues: [
+        makeQueueEntry({
+          username: 'alice',
+          queueType: 'GENERAL',
+          queuedAt: 100,
+          updatedAt: 5000,
+        }),
+      ],
+    });
+    const dirty = computeDirtyUnits(local, baseline);
+    expect(dirty.has('coll:queues:alice')).toBe(true);
+
+    const merged = mergeAppState(
+      buildLocalForMerge(local, server, dirty),
+      server,
+    );
+    const alice = merged.queues.find((q) => q.username === 'alice');
+    // Tombstone won LWW (deletedAt 9000 > live queuedAt 100) — the delete
+    // propagates instead of being laundered away by the stale live copy.
+    expect(alice?.deletedAt).toBe(9000);
+  });
+
+  it('activeMatches merge per matchId: clean adopts server, dirty LWWs, local-only appends', () => {
+    // Distinct teams per match — mergeAppState's one-match-per-player
+    // invariant would otherwise tombstone the shared default roster.
+    const baseline = captureBaseline(
+      makeState({
+        // Cap ≥2 so the merged two in-progress matches aren't demoted by
+        // enforceConcurrencyLimitOnState (default cap is 1).
+        availableCourts: 2,
+        activeMatches: [
+          makeMatch({
+            matchId: 'm1',
+            teamA: ['a1'],
+            teamB: ['b1'],
+            updatedAt: 9000,
+            status: 'waiting',
+          }),
+          makeMatch({
+            matchId: 'm2',
+            teamA: ['a2'],
+            teamB: ['b2'],
+            updatedAt: 100,
+            status: 'waiting',
+          }),
+        ],
+      }),
+    );
+    const local = makeState({
+      lastModified: 8000,
+      availableCourts: 2,
+      activeMatches: [
+        // m1 clean carryover — high stamp, would win LWW if it competed.
+        makeMatch({
+          matchId: 'm1',
+          teamA: ['a1'],
+          teamB: ['b1'],
+          updatedAt: 9000,
+          status: 'waiting',
+        }),
+        // m2 genuine edit — flipped status, newer stamp (dirty).
+        makeMatch({
+          matchId: 'm2',
+          teamA: ['a2'],
+          teamB: ['b2'],
+          updatedAt: 9500,
+          status: 'in-progress',
+        }),
+        // m3 brand-new local match — dirty local-only.
+        makeMatch({
+          matchId: 'm3',
+          teamA: ['a3'],
+          teamB: ['b3'],
+          updatedAt: 9600,
+          status: 'waiting',
+        }),
+      ],
+    });
+    const server = makeState({
+      lastModified: 9700,
+      availableCourts: 2,
+      activeMatches: [
+        makeMatch({
+          matchId: 'm1',
+          teamA: ['a1'],
+          teamB: ['b1'],
+          updatedAt: 5000,
+          status: 'in-progress',
+        }),
+        makeMatch({
+          matchId: 'm2',
+          teamA: ['a2'],
+          teamB: ['b2'],
+          updatedAt: 5000,
+          status: 'waiting',
+        }),
+      ],
+    });
+    const dirty = computeDirtyUnits(local, baseline);
+    expect(dirty.has('coll:activeMatches:m1')).toBe(false);
+    expect(dirty.has('coll:activeMatches:m2')).toBe(true);
+    expect(dirty.has('coll:activeMatches:m3')).toBe(true);
+
+    const merged = mergeAppState(
+      buildLocalForMerge(local, server, dirty),
+      server,
+    );
+    const byId = new Map(merged.activeMatches.map((m) => [m.matchId, m]));
+    // m1 clean → server version adopted over the stale local copy.
+    expect(byId.get('m1')?.status).toBe('in-progress');
+    // m2 dirty → local edit wins LWW (9500 > 5000).
+    expect(byId.get('m2')?.status).toBe('in-progress');
+    // m3 local-only dirty → survives the merge.
+    expect(byId.get('m3')?.status).toBe('waiting');
+    // No match was tombstoned by the one-match-per-player invariant.
+    expect(merged.activeMatches.every((m) => !m.deletedAt)).toBe(true);
+    // Order: server order for shared entities, local-only appended.
+    expect(merged.activeMatches.map((m) => m.matchId)).toEqual([
+      'm1',
+      'm2',
+      'm3',
+    ]);
+  });
+
+  it('missing/duplicate entity keys get stable distinct fallback units', () => {
+    const dupA = makeQueueEntry({
+      username: 'alice',
+      queuedAt: 1,
+      updatedAt: 1,
+    });
+    const dupB = makeQueueEntry({
+      username: 'alice',
+      queuedAt: 2,
+      updatedAt: 2,
+    });
+    const noKey = {
+      queueType: 'GENERAL',
+      enteredAt: 3,
+      updatedAt: 3,
+    } as unknown as QueueEntry;
+    const state = makeState({ queues: [dupA, dupB, noKey] });
+    const baseline = captureBaseline(state);
+    // Distinct units: bare key, occurrence suffix, index fallback.
+    expect(baseline['coll:queues:alice']).toBeDefined();
+    expect(baseline['coll:queues:alice#1']).toBeDefined();
+    expect(baseline['coll:queues:#2']).toBeDefined();
+    // Keys are deterministic — identical state fingerprints clean.
+    expect(computeDirtyUnits(state, baseline).size).toBe(0);
+
+    // Editing only the duplicate flags only its suffixed unit.
+    const edited = makeState({
+      queues: [dupA, { ...dupB, updatedAt: 999 }, noKey],
+    });
+    const dirty = computeDirtyUnits(edited, baseline);
+    expect(dirty.has('coll:queues:alice#1')).toBe(true);
+    expect(dirty.has('coll:queues:alice')).toBe(false);
+    expect(dirty.has('coll:queues:#2')).toBe(false);
   });
 });
 

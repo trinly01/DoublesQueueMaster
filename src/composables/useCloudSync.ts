@@ -233,11 +233,16 @@ export function useCloudSync(ctx: CloudSyncContext) {
     return merged;
   };
 
-  // Push-path merge with dirty-unit tracking (stale-sync fix): only
-  // units genuinely edited since the last sync baseline compete in
-  // mergeAppState's client-clock LWW — clean units are pre-seeded with
-  // the server version so a stale offline admin's untouched carryover
-  // can't out-stamp newer server content and re-propagate. baseline=null
+  // Dirty-unit tracked merge shared by the push path (pre-push /
+  // CAS-retry re-merge) and the inbound read path (privileged+dirty
+  // applyServerMatchmaking): only units genuinely edited since the last
+  // sync baseline compete in mergeAppState's client-clock LWW — clean
+  // units are pre-seeded with the server version so a stale offline
+  // admin's untouched carryover can't out-stamp newer server content and
+  // re-propagate (or get laundered into state on the read path). After
+  // the merge, refreshBaselineAfterMerge — NOT captureBaseline —
+  // re-baselines the clean (server-adopted) units while dirty units keep
+  // their pre-merge fingerprints: still owed to the server. baseline=null
   // → all units dirty → identical to the pre-fix merge.
   const mergeForPush = (serverMatchmaking: AppState) => {
     const clubUUID = currentClubUUID.value;
@@ -1045,21 +1050,19 @@ export function useCloudSync(ctx: CloudSyncContext) {
         (MatchmakingApp.state.lastModified ?? 0) >
           lastSyncedServerTimestamp.value || hasPendingCloudSync.value;
       if (isCurrentUserPrivilegedForSync && localHasUnsyncedChanges) {
-        // Privileged + dirty: smart-merge so local offline edits are preserved.
-        // mergeWithResetAdvantage wholesale-adopts collections whose server
-        // reset checkpoint beats ours (contract §2, hook point a).
-        const merged = mergeWithResetAdvantage(
-          MatchmakingApp.state,
-          serverMatchmaking,
-        );
+        // Privileged + dirty: smart-merge so local offline edits are
+        // preserved. mergeForPush runs the SAME dirty-unit tracked merge
+        // as the push path — clean units adopt the server version
+        // wholesale so stale local carryover can't win LWW and get
+        // laundered into state (the read-path hole); only genuinely dirty
+        // units compete, and refreshBaselineAfterMerge keeps them dirty
+        // (still owed to the server). mergeWithResetAdvantage inside
+        // wholesale-adopts collections whose server reset checkpoint beats
+        // ours (contract §2, hook point a).
+        mergeForPush(serverMatchmaking);
         // The merge result still owes the server a push — keep the durable
         // marker honest even if the session pending flag was dropped.
         markPendingSync(currentClubId.value);
-        // Assign only keys whose content actually changed — identical merges
-        // keep their references and don't invalidate the page's computeds.
-        perfMeasure('cloudsync.apply-state', () =>
-          applyMergedState(MatchmakingApp.state, merged),
-        );
         // Extra safety: ensure no player appears in multiple matches
         // and no court has multiple in-progress matches
         MatchmakingApp.enforceOneMatchPerPlayer();

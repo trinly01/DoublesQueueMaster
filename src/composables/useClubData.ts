@@ -28,6 +28,13 @@ import {
   type DBUser,
 } from 'src/services/cloudSyncHelpers';
 import type { Router } from 'vue-router';
+import {
+  buildLocalForMerge,
+  computeDirtyUnits,
+  loadBaseline,
+  refreshBaselineAfterMerge,
+  saveBaseline,
+} from 'src/services/syncDirtyTracker';
 
 type NotifyFn = (opts: QNotifyCreateOptions) => void;
 type HandleAuthErrorFn = (err: unknown, router: Router) => Promise<boolean>;
@@ -710,6 +717,19 @@ export function useClubData(context: UseClubDataContext) {
               // large forever here.
               enforceCompletedCaps(serverMatchmaking);
 
+              // Dirty-unit tracking (stale-sync fix — same machinery as
+              // the push path): fingerprint local units against the
+              // last-sync baseline so the merge below only lets GENUINELY
+              // EDITED units compete in client-clock LWW. Clean units are
+              // pre-seeded with the server version so stale carryover can't
+              // win and get laundered into state (the read-path hole).
+              // baseline=null → all-dirty → identical to the pre-fix merge.
+              const mergeBaseline = loadBaseline(currentClubUUID.value);
+              const mergeDirty = computeDirtyUnits(
+                MatchmakingApp.state,
+                mergeBaseline,
+              );
+
               // Check if local state is "fresh" (no meaningful data) - e.g., incognito/private mode
               // In this case, directly adopt server state instead of merging to prevent
               // timestamp-based logic from keeping empty local data.
@@ -776,14 +796,25 @@ export function useClubData(context: UseClubDataContext) {
                 }
 
                 const merged = mergeAppState(
-                  MatchmakingApp.state,
+                  buildLocalForMerge(
+                    MatchmakingApp.state,
+                    serverMatchmaking as AppState,
+                    mergeDirty,
+                  ),
                   serverMatchmaking as AppState,
                 );
                 applyMergedState(MatchmakingApp.state, merged);
               } else {
-                // Existing local state: smart-merge with server
+                // Existing local state: smart-merge with server. The local
+                // side is dirty-unit tracked (same as the push path): clean
+                // units adopt the server version so stale carryover can't
+                // win LWW and get laundered into state (read-path fix).
                 const merged = mergeAppState(
-                  MatchmakingApp.state,
+                  buildLocalForMerge(
+                    MatchmakingApp.state,
+                    serverMatchmaking,
+                    mergeDirty,
+                  ),
                   serverMatchmaking,
                 );
                 // Assign only keys whose content actually changed —
@@ -813,6 +844,21 @@ export function useClubData(context: UseClubDataContext) {
                   message: 'Club data was reset — unsynced changes discarded',
                   timeout: 4000,
                 });
+              }
+
+              // Re-baseline after the inbound merge: clean units adopted
+              // from the server are synced content — re-fingerprint them.
+              // Dirty units keep their pre-merge fingerprints: still owed
+              // to the server. refreshBaselineAfterMerge, NOT
+              // captureBaseline — capturing here would falsely mark pending
+              // local edits as synced → data loss on the next push.
+              const nextBaseline = refreshBaselineAfterMerge(
+                mergeBaseline,
+                MatchmakingApp.state,
+                mergeDirty,
+              );
+              if (nextBaseline && nextBaseline !== mergeBaseline) {
+                saveBaseline(currentClubUUID.value, nextBaseline);
               }
             } else {
               // Non-privileged: server is source of truth — directly overwrite everything, no merge.

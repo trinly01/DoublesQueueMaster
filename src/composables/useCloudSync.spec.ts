@@ -83,6 +83,7 @@ vi.mock('quasar', () => {
 import { LocalStorage } from 'quasar';
 import {
   captureBaseline,
+  computeDirtyUnits,
   loadBaseline,
   saveBaseline,
 } from 'src/services/syncDirtyTracker';
@@ -1838,6 +1839,97 @@ describe('useCloudSync — dirty-unit tracked push merge', () => {
     expect(pushedMatchmaking().players.alice.wins).toBe(5);
     // …and the successful push heals the baseline for next time.
     expect(loadBaseline('uuid-A')).not.toBeNull();
+  });
+});
+
+// ===========================================================================
+// useCloudSync — dirty-unit tracked INBOUND merge (read-path fix)
+// ===========================================================================
+
+describe('useCloudSync — dirty-unit tracked inbound merge', () => {
+  function setupDirtySync() {
+    seedVerifiedMeta('clubA', ['admin1'], []);
+    const refs = makeCtx();
+    const sync = useCloudSync(refs as unknown as CloudSyncContext);
+    sync.isOnline.value = true;
+    return { refs, sync };
+  }
+
+  it('clean units adopt the server version; dirty pending edits survive', async () => {
+    const { refs, sync } = setupDirtySync();
+    refs.lastSyncedServerTimestamp.value = 7000;
+
+    // Local state == baseline: alice is clean carryover with a fast-clock
+    // stamp (9000) over old content; bob gets a genuine edit below.
+    MatchmakingApp.state.players = {
+      alice: { username: 'alice', wins: 5, updatedAt: 9000 } as never,
+      bob: { username: 'bob', wins: 2, updatedAt: 9000 } as never,
+    };
+    MatchmakingApp.state.lastModified = 8000;
+    saveBaseline('uuid-A', captureBaseline(MatchmakingApp.state));
+
+    // Genuine pending edit after the baseline: bob wins 2 → 6.
+    (MatchmakingApp.state.players.bob as { wins: number }).wins = 6;
+    (MatchmakingApp.state.players.bob as { updatedAt: number }).updatedAt =
+      9500;
+
+    // Server moved on: alice wins 9 written by a slower clock (5000).
+    serverTimestamp = 9600;
+    serverMatchmaking = makeState({
+      players: {
+        alice: { username: 'alice', wins: 9, updatedAt: 5000 } as never,
+        bob: { username: 'bob', wins: 4, updatedAt: 5000 } as never,
+      },
+      lastModified: 9600,
+    });
+
+    await sync.pollServerState();
+
+    // Clean alice adopted the server version — the stale local copy did
+    // NOT win on its higher client stamp (pre-fix read-path LWW would have
+    // laundered wins 5 into state and re-pushed it later).
+    expect(MatchmakingApp.state.players.alice.wins).toBe(9);
+    // Dirty bob kept its pending edit — LWW on the newer stamp (9500>5000).
+    expect(MatchmakingApp.state.players.bob.wins).toBe(6);
+
+    // refreshBaselineAfterMerge (NOT captureBaseline): the adopted clean
+    // unit is re-fingerprinted to server content while bob stays dirty —
+    // still owed to the server, so the next push re-merges it.
+    const postDirty = computeDirtyUnits(
+      MatchmakingApp.state,
+      loadBaseline('uuid-A'),
+    );
+    expect(postDirty.has('players:alice')).toBe(false);
+    expect(postDirty.has('players:bob')).toBe(true);
+
+    // The merged result still owes the server a push.
+    expect(LocalStorage.getItem('pending_sync_clubA')).not.toBeNull();
+  });
+
+  it('no baseline → all units dirty → inbound merge keeps pre-fix LWW', async () => {
+    const { refs, sync } = setupDirtySync();
+    refs.lastSyncedServerTimestamp.value = 7000;
+
+    // Same stale-carryover shape but NO baseline — first run after deploy
+    // must not regress to server-wins (local high stamp still wins).
+    MatchmakingApp.state.players = {
+      alice: { username: 'alice', wins: 5, updatedAt: 9000 } as never,
+    };
+    MatchmakingApp.state.lastModified = 8000;
+
+    serverTimestamp = 9600;
+    serverMatchmaking = makeState({
+      players: {
+        alice: { username: 'alice', wins: 9, updatedAt: 5000 } as never,
+      },
+      lastModified: 9600,
+    });
+
+    await sync.pollServerState();
+
+    // All-dirty → local copy wins exactly like the pre-fix merge.
+    expect(MatchmakingApp.state.players.alice.wins).toBe(5);
+    expect(LocalStorage.getItem('pending_sync_clubA')).not.toBeNull();
   });
 });
 
