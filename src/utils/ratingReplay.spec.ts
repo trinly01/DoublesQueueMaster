@@ -181,8 +181,11 @@ describe('replayMatchesForRanking — correctness fixes', () => {
           teamBScore: 5,
           matchKey: 'm1',
           completedAt: '2026-01-01T00:00:00Z',
+          // Stored ratings still don't seed the replay — but keep the gap
+          // under the 0.70 favorite-win suppression threshold (P(A) ≈ 0.64)
+          // so this match rates normally like bob's below.
           teamA: [{ username: 'alice', rating: 1800, level: 3 }],
-          teamB: [{ username: 'opponent1', rating: 1500 }],
+          teamB: [{ username: 'opponent1', rating: 1700 }],
         },
         {
           teamAScore: 11,
@@ -607,6 +610,162 @@ describe('fixed-duo exclusion — declared and detected', () => {
     const result = replayMatches(matches);
     expect(result['alice'].matchesPlayed).toBe(0);
     expect(result['alice'].rating).toBe(1450);
+  });
+});
+
+describe('favorite-win suppression', () => {
+  // Stored ratings 1700 vs 1400 → computeWinProbability P(A) ≈ 0.849 ≥ 0.70,
+  // so team A is the forecast favorite. Singles: harmonic == arithmetic, so
+  // computeTeamRating reduces to the raw rating.
+  const favoriteWin = (aWon: boolean): RankedMatchInput => ({
+    teamAScore: aWon ? 11 : 5,
+    teamBScore: aWon ? 5 : 11,
+    matchKey: 'm1',
+    completedAt: '2026-01-01T00:00:00Z',
+    teamA: [{ username: 'ace', rating: 1700 }],
+    teamB: [{ username: 'noob', rating: 1400 }],
+  });
+
+  // Stored ratings 1540 vs 1400 → P(A) ≈ 0.691 < 0.70 — favorite wins but
+  // below the suppression threshold, so the match rates normally.
+  const closeFavoriteWin = (): RankedMatchInput => ({
+    teamAScore: 11,
+    teamBScore: 5,
+    matchKey: 'm1',
+    completedAt: '2026-01-01T00:00:00Z',
+    teamA: [{ username: 'ace', rating: 1540 }],
+    teamB: [{ username: 'noob', rating: 1400 }],
+  });
+
+  describe('replayMatches (legacy path)', () => {
+    it('keeps rating flat but counts W/L when the forecast favorite wins', () => {
+      const result = replayMatches([favoriteWin(true)]);
+      expect(result['ace'].rating).toBe(1450);
+      expect(result['ace'].matchesPlayed).toBe(1);
+      expect(result['ace'].wins).toBe(1);
+      expect(result['noob'].rating).toBe(1450);
+      expect(result['noob'].matchesPlayed).toBe(1);
+      expect(result['noob'].losses).toBe(1);
+    });
+
+    it('rates an upset normally (favorite loses)', () => {
+      const result = replayMatches([favoriteWin(false)]);
+      expect(result['ace'].rating).toBeLessThan(1450);
+      expect(result['ace'].losses).toBe(1);
+      expect(result['noob'].rating).toBeGreaterThan(1450);
+      expect(result['noob'].wins).toBe(1);
+    });
+
+    it('rates a sub-0.70 favorite win normally', () => {
+      const result = replayMatches([closeFavoriteWin()]);
+      expect(result['ace'].rating).toBeGreaterThan(1450);
+      expect(result['ace'].wins).toBe(1);
+      expect(result['noob'].rating).toBeLessThan(1450);
+    });
+  });
+
+  describe('replayMatchesForRanking', () => {
+    it('keeps rating flat, counts W/L, and does not increment ratedMatchesPlayed', () => {
+      const result = replayMatchesForRanking([favoriteWin(true)]);
+      expect(result['ace'].rating).toBe(1450);
+      expect(result['ace'].matchesPlayed).toBe(1);
+      expect(result['ace'].wins).toBe(1);
+      expect(result['ace'].ratedMatchesPlayed).toBe(0);
+      // Reliability is based on rated games only — 0 rated games.
+      expect(result['ace'].reliability).toBe(0);
+      expect(result['ace'].provisional).toBe(true);
+      expect(result['ace'].gamesToReliable).toBe(
+        CLUB_RANKING_CONFIG.provisionalThreshold,
+      );
+      expect(result['noob'].rating).toBe(1450);
+      expect(result['noob'].matchesPlayed).toBe(1);
+      expect(result['noob'].losses).toBe(1);
+      expect(result['noob'].ratedMatchesPlayed).toBe(0);
+    });
+
+    it('rates an upset normally (favorite loses)', () => {
+      const result = replayMatchesForRanking([favoriteWin(false)]);
+      expect(result['ace'].ratedMatchesPlayed).toBe(1);
+      expect(result['ace'].rating).toBeLessThan(1450);
+      expect(result['noob'].ratedMatchesPlayed).toBe(1);
+      expect(result['noob'].rating).toBeGreaterThan(1450);
+      expect(result['ace'].losses).toBe(1);
+      expect(result['noob'].wins).toBe(1);
+    });
+
+    it('rates a sub-0.70 favorite win normally', () => {
+      const result = replayMatchesForRanking([closeFavoriteWin()]);
+      expect(result['ace'].ratedMatchesPlayed).toBe(1);
+      expect(result['ace'].rating).toBeGreaterThan(1450);
+      expect(result['noob'].ratedMatchesPlayed).toBe(1);
+      expect(result['noob'].rating).toBeLessThan(1450);
+    });
+
+    it('uses STORED ratings, not evolving replay state, across passes', () => {
+      // Match 1: ace (stored 1700) beats noob (stored 1400) — suppressed.
+      // Match 2: ace (stored 1700) beats mid (stored 1450) — stored forecast
+      // P(A) ≈ 0.808 ≥ 0.70 → also suppressed. If the predicate wrongly read
+      // the evolving replay rating (flat 1450 for everyone after match 1),
+      // match 2 would forecast ~0.50 and rate normally.
+      const matches: RankedMatchInput[] = [
+        favoriteWin(true),
+        {
+          teamAScore: 11,
+          teamBScore: 5,
+          matchKey: 'm2',
+          completedAt: '2026-01-02T00:00:00Z',
+          teamA: [{ username: 'ace', rating: 1700 }],
+          teamB: [{ username: 'mid', rating: 1450 }],
+        },
+      ];
+      const result = replayMatchesForRanking(matches);
+      expect(result['ace'].matchesPlayed).toBe(2);
+      expect(result['ace'].wins).toBe(2);
+      expect(result['ace'].ratedMatchesPlayed).toBe(0);
+      expect(result['ace'].rating).toBe(1450);
+      expect(result['mid'].ratedMatchesPlayed).toBe(0);
+      expect(result['mid'].rating).toBe(1450);
+    });
+
+    it('suppresses even when includeNonCompetitive=true (imbalance, not mode)', () => {
+      const match = { ...favoriteWin(true), matchmakingMode: 'fair_balance' };
+      const result = replayMatchesForRanking([match], true);
+      // Without suppression, includeNonCompetitive would rate this match.
+      expect(result['ace'].matchesPlayed).toBe(1);
+      expect(result['ace'].wins).toBe(1);
+      expect(result['ace'].ratedMatchesPlayed).toBe(0);
+      expect(result['ace'].rating).toBe(1450);
+    });
+
+    it('handles doubles via the 0.6·harmonic + 0.4·arithmetic team rating', () => {
+      // teamA: 1700/1500 → harmonic ≈ 1594, arithmetic 1600 → ≈ 1596.6
+      // teamB: 1400/1400 → 1400. P(A) ≈ 0.756 ≥ 0.70 → suppressed.
+      const match: RankedMatchInput = {
+        teamAScore: 11,
+        teamBScore: 4,
+        matchKey: 'm1',
+        completedAt: '2026-01-01T00:00:00Z',
+        teamA: [
+          { username: 'ace1', rating: 1700 },
+          { username: 'ace2', rating: 1500 },
+        ],
+        teamB: [
+          { username: 'noob1', rating: 1400 },
+          { username: 'noob2', rating: 1400 },
+        ],
+      };
+      const result = replayMatchesForRanking([match]);
+      for (const name of ['ace1', 'ace2']) {
+        expect(result[name].rating).toBe(1450);
+        expect(result[name].wins).toBe(1);
+        expect(result[name].ratedMatchesPlayed).toBe(0);
+      }
+      for (const name of ['noob1', 'noob2']) {
+        expect(result[name].rating).toBe(1450);
+        expect(result[name].losses).toBe(1);
+        expect(result[name].ratedMatchesPlayed).toBe(0);
+      }
+    });
   });
 });
 

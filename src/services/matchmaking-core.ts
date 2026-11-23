@@ -626,6 +626,21 @@ const AUTOCORR_SCALE = 1000;
 const MAX_PARTNER_RATIO = 2.0;
 
 /**
+ * Favorite-win suppression threshold. When the pre-match forecast gives one
+ * team a win probability >= this value AND that favorite actually wins, the
+ * match is treated as uninformative for ratings — the favorite winning "as
+ * expected" carries almost no skill signal, so no rating delta is applied
+ * (W/L still count). An upset (underdog wins) always rates normally.
+ *
+ * 0.70 ≈ a ~147-point team-rating gap — the same imbalance the matchmaker
+ * already warns on. Grounded in production data: favProb>=0.70 captures the
+ * observed blowout tail (~1.9% of competitive 2v2) while leaving genuinely
+ * contested matches (underdog >= ~30%) rated. Consumed by the live path,
+ * leaderboard replay, and mirrored in the save-completed-match flow.
+ */
+export const SUPPRESS_FAVORITE_WIN_PROB = 0.7;
+
+/**
  * Distribute an integer `total` across `weights` proportionally, guaranteeing
  * the rounded parts sum EXACTLY to `total` (largest-remainder method). This is
  * what makes the transfer strictly zero-sum.

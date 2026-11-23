@@ -2109,6 +2109,7 @@ const matches = computed(() => {
         ratingApplied: undefined as boolean | undefined,
         ratingSkippedReason: undefined as
           | 'unrated_mode'
+          | 'favorite_win_suppressed'
           | 'unlinked_players'
           | undefined,
       };

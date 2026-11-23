@@ -137,7 +137,13 @@
       icon="block"
     >
       <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]">
-        <template v-if="meta.ratingSkippedReason === 'unlinked_players'">
+        <template
+          v-if="meta.ratingSkippedReason === 'favorite_win_suppressed'"
+        >
+          <div>Favorite won by a wide margin —</div>
+          <div>rating unchanged.</div>
+        </template>
+        <template v-else-if="meta.ratingSkippedReason === 'unlinked_players'">
           <div>Linked-player ratings not updated —</div>
           <div>a player in this match has no linked account.</div>
           <div>Guest players still moved locally.</div>

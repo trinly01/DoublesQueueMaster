@@ -11,6 +11,7 @@ A match updates **persisted ratings** only when ALL of these hold:
 | Mode is rated — Standard (`balanced_variety`), Competitive (`balance_first`), or Pro Pick (`strict_balance`) | Frontend + backend flow |
 | Score is decisive (no tie) | Frontend `completeMatch` blocks ties before submission; flow re-checks |
 | **Every** player has a linked account (`userId`) | Frontend + backend flow |
+| **Not a suppressed favorite-win** — forecast favorite win-prob < 0.70, OR the underdog (upset) won | Frontend + backend flow |
 
 Casual (`fair_balance`) and Social (`variety_first`) never update ratings — in
 any layer. A match with even one guest/manual player produces **no** rating
@@ -44,11 +45,35 @@ The completed-match record stores the outcome in `meta`:
 
 ```ts
 meta.ratingApplied:        boolean
-meta.ratingSkippedReason:  'unrated_mode' | 'unlinked_players'  // when false
+meta.ratingSkippedReason:  'unrated_mode' | 'favorite_win_suppressed' | 'unlinked_players'  // when false
 ```
 
 This flows through to the backend record unchanged (`meta` is passed
 through), so the reason is inspectable anywhere the match is viewed.
+
+### Favorite-win suppression
+
+When the pre-match forecast (`computeWinProbability`, the same 0.6·harmonic +
+0.4·arithmetic team rating shown on match cards) gives one team a win
+probability **≥ `SUPPRESS_FAVORITE_WIN_PROB` (0.70)** and that favorite
+actually wins, the result is treated as uninformative — the favorite winning
+"as expected" carries almost no skill signal. The match still records W/L
+(`matchesPlayed`/`wins`/`losses`) but **no rating delta** and does **not**
+increment `ratedMatchesPlayed` (so it doesn't build rating reliability or count
+toward leaderboard eligibility). An upset — the underdog winning — always rates
+normally.
+
+The decision is computed once at `reportMatchScore` on the still-unshifted
+player ratings, stamped into `meta.ratingSkippedReason = 'favorite_win_suppressed'`,
+and honored identically by:
+
+- **Live path** — `calculateShift(applyRatingChange=false)` (W/L counted, rating frozen).
+- **Leaderboard replay** — `isFavoriteWinSuppressed` in `ratingReplay.ts`
+  recomputes the same predicate from the *stored* pre-match team ratings (never
+  the evolving replay state, keeping all ranking passes deterministic); counts
+  W/L but skips `rating`/`ratedMatchesPlayed`.
+- **Backend flow** — `save completed match` returns `newPlayersRatings = []`
+  when `meta.ratingSkippedReason === 'favorite_win_suppressed'`.
 
 ### Backend (Directus flow `daa0ffa5`, run-script op `77006b79`)
 

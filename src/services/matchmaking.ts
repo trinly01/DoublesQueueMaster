@@ -12,7 +12,9 @@ import {
   RatingEngine,
   RESET_LOG_ACTIONS,
   STORAGE_KEY,
+  SUPPRESS_FAVORITE_WIN_PROB,
   completedMatchCheckpointTime,
+  computeWinProbability,
   enforceCompletedCaps,
   enforceConcurrencyLimitOnState,
   enforceOneMatchPerCourtOnState,
@@ -1658,25 +1660,39 @@ export class LocalMatchmakingSystem {
       teamA.length > 0 &&
       teamB.length > 0 &&
       [...teamA, ...teamB].every((p) => p.userId);
-    const ratingApplied = !isNonCompetitive && allLinked;
+
+    // Favorite-win suppression: when the pre-match forecast gives one team a
+    // win probability >= SUPPRESS_FAVORITE_WIN_PROB and that favorite actually
+    // wins, the result carries almost no skill signal — count W/L but skip
+    // the rating shift. Upsets (underdog wins) and <threshold matches rate
+    // normally. Computed on the still-unshifted player ratings.
+    const winProb = computeWinProbability(teamA, teamB);
+    const favProb = Math.max(winProb.teamA, winProb.teamB);
+    const favoriteIsA = winProb.teamA >= 0.5;
+    const suppressed =
+      favProb >= SUPPRESS_FAVORITE_WIN_PROB && favoriteIsA === teamAWon;
+
+    const ratingApplied = !isNonCompetitive && allLinked && !suppressed;
     const ratingSkippedReason = ratingApplied
       ? undefined
       : isNonCompetitive
         ? ('unrated_mode' as const)
-        : ('unlinked_players' as const);
+        : suppressed
+          ? ('favorite_win_suppressed' as const)
+          : ('unlinked_players' as const);
 
     const { updatedWinners, updatedLosers } = RatingEngine.calculateShift(
       winners,
       losers,
       scoreW,
       scoreL,
-      !isNonCompetitive,
+      !isNonCompetitive && !suppressed,
     );
 
     // Strip the rating shift from linked players in a partially-linked
     // match — the flow won't persist it, so keeping it locally would make
     // this device diverge from directus_users (and every other device).
-    if (!isNonCompetitive && !allLinked) {
+    if (!isNonCompetitive && !allLinked && !suppressed) {
       const revertLinked = (updated: Player[], originals: Player[]) => {
         updated.forEach((p, i) => {
           if (originals[i].userId) {

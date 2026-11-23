@@ -1,4 +1,9 @@
 import { detectFixedDuos, hasDetectedDuo } from './duoStats';
+import {
+  computeWinProbability,
+  SUPPRESS_FAVORITE_WIN_PROB,
+  type Player,
+} from '../services/matchmaking-core';
 
 export type ReplayPlayerInput = {
   username?: string;
@@ -49,6 +54,42 @@ const NON_COMPETITIVE_MODES = new Set(['variety_first', 'fair_balance']);
 // detectFixedDuos pattern analysis over the same match set.
 const hasLinkedPartner = (m: ReplayMatchInput) =>
   m.teamA.concat(m.teamB).some((p) => !!p.linkedTo);
+
+/**
+ * Favorite-win suppression predicate — MUST stay identical to the live path
+ * (matchmaking.ts reportMatchScore) and the backend flow transform:
+ * forecast one team's win probability from the STORED pre-match ratings
+ * embedded in the match inputs (m.teamA/m.teamB[].rating); when that
+ * probability is >= SUPPRESS_FAVORITE_WIN_PROB (0.70) AND the favorite
+ * actually won, the match is uninformative for ratings — W/L still count,
+ * rating does not move.
+ *
+ * Deliberately uses the stored per-match ratings, NEVER the evolving replay
+ * rating state: the replay seeds everyone flat at 1450 and iterates 8
+ * ranking passes, so a predicate on evolving state would give different
+ * answers on different passes and break determinism. Upsets (underdog
+ * wins) and sub-threshold favorites rate normally.
+ */
+const isFavoriteWinSuppressed = (
+  m: ReplayMatchInput,
+  aWon: boolean,
+): boolean => {
+  // computeWinProbability only reads .rating (via computeTeamRating's
+  // 0.6·harmonic + 0.4·arithmetic blend). ReplayPlayerInput.rating is
+  // optional — ?? 1450 mirrors the engine's own `p.rating || 1450`
+  // fallbacks in computeHarmonicMean/computeArithmeticMean.
+  const asPlayers = (team: ReplayPlayerInput[]): Player[] =>
+    team.map((p) => ({ rating: p.rating ?? 1450 }) as Player);
+  const { teamA: probA, teamB: probB } = computeWinProbability(
+    asPlayers(m.teamA),
+    asPlayers(m.teamB),
+  );
+  const favoriteIsA = probA >= probB;
+  return (
+    Math.max(probA, probB) >= SUPPRESS_FAVORITE_WIN_PROB &&
+    favoriteIsA === aWon
+  );
+};
 
 const CONFIG = {
   kSingles: 36,
@@ -211,6 +252,20 @@ export function replayMatches(
     const losers = aWon ? tB : tA;
     const sW = aWon ? m.teamAScore : m.teamBScore;
     const sL = aWon ? m.teamBScore : m.teamAScore;
+    // Favorite-win suppression: forecast favorite (>=0.70 on STORED
+    // pre-match ratings) won → W/L count, rating stays flat. Mirrors the
+    // ranking path's unrated branch (no ratedMatchesPlayed exists here).
+    if (isFavoriteWinSuppressed(m, aWon)) {
+      winners.forEach((p) => {
+        p.matchesPlayed += 1;
+        p.wins += 1;
+      });
+      losers.forEach((p) => {
+        p.matchesPlayed += 1;
+        p.losses += 1;
+      });
+      continue;
+    }
     const { winnerGains, loserLosses } = calculateShift(
       winners,
       losers,
@@ -388,7 +443,15 @@ function replayRankingPass(
     const isNonCompetitive =
       !includeNonCompetitive &&
       NON_COMPETITIVE_MODES.has(m.matchmakingMode || '');
-    if (isNonCompetitive) {
+    // Favorite-win suppression: forecast favorite (>=0.70 on STORED
+    // pre-match ratings) won → W/L count, but rating and ratedMatchesPlayed
+    // stay untouched — same W/L-only branch as non-competitive matches.
+    // Suppression is about matchup imbalance, not mode, so it applies even
+    // when includeNonCompetitive=true treats the match as otherwise rated.
+    // The predicate reads stored ratings only, so it returns the same answer
+    // on every ranking pass (deterministic under iterated convergence).
+    const ratingSuppressed = isFavoriteWinSuppressed(m, aWon);
+    if (isNonCompetitive || ratingSuppressed) {
       // Count W/L but don't update ratings or ratedMatchesPlayed.
       // Reliability/provisional are based on rated games only.
       winners.forEach((p) => {

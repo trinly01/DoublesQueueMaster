@@ -372,7 +372,10 @@ interface Match {
   originalTeamB?: string;
   updatedAt?: Date | string | number;
   ratingApplied?: boolean;
-  ratingSkippedReason?: 'unrated_mode' | 'unlinked_players';
+  ratingSkippedReason?:
+    | 'unrated_mode'
+    | 'favorite_win_suppressed'
+    | 'unlinked_players';
   /** Prebuilt MatchMetaChips payload — stable identity per view-model row. */
   meta?: MatchMeta;
 }

@@ -4427,6 +4427,104 @@
     "accountability": "all"
   },
   {
+    "id": "ce0eecd5-df4f-4fd0-9fb8-db6953c065dc",
+    "name": "sync club dupr flags",
+    "icon": "flag",
+    "color": "#6644ff",
+    "description": "Derives club.dupr_only/dupr_plus_only from appState.matchmaking.duprOnly/duprPlusOnly on every club update",
+    "trigger": "event",
+    "options": {
+      "type": "action",
+      "scope": [
+        "items.update"
+      ],
+      "collections": [
+        "club"
+      ]
+    },
+    "operation": "04e58847-d03f-4068-b790-49f5f46de1ee",
+    "operations": [
+      {
+        "id": "04e58847-d03f-4068-b790-49f5f46de1ee",
+        "name": "extract dupr flags",
+        "key": "extract_dupr_flags",
+        "type": "exec",
+        "position_x": 0,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const t = data.$trigger || {};\n  const p = t.payload || {};\n  const mm = p.appState && p.appState.matchmaking;\n  if (!mm || typeof mm !== 'object') throw new Error('skip: payload has no appState.matchmaking');\n  const id = t.key\n    ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n    ?? (p.keys && p.keys[0])\n    ?? p.id\n    ?? (p.item && p.item.id);\n  if (id == null) throw new Error('no club id in trigger');\n  return {\n    clubId: id,\n    dupr_only: mm.duprOnly === true,\n    dupr_plus_only: mm.duprPlusOnly === true,\n  };\n}"
+        },
+        "resolve": "382a0575-e7df-4724-ba66-f5772891462b",
+        "reject": null
+      },
+      {
+        "id": "16e24043-a244-4d9b-b141-1e342118bfb3",
+        "name": "write dupr flags",
+        "key": "write_dupr_flags",
+        "type": "item-update",
+        "position_x": 60,
+        "position_y": 0,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "club",
+          "key": [
+            "{{diff_dupr_flags.clubId}}"
+          ],
+          "payload": {
+            "dupr_only": "{{diff_dupr_flags.dupr_only}}",
+            "dupr_plus_only": "{{diff_dupr_flags.dupr_plus_only}}"
+          }
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "382a0575-e7df-4724-ba66-f5772891462b",
+        "name": "read club flags",
+        "key": "read_club_flags",
+        "type": "item-read",
+        "position_x": 20,
+        "position_y": 0,
+        "options": {
+          "permissions": "$full",
+          "emitEvents": false,
+          "collection": "club",
+          "query": {
+            "filter": {
+              "id": {
+                "_eq": "{{extract_dupr_flags.clubId}}"
+              }
+            },
+            "fields": [
+              "id",
+              "dupr_only",
+              "dupr_plus_only"
+            ],
+            "limit": 1
+          }
+        },
+        "resolve": "7eb41fe4-a924-4512-8d74-a93d597d7a6e",
+        "reject": null
+      },
+      {
+        "id": "7eb41fe4-a924-4512-8d74-a93d597d7a6e",
+        "name": "diff dupr flags",
+        "key": "diff_dupr_flags",
+        "type": "exec",
+        "position_x": 40,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const want = data.extract_dupr_flags || {};\n  const rows = data.read_club_flags || [];\n  const cur = rows[0] || {};\n  if (cur.dupr_only === want.dupr_only && cur.dupr_plus_only === want.dupr_plus_only) {\n    throw new Error('skip: flags unchanged');\n  }\n  return { clubId: want.clubId, dupr_only: want.dupr_only, dupr_plus_only: want.dupr_plus_only };\n}"
+        },
+        "resolve": "16e24043-a244-4d9b-b141-1e342118bfb3",
+        "reject": null
+      }
+    ],
+    "flow_manager_category": null,
+    "accountability": "all"
+  },
+  {
     "id": "daa0ffa5-d040-4efd-af26-3ce063a81bc6",
     "name": "save completed match",
     "icon": "bolt",
@@ -4444,7 +4542,7 @@
         "position_x": 21,
         "position_y": 1,
         "options": {
-          "code": "const K_DOUBLES = 64;\nconst K_SINGLES = 36;\nconst MARGIN_WEIGHT = 0.15;\nconst PARTNER_GAP_FACTOR = 0.5;\nconst LOSS_UNDERDOG_BLEND = 1.0;\nconst RATING_FLOOR = 100;\nconst MAX_PARTNER_RATIO = 2.0;\n\n// Rated modes only: Standard, Competitive, Pro Pick.\n// Casual (fair_balance) and Social (variety_first) never update ratings.\nconst RATED_MODES = new Set([\n  'balanced_variety',\n  'balance_first',\n  'strict_balance',\n]);\n\nconst computeArithmeticMean = (team) => {\n  if (!team || team.length === 0) return 1450;\n  return team.reduce((sum, p) => sum + (Number(p.rating) || 1450), 0) / team.length;\n};\n\nconst allocateInteger = (total, weights) => {\n  const sum = weights.reduce((s, w) => s + w, 0);\n  const norm = sum > 0\n    ? weights.map((w) => w / sum)\n    : weights.map(() => 1 / weights.length);\n  const raw = norm.map((n) => n * total);\n  const floors = raw.map((r) => Math.floor(r));\n  const remainder = total - floors.reduce((s, f) => s + f, 0);\n  const order = raw\n    .map((r, i) => ({ i, frac: r - Math.floor(r) }))\n    .sort((a, b) => b.frac - a.frac);\n  const result = [...floors];\n  for (let k = 0; k < remainder; k++) result[order[k % order.length].i] += 1;\n  return result;\n};\n\nconst capWeights = (weights, maxRatio) => {\n  if (weights.length < 2) return weights;\n  const max = Math.max(...weights);\n  if (max <= 0) return weights;\n  const minAllowed = max / maxRatio;\n  return weights.map((w) => Math.max(w, minAllowed));\n};\n\nconst calculateShift = (winners, losers, scoreW, scoreL) => {\n  const ratingW = computeArithmeticMean(winners);\n  const ratingL = computeArithmeticMean(losers);\n\n  const margin = Math.abs(scoreW - scoreL);\n  const multiplier = 1 + MARGIN_WEIGHT * Math.log(1 + margin);\n\n  const K = winners.length === 1 ? K_SINGLES : K_DOUBLES;\n\n  const expectedW = 1 / (1 + Math.pow(10, (ratingL - ratingW) / 400));\n  const pool = Math.round(K * multiplier * (1 - expectedW));\n\n  const winnerCredits = winners.map((p, i) => {\n    const partner = winners[(i + 1) % winners.length];\n    const gap = Math.abs(partner.rating - p.rating);\n    const base = 1 - 1 / (1 + Math.pow(10, (ratingL - p.rating) / 400));\n    const weaker = p.rating < partner.rating;\n    const penalty = weaker\n      ? Math.max(0.1, 1 - (PARTNER_GAP_FACTOR * gap) / 400)\n      : 1;\n    return base * penalty;\n  });\n  const winnerGains = allocateInteger(pool, capWeights(winnerCredits, MAX_PARTNER_RATIO));\n\n  const loserBlames = losers.map((p) => {\n    const expectedVsWinners = 1 / (1 + Math.pow(10, (ratingW - p.rating) / 400));\n    return 1 - LOSS_UNDERDOG_BLEND + LOSS_UNDERDOG_BLEND * expectedVsWinners;\n  });\n  const loserLosses = allocateInteger(pool, capWeights(loserBlames, MAX_PARTNER_RATIO));\n\n  return { winnerGains, loserLosses };\n};\n\nmodule.exports = async function(data) {\n  const match = data.$trigger.payload || data.$trigger;\n\n  const teamA = match.teamA || [];\n  const teamB = match.teamB || [];\n  const teamAScore = Number(match.teamAScore) || 0;\n  const teamBScore = Number(match.teamBScore) || 0;\n\n  const now = new Date().toISOString();\n\n  const completedMatch = {\n    match_key: `${match.completedAt}_${match.matchId}`,\n    match_id: match.matchId,\n    match_type: match.matchType,\n    team_a: match.teamA,\n    team_b: match.teamB,\n    team_a_score: match.teamAScore,\n    team_b_score: match.teamBScore,\n    started_at: new Date(match.startedAt).toISOString(),\n    completed_at: new Date(match.completedAt).toISOString(),\n    players: [...teamA, ...teamB]\n      .filter(p => p.userId)\n      .map(p => ({ \"directus_users_id\": p.userId })),\n    club: match.club,\n    meta: match.meta || null\n  };\n\n  // Rating update gates — all must pass or the match is stored unrated:\n  //   1. Rated mode only (Standard / Competitive / Pro Pick)\n  //   2. Decisive result — a completed match with equal scores has no\n  //      winner; awarding Team B the win would corrupt both ratings\n  //   3. EVERY player linked to a user account — one manual/guest player\n  //      disqualifies the whole match from rating updates\n  const mode = match.meta?.matchmakingMode || match.matchmakingMode || '';\n  const decisive = teamAScore !== teamBScore;\n  const allLinked =\n    teamA.length > 0 &&\n    teamB.length > 0 &&\n    [...teamA, ...teamB].every(p => p.userId);\n\n  let newPlayersRatings = [];\n\n  if (RATED_MODES.has(mode) && decisive && allLinked) {\n    let winners, losers, scoreW, scoreL;\n    if (teamAScore > teamBScore) {\n      winners = teamA;\n      losers = teamB;\n      scoreW = teamAScore;\n      scoreL = teamBScore;\n    } else {\n      winners = teamB;\n      losers = teamA;\n      scoreW = teamBScore;\n      scoreL = teamAScore;\n    }\n\n    const { winnerGains, loserLosses } = calculateShift(\n      winners,\n      losers,\n      scoreW,\n      scoreL\n    );\n\n    newPlayersRatings = [\n      ...winners.map((player, i) => ({\n        uuid: player.userId,\n        rating: Math.max(RATING_FLOOR, (Number(player.rating) || 1450) + winnerGains[i]),\n        rating_updated_at: now,\n        matches_played: (Number(player.matchesPlayed) || 0) + 1,\n        wins: (Number(player.wins) || 0) + 1\n      })),\n      ...losers.map((player, i) => ({\n        uuid: player.userId,\n        rating: Math.max(RATING_FLOOR, (Number(player.rating) || 1450) - loserLosses[i]),\n        rating_updated_at: now,\n        matches_played: (Number(player.matchesPlayed) || 0) + 1,\n        losses: (Number(player.losses) || 0) + 1\n      }))\n    ];\n  }\n\n  return {\n    match,\n    completedMatch,\n    newPlayersRatings\n  };\n};"
+          "code": "const K_DOUBLES = 64;\nconst K_SINGLES = 36;\nconst MARGIN_WEIGHT = 0.15;\nconst PARTNER_GAP_FACTOR = 0.5;\nconst LOSS_UNDERDOG_BLEND = 1.0;\nconst RATING_FLOOR = 100;\nconst MAX_PARTNER_RATIO = 2.0;\n\n// Rated modes only: Standard, Competitive, Pro Pick.\n// Casual (fair_balance) and Social (variety_first) never update ratings.\nconst RATED_MODES = new Set([\n  'balanced_variety',\n  'balance_first',\n  'strict_balance',\n]);\n\nconst computeArithmeticMean = (team) => {\n  if (!team || team.length === 0) return 1450;\n  return team.reduce((sum, p) => sum + (Number(p.rating) || 1450), 0) / team.length;\n};\n\nconst allocateInteger = (total, weights) => {\n  const sum = weights.reduce((s, w) => s + w, 0);\n  const norm = sum > 0\n    ? weights.map((w) => w / sum)\n    : weights.map(() => 1 / weights.length);\n  const raw = norm.map((n) => n * total);\n  const floors = raw.map((r) => Math.floor(r));\n  const remainder = total - floors.reduce((s, f) => s + f, 0);\n  const order = raw\n    .map((r, i) => ({ i, frac: r - Math.floor(r) }))\n    .sort((a, b) => b.frac - a.frac);\n  const result = [...floors];\n  for (let k = 0; k < remainder; k++) result[order[k % order.length].i] += 1;\n  return result;\n};\n\nconst capWeights = (weights, maxRatio) => {\n  if (weights.length < 2) return weights;\n  const max = Math.max(...weights);\n  if (max <= 0) return weights;\n  const minAllowed = max / maxRatio;\n  return weights.map((w) => Math.max(w, minAllowed));\n};\n\nconst calculateShift = (winners, losers, scoreW, scoreL) => {\n  const ratingW = computeArithmeticMean(winners);\n  const ratingL = computeArithmeticMean(losers);\n\n  const margin = Math.abs(scoreW - scoreL);\n  const multiplier = 1 + MARGIN_WEIGHT * Math.log(1 + margin);\n\n  const K = winners.length === 1 ? K_SINGLES : K_DOUBLES;\n\n  const expectedW = 1 / (1 + Math.pow(10, (ratingL - ratingW) / 400));\n  const pool = Math.round(K * multiplier * (1 - expectedW));\n\n  const winnerCredits = winners.map((p, i) => {\n    const partner = winners[(i + 1) % winners.length];\n    const gap = Math.abs(partner.rating - p.rating);\n    const base = 1 - 1 / (1 + Math.pow(10, (ratingL - p.rating) / 400));\n    const weaker = p.rating < partner.rating;\n    const penalty = weaker\n      ? Math.max(0.1, 1 - (PARTNER_GAP_FACTOR * gap) / 400)\n      : 1;\n    return base * penalty;\n  });\n  const winnerGains = allocateInteger(pool, capWeights(winnerCredits, MAX_PARTNER_RATIO));\n\n  const loserBlames = losers.map((p) => {\n    const expectedVsWinners = 1 / (1 + Math.pow(10, (ratingW - p.rating) / 400));\n    return 1 - LOSS_UNDERDOG_BLEND + LOSS_UNDERDOG_BLEND * expectedVsWinners;\n  });\n  const loserLosses = allocateInteger(pool, capWeights(loserBlames, MAX_PARTNER_RATIO));\n\n  return { winnerGains, loserLosses };\n};\n\nmodule.exports = async function(data) {\n  const match = data.$trigger.payload || data.$trigger;\n\n  const teamA = match.teamA || [];\n  const teamB = match.teamB || [];\n  const teamAScore = Number(match.teamAScore) || 0;\n  const teamBScore = Number(match.teamBScore) || 0;\n\n  const now = new Date().toISOString();\n\n  const completedMatch = {\n    match_key: `${match.completedAt}_${match.matchId}`,\n    match_id: match.matchId,\n    match_type: match.matchType,\n    team_a: match.teamA,\n    team_b: match.teamB,\n    team_a_score: match.teamAScore,\n    team_b_score: match.teamBScore,\n    started_at: new Date(match.startedAt).toISOString(),\n    completed_at: new Date(match.completedAt).toISOString(),\n    players: [...teamA, ...teamB]\n      .filter(p => p.userId)\n      .map(p => ({ \"directus_users_id\": p.userId })),\n    club: match.club,\n    meta: match.meta || null\n  };\n\n  // Rating update gates — all must pass or the match is stored unrated:\n  //   1. Rated mode only (Standard / Competitive / Pro Pick)\n  //   2. Decisive result — a completed match with equal scores has no\n  //      winner; awarding Team B the win would corrupt both ratings\n  //   3. EVERY player linked to a user account — one manual/guest player\n  //      disqualifies the whole match from rating updates\n  const mode = match.meta?.matchmakingMode || match.matchmakingMode || '';\n  const decisive = teamAScore !== teamBScore;\n  const allLinked =\n    teamA.length > 0 &&\n    teamB.length > 0 &&\n    [...teamA, ...teamB].every(p => p.userId);\n\n  // Favorite-win suppression: the scoring client flags matches where the\n  // pre-match favorite (winProb >= 0.70) won \"as expected\" — an uninformative\n  // result, so ratings don't move (the match + W/L are still recorded). This\n  // honors the stored meta flag the same way matchmakingMode is honored above.\n  const suppressed =\n    match.meta?.ratingSkippedReason === 'favorite_win_suppressed';\n\n  let newPlayersRatings = [];\n\n  if (RATED_MODES.has(mode) && decisive && allLinked && !suppressed) {\n    let winners, losers, scoreW, scoreL;\n    if (teamAScore > teamBScore) {\n      winners = teamA;\n      losers = teamB;\n      scoreW = teamAScore;\n      scoreL = teamBScore;\n    } else {\n      winners = teamB;\n      losers = teamA;\n      scoreW = teamBScore;\n      scoreL = teamAScore;\n    }\n\n    const { winnerGains, loserLosses } = calculateShift(\n      winners,\n      losers,\n      scoreW,\n      scoreL\n    );\n\n    newPlayersRatings = [\n      ...winners.map((player, i) => ({\n        uuid: player.userId,\n        rating: Math.max(RATING_FLOOR, (Number(player.rating) || 1450) + winnerGains[i]),\n        rating_updated_at: now,\n        matches_played: (Number(player.matchesPlayed) || 0) + 1,\n        wins: (Number(player.wins) || 0) + 1\n      })),\n      ...losers.map((player, i) => ({\n        uuid: player.userId,\n        rating: Math.max(RATING_FLOOR, (Number(player.rating) || 1450) - loserLosses[i]),\n        rating_updated_at: now,\n        matches_played: (Number(player.matchesPlayed) || 0) + 1,\n        losses: (Number(player.losses) || 0) + 1\n      }))\n    ];\n  }\n\n  return {\n    match,\n    completedMatch,\n    newPlayersRatings\n  };\n};"
         },
         "resolve": "db5679d6-f6a9-49fd-a69e-b96503a39e55",
         "reject": null
@@ -4682,6 +4780,75 @@
     "operation": "eb4cf5d2-c196-43b0-b2f1-541795825a86",
     "operations": [
       {
+        "id": "35dd593e-4979-43f6-b44a-a95a405ba576",
+        "name": "filter new matches",
+        "key": "filter_new_matches",
+        "type": "exec",
+        "position_x": 20,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const mm = data.$trigger?.payload?.appState?.matchmaking;\n  const matches = Array.isArray(mm?.completedMatches) ? mm.completedMatches : [];\n  if (!matches.length) return { newMatches: [] };\n  const existing = new Set(\n    (data.existing_match_keys || [])\n      .map(r => r && r.match_key)\n      .filter(Boolean)\n  );\n  return {\n    newMatches: matches.filter(m => !existing.has(`${m.completedAt}_${m.matchId}`))\n  };\n}"
+        },
+        "resolve": "851c41dd-c4c0-4862-9b1d-d3618c05fdea",
+        "reject": null
+      },
+      {
+        "id": "3e3081eb-3899-498b-9761-e95993984be8",
+        "name": "trigger save player events",
+        "key": "trigger_save_player_events",
+        "type": "trigger",
+        "position_x": 23,
+        "position_y": 21,
+        "options": {
+          "iterationMode": "parallel",
+          "payload": "{{get_players}}",
+          "flow": "8f57fd7e-e49c-4440-9b41-304d1dd0c577"
+        },
+        "resolve": null,
+        "reject": null
+      },
+      {
+        "id": "51f5df17-a4e7-4b49-85e3-82a0b677deb4",
+        "name": "trigger save completed matches",
+        "key": "trigger_save_completed_matches",
+        "type": "trigger",
+        "position_x": 42,
+        "position_y": 2,
+        "options": {
+          "iterationMode": "parallel",
+          "flow": "daa0ffa5-d040-4efd-af26-3ce063a81bc6",
+          "payload": "{{filter_new_matches.newMatches}}"
+        },
+        "resolve": "3e3081eb-3899-498b-9761-e95993984be8",
+        "reject": null
+      },
+      {
+        "id": "847929d4-7a36-4fe2-8f35-c11fa654be63",
+        "name": "assert new matches",
+        "key": "assert_new_matches",
+        "type": "exec",
+        "position_x": 30,
+        "position_y": 0,
+        "options": {
+          "code": "module.exports = async function(data) {\n  const nm = data.filter_new_matches?.newMatches;\n  if (!Array.isArray(nm) || nm.length === 0) {\n    throw new Error('NO_NEW_MATCHES');\n  }\n  return { ok: true };\n}"
+        },
+        "resolve": "51f5df17-a4e7-4b49-85e3-82a0b677deb4",
+        "reject": "3e3081eb-3899-498b-9761-e95993984be8"
+      },
+      {
+        "id": "851c41dd-c4c0-4862-9b1d-d3618c05fdea",
+        "name": "get players",
+        "key": "get_players",
+        "type": "exec",
+        "position_x": 23,
+        "position_y": 2,
+        "options": {
+          "code": "module.exports = async function(data) {\n    const mm = data.$trigger?.payload?.appState?.matchmaking;\n    if (!mm?.players || !mm?.completedMatches) return [];\n\n    const { players, completedMatches } = mm;\n    const result = [];\n\n    const matchPayloads = {};\n    for (const match of completedMatches) {\n        const key = `${match.completedAt}_${match.matchId}`;\n        const playerIds = new Set();\n        const collect = (team) => {\n            if (!team) return;\n            for (const { username } of team) {\n                const p = players[username];\n                if (p?.userId) playerIds.add(p.userId);\n            }\n        };\n        collect(match.teamA);\n        collect(match.teamB);\n\n        matchPayloads[key] = {\n            match_key: key,\n            match_id: match.matchId,\n            match_type: match.matchType,\n            team_a: match.teamA,\n            team_b: match.teamB,\n            team_a_score: match.teamAScore,\n            team_b_score: match.teamBScore,\n            started_at: match.startedAt ? new Date(match.startedAt).toISOString() : null,\n            completed_at: new Date(match.completedAt).toISOString(),\n            players: Array.from(playerIds, id => ({ directus_users_id: id })),\n            club: match.club || mm.clubUUID || null\n        };\n    }\n\n    const processTeam = (team, key) => {\n        if (!team) return;\n        for (const { username } of team) {\n            const player = players[username];\n            if (!player?.userId) continue;\n            if (!player.completed_matches) {\n                player.completed_matches = [];\n                result.push(player);\n            }\n            player.completed_matches.push(matchPayloads[key]);\n        }\n    };\n\n    for (const match of completedMatches) {\n        const key = `${match.completedAt}_${match.matchId}`;\n        processTeam(match.teamA, key);\n        processTeam(match.teamB, key);\n    }\n\n    return result;\n};"
+        },
+        "resolve": "847929d4-7a36-4fe2-8f35-c11fa654be63",
+        "reject": null
+      },
+      {
         "id": "eb4cf5d2-c196-43b0-b2f1-541795825a86",
         "name": "prep match keys",
         "key": "prep_match_keys",
@@ -4719,75 +4886,6 @@
         },
         "resolve": "35dd593e-4979-43f6-b44a-a95a405ba576",
         "reject": "35dd593e-4979-43f6-b44a-a95a405ba576"
-      },
-      {
-        "id": "35dd593e-4979-43f6-b44a-a95a405ba576",
-        "name": "filter new matches",
-        "key": "filter_new_matches",
-        "type": "exec",
-        "position_x": 20,
-        "position_y": 0,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const mm = data.$trigger?.payload?.appState?.matchmaking;\n  const matches = Array.isArray(mm?.completedMatches) ? mm.completedMatches : [];\n  if (!matches.length) return { newMatches: [] };\n  const existing = new Set(\n    (data.existing_match_keys || [])\n      .map(r => r && r.match_key)\n      .filter(Boolean)\n  );\n  return {\n    newMatches: matches.filter(m => !existing.has(`${m.completedAt}_${m.matchId}`))\n  };\n}"
-        },
-        "resolve": "851c41dd-c4c0-4862-9b1d-d3618c05fdea",
-        "reject": null
-      },
-      {
-        "id": "847929d4-7a36-4fe2-8f35-c11fa654be63",
-        "name": "assert new matches",
-        "key": "assert_new_matches",
-        "type": "exec",
-        "position_x": 30,
-        "position_y": 0,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const nm = data.filter_new_matches?.newMatches;\n  if (!Array.isArray(nm) || nm.length === 0) {\n    throw new Error('NO_NEW_MATCHES');\n  }\n  return { ok: true };\n}"
-        },
-        "resolve": "51f5df17-a4e7-4b49-85e3-82a0b677deb4",
-        "reject": "3e3081eb-3899-498b-9761-e95993984be8"
-      },
-      {
-        "id": "3e3081eb-3899-498b-9761-e95993984be8",
-        "name": "trigger save player events",
-        "key": "trigger_save_player_events",
-        "type": "trigger",
-        "position_x": 23,
-        "position_y": 21,
-        "options": {
-          "iterationMode": "parallel",
-          "payload": "{{get_players}}",
-          "flow": "8f57fd7e-e49c-4440-9b41-304d1dd0c577"
-        },
-        "resolve": null,
-        "reject": null
-      },
-      {
-        "id": "51f5df17-a4e7-4b49-85e3-82a0b677deb4",
-        "name": "trigger save completed matches",
-        "key": "trigger_save_completed_matches",
-        "type": "trigger",
-        "position_x": 42,
-        "position_y": 2,
-        "options": {
-          "iterationMode": "parallel",
-          "flow": "daa0ffa5-d040-4efd-af26-3ce063a81bc6",
-          "payload": "{{filter_new_matches.newMatches}}"
-        },
-        "resolve": "3e3081eb-3899-498b-9761-e95993984be8",
-        "reject": null
-      },
-      {
-        "id": "851c41dd-c4c0-4862-9b1d-d3618c05fdea",
-        "name": "get players",
-        "key": "get_players",
-        "type": "exec",
-        "position_x": 23,
-        "position_y": 2,
-        "options": {
-          "code": "module.exports = async function(data) {\n    const mm = data.$trigger?.payload?.appState?.matchmaking;\n    if (!mm?.players || !mm?.completedMatches) return [];\n\n    const { players, completedMatches } = mm;\n    const result = [];\n\n    const matchPayloads = {};\n    for (const match of completedMatches) {\n        const key = `${match.completedAt}_${match.matchId}`;\n        const playerIds = new Set();\n        const collect = (team) => {\n            if (!team) return;\n            for (const { username } of team) {\n                const p = players[username];\n                if (p?.userId) playerIds.add(p.userId);\n            }\n        };\n        collect(match.teamA);\n        collect(match.teamB);\n\n        matchPayloads[key] = {\n            match_key: key,\n            match_id: match.matchId,\n            match_type: match.matchType,\n            team_a: match.teamA,\n            team_b: match.teamB,\n            team_a_score: match.teamAScore,\n            team_b_score: match.teamBScore,\n            started_at: match.startedAt ? new Date(match.startedAt).toISOString() : null,\n            completed_at: new Date(match.completedAt).toISOString(),\n            players: Array.from(playerIds, id => ({ directus_users_id: id })),\n            club: match.club || mm.clubUUID || null\n        };\n    }\n\n    const processTeam = (team, key) => {\n        if (!team) return;\n        for (const { username } of team) {\n            const player = players[username];\n            if (!player?.userId) continue;\n            if (!player.completed_matches) {\n                player.completed_matches = [];\n                result.push(player);\n            }\n            player.completed_matches.push(matchPayloads[key]);\n        }\n    };\n\n    for (const match of completedMatches) {\n        const key = `${match.completedAt}_${match.matchId}`;\n        processTeam(match.teamA, key);\n        processTeam(match.teamB, key);\n    }\n\n    return result;\n};"
-        },
-        "resolve": "847929d4-7a36-4fe2-8f35-c11fa654be63",
-        "reject": null
       }
     ],
     "flow_manager_category": null,
@@ -5544,117 +5642,5 @@
     ],
     "flow_manager_category": null,
     "accountability": "all"
-  },
-  {
-    "id": "ce0eecd5-df4f-4fd0-9fb8-db6953c065dc",
-    "name": "sync club dupr flags",
-    "icon": "flag",
-    "color": "#6644ff",
-    "description": "Derives club.dupr_only/dupr_plus_only from appState.matchmaking.duprOnly/duprPlusOnly on every club update",
-    "status": "active",
-    "trigger": "event",
-    "accountability": "all",
-    "options": {
-      "type": "action",
-      "scope": [
-        "items.update"
-      ],
-      "collections": [
-        "club"
-      ]
-    },
-    "operation": "04e58847-d03f-4068-b790-49f5f46de1ee",
-    "date_created": "2026-11-17T09:05:51.169Z",
-    "user_created": "0ad68234-236f-46d3-bc42-8b5cf35e8e73",
-    "flow_manager_category": null,
-    "flow_manager_order": 0,
-    "flow_manager_last_run_at": "2026-11-17T17:06:32",
-    "flow_manager_run_counter": 1,
-    "flow_manager_last_run_operation": "04e58847-d03f-4068-b790-49f5f46de1ee",
-    "flow_manager_last_run_message": "skip: payload has no appState.matchmaking",
-    "flow_manager_success_counter": 0,
-    "flow_manager_error_counter": 1,
-    "operations": [
-      {
-        "id": "04e58847-d03f-4068-b790-49f5f46de1ee",
-        "name": "extract dupr flags",
-        "key": "extract_dupr_flags",
-        "type": "exec",
-        "position_x": 0,
-        "position_y": 0,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const t = data.$trigger || {};\n  const p = t.payload || {};\n  const mm = p.appState && p.appState.matchmaking;\n  if (!mm || typeof mm !== 'object') throw new Error('skip: payload has no appState.matchmaking');\n  const id = t.key\n    ?? (Array.isArray(t.keys) ? t.keys[0] : null)\n    ?? (p.keys && p.keys[0])\n    ?? p.id\n    ?? (p.item && p.item.id);\n  if (id == null) throw new Error('no club id in trigger');\n  return {\n    clubId: id,\n    dupr_only: mm.duprOnly === true,\n    dupr_plus_only: mm.duprPlusOnly === true,\n  };\n}"
-        },
-        "resolve": "382a0575-e7df-4724-ba66-f5772891462b",
-        "reject": null,
-        "flow": "ce0eecd5-df4f-4fd0-9fb8-db6953c065dc"
-      },
-      {
-        "id": "16e24043-a244-4d9b-b141-1e342118bfb3",
-        "name": "write dupr flags",
-        "key": "write_dupr_flags",
-        "type": "item-update",
-        "position_x": 60,
-        "position_y": 0,
-        "options": {
-          "permissions": "$full",
-          "emitEvents": false,
-          "collection": "club",
-          "key": [
-            "{{diff_dupr_flags.clubId}}"
-          ],
-          "payload": {
-            "dupr_only": "{{diff_dupr_flags.dupr_only}}",
-            "dupr_plus_only": "{{diff_dupr_flags.dupr_plus_only}}"
-          }
-        },
-        "resolve": null,
-        "reject": null,
-        "flow": "ce0eecd5-df4f-4fd0-9fb8-db6953c065dc"
-      },
-      {
-        "id": "382a0575-e7df-4724-ba66-f5772891462b",
-        "name": "read club flags",
-        "key": "read_club_flags",
-        "type": "item-read",
-        "position_x": 20,
-        "position_y": 0,
-        "options": {
-          "permissions": "$full",
-          "emitEvents": false,
-          "collection": "club",
-          "query": {
-            "filter": {
-              "id": {
-                "_eq": "{{extract_dupr_flags.clubId}}"
-              }
-            },
-            "fields": [
-              "id",
-              "dupr_only",
-              "dupr_plus_only"
-            ],
-            "limit": 1
-          }
-        },
-        "resolve": "7eb41fe4-a924-4512-8d74-a93d597d7a6e",
-        "reject": null,
-        "flow": "ce0eecd5-df4f-4fd0-9fb8-db6953c065dc"
-      },
-      {
-        "id": "7eb41fe4-a924-4512-8d74-a93d597d7a6e",
-        "name": "diff dupr flags",
-        "key": "diff_dupr_flags",
-        "type": "exec",
-        "position_x": 40,
-        "position_y": 0,
-        "options": {
-          "code": "module.exports = async function(data) {\n  const want = data.extract_dupr_flags || {};\n  const rows = data.read_club_flags || [];\n  const cur = rows[0] || {};\n  if (cur.dupr_only === want.dupr_only && cur.dupr_plus_only === want.dupr_plus_only) {\n    throw new Error('skip: flags unchanged');\n  }\n  return { clubId: want.clubId, dupr_only: want.dupr_only, dupr_plus_only: want.dupr_plus_only };\n}"
-        },
-        "resolve": "16e24043-a244-4d9b-b141-1e342118bfb3",
-        "reject": null,
-        "flow": "ce0eecd5-df4f-4fd0-9fb8-db6953c065dc"
-      }
-    ]
   }
 ]

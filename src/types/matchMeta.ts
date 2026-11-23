@@ -15,5 +15,8 @@ export interface MatchMeta {
   duprStatus?: string | null;
   duprError?: string | null;
   ratingApplied?: boolean;
-  ratingSkippedReason?: 'unrated_mode' | 'unlinked_players';
+  ratingSkippedReason?:
+    | 'unrated_mode'
+    | 'favorite_win_suppressed'
+    | 'unlinked_players';
 }

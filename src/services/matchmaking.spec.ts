@@ -5817,3 +5817,160 @@ describe('draftNextMatches — DFS budget & correctness fix', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// reportMatchScore — favorite-win rating suppression (SUPPRESS_FAVORITE_WIN_PROB)
+// A >=0.70 pre-match favorite that wins produces no rating delta (W/L still
+// count, meta stamped); upsets and <0.70 matches rate normally.
+// ---------------------------------------------------------------------------
+
+describe('reportMatchScore — favorite-win rating suppression', () => {
+  const addPlayer = (
+    sys: LocalMatchmakingSystem,
+    username: string,
+    rating: number,
+    linked = true,
+  ) => {
+    sys.state.players[username] = makePlayer(rating, {
+      username,
+      ...(linked ? { userId: `uid-${username}` } : {}),
+    });
+  };
+
+  const addMatch = (
+    sys: LocalMatchmakingSystem,
+    matchId: string,
+    teamA: string[],
+    teamB: string[],
+    matchmakingMode = 'balanced_variety',
+  ) => {
+    sys.state.activeMatches.push({
+      matchId,
+      queueSource: 'GENERAL',
+      teamA,
+      teamB,
+      expectedDifference: 0,
+      status: 'waiting',
+      createdAt: Date.now(),
+      matchmakingMode,
+    });
+  };
+
+  // 1700 vs 1500 → team favProb ≈ 0.76 >= SUPPRESS_FAVORITE_WIN_PROB (0.70)
+  const favoriteSetup = (sys: LocalMatchmakingSystem) => {
+    addPlayer(sys, 'a1', 1700);
+    addPlayer(sys, 'a2', 1700);
+    addPlayer(sys, 'b1', 1500);
+    addPlayer(sys, 'b2', 1500);
+  };
+
+  it('suppresses the rating shift when the >=0.70 favorite wins, but counts W/L', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    favoriteSetup(sys);
+    addMatch(sys, 'm-fav', ['a1', 'a2'], ['b1', 'b2']);
+
+    const completed = sys.reportMatchScore('m-fav', 11, 5);
+
+    expect(completed).toBeDefined();
+    expect(completed!.meta?.ratingApplied).toBe(false);
+    expect(completed!.meta?.ratingSkippedReason).toBe(
+      'favorite_win_suppressed',
+    );
+
+    // Ratings frozen for every player…
+    for (const u of ['a1', 'a2', 'b1', 'b2']) {
+      expect(sys.state.players[u].rating).toBe(
+        u.startsWith('a') ? 1700 : 1500,
+      );
+      expect(sys.state.players[u].ratingUpdatedAt).toBeUndefined();
+    }
+    // …but matchesPlayed/wins/losses still counted.
+    expect(sys.state.players.a1.matchesPlayed).toBe(1);
+    expect(sys.state.players.a1.wins).toBe(1);
+    expect(sys.state.players.a2.wins).toBe(1);
+    expect(sys.state.players.b1.matchesPlayed).toBe(1);
+    expect(sys.state.players.b1.losses).toBe(1);
+    expect(sys.state.players.b2.losses).toBe(1);
+  });
+
+  it('rates an upset (underdog wins) normally on the same matchup', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    favoriteSetup(sys);
+    addMatch(sys, 'm-upset', ['a1', 'a2'], ['b1', 'b2']);
+
+    const completed = sys.reportMatchScore('m-upset', 5, 11);
+
+    expect(completed).toBeDefined();
+    expect(completed!.meta?.ratingApplied).toBe(true);
+    expect(completed!.meta?.ratingSkippedReason).toBeUndefined();
+
+    // Underdog winners gained, favorite losers lost.
+    expect(sys.state.players.b1.rating).toBeGreaterThan(1500);
+    expect(sys.state.players.b2.rating).toBeGreaterThan(1500);
+    expect(sys.state.players.a1.rating).toBeLessThan(1700);
+    expect(sys.state.players.a2.rating).toBeLessThan(1700);
+    expect(sys.state.players.b1.wins).toBe(1);
+    expect(sys.state.players.a1.losses).toBe(1);
+  });
+
+  it('rates a <0.70 favorite win normally', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    // 1600 vs 1500 → favProb ≈ 0.64 < 0.70
+    addPlayer(sys, 'a1', 1600);
+    addPlayer(sys, 'a2', 1600);
+    addPlayer(sys, 'b1', 1500);
+    addPlayer(sys, 'b2', 1500);
+    addMatch(sys, 'm-close', ['a1', 'a2'], ['b1', 'b2']);
+
+    const completed = sys.reportMatchScore('m-close', 11, 5);
+
+    expect(completed).toBeDefined();
+    expect(completed!.meta?.ratingApplied).toBe(true);
+    expect(completed!.meta?.ratingSkippedReason).toBeUndefined();
+    expect(sys.state.players.a1.rating).toBeGreaterThan(1600);
+    expect(sys.state.players.b1.rating).toBeLessThan(1500);
+  });
+
+  it('keeps unrated_mode reason on non-competitive blowouts', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    favoriteSetup(sys);
+    addMatch(sys, 'm-unrated', ['a1', 'a2'], ['b1', 'b2'], 'fair_balance');
+
+    const completed = sys.reportMatchScore('m-unrated', 11, 0);
+
+    expect(completed).toBeDefined();
+    // unrated_mode takes priority over favorite_win_suppressed.
+    expect(completed!.meta?.ratingApplied).toBe(false);
+    expect(completed!.meta?.ratingSkippedReason).toBe('unrated_mode');
+    expect(sys.state.players.a1.rating).toBe(1700);
+    expect(sys.state.players.b1.rating).toBe(1500);
+    expect(sys.state.players.a1.wins).toBe(1);
+    expect(sys.state.players.b1.losses).toBe(1);
+  });
+
+  it('suppression takes precedence over unlinked_players and freezes guest ratings too', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    // Mixed linked/guest match — not allLinked, but still a >=0.70 favorite win.
+    addPlayer(sys, 'a1', 1700, true);
+    addPlayer(sys, 'a2', 1700, false); // guest — no userId
+    addPlayer(sys, 'b1', 1500, true);
+    addPlayer(sys, 'b2', 1500, true);
+    addMatch(sys, 'm-mixed', ['a1', 'a2'], ['b1', 'b2']);
+
+    const completed = sys.reportMatchScore('m-mixed', 11, 4);
+
+    expect(completed).toBeDefined();
+    expect(completed!.meta?.ratingApplied).toBe(false);
+    expect(completed!.meta?.ratingSkippedReason).toBe(
+      'favorite_win_suppressed',
+    );
+    // Nobody's rating moves — including the guest's local rating.
+    for (const u of ['a1', 'a2', 'b1', 'b2']) {
+      expect(sys.state.players[u].rating).toBe(
+        u.startsWith('a') ? 1700 : 1500,
+      );
+    }
+    expect(sys.state.players.a2.wins).toBe(1);
+    expect(sys.state.players.b1.losses).toBe(1);
+  });
+});
