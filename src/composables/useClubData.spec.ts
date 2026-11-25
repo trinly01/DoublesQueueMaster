@@ -569,6 +569,76 @@ describe('useClubData — dirty-unit tracked inbound merge', () => {
 });
 
 // ---------------------------------------------------------------------------
+// loadClubData — mergeEligible must honor the durable pending-sync marker.
+// Regression: an inbound pull-merge advances lastModified to the server's
+// stamp, so lastModified <= lastSyncedServerTimestamp while unpushed local
+// edits are still owed. Without the pending_sync_* check the gate routed the
+// next load to the server-wins overwrite and wiped the matches the pending
+// push existed to send.
+// ---------------------------------------------------------------------------
+describe('useClubData — mergeEligible honors pending sync', () => {
+  const makeCompletedMatch = (matchId: string, completedAt: number) =>
+    ({
+      matchId,
+      matchType: 'doubles',
+      teamA: [],
+      teamB: [],
+      teamAScore: 11,
+      teamBScore: 5,
+      completedAt,
+      updatedAt: completedAt,
+      club: CLUB_UUID,
+    }) as never;
+
+  const setupPendingScenario = () => {
+    // Local unpushed match + a lastModified already at/below the synced stamp
+    // (the post-inbound-merge state that used to flip mergeEligible false).
+    MatchmakingApp.state.completedMatches = [
+      makeCompletedMatch('local-only', 9000),
+    ];
+    MatchmakingApp.state.completedMatchIds = ['local-only'];
+    MatchmakingApp.state.lastModified = 5000;
+
+    const serverState = makeServerState({
+      completedMatches: [makeCompletedMatch('srv-1', 7000)],
+      completedMatchIds: ['srv-1'],
+      lastModified: 8000,
+    });
+    mocks.request.mockResolvedValue(makeClubPayload(serverState));
+    mocks.detectAdvantage.mockReturnValue(NO_FLAGS);
+
+    const { context, lastSyncedServerTimestamp } = makeContext();
+    lastSyncedServerTimestamp.value = 8000;
+    return { context, lastSyncedServerTimestamp };
+  };
+
+  it('merges (preserves the unpushed local match) when pending_sync marker is set', async () => {
+    const { context } = setupPendingScenario();
+    mocks.lsData[`pending_sync_${CLUB_ID}`] = Date.now();
+
+    const { loadClubData } = useClubData(context);
+    await loadClubData(CLUB_ID);
+
+    const ids = MatchmakingApp.state.completedMatches.map((m) => m.matchId);
+    expect(ids).toContain('local-only'); // unpushed local work survived
+    expect(ids).toContain('srv-1'); // server content adopted
+  });
+
+  it('still server-wins overwrites for a genuinely clean device (no marker, not dirty)', async () => {
+    const { context } = setupPendingScenario();
+    // No pending_sync marker AND lastModified <= lastSynced → clean device.
+    // The local 'local-only' match is treated as stale carryover and dropped.
+
+    const { loadClubData } = useClubData(context);
+    await loadClubData(CLUB_ID);
+
+    const ids = MatchmakingApp.state.completedMatches.map((m) => m.matchId);
+    expect(ids).not.toContain('local-only');
+    expect(ids).toContain('srv-1');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // club_meta_* verified flag (contract §4 write side)
 // ---------------------------------------------------------------------------
 describe('useClubData — club_meta privilege cache', () => {

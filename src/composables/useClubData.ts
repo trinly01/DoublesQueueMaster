@@ -667,10 +667,26 @@ export function useClubData(context: UseClubDataContext) {
           // state and being re-pushed. lastModified is stamped by saveState()
           // on every local mutation; persistSilently() does not stamp, so a
           // server-merged state never masquerades as a local edit.
+          //
+          // owesPendingSync: a device that still owes the server a push is NOT
+          // clean even when an inbound pull-merge already advanced
+          // lastModified to the server's stamp (mergeAppState sets
+          // lastModified = max(local, server)). The durable pending_sync_*
+          // marker — written the moment a push arms, survives reload — keeps
+          // such a device on the merge path so genuinely-unpushed local
+          // entities survive. Without it, lastModified == lastSynced after an
+          // inbound merge routes the next load to the server-wins overwrite,
+          // which wholesale-replaces completedMatches/activeMatches and wipes
+          // the very matches the pending push exists to send. Mirrors the
+          // hasPendingCloudSync disjunct in applyServerMatchmaking
+          // (useCloudSync).
+          const owesPendingSync =
+            LocalStorage.getItem(`pending_sync_${clubId}`) != null;
           const mergeEligible =
             isPrivilegedFromData &&
-            (MatchmakingApp.state.lastModified ?? 0) >
-              lastSyncedServerTimestamp.value;
+            ((MatchmakingApp.state.lastModified ?? 0) >
+              lastSyncedServerTimestamp.value ||
+              owesPendingSync);
 
           // Suppress settings_change logs during programmatic merge —
           // server-driven settings changes should not be attributed to the
@@ -1145,6 +1161,11 @@ export function useClubData(context: UseClubDataContext) {
               'Loaded club data, but some local sync failed. Refresh if data looks incorrect.',
             timeout: 5000,
           });
+        } finally {
+          // A merge/seed throw must not leave settings_change logging stuck
+          // off — the flag is set before the merge and cleared on success,
+          // but the catch path skipped it. finally covers both outcomes.
+          MatchmakingApp.suppressSettingsLog = false;
         }
 
         clubLoadingState.value = 'loaded';

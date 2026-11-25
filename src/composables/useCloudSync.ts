@@ -1503,10 +1503,20 @@ export function useCloudSync(ctx: CloudSyncContext) {
   };
 
   // visibilitychange covers the cases pagehide misses (mobile tab
-  // switchers, bfcache restores): flush the coalescer on either
-  // transition so a buffered burst can't stall behind a suspended timer.
+  // switchers, bfcache restores, AND screen-lock — which fires hidden but
+  // never pagehide). On hidden, flush the coalescer AND the deferred
+  // LocalStorage persist: the pending requestIdleCallback write may never
+  // run once the OS suspends the renderer, so a match scored in the last
+  // ~2s would otherwise be lost entirely. Kick the pending push too — the
+  // durable pending_sync_* marker covers a freeze that kills it mid-flight.
   const handleVisibilityChange = () => {
     flushRealtimeMatchmaking();
+    if (typeof document !== 'undefined' && document.hidden) {
+      MatchmakingApp.persistSilently();
+      if (hasPendingCloudSync.value) {
+        void performCloudSync();
+      }
+    }
   };
 
   onMounted(() => {

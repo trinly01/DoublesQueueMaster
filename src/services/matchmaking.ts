@@ -41,6 +41,61 @@ import {
 export * from './matchmaking-core';
 
 /**
+ * Repair a zero-validation LocalStorage read before it reaches live state.
+ * loadState()/loadFromClubCache() ingest the persisted blob verbatim; a
+ * structurally-corrupt entity (a match missing teamA/teamB, a null element,
+ * a non-array collection) then crashes mergeAppState's playersInMatches loop
+ * and every enforce*OnState pass — throwing on EVERY load ("local sync
+ * failed") and wedging the push/realtime merges that share the same merge.
+ * A match without both team arrays is unusable (can't render, score, or
+ * merge), so dropping it at the boundary is strictly safer than crashing
+ * downstream. Mutates and returns the passed blob — callers only ever pass a
+ * freshly-parsed/decode snapshot, never shared live state.
+ */
+function sanitizePersistedAppState(state: AppState): AppState {
+  const isRecord = (v: unknown): v is Record<string, unknown> =>
+    typeof v === 'object' && v !== null && !Array.isArray(v);
+  const isWellFormedMatch = (m: unknown): boolean =>
+    isRecord(m) &&
+    typeof m.matchId === 'string' &&
+    Array.isArray(m.teamA) &&
+    Array.isArray(m.teamB);
+
+  const cleanMatches = <T>(list: unknown): T[] => {
+    if (!Array.isArray(list)) return [];
+    const kept = list.filter(isWellFormedMatch);
+    if (kept.length !== list.length) {
+      console.warn(
+        '[sanitizePersistedAppState] dropped',
+        list.length - kept.length,
+        'malformed match(es) from persisted state',
+      );
+    }
+    return kept as T[];
+  };
+  const cleanEntityArray = <T>(list: unknown): T[] =>
+    Array.isArray(list) ? (list.filter(isRecord) as T[]) : [];
+
+  state.activeMatches = cleanMatches<ActiveMatch>(state.activeMatches);
+  state.completedMatches = cleanMatches<CompletedMatch>(
+    state.completedMatches,
+  );
+  state.queues = cleanEntityArray(state.queues);
+  state.actionLogs = cleanEntityArray(state.actionLogs);
+  state.completedMatchIds = Array.isArray(state.completedMatchIds)
+    ? state.completedMatchIds.filter((id) => typeof id === 'string')
+    : [];
+  if (!isRecord(state.players)) {
+    state.players = {};
+  } else {
+    for (const key of Object.keys(state.players)) {
+      if (!isRecord(state.players[key])) delete state.players[key];
+    }
+  }
+  return state;
+}
+
+/**
  * ==========================================
  * 4. PWA LOCAL STORAGE MANAGER
  * ==========================================
@@ -417,12 +472,12 @@ export class LocalMatchmakingSystem {
     if (!saved) return null;
     if (typeof saved === 'string') {
       try {
-        return JSON.parse(saved);
+        return sanitizePersistedAppState(JSON.parse(saved));
       } catch {
         return null;
       }
     }
-    return saved;
+    return sanitizePersistedAppState(saved);
   }
 
   public loadFromClubCache(clubId: string): AppState | null {
@@ -431,12 +486,12 @@ export class LocalMatchmakingSystem {
     if (!saved) return null;
     if (typeof saved === 'string') {
       try {
-        return JSON.parse(saved);
+        return sanitizePersistedAppState(JSON.parse(saved));
       } catch {
         return null;
       }
     }
-    return saved;
+    return sanitizePersistedAppState(saved);
   }
 
   public saveToClubCache(clubId: string) {
@@ -2371,6 +2426,7 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       ? ''
       : localClubUUID || serverClubUUID;
   let droppedForeignMatchCount = 0;
+  let droppedMalformedMatchCount = 0;
 
   // Merge matches using per-match updatedAt (or createdAt as fallback)
   const mergedMatches: typeof local.activeMatches = [];
@@ -2431,6 +2487,19 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   // final activeMatchesAfterCleanup filters deleted entries before the UI sees
   // them, and the 7-day / checkpoint purge eventually removes stale tombstones.
   allMatches.forEach(({ match }) => {
+    // Drop structurally-malformed matches HERE — before playersInMatches is
+    // computed below — so a record missing teamA/teamB (corrupt LS blob or a
+    // bad server write) can't crash the merge on m.teamA.forEach. Such a match
+    // is unusable anyway; dropping it is safer than throwing on every load.
+    if (
+      !match ||
+      typeof match !== 'object' ||
+      !Array.isArray(match.teamA) ||
+      !Array.isArray(match.teamB)
+    ) {
+      droppedMalformedMatchCount++;
+      return;
+    }
     // Drop proven-foreign matches HERE — before playersInMatches is computed
     // below — so a foreign match's players can't evict this club's queue
     // entries, and so the match never reaches the merged/pushed state.
@@ -2615,6 +2684,13 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       '[mergeAppState] dropped',
       droppedForeignMatchCount,
       'foreign-club matches',
+    );
+  }
+  if (droppedMalformedMatchCount > 0) {
+    console.warn(
+      '[mergeAppState] dropped',
+      droppedMalformedMatchCount,
+      'malformed matches (missing teamA/teamB)',
     );
   }
 
