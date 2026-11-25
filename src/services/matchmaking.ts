@@ -21,6 +21,7 @@ import {
   enforceOneMatchPerPlayerOnState,
   gcTombstones,
   getStorageKey,
+  isForeignClubMatch,
   levelSeedRating,
   matchCheckpointTime,
   playerCheckpointTime,
@@ -1570,6 +1571,7 @@ export class LocalMatchmakingSystem {
         generatedBy,
         matchmakingMode: this.state.matchmakingMode,
         generationType: 'auto' as const,
+        club: this.state.clubUUID || '',
       });
     }
 
@@ -2353,6 +2355,23 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
 
   latestPerPlayer.forEach((entry) => mergedQueues.push(entry));
 
+  // Cross-club contamination filter reference: matches carry a `club` stamp
+  // (Directus club UUID) from creation, and the merged state belongs to a
+  // single club. Both inputs normally carry the same clubUUID (the club row
+  // being merged); when only one side is stamped that side names the club.
+  // When they carry DIFFERENT non-empty stamps the target club is ambiguous —
+  // keep everything rather than risk dropping legit matches (the predicate is
+  // conservative anyway, and an ambiguous reference would make the filter
+  // order-dependent, breaking merge commutativity). Empty reference →
+  // isForeignClubMatch keeps all matches.
+  const localClubUUID = local.clubUUID || '';
+  const serverClubUUID = server.clubUUID || '';
+  const mergeClubUUID =
+    localClubUUID && serverClubUUID && localClubUUID !== serverClubUUID
+      ? ''
+      : localClubUUID || serverClubUUID;
+  let droppedForeignMatchCount = 0;
+
   // Merge matches using per-match updatedAt (or createdAt as fallback)
   const mergedMatches: typeof local.activeMatches = [];
   const allMatches = new Map<
@@ -2412,6 +2431,13 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   // final activeMatchesAfterCleanup filters deleted entries before the UI sees
   // them, and the 7-day / checkpoint purge eventually removes stale tombstones.
   allMatches.forEach(({ match }) => {
+    // Drop proven-foreign matches HERE — before playersInMatches is computed
+    // below — so a foreign match's players can't evict this club's queue
+    // entries, and so the match never reaches the merged/pushed state.
+    if (isForeignClubMatch(match.club, mergeClubUUID)) {
+      droppedForeignMatchCount++;
+      return;
+    }
     mergedMatches.push(match);
   });
 
@@ -2531,6 +2557,12 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
   let droppedMaxCompletedAt = 0;
   const droppedByResetIds: string[] = [];
   allCompleted.forEach(({ match }) => {
+    // Same cross-club guard as activeMatches above: a completed match stamped
+    // with a different club's UUID never enters the merged state.
+    if (isForeignClubMatch(match.club, mergeClubUUID)) {
+      droppedForeignMatchCount++;
+      return;
+    }
     const cancelledAt = cancelTombstones.get(match.matchId);
     if (
       cancelledAt !== undefined &&
@@ -2576,6 +2608,13 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
       '-',
       droppedMaxCompletedAt,
       ')',
+    );
+  }
+  if (droppedForeignMatchCount > 0) {
+    console.warn(
+      '[mergeAppState] dropped',
+      droppedForeignMatchCount,
+      'foreign-club matches',
     );
   }
 

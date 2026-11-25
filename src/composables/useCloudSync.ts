@@ -12,6 +12,7 @@ import {
   MatchmakingApp,
   mergeAppState,
   enforceCompletedCaps,
+  isForeignClubMatch,
 } from 'src/services/matchmaking';
 import type { AppState } from 'src/services/matchmaking';
 import { useNotify } from 'src/composables/useNotify';
@@ -617,8 +618,37 @@ export function useCloudSync(ctx: CloudSyncContext) {
           });
         }
 
+        // Cross-club contamination guard (club-contamination-fix-spec §B):
+        // the PATCHed appState strips matches proven stamped with a
+        // different club UUID so they can never reach this club's row,
+        // regardless of how they entered local state. Sanitizes a payload
+        // COPY only — live MatchmakingApp.state keeps them until the
+        // merge-side filter drops them locally; unstamped matches and an
+        // empty club context always pass (isForeignClubMatch is
+        // conservative by design).
+        const cu = currentClubUUID.value;
+        const keep = <T extends { club?: string }>(arr: T[] | undefined) =>
+          (arr || []).filter((m) => !isForeignClubMatch(m.club, cu));
+        const pushedActiveMatches = keep(MatchmakingApp.state.activeMatches);
+        const pushedCompletedMatches = keep(
+          MatchmakingApp.state.completedMatches,
+        );
+        const strippedForeignCount =
+          MatchmakingApp.state.activeMatches.length -
+            pushedActiveMatches.length +
+          (MatchmakingApp.state.completedMatches.length -
+            pushedCompletedMatches.length);
+        if (strippedForeignCount > 0) {
+          console.info(
+            `[cloudSync] push payload stripped ${strippedForeignCount} foreign-club match(es)`,
+          );
+        }
         const payload = {
-          matchmaking: MatchmakingApp.state,
+          matchmaking: {
+            ...MatchmakingApp.state,
+            activeMatches: pushedActiveMatches,
+            completedMatches: pushedCompletedMatches,
+          },
         };
         // Dirty-tracker baseline for THIS pushed blob — fingerprint now,
         // before the network await, so edits landing mid-flight are not

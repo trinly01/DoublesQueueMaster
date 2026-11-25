@@ -299,6 +299,7 @@ export function useManualSelection(context: UseManualSelectionContext) {
       minGamesPlayed,
       generatedBy: currentAdminName.value,
       generationType: 'manual' as const,
+      club: MatchmakingApp.state.clubUUID || '',
     });
 
     matchPlayers.forEach((p) => MatchmakingApp.removeFromQueue(p.username));

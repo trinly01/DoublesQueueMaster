@@ -2892,6 +2892,28 @@ const isCurrentUserAdmin = computed(() => {
 });
 watch(isCurrentUserAdmin, (val) => setAdminMode(val), { immediate: true });
 
+// Open Play has no club context. ClubPage is NOT remounted between
+// /club/:id and /openplay (same component, no router-view key), so the
+// singleton state would otherwise keep the previous club's identity and
+// matches drafted/scored here would be stamped `club: <realClubUUID>` —
+// which the cross-club guards then treat as legitimately belonging to
+// that club. Clear the persisted identity (stamps new matches + picks the
+// per-club LS key) and the live refs (sync/realtime/DUPR guards, plus the
+// completeMatch clubUUID re-stamp in useMatchActions). Realtime is stopped
+// first so its coalesced flush still lands under the old club's key.
+watch(
+  isOpenPlay,
+  (open) => {
+    if (!open) return;
+    stopRealtimeFn();
+    MatchmakingApp.state.clubId = '';
+    MatchmakingApp.state.clubUUID = '';
+    currentClubId.value = '';
+    currentClubUUID.value = '';
+  },
+  { immediate: true },
+);
+
 // match_key rows are written server-side: debounced appState push → club
 // PATCH → "Match" event flow → completed_match row. Fetching right after a
 // completion races that pipeline, so retry until every completed match

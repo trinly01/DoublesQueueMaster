@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ref, computed, nextTick, type Ref, type ComputedRef } from 'vue';
 import type { Router } from 'vue-router';
-import type { AppState } from 'src/services/matchmaking';
+import type {
+  AppState,
+  ActiveMatch,
+  CompletedMatch,
+} from 'src/services/matchmaking';
 import { MatchmakingApp } from 'src/services/matchmaking';
 import {
   detectServerResetAdvantage,
@@ -2155,5 +2159,136 @@ describe('useCloudSync — commit-order watermark', () => {
     expect(refs.lastAppliedCommitTs.value).toBeGreaterThanOrEqual(
       Date.parse(T_MID),
     );
+  });
+});
+
+// ===========================================================================
+// useCloudSync — push payload sanitization (cross-club contamination guard)
+// ===========================================================================
+
+describe('useCloudSync — push payload sanitization', () => {
+  const FOREIGN_CLUB = 'uuid-foreign-club';
+
+  function setupPrivilegedSync() {
+    seedVerifiedMeta('clubA', ['admin1'], []);
+    const refs = makeCtx();
+    const sync = useCloudSync(refs as unknown as CloudSyncContext);
+    sync.isOnline.value = true;
+    // Watermark at the probe's commit token so serverAheadOfApplied stays
+    // false — the CAS verify must not re-merge (and risk the remote-reset
+    // path) before the payload is built. Same trick as the slim-probe suite.
+    refs.lastAppliedCommitTs.value = Date.parse(INITIAL_DATE_UPDATED);
+    refs.lastSyncedServerTimestamp.value = 100;
+    serverMatchmaking = makeState({ lastModified: 100 });
+    serverTimestamp = 100;
+    return { refs, sync };
+  }
+
+  const pushedMatchmaking = () =>
+    (writeCalls[0].data as { appState: { matchmaking: AppState } }).appState
+      .matchmaking;
+
+  const activeFixture = (matchId: string, club?: string): ActiveMatch => ({
+    matchId,
+    queueSource: 'GENERAL',
+    teamA: ['p1'],
+    teamB: ['p2'],
+    expectedDifference: 0,
+    status: 'waiting',
+    club,
+  });
+
+  const completedFixture = (
+    matchId: string,
+    club: string,
+  ): CompletedMatch => ({
+    matchId,
+    matchType: 'doubles',
+    teamA: [],
+    teamB: [],
+    teamAScore: 0,
+    teamBScore: 0,
+    completedAt: 1,
+    updatedAt: 1,
+    club,
+  });
+
+  it('strips proven-foreign matches from the PATCHed appState only', async () => {
+    const { sync } = setupPrivilegedSync();
+
+    // Contaminated local state: foreign-stamped matches alongside legit
+    // same-club and unstamped (legacy) ones in both collections.
+    MatchmakingApp.state.activeMatches = [
+      activeFixture('act-foreign', FOREIGN_CLUB),
+      activeFixture('act-same', 'uuid-A'),
+      activeFixture('act-unstamped'),
+    ];
+    MatchmakingApp.state.completedMatches = [
+      completedFixture('cmp-foreign', FOREIGN_CLUB),
+      completedFixture('cmp-same', 'uuid-A'),
+      completedFixture('cmp-unstamped', ''),
+    ];
+
+    await sync.performCloudSync();
+
+    expect(writeCalls).toHaveLength(1);
+    const pushed = pushedMatchmaking();
+    // Foreign matches never reach the server row; same-club + unstamped
+    // survive, order preserved.
+    expect(pushed.activeMatches.map((m) => m.matchId)).toEqual([
+      'act-same',
+      'act-unstamped',
+    ]);
+    expect(pushed.completedMatches.map((m) => m.matchId)).toEqual([
+      'cmp-same',
+      'cmp-unstamped',
+    ]);
+    // The rest of the blob shape survives the spread — server still gets
+    // appState.matchmaking.* with stamps/backfills applied.
+    expect(pushed.clubUUID).toBe('uuid-A');
+    expect(typeof pushed.lastModified).toBe('number');
+    // The empty-club completedMatch was backfilled on live state BEFORE the
+    // payload build, so the pushed copy carries the current club stamp.
+    expect(
+      pushed.completedMatches.find((m) => m.matchId === 'cmp-unstamped')
+        ?.club,
+    ).toBe('uuid-A');
+
+    // Sanitization is payload-only: live state is NOT mutated — the foreign
+    // matches remain until the merge-side filter (spec work item A) drops
+    // them locally.
+    expect(MatchmakingApp.state.activeMatches.map((m) => m.matchId)).toContain(
+      'act-foreign',
+    );
+    expect(
+      MatchmakingApp.state.completedMatches.map((m) => m.matchId),
+    ).toContain('cmp-foreign');
+    expect(
+      MatchmakingApp.state.completedMatches.find(
+        (m) => m.matchId === 'cmp-unstamped',
+      )?.club,
+    ).toBe('uuid-A');
+  });
+
+  it('pushes empty match arrays when every local match is foreign', async () => {
+    const { sync } = setupPrivilegedSync();
+
+    MatchmakingApp.state.activeMatches = [
+      activeFixture('act-foreign-1', FOREIGN_CLUB),
+      activeFixture('act-foreign-2', FOREIGN_CLUB),
+    ];
+    MatchmakingApp.state.completedMatches = [
+      completedFixture('cmp-foreign', FOREIGN_CLUB),
+    ];
+
+    await sync.performCloudSync();
+
+    expect(writeCalls).toHaveLength(1);
+    const pushed = pushedMatchmaking();
+    expect(pushed.activeMatches).toEqual([]);
+    expect(pushed.completedMatches).toEqual([]);
+    // Live state untouched — payload-only sanitize.
+    expect(MatchmakingApp.state.activeMatches).toHaveLength(2);
+    expect(MatchmakingApp.state.completedMatches).toHaveLength(1);
   });
 });

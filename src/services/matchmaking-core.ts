@@ -98,6 +98,7 @@ export interface ActiveMatch {
   cancelledBy?: string; // Username of the admin who cancelled this match
   matchmakingMode?: string; // Matchmaking mode used at generation time
   generationType?: 'auto' | 'manual'; // Whether match was auto-drafted or manually created
+  club?: string; // Directus club UUID stamped at creation — provenance for cross-club merge/push filtering
   isEdited?: boolean; // True if match was edited after initial creation
   editedAt?: number; // Epoch ms when match was last edited
   originalMatchup?: string; // Original team pairing before edit, e.g. "A & B -VS- C & D"
@@ -311,6 +312,27 @@ export const RESET_LOG_ACTIONS = new Set([
 export function getStorageKey(clubId?: string): string {
   if (clubId) return `${PER_CLUB_KEY_PREFIX}${clubId}`;
   return STORAGE_KEY;
+}
+
+/**
+ * Cross-club contamination guard. appState is namespaced per club only at the
+ * storage/row level — inside the blob, matches carry a `club` provenance stamp
+ * (Directus club UUID) but merge/sync historically ignored it, so a match
+ * generated under club A could union into club B's state and push to B's row.
+ *
+ * Conservative by design: returns true ONLY for a *proven* foreign match —
+ * one stamped with a non-empty club UUID different from the current club's.
+ * Unstamped/empty `matchClub` (legacy records, open-play) and an empty
+ * `currentClubUUID` (no club context) both return false so we never drop a
+ * match we cannot prove belongs elsewhere.
+ */
+export function isForeignClubMatch(
+  matchClub: string | undefined | null,
+  currentClubUUID: string | undefined | null,
+): boolean {
+  if (!currentClubUUID) return false;
+  if (!matchClub) return false;
+  return matchClub !== currentClubUUID;
 }
 
 // ---------------------------------------------------------------------------

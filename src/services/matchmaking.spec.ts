@@ -5974,3 +5974,215 @@ describe('reportMatchScore — favorite-win rating suppression', () => {
     expect(sys.state.players.b1.losses).toBe(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// mergeAppState — cross-club contamination filter
+// Matches carry a `club` provenance stamp (Directus club UUID). mergeAppState
+// must drop matches proven foreign to the merged club while conservatively
+// keeping same-club, unstamped, and — when no club context exists — ALL matches.
+// ---------------------------------------------------------------------------
+
+describe('mergeAppState — cross-club contamination filter', () => {
+  const CLUB = 'club-uuid-current';
+  const FOREIGN = 'club-uuid-foreign';
+
+  it('drops a foreign-club completedMatch; keeps same-club and unstamped', () => {
+    const local = makeState({
+      clubUUID: CLUB,
+      completedMatches: [
+        makeCompletedMatch('cm-foreign', { club: FOREIGN }),
+        makeCompletedMatch('cm-same', { club: CLUB }),
+        makeCompletedMatch('cm-unstamped', { club: '' }),
+      ],
+      lastModified: 3000,
+    });
+    const server = makeState({ clubUUID: CLUB, lastModified: 1000 });
+
+    const merged = mergeAppState(local, server);
+    const ids = merged.completedMatches.map((m) => m.matchId);
+
+    expect(ids).not.toContain('cm-foreign');
+    expect(ids).toContain('cm-same');
+    expect(ids).toContain('cm-unstamped');
+    assertInvariants(merged);
+  });
+
+  it('drops foreign-club matches from BOTH sides of the merge', () => {
+    const local = makeState({
+      clubUUID: CLUB,
+      activeMatches: [
+        makeMatch('m-foreign-local', ['henry'], ['ivy'], {
+          club: FOREIGN,
+          updatedAt: 2000,
+        }),
+      ],
+      completedMatches: [makeCompletedMatch('cm-foreign-local', { club: FOREIGN })],
+      lastModified: 3000,
+    });
+    const server = makeState({
+      clubUUID: CLUB,
+      activeMatches: [
+        makeMatch('m-foreign-server', ['mallory'], ['bob'], {
+          club: FOREIGN,
+          updatedAt: 2000,
+        }),
+      ],
+      completedMatches: [
+        makeCompletedMatch('cm-foreign-server', { club: FOREIGN }),
+      ],
+      lastModified: 2000,
+    });
+
+    const merged = mergeAppState(local, server);
+    const activeIds = merged.activeMatches.map((m) => m.matchId);
+    const completedIds = merged.completedMatches.map((m) => m.matchId);
+
+    expect(activeIds).not.toContain('m-foreign-local');
+    expect(activeIds).not.toContain('m-foreign-server');
+    expect(completedIds).not.toContain('cm-foreign-local');
+    expect(completedIds).not.toContain('cm-foreign-server');
+    assertInvariants(merged);
+  });
+
+  it('empty clubUUID on both sides keeps every match (no club context)', () => {
+    const local = makeState({
+      activeMatches: [
+        makeMatch('m-foreign', ['mallory'], ['bob'], {
+          club: FOREIGN,
+          updatedAt: 2000,
+        }),
+      ],
+      completedMatches: [makeCompletedMatch('cm-foreign', { club: FOREIGN })],
+      lastModified: 3000,
+    });
+    const server = makeState({ lastModified: 1000 });
+
+    const merged = mergeAppState(local, server);
+
+    expect(merged.activeMatches.map((m) => m.matchId)).toContain('m-foreign');
+    expect(merged.completedMatches.map((m) => m.matchId)).toContain(
+      'cm-foreign',
+    );
+    assertInvariants(merged);
+  });
+
+  it('a single-sided clubUUID stamp still filters (legacy unstamped side)', () => {
+    // Local state predates clubUUID stamping; the server blob names the club.
+    const local = makeState({
+      completedMatches: [makeCompletedMatch('cm-foreign', { club: FOREIGN })],
+      lastModified: 3000,
+    });
+    const server = makeState({ clubUUID: CLUB, lastModified: 1000 });
+
+    const merged = mergeAppState(local, server);
+
+    expect(merged.completedMatches.map((m) => m.matchId)).not.toContain(
+      'cm-foreign',
+    );
+  });
+
+  it('disagreeing non-empty clubUUID stamps keep all matches (ambiguous, commutative)', () => {
+    const local = makeState({
+      clubUUID: CLUB,
+      completedMatches: [makeCompletedMatch('cm-x', { club: FOREIGN })],
+      lastModified: 2000,
+    });
+    const server = makeState({
+      clubUUID: 'club-uuid-other',
+      completedMatches: [
+        makeCompletedMatch('cm-y', { club: 'club-uuid-other' }),
+      ],
+      lastModified: 1000,
+    });
+
+    // mergeBothWays also proves the filter stays commutative when the two
+    // sides disagree — an order-dependent reference would diverge here.
+    const merged = mergeBothWays(local, server);
+    const ids = merged.completedMatches.map((m) => m.matchId);
+
+    expect(ids).toContain('cm-x');
+    expect(ids).toContain('cm-y');
+  });
+
+  it('dropped foreign activeMatch does NOT evict its players from merged queues', () => {
+    // mallory/bob sit in a foreign-club match on the server AND in this
+    // club's queue locally. If the foreign match leaked into mergedMatches,
+    // playersInMatches would strip their queue entries.
+    const local = makeState({
+      clubUUID: CLUB,
+      queues: [makeQueueEntry('mallory'), makeQueueEntry('bob')],
+      lastModified: 2000,
+    });
+    const server = makeState({
+      clubUUID: CLUB,
+      activeMatches: [
+        makeMatch('m-foreign', ['mallory', 'bob'], ['carol', 'dave'], {
+          club: FOREIGN,
+          updatedAt: 2000,
+        }),
+        makeMatch('m-same', ['erin'], ['frank'], {
+          club: CLUB,
+          updatedAt: 2000,
+        }),
+        makeMatch('m-unstamped', ['gina'], ['henry'], { updatedAt: 2000 }),
+      ],
+      lastModified: 2000,
+    });
+
+    const merged = mergeAppState(local, server);
+    const liveIds = merged.activeMatches
+      .filter((m) => !m.deletedAt)
+      .map((m) => m.matchId)
+      .sort();
+
+    expect(liveIds).toEqual(['m-same', 'm-unstamped']);
+    expect(
+      merged.activeMatches.find((m) => m.matchId === 'm-foreign'),
+    ).toBeUndefined();
+    // The foreign match's players keep their queue spots.
+    expect(
+      merged.queues.some((q) => q.username === 'mallory' && !q.deletedAt),
+    ).toBe(true);
+    expect(
+      merged.queues.some((q) => q.username === 'bob' && !q.deletedAt),
+    ).toBe(true);
+    assertInvariants(merged);
+  });
+});
+
+describe('draftNextMatches — club provenance stamp', () => {
+  const queueFour = (sys: LocalMatchmakingSystem) => {
+    ['a', 'b', 'c', 'd'].forEach((name, i) => {
+      sys.state.players[name] = makePlayer(1500, { username: name });
+      sys.state.queues.push({
+        username: name,
+        queueType: 'GENERAL',
+        enteredAt: 1000 + i,
+        createdAt: 1000,
+        updatedAt: 1000,
+        queuedAt: 1000,
+      });
+    });
+  };
+
+  it('stamps new active matches with state.clubUUID', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.clubUUID = 'club-uuid-current';
+    queueFour(sys);
+
+    sys.draftNextMatches('timestamp', 'test');
+
+    expect(sys.state.activeMatches.length).toBe(1);
+    expect(sys.state.activeMatches[0].club).toBe('club-uuid-current');
+  });
+
+  it('stamps an empty club when state.clubUUID is unset', () => {
+    const sys = new LocalMatchmakingSystem(2);
+    queueFour(sys);
+
+    sys.draftNextMatches('timestamp', 'test');
+
+    expect(sys.state.activeMatches.length).toBe(1);
+    expect(sys.state.activeMatches[0].club).toBe('');
+  });
+});
