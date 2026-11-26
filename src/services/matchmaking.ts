@@ -2434,10 +2434,10 @@ export function mergeAppState(
 
   latestPerPlayer.forEach((entry) => mergedQueues.push(entry));
 
-  // Cross-club contamination filter reference: matches carry a `club` stamp
-  // (Directus club UUID) from creation, and the merged state belongs to a
-  // Cross-club contamination guard reference UUID. Prefer the caller-
-  // supplied authoritative clubUUID — it names the club row actually being
+  // Cross-club contamination guard reference UUID: matches carry a `club`
+  // stamp (Directus club UUID) from creation, and the merged state belongs to
+  // a single club row. Prefer the caller-supplied authoritative clubUUID — it
+  // names the club row actually being
   // merged, immune to either side's (possibly stale/contaminated) clubUUID
   // stamp. Only when the caller doesn't supply one (tests / open-play) do we
   // fall back to the legacy two-sided derivation: both inputs normally carry
