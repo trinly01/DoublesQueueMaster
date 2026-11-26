@@ -8,6 +8,7 @@ import {
   MatchmakingApp,
   mergeAppState,
   enforceCompletedCaps,
+  filterForeignClubMatches,
 } from 'src/services/matchmaking';
 import type { AppState } from 'src/services/matchmaking';
 import { likhaClient, LIKHA_URL } from 'src/services/likhaClient';
@@ -318,10 +319,28 @@ export function useClubData(context: UseClubDataContext) {
     } | null;
 
     if (cachedState && Object.keys(cachedState).length > 0 && meta) {
+      // Cross-club guard: the per-club LS cache is user-writable and can carry
+      // matches stamped for a different club (a contaminated blob or stale
+      // cache). This restore runs before the network fetch returns, so an
+      // unguarded assign would resurrect foreign matches on every load.
+      // Strip proven-foreign matches; unstamped/legacy ones are kept.
+      // meta.clubUUID is the authoritative club UUID written at cache time.
+      const cacheClubUUID = meta.clubUUID || '';
+      const sanitizedCache: AppState = {
+        ...cachedState,
+        activeMatches: filterForeignClubMatches(
+          cachedState.activeMatches,
+          cacheClubUUID,
+        ),
+        completedMatches: filterForeignClubMatches(
+          cachedState.completedMatches,
+          cacheClubUUID,
+        ),
+      };
       // Restore the actual matchmaking state, not just meta.
       // Suppress settings_change logs — this is a cache restore, not a user action.
       MatchmakingApp.suppressSettingsLog = true;
-      Object.assign(MatchmakingApp.state, cachedState);
+      Object.assign(MatchmakingApp.state, sanitizedCache);
       MatchmakingApp.suppressSettingsLog = false;
       // Run the saveState checkpoint purge now — a blob cached by an older
       // version can carry pre-reset stat blocks/entities alongside the
@@ -818,6 +837,7 @@ export function useClubData(context: UseClubDataContext) {
                     mergeDirty,
                   ),
                   serverMatchmaking as AppState,
+                  currentClubUUID.value,
                 );
                 applyMergedState(MatchmakingApp.state, merged);
               } else {
@@ -832,6 +852,7 @@ export function useClubData(context: UseClubDataContext) {
                     mergeDirty,
                   ),
                   serverMatchmaking,
+                  currentClubUUID.value,
                 );
                 // Assign only keys whose content actually changed —
                 // identical merges keep their references and don't
@@ -850,6 +871,7 @@ export function useClubData(context: UseClubDataContext) {
                   MatchmakingApp.state,
                   serverMatchmaking,
                   resetAdvantage,
+                  currentClubUUID.value,
                 );
                 // Adopted collections are already constraint-clean on the
                 // server, but re-run the invariant in case local edits raced
@@ -902,6 +924,12 @@ export function useClubData(context: UseClubDataContext) {
               ) {
                 MatchmakingApp.state.queues = [...serverMatchmaking.queues];
               }
+              // Cross-club guard: this overwrite adopts the server blob
+              // verbatim for non-privileged/clean devices, bypassing
+              // mergeAppState's foreign-match filter. Strip proven-foreign
+              // matches (stamped with a different club UUID) before they
+              // enter local state; unstamped/legacy matches are kept.
+              const overwriteClubUUID = club.id;
               if (
                 serverMatchmaking.activeMatches &&
                 !collectionEqual(
@@ -909,9 +937,10 @@ export function useClubData(context: UseClubDataContext) {
                   serverMatchmaking.activeMatches,
                 )
               ) {
-                MatchmakingApp.state.activeMatches = [
-                  ...serverMatchmaking.activeMatches,
-                ];
+                MatchmakingApp.state.activeMatches = filterForeignClubMatches(
+                  serverMatchmaking.activeMatches,
+                  overwriteClubUUID,
+                );
               }
               if (
                 serverMatchmaking.completedMatches &&
@@ -920,9 +949,11 @@ export function useClubData(context: UseClubDataContext) {
                   serverMatchmaking.completedMatches,
                 )
               ) {
-                MatchmakingApp.state.completedMatches = [
-                  ...serverMatchmaking.completedMatches,
-                ];
+                MatchmakingApp.state.completedMatches =
+                  filterForeignClubMatches(
+                    serverMatchmaking.completedMatches,
+                    overwriteClubUUID,
+                  );
               }
               if (
                 serverMatchmaking.completedMatchIds &&
@@ -1025,10 +1056,12 @@ export function useClubData(context: UseClubDataContext) {
           // Ensure the club UUID is always present after any server state merge
           if (currentClubUUID.value) {
             MatchmakingApp.state.clubUUID = currentClubUUID.value;
-            // Backfill club on any completed matches that were created without it
-            MatchmakingApp.state.completedMatches.forEach((m) => {
-              if (!m.club) m.club = currentClubUUID.value;
-            });
+            // NOTE: no `club` backfill on completedMatches. Stamping unstamped
+            // matches with this club's UUID laundered potentially-foreign
+            // matches into "proven local" on every load — after which
+            // isForeignClubMatch could never detect them. Unstamped matches
+            // already pass the conservative predicate, so the stamp only
+            // destroyed provenance.
           }
 
           // Dirty privileged devices: persist() fires onStateChange → debounced cloud sync (push)

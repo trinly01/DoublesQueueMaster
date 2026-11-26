@@ -6,6 +6,7 @@
 
 import { toRaw } from 'vue';
 import { NEW_ACCOUNT_SEED_RATING } from './playerProfile';
+import { filterForeignClubMatches } from './matchmaking-core';
 import type { AppState, Player } from './matchmaking';
 
 /**
@@ -433,7 +434,25 @@ export const applyServerResetAdvantage = (
   merged: AppState,
   server: AppState,
   advantage: ServerResetAdvantage,
+  clubUUID?: string,
 ): AppState => {
+  // Cross-club seal: this wholesale adoption bypasses mergeAppState's
+  // foreign-match filter. A server blob stamped for a DIFFERENT club must not
+  // have its reset collections adopted at all. Gate only on a PROVEN
+  // mismatch — legacy blobs carry clubUUID='' and must still adopt, so an
+  // empty/missing stamp on either side is "cannot prove foreign" and falls
+  // through to normal adoption + the match filter below.
+  const provenForeignBlob =
+    !!server.clubUUID && !!clubUUID && server.clubUUID !== clubUUID;
+  if (provenForeignBlob) {
+    return merged;
+  }
+  // Post-filter adopted match arrays against the CALLER's authoritative
+  // club UUID (never merged.clubUUID — mergeAppState doesn't propagate it).
+  // An absent clubUUID degrades to the conservative keep-everything filter.
+  const adoptMatches = <T extends { club?: string }>(
+    arr: T[] | undefined,
+  ): T[] => filterForeignClubMatches(arr ?? [], clubUUID ?? '');
   if (advantage.players) {
     merged.players = server.players ? { ...server.players } : {};
     merged.playersResetAt = server.playersResetAt ?? 0;
@@ -443,11 +462,11 @@ export const applyServerResetAdvantage = (
     merged.queuesResetAt = server.queuesResetAt ?? 0;
   }
   if (advantage.matches) {
-    merged.activeMatches = [...(server.activeMatches ?? [])];
+    merged.activeMatches = adoptMatches(server.activeMatches);
     merged.matchesResetAt = server.matchesResetAt ?? 0;
   }
   if (advantage.completedMatches) {
-    merged.completedMatches = [...(server.completedMatches ?? [])];
+    merged.completedMatches = adoptMatches(server.completedMatches);
     if (server.completedMatchIds !== undefined) {
       merged.completedMatchIds = [...server.completedMatchIds];
     }

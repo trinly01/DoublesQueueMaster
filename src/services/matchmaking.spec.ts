@@ -5976,6 +5976,87 @@ describe('reportMatchScore — favorite-win rating suppression', () => {
 });
 
 // ---------------------------------------------------------------------------
+// reportMatchScore — cross-club guard
+// A match stamped for a different club must be refused BEFORE any rating /
+// history / queue mutation; a club-less scoring context preserves the match's
+// own club stamp on the completed record instead of overwriting it.
+// ---------------------------------------------------------------------------
+
+describe('reportMatchScore — cross-club guard', () => {
+  const setup = (clubUUID: string) => {
+    const sys = new LocalMatchmakingSystem(2);
+    sys.state.clubUUID = clubUUID;
+    for (const [u, r] of [
+      ['a1', 1500],
+      ['a2', 1500],
+      ['b1', 1500],
+      ['b2', 1500],
+    ] as const) {
+      sys.state.players[u] = makePlayer(r, { username: u });
+    }
+    return sys;
+  };
+  const pushMatch = (
+    sys: LocalMatchmakingSystem,
+    matchId: string,
+    club?: string,
+  ) => {
+    sys.state.activeMatches.push({
+      matchId,
+      queueSource: 'GENERAL',
+      teamA: ['a1', 'a2'],
+      teamB: ['b1', 'b2'],
+      expectedDifference: 0,
+      status: 'in-progress',
+      createdAt: Date.now(),
+      matchmakingMode: 'balanced_variety',
+      ...(club !== undefined ? { club } : {}),
+    });
+  };
+
+  it('refuses to score a match stamped for a foreign club', () => {
+    const sys = setup('club-current');
+    pushMatch(sys, 'm-foreign', 'club-foreign');
+
+    const completed = sys.reportMatchScore('m-foreign', 11, 5);
+
+    expect(completed).toBeUndefined();
+    // Nothing mutated: no completed record, no rating/W-L change, and the
+    // match is left active (not tombstoned).
+    expect(sys.state.completedMatches).toHaveLength(0);
+    expect(sys.state.completedMatchIds ?? []).not.toContain('m-foreign');
+    expect(sys.state.players.a1.wins).toBe(0);
+    expect(sys.state.players.a1.losses).toBe(0);
+    const still = sys.state.activeMatches.find((m) => m.matchId === 'm-foreign');
+    expect(still).toBeDefined();
+    expect(still?.deletedAt).toBeUndefined();
+  });
+
+  it('scores a same-club match normally', () => {
+    const sys = setup('club-current');
+    pushMatch(sys, 'm-same', 'club-current');
+
+    const completed = sys.reportMatchScore('m-same', 11, 5);
+
+    expect(completed).toBeDefined();
+    expect(completed!.club).toBe('club-current');
+    expect(sys.state.completedMatches).toHaveLength(1);
+  });
+
+  it('preserves the match club stamp when scoring in a club-less context', () => {
+    const sys = setup(''); // open-play / no club context
+    pushMatch(sys, 'm-stamped', 'club-original');
+
+    const completed = sys.reportMatchScore('m-stamped', 11, 5);
+
+    expect(completed).toBeDefined();
+    // Empty state.clubUUID → not foreign → scores; the match's own stamp is
+    // kept rather than overwritten with ''.
+    expect(completed!.club).toBe('club-original');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // mergeAppState — cross-club contamination filter
 // Matches carry a `club` provenance stamp (Directus club UUID). mergeAppState
 // must drop matches proven foreign to the merged club while conservatively
@@ -6102,6 +6183,41 @@ describe('mergeAppState — cross-club contamination filter', () => {
 
     expect(ids).toContain('cm-x');
     expect(ids).toContain('cm-y');
+  });
+
+  it('caller-supplied clubUUID resolves the ambiguous-stamp case', () => {
+    // local/server disagree on clubUUID → the legacy two-sided derivation is
+    // ambiguous and keeps everything. The caller knows the real club row, so
+    // it supplies the authoritative UUID and the filter engages anyway.
+    const local = makeState({
+      clubUUID: CLUB,
+      completedMatches: [
+        makeCompletedMatch('cm-foreign', { club: FOREIGN }),
+        makeCompletedMatch('cm-same', { club: CLUB }),
+      ],
+      lastModified: 2000,
+    });
+    const server = makeState({
+      clubUUID: 'club-uuid-other',
+      completedMatches: [
+        makeCompletedMatch('cm-other', { club: 'club-uuid-other' }),
+      ],
+      lastModified: 1000,
+    });
+
+    // Legacy path (no 3rd arg): ambiguous → keep all.
+    const legacy = mergeAppState(local, server);
+    expect(legacy.completedMatches.map((m) => m.matchId)).toEqual(
+      expect.arrayContaining(['cm-foreign', 'cm-same', 'cm-other']),
+    );
+
+    // Authoritative path: only the same-club match survives.
+    const merged = mergeAppState(local, server, CLUB);
+    const ids = merged.completedMatches.map((m) => m.matchId);
+    expect(ids).toContain('cm-same');
+    expect(ids).not.toContain('cm-foreign');
+    expect(ids).not.toContain('cm-other');
+    assertInvariants(merged);
   });
 
   it('dropped foreign activeMatch does NOT evict its players from merged queues', () => {

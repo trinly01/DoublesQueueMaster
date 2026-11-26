@@ -709,6 +709,116 @@ describe('applyServerResetAdvantage', () => {
     expect(merged.statsResetAt).toBe(9000);
     expect(merged.players).toEqual({ p: { username: 'p' } });
   });
+
+  // -- Cross-club seal -------------------------------------------------------
+
+  const allFlagged = {
+    players: true,
+    queues: true,
+    matches: true,
+    completedMatches: true,
+    actionLogs: true,
+    stats: true,
+  };
+
+  it('skips wholesale adoption when the server blob is stamped for a different club', () => {
+    const merged = makeState({
+      players: { keep: { username: 'keep' } } as never,
+      playersResetAt: 100,
+      queues: [{ id: 'lq' }] as never,
+    });
+    const server = makeState({
+      clubUUID: 'uuid-B', // proven foreign blob
+      players: {},
+      playersResetAt: 9000,
+      queues: [],
+      queuesResetAt: 9000,
+    });
+    const result = applyServerResetAdvantage(
+      merged,
+      server,
+      allFlagged,
+      'uuid-A',
+    );
+    // Proven-mismatch blob → merge result preserved, nothing adopted.
+    expect(result.players).toEqual({ keep: { username: 'keep' } });
+    expect(result.playersResetAt).toBe(100);
+    expect(result.queues).toEqual([{ id: 'lq' }]);
+  });
+
+  it('still adopts reset for a legacy blob with empty clubUUID', () => {
+    const merged = makeState({ playersResetAt: 100 });
+    const server = makeState({
+      clubUUID: '', // legacy — cannot prove foreign, must still adopt
+      players: {},
+      playersResetAt: 9000,
+    });
+    applyServerResetAdvantage(
+      merged,
+      server,
+      { ...allFlagged, queues: false, matches: false,
+        completedMatches: false, actionLogs: false, stats: false },
+      'uuid-A',
+    );
+    expect(merged.playersResetAt).toBe(9000);
+    expect(merged.players).toEqual({});
+  });
+
+  it('filters proven-foreign matches out of adopted match collections', () => {
+    const merged = makeState({});
+    const server = makeState({
+      clubUUID: 'uuid-A',
+      activeMatches: [
+        { matchId: 'act-foreign', club: 'uuid-B' },
+        { matchId: 'act-same', club: 'uuid-A' },
+        { matchId: 'act-unstamped' },
+      ] as never,
+      completedMatches: [
+        { matchId: 'cmp-foreign', club: 'uuid-B' },
+        { matchId: 'cmp-same', club: 'uuid-A' },
+      ] as never,
+      matchesResetAt: 9000,
+      completedMatchesResetAt: 9000,
+    });
+    applyServerResetAdvantage(
+      merged,
+      server,
+      { ...allFlagged, players: false, queues: false,
+        actionLogs: false, stats: false },
+      'uuid-A',
+    );
+    expect(merged.activeMatches.map((m) => m.matchId)).toEqual([
+      'act-same',
+      'act-unstamped',
+    ]);
+    expect(merged.completedMatches.map((m) => m.matchId)).toEqual([
+      'cmp-same',
+    ]);
+  });
+
+  it('keeps all matches when no authoritative clubUUID is supplied', () => {
+    const merged = makeState({});
+    const server = makeState({
+      activeMatches: [
+        { matchId: 'act-foreign', club: 'uuid-B' },
+        { matchId: 'act-same', club: 'uuid-A' },
+      ] as never,
+      matchesResetAt: 9000,
+    });
+    // No 4th arg → clubUUID undefined → conservative keep-all (legacy path).
+    applyServerResetAdvantage(merged, server, {
+      players: false,
+      queues: false,
+      matches: true,
+      completedMatches: false,
+      actionLogs: false,
+      stats: false,
+    });
+    expect(merged.activeMatches.map((m) => m.matchId)).toEqual([
+      'act-foreign',
+      'act-same',
+    ]);
+  });
 });
 
 // ===========================================================================
@@ -2213,7 +2323,7 @@ describe('useCloudSync — push payload sanitization', () => {
     club,
   });
 
-  it('strips proven-foreign matches from the PATCHed appState only', async () => {
+  it('strips proven-foreign matches from the PATCHed appState and live state', async () => {
     const { sync } = setupPrivilegedSync();
 
     // Contaminated local state: foreign-stamped matches alongside legit
@@ -2244,30 +2354,31 @@ describe('useCloudSync — push payload sanitization', () => {
       'cmp-unstamped',
     ]);
     // The rest of the blob shape survives the spread — server still gets
-    // appState.matchmaking.* with stamps/backfills applied.
+    // appState.matchmaking.* with stamps applied.
     expect(pushed.clubUUID).toBe('uuid-A');
     expect(typeof pushed.lastModified).toBe('number');
-    // The empty-club completedMatch was backfilled on live state BEFORE the
-    // payload build, so the pushed copy carries the current club stamp.
+    // No club backfill anymore: the unstamped completedMatch keeps its empty
+    // stamp — stamping it would launder provenance (contamination seal).
     expect(
       pushed.completedMatches.find((m) => m.matchId === 'cmp-unstamped')
         ?.club,
-    ).toBe('uuid-A');
+    ).toBe('');
 
-    // Sanitization is payload-only: live state is NOT mutated — the foreign
-    // matches remain until the merge-side filter (spec work item A) drops
-    // them locally.
-    expect(MatchmakingApp.state.activeMatches.map((m) => m.matchId)).toContain(
-      'act-foreign',
-    );
+    // Sanitization reaches LIVE state too: proven-foreign matches are
+    // removed outright so cache-restore / other adoption paths can't re-seed
+    // them. Same-club + unstamped survive, order preserved.
+    expect(MatchmakingApp.state.activeMatches.map((m) => m.matchId)).toEqual([
+      'act-same',
+      'act-unstamped',
+    ]);
     expect(
       MatchmakingApp.state.completedMatches.map((m) => m.matchId),
-    ).toContain('cmp-foreign');
+    ).toEqual(['cmp-same', 'cmp-unstamped']);
     expect(
       MatchmakingApp.state.completedMatches.find(
         (m) => m.matchId === 'cmp-unstamped',
       )?.club,
-    ).toBe('uuid-A');
+    ).toBe('');
   });
 
   it('pushes empty match arrays when every local match is foreign', async () => {
@@ -2287,8 +2398,9 @@ describe('useCloudSync — push payload sanitization', () => {
     const pushed = pushedMatchmaking();
     expect(pushed.activeMatches).toEqual([]);
     expect(pushed.completedMatches).toEqual([]);
-    // Live state untouched — payload-only sanitize.
-    expect(MatchmakingApp.state.activeMatches).toHaveLength(2);
-    expect(MatchmakingApp.state.completedMatches).toHaveLength(1);
+    // Live state is sanitized too — every match was proven foreign, so both
+    // collections are emptied locally (not just in the payload).
+    expect(MatchmakingApp.state.activeMatches).toHaveLength(0);
+    expect(MatchmakingApp.state.completedMatches).toHaveLength(0);
   });
 });

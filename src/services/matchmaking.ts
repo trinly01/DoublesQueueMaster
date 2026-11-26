@@ -1669,6 +1669,20 @@ export class LocalMatchmakingSystem {
       `[reportMatchScore] Completing match ${matchId}, returnMethod: ${returnMethod}`,
     );
 
+    // Cross-club guard: a match stamped for a different club must not be scored
+    // into this club's context — completing it would write a completed_match +
+    // DUPR submission under the wrong club and permanently re-attribute the
+    // match. Refuse BEFORE any rating/history/queue mutation so state stays
+    // consistent. Conservative predicate: unstamped matches and an empty
+    // state.clubUUID (open-play) are never refused.
+    if (isForeignClubMatch(match.club, this.state.clubUUID)) {
+      console.warn(
+        `[reportMatchScore] refusing to score foreign-club match ${matchId} ` +
+          `(match.club=${match.club}, clubUUID=${this.state.clubUUID})`,
+      );
+      return;
+    }
+
     // Hydrate players from usernames
     const teamA = match.teamA.map((u) => this.state.players[u]);
     const teamB = match.teamB.map((u) => this.state.players[u]);
@@ -1804,7 +1818,13 @@ export class LocalMatchmakingSystem {
       startedAt: match.startedAt,
       completedAt: now,
       updatedAt: now,
-      club: this.state.clubUUID || '',
+      // Preserve the active match's own club provenance instead of always
+      // re-stamping the viewing club — a match's club must not change because
+      // of who scored it. For legit matches match.club === state.clubUUID so
+      // this is identical; it only diverges for unstamped ('' → fallback) or
+      // club-context-less (open-play) matches, where keeping the original
+      // stamp is strictly better provenance.
+      club: match.club || this.state.clubUUID || '',
       meta: {
         generatedBy: match.generatedBy,
         editedBy: match.editedBy,
@@ -1920,7 +1940,11 @@ export class LocalMatchmakingSystem {
  * - matches: per-match updatedAt wins
  * - settings: settingsUpdatedAt wins
  */
-export function mergeAppState(local: AppState, server: AppState): AppState {
+export function mergeAppState(
+  local: AppState,
+  server: AppState,
+  clubUUID?: string,
+): AppState {
   const localTime = local.lastModified ?? 0;
   const serverTime = server.lastModified ?? 0;
   const localSettingsTime = local.settingsUpdatedAt ?? 0;
@@ -2412,19 +2436,25 @@ export function mergeAppState(local: AppState, server: AppState): AppState {
 
   // Cross-club contamination filter reference: matches carry a `club` stamp
   // (Directus club UUID) from creation, and the merged state belongs to a
-  // single club. Both inputs normally carry the same clubUUID (the club row
-  // being merged); when only one side is stamped that side names the club.
-  // When they carry DIFFERENT non-empty stamps the target club is ambiguous —
-  // keep everything rather than risk dropping legit matches (the predicate is
-  // conservative anyway, and an ambiguous reference would make the filter
+  // Cross-club contamination guard reference UUID. Prefer the caller-
+  // supplied authoritative clubUUID — it names the club row actually being
+  // merged, immune to either side's (possibly stale/contaminated) clubUUID
+  // stamp. Only when the caller doesn't supply one (tests / open-play) do we
+  // fall back to the legacy two-sided derivation: both inputs normally carry
+  // the same clubUUID; when only one side is stamped that side names the
+  // club; when they carry DIFFERENT non-empty stamps the target is ambiguous
+  // — keep everything rather than risk dropping legit matches (the predicate
+  // is conservative anyway, and an ambiguous reference would make the filter
   // order-dependent, breaking merge commutativity). Empty reference →
   // isForeignClubMatch keeps all matches.
   const localClubUUID = local.clubUUID || '';
   const serverClubUUID = server.clubUUID || '';
   const mergeClubUUID =
-    localClubUUID && serverClubUUID && localClubUUID !== serverClubUUID
-      ? ''
-      : localClubUUID || serverClubUUID;
+    clubUUID !== undefined
+      ? clubUUID
+      : localClubUUID && serverClubUUID && localClubUUID !== serverClubUUID
+        ? ''
+        : localClubUUID || serverClubUUID;
   let droppedForeignMatchCount = 0;
   let droppedMalformedMatchCount = 0;
 

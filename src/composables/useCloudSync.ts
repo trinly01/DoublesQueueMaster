@@ -12,6 +12,7 @@ import {
   MatchmakingApp,
   mergeAppState,
   enforceCompletedCaps,
+  filterForeignClubMatches,
   isForeignClubMatch,
 } from 'src/services/matchmaking';
 import type { AppState } from 'src/services/matchmaking';
@@ -218,12 +219,17 @@ export function useCloudSync(ctx: CloudSyncContext) {
       advantage.stats;
     if (!flagged) {
       return perfMeasure('cloudsync.merge', () =>
-        mergeAppState(local, server),
+        mergeAppState(local, server, currentClubUUID.value),
       );
     }
     const merged = perfMeasure('cloudsync.merge', () => {
-      const m = mergeAppState(local, server);
-      applyServerResetAdvantage(m, server, advantage);
+      const m = mergeAppState(local, server, currentClubUUID.value);
+      applyServerResetAdvantage(
+        m,
+        server,
+        advantage,
+        currentClubUUID.value,
+      );
       return m;
     });
     notify({
@@ -612,11 +618,11 @@ export function useCloudSync(ctx: CloudSyncContext) {
         const stamp = Date.now();
         MatchmakingApp.state.lastModified = stamp;
         MatchmakingApp.state.clubUUID = currentClubUUID.value;
-        if (currentClubUUID.value) {
-          MatchmakingApp.state.completedMatches.forEach((m) => {
-            if (!m.club) m.club = currentClubUUID.value;
-          });
-        }
+        // NOTE: no `club` backfill here. Stamping unstamped matches with the
+        // current club UUID laundered potentially-foreign matches into "proven
+        // local" — they then passed isForeignClubMatch forever. Unstamped
+        // matches already pass the conservative predicate, so the stamp bought
+        // nothing for legit matches and only destroyed provenance.
 
         // Cross-club contamination guard (club-contamination-fix-spec §B):
         // the PATCHed appState strips matches proven stamped with a
@@ -627,20 +633,51 @@ export function useCloudSync(ctx: CloudSyncContext) {
         // empty club context always pass (isForeignClubMatch is
         // conservative by design).
         const cu = currentClubUUID.value;
-        const keep = <T extends { club?: string }>(arr: T[] | undefined) =>
-          (arr || []).filter((m) => !isForeignClubMatch(m.club, cu));
-        const pushedActiveMatches = keep(MatchmakingApp.state.activeMatches);
-        const pushedCompletedMatches = keep(
+        const pushedActiveMatches = filterForeignClubMatches(
+          MatchmakingApp.state.activeMatches,
+          cu,
+        );
+        const pushedCompletedMatches = filterForeignClubMatches(
           MatchmakingApp.state.completedMatches,
+          cu,
         );
         const strippedForeignCount =
           MatchmakingApp.state.activeMatches.length -
             pushedActiveMatches.length +
           (MatchmakingApp.state.completedMatches.length -
             pushedCompletedMatches.length);
+
+        // completedMatchIds is a bare string list with no club stamp — keep
+        // it consistent with the stripped match set so a foreign matchId
+        // can't leak into this club's row or poison tombstone classification.
+        const foreignMatchIds = new Set<string>();
         if (strippedForeignCount > 0) {
+          for (const m of [
+            ...MatchmakingApp.state.activeMatches,
+            ...MatchmakingApp.state.completedMatches,
+          ]) {
+            if (isForeignClubMatch(m.club, cu)) foreignMatchIds.add(m.matchId);
+          }
+        }
+        const pushedCompletedMatchIds = foreignMatchIds.size
+          ? (MatchmakingApp.state.completedMatchIds ?? []).filter(
+              (id) => !foreignMatchIds.has(id),
+            )
+          : MatchmakingApp.state.completedMatchIds;
+
+        if (strippedForeignCount > 0) {
+          // Sanitize LIVE state too, not just the payload copy: proven-
+          // foreign matches don't belong to this club's blob, and leaving
+          // them lets cache-restore / other adoption paths re-seed them.
+          MatchmakingApp.state.activeMatches = [...pushedActiveMatches];
+          MatchmakingApp.state.completedMatches = [...pushedCompletedMatches];
+          if (foreignMatchIds.size && MatchmakingApp.state.completedMatchIds) {
+            MatchmakingApp.state.completedMatchIds = [
+              ...(pushedCompletedMatchIds ?? []),
+            ];
+          }
           console.info(
-            `[cloudSync] push payload stripped ${strippedForeignCount} foreign-club match(es)`,
+            `[cloudSync] push stripped ${strippedForeignCount} foreign-club match(es) from payload + live state`,
           );
         }
         const payload = {
@@ -648,12 +685,21 @@ export function useCloudSync(ctx: CloudSyncContext) {
             ...MatchmakingApp.state,
             activeMatches: pushedActiveMatches,
             completedMatches: pushedCompletedMatches,
+            completedMatchIds: pushedCompletedMatchIds ?? [],
           },
         };
-        // Dirty-tracker baseline for THIS pushed blob — fingerprint now,
-        // before the network await, so edits landing mid-flight are not
-        // in the accepted commit and must stay dirty for the next merge.
-        const pushedBaseline = captureBaseline(MatchmakingApp.state);
+        // Dirty-tracker baseline for THIS pushed blob — fingerprint the
+        // STRIPPED payload shape (not live state) so baseline ≡ the accepted
+        // commit. Fingerprinting unstripped state would record foreign
+        // matches as clean/synced and let them skip dirty-tracking next merge.
+        // Snapshot now, before the network await, so edits landing mid-flight
+        // are not in the accepted commit and must stay dirty for next merge.
+        const pushedBaseline = captureBaseline({
+          ...MatchmakingApp.state,
+          activeMatches: pushedActiveMatches,
+          completedMatches: pushedCompletedMatches,
+          completedMatchIds: pushedCompletedMatchIds ?? [],
+        } as AppState);
 
         const casResult: unknown = await perfMeasureAsync(
           'cloudsync.push',
@@ -944,6 +990,15 @@ export function useCloudSync(ctx: CloudSyncContext) {
     ) {
       MatchmakingApp.state.queues = [...serverMatchmaking.queues];
     }
+    // Cross-club guard: this wholesale overwrite bypasses mergeAppState's
+    // foreign-match filter, so a contaminated server blob would adopt
+    // foreign-club matches verbatim for non-privileged/clean devices.
+    // Strip proven-foreign matches; unstamped/legacy ones are kept. Also
+    // (re)stamp state.clubUUID to the authoritative current club — this path
+    // previously never set it, leaving a stale stamp that fed the
+    // mergeClubUUID ambiguity hole.
+    const overwriteClubUUID = currentClubUUID.value;
+    MatchmakingApp.state.clubUUID = overwriteClubUUID;
     if (
       serverMatchmaking.activeMatches &&
       !collectionEqual(
@@ -951,9 +1006,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
         serverMatchmaking.activeMatches,
       )
     ) {
-      MatchmakingApp.state.activeMatches = [
-        ...serverMatchmaking.activeMatches,
-      ];
+      MatchmakingApp.state.activeMatches = filterForeignClubMatches(
+        serverMatchmaking.activeMatches,
+        overwriteClubUUID,
+      );
     }
     if (
       serverMatchmaking.completedMatches &&
@@ -962,9 +1018,10 @@ export function useCloudSync(ctx: CloudSyncContext) {
         serverMatchmaking.completedMatches,
       )
     ) {
-      MatchmakingApp.state.completedMatches = [
-        ...serverMatchmaking.completedMatches,
-      ];
+      MatchmakingApp.state.completedMatches = filterForeignClubMatches(
+        serverMatchmaking.completedMatches,
+        overwriteClubUUID,
+      );
     }
     if (
       serverMatchmaking.completedMatchIds &&

@@ -335,6 +335,44 @@ export function isForeignClubMatch(
   return matchClub !== currentClubUUID;
 }
 
+/**
+ * Returns `matches` with proven-foreign-club entries removed. This is the
+ * single boundary guard applied wherever server/cache state is adopted into a
+ * club's local `appState` (overwrite, reset-advantage, cache-restore, push) so
+ * the foreign-match predicate can't drift across call sites.
+ *
+ * Conservative like `isForeignClubMatch`: unstamped matches and an empty
+ * `currentClubUUID` are always kept — we never drop a match we cannot prove
+ * belongs elsewhere. Always returns a fresh array (never the input reference)
+ * so callers can safely use the result as a snapshot for payloads/merges.
+ */
+export function filterForeignClubMatches<
+  T extends { club?: string | null },
+>(
+  matches: readonly T[] | undefined | null,
+  currentClubUUID: string | undefined | null,
+): T[] {
+  if (!matches || matches.length === 0) return [];
+  let dropped = 0;
+  const kept = matches.filter((m) => {
+    const foreign = isForeignClubMatch(m?.club, currentClubUUID);
+    if (foreign) dropped++;
+    return !foreign;
+  });
+  if (dropped > 0) {
+    const ids = matches
+      .filter((m) => isForeignClubMatch(m?.club, currentClubUUID))
+      .map((m) => (m as { matchId?: string }).matchId)
+      .filter(Boolean);
+    console.warn(
+      `[filterForeignClubMatches] dropped ${dropped} foreign-club match(es) ` +
+        `for club ${currentClubUUID}:`,
+      ids,
+    );
+  }
+  return kept;
+}
+
 // ---------------------------------------------------------------------------
 // Reset-checkpoint predicates — the SINGLE rule for "did this entity see a
 // write at/after its collection's reset checkpoint". Shared by mergeAppState's
