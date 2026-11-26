@@ -61,8 +61,10 @@ export interface DirectusCompletedMatch {
       username?: string;
       first_name?: string;
       last_name?: string;
+      email?: string;
       rating?: number;
       avatar?: string;
+      dupr_id?: string;
     };
   }[];
 }
@@ -238,7 +240,19 @@ export class PlayerProfileService {
                 'club.clubId',
                 'club.name',
                 'club.logo',
-                'players.directus_users_id.*',
+                // Narrow junction-user fields, never `*`: the wildcard pulls
+                // every directus_users column (password hash, tfa_secret,
+                // token, auth_data…) into localStorage once per player per
+                // match — ~13KB/match that blew the 5MB quota at ~285 matches
+                // and leaked credential material into the cache.
+                'players.directus_users_id.id',
+                'players.directus_users_id.username',
+                'players.directus_users_id.first_name',
+                'players.directus_users_id.last_name',
+                'players.directus_users_id.email',
+                'players.directus_users_id.rating',
+                'players.directus_users_id.avatar',
+                'players.directus_users_id.dupr_id',
               ],
               sort: ['-completed_at'],
               limit: 500,
